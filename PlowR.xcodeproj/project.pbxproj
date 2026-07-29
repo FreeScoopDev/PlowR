@@ -6,19 +6,97 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		602AA0133018663F00841B7B /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 602AA0123018663F00841B7B /* WidgetKit.framework */; };
+		602AA0153018663F00841B7B /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 602AA0143018663F00841B7B /* SwiftUI.framework */; };
+		602AA0263018664000841B7B /* PlowRWidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 602AA0103018663F00841B7B /* PlowRWidgetsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		602AA0243018664000841B7B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 60E594623017F85100347251 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 602AA00F3018663F00841B7B;
+			remoteInfo = PlowRWidgetsExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		602AA02B3018664000841B7B /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				602AA0263018664000841B7B /* PlowRWidgetsExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		602AA0103018663F00841B7B /* PlowRWidgetsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PlowRWidgetsExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		602AA0123018663F00841B7B /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		602AA0143018663F00841B7B /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		60E5946A3017F85100347251 /* PlowR.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PlowR.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		602A9FE330183FA300841B7B /* Exceptions for "PlowR" folder in "PlowR" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 60E594693017F85100347251 /* PlowR */;
+		};
+		602AA02A3018664000841B7B /* Exceptions for "PlowRWidgets" folder in "PlowRWidgetsExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 602AA00F3018663F00841B7B /* PlowRWidgetsExtension */;
+		};
+		602AA02D3018671D00841B7B /* Exceptions for "PlowR" folder in "PlowRWidgetsExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Activity/RouteActivityAttributes.swift,
+			);
+			target = 602AA00F3018663F00841B7B /* PlowRWidgetsExtension */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		602AA0163018663F00841B7B /* PlowRWidgets */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				602AA02A3018664000841B7B /* Exceptions for "PlowRWidgets" folder in "PlowRWidgetsExtension" target */,
+			);
+			path = PlowRWidgets;
+			sourceTree = "<group>";
+		};
 		60E5946C3017F85100347251 /* PlowR */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				602A9FE330183FA300841B7B /* Exceptions for "PlowR" folder in "PlowR" target */,
+				602AA02D3018671D00841B7B /* Exceptions for "PlowR" folder in "PlowRWidgetsExtension" target */,
+			);
 			path = PlowR;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		602AA00D3018663F00841B7B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				602AA0153018663F00841B7B /* SwiftUI.framework in Frameworks */,
+				602AA0133018663F00841B7B /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		60E594673017F85100347251 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -29,10 +107,21 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		602AA0113018663F00841B7B /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				602AA0123018663F00841B7B /* WidgetKit.framework */,
+				602AA0143018663F00841B7B /* SwiftUI.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		60E594613017F85100347251 = {
 			isa = PBXGroup;
 			children = (
 				60E5946C3017F85100347251 /* PlowR */,
+				602AA0163018663F00841B7B /* PlowRWidgets */,
+				602AA0113018663F00841B7B /* Frameworks */,
 				60E5946B3017F85100347251 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,6 +130,7 @@
 			isa = PBXGroup;
 			children = (
 				60E5946A3017F85100347251 /* PlowR.app */,
+				602AA0103018663F00841B7B /* PlowRWidgetsExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -48,6 +138,28 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		602AA00F3018663F00841B7B /* PlowRWidgetsExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 602AA0273018664000841B7B /* Build configuration list for PBXNativeTarget "PlowRWidgetsExtension" */;
+			buildPhases = (
+				602AA00C3018663F00841B7B /* Sources */,
+				602AA00D3018663F00841B7B /* Frameworks */,
+				602AA00E3018663F00841B7B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				602AA0163018663F00841B7B /* PlowRWidgets */,
+			);
+			name = PlowRWidgetsExtension;
+			packageProductDependencies = (
+			);
+			productName = PlowRWidgetsExtension;
+			productReference = 602AA0103018663F00841B7B /* PlowRWidgetsExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		60E594693017F85100347251 /* PlowR */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 60E594753017F85300347251 /* Build configuration list for PBXNativeTarget "PlowR" */;
@@ -55,10 +167,12 @@
 				60E594663017F85100347251 /* Sources */,
 				60E594673017F85100347251 /* Frameworks */,
 				60E594683017F85100347251 /* Resources */,
+				602AA02B3018664000841B7B /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				602AA0253018664000841B7B /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				60E5946C3017F85100347251 /* PlowR */,
@@ -80,6 +194,9 @@
 				LastSwiftUpdateCheck = 2660;
 				LastUpgradeCheck = 2660;
 				TargetAttributes = {
+					602AA00F3018663F00841B7B = {
+						CreatedOnToolsVersion = 26.6;
+					};
 					60E594693017F85100347251 = {
 						CreatedOnToolsVersion = 26.6;
 					};
@@ -100,11 +217,19 @@
 			projectRoot = "";
 			targets = (
 				60E594693017F85100347251 /* PlowR */,
+				602AA00F3018663F00841B7B /* PlowRWidgetsExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		602AA00E3018663F00841B7B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		60E594683017F85100347251 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -115,6 +240,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		602AA00C3018663F00841B7B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		60E594663017F85100347251 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -124,7 +256,75 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		602AA0253018664000841B7B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 602AA00F3018663F00841B7B /* PlowRWidgetsExtension */;
+			targetProxy = 602AA0243018664000841B7B /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		602AA0283018664000841B7B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 7U83DJ2F97;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PlowRWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = PlowRWidgets;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = Scoops.PlowR.PlowRWidgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		602AA0293018664000841B7B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 7U83DJ2F97;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PlowRWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = PlowRWidgets;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = Scoops.PlowR.PlowRWidgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		60E594733017F85300347251 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -251,11 +451,18 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_ENTITLEMENTS = PlowR/PlowR.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 7U83DJ2F97;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PlowR/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = PlowR;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "PlowR uses your location in the background to detect when you've left a job and prompt you to notify the next client.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "PlowR uses your location to calculate arrival times for clients.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -283,11 +490,18 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_ENTITLEMENTS = PlowR/PlowR.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 7U83DJ2F97;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PlowR/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = PlowR;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "PlowR uses your location in the background to detect when you've left a job and prompt you to notify the next client.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "PlowR uses your location to calculate arrival times for clients.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -313,6 +527,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		602AA0273018664000841B7B /* Build configuration list for PBXNativeTarget "PlowRWidgetsExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				602AA0283018664000841B7B /* Debug */,
+				602AA0293018664000841B7B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		60E594653017F85100347251 /* Build configuration list for PBXProject "PlowR" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

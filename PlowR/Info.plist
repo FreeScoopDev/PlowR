@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>PlowR uses your location to track your position during an active route.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>PlowR uses your location in the background to automatically detect when you leave a stop and prompt you to notify the next client.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>PlowR uses your location in the background to automatically detect when you leave a stop and prompt you to notify the next client.</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>comgooglemaps</string>
+		<string>waze</string>
+	</array>
+</dict>
+</plist>

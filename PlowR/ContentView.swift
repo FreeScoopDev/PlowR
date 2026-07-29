@@ -1,24 +1,27 @@
-//
-//  ContentView.swift
-//  PlowR
-//
-//  Created by Joe Amanatidis on 7/27/26.
-//
-
 import SwiftUI
 
 struct ContentView: View {
+    @Environment(AuthManager.self) private var authManager
+    @AppStorage("userRole") private var userRole = ""
+
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        Group {
+            if userRole.isEmpty {
+                RoleSelectionView()
+            } else if userRole == "client" {
+                ClientHomeView()
+            } else {
+                if authManager.isSignedIn {
+                    MainTabView()
+                } else {
+                    SignInView()
+                }
+            }
         }
-        .padding()
     }
 }
 
 #Preview {
     ContentView()
+        .environment(AuthManager())
 }
