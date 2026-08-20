@@ -26,6 +26,8 @@ final class Client {
     var preferredPayment: String = ""   // "cash", "check", "zelle", "card", or ""
     var isComped: Bool = false
     var defaultDiscountPercent: Double = 0.0
+    var email: String = ""
+    var tags: [String] = []
 
     var averageServiceMinutes: Double {
         guard totalVisits > 0 else { return 0 }

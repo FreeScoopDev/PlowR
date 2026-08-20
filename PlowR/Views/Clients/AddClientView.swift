@@ -10,6 +10,7 @@ struct AddClientView: View {
 
     @State private var name = ""
     @State private var phone = ""
+    @State private var email = ""
     @State private var address = ""
     @State private var geocodedCoordinate: CLLocationCoordinate2D? = nil
     @State private var isSaving = false
@@ -25,6 +26,10 @@ struct AddClientView: View {
                     TextField("Phone Number", text: $phone)
                         .textContentType(.telephoneNumber)
                         .keyboardType(.phonePad)
+                    TextField("Email (optional)", text: $email)
+                        .textContentType(.emailAddress)
+                        .keyboardType(.emailAddress)
+                        .textInputAutocapitalization(.never)
                 }
 
                 Section("Service Address") {
@@ -102,6 +107,7 @@ struct AddClientView: View {
             address: address,
             operatorID: authManager.userID
         )
+        client.email = email
 
         if let coord = geocodedCoordinate {
             client.latitude = coord.latitude

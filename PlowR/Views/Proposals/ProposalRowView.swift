@@ -55,6 +55,19 @@ struct ProposalRowView: View {
                     .background(status.chipColor.opacity(0.13))
                     .foregroundStyle(status.chipColor)
                     .clipShape(Capsule())
+
+                if !proposal.isInvoice, let expiry = proposal.validUntil {
+                    let daysLeft = Calendar.current.dateComponents([.day], from: Calendar.current.startOfDay(for: Date()), to: expiry).day ?? Int.max
+                    if daysLeft >= 0 && daysLeft <= 3 {
+                        Label(daysLeft == 0 ? "Expires today" : "Expires in \(daysLeft)d", systemImage: "clock.badge.exclamationmark")
+                            .font(.caption2)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background(Color.orange.opacity(0.13))
+                            .foregroundStyle(.orange)
+                            .clipShape(Capsule())
+                    }
+                }
             }
         }
         .padding(.vertical, 4)

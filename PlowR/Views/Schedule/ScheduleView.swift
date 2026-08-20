@@ -11,6 +11,8 @@ struct ScheduleView: View {
     @State private var showingAddVisit = false
     @State private var visitToEdit: ScheduledVisit?
     @State private var invoicingVisit: ScheduledVisit?
+    @State private var showingRouteCreated = false
+    @State private var createdRouteName = ""
 
     // MARK: - Computed Properties
 
@@ -84,6 +86,11 @@ struct ScheduleView: View {
                     }
                 }
             }
+            .alert("Route Created", isPresented: $showingRouteCreated) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text("\"\(createdRouteName)\" has been added to your Routes tab.")
+            }
         }
     }
 
@@ -141,10 +148,23 @@ struct ScheduleView: View {
                 }
             }
         } header: {
-            Label(selectedDate.formatted(.dateTime.weekday(.wide).month(.wide).day()), systemImage: "calendar")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.primary)
-                .textCase(nil)
+            HStack {
+                Label(selectedDate.formatted(.dateTime.weekday(.wide).month(.wide).day()), systemImage: "calendar")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .textCase(nil)
+                Spacer()
+                let scheduledClientVisits = visitsForSelectedDate.filter { $0.status == .scheduled && !$0.clientID.isEmpty }
+                if !scheduledClientVisits.isEmpty {
+                    Button {
+                        createRouteFromSchedule()
+                    } label: {
+                        Label("Create Route", systemImage: "map.badge.plus")
+                            .font(.caption.weight(.semibold))
+                            .textCase(nil)
+                    }
+                }
+            }
         }
     }
 
@@ -306,6 +326,27 @@ struct ScheduleView: View {
     }
 
     // MARK: - Actions
+
+    private func createRouteFromSchedule() {
+        let dateLabel = selectedDate.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
+        let name = "Route – \(dateLabel)"
+        let route = PlowRoute(name: name, operatorID: authManager.userID)
+        modelContext.insert(route)
+
+        let scheduled = visitsForSelectedDate.filter { $0.status == .scheduled }
+        var order = 0
+        for visit in scheduled {
+            if let client = allClients.first(where: { $0.id.uuidString == visit.clientID && $0.operatorID == authManager.userID }) {
+                let stop = RouteStop(order: order, client: client)
+                stop.route = route
+                modelContext.insert(stop)
+                order += 1
+            }
+        }
+
+        createdRouteName = name
+        showingRouteCreated = true
+    }
 
     private func markComplete(_ visit: ScheduledVisit) {
         visit.status = .completed

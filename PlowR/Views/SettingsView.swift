@@ -22,15 +22,9 @@ struct SettingsView: View {
                 }
             }
 
-            Section("Configuration") {
-                NavigationLink(destination: ClientListView()) {
-                    Label("Clients", systemImage: "person.2")
-                }
-                NavigationLink(destination: RouteListView()) {
-                    Label("Routes", systemImage: "map")
-                }
+            Section("Reports") {
                 NavigationLink(destination: ClientStatsView()) {
-                    Label("Reports", systemImage: "chart.bar.doc.horizontal")
+                    Label("Season Summary", systemImage: "chart.bar.doc.horizontal")
                 }
             }
 

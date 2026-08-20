@@ -19,6 +19,7 @@ struct EditClientView: View {
 
     @State private var name: String
     @State private var phone: String
+    @State private var email: String
     @State private var address: String
     @State private var skipNotificationPrompt: Bool
     @State private var goalMinutes: Int
@@ -26,6 +27,8 @@ struct EditClientView: View {
     @State private var preferredPayment: String
     @State private var isComped: Bool
     @State private var defaultDiscountPercent: Double
+    @State private var tags: [String]
+    @State private var newTag = ""
     @State private var geocodedCoordinate: CLLocationCoordinate2D?
     @State private var isSaving = false
     @State private var showingPropertyScanner = false
@@ -49,6 +52,7 @@ struct EditClientView: View {
         self.originalAddress = client.address
         _name = State(initialValue: client.name)
         _phone = State(initialValue: client.phone)
+        _email = State(initialValue: client.email)
         _address = State(initialValue: client.address)
         _skipNotificationPrompt = State(initialValue: client.skipNotificationPrompt)
         _goalMinutes = State(initialValue: client.goalMinutes)
@@ -56,6 +60,7 @@ struct EditClientView: View {
         _preferredPayment = State(initialValue: client.preferredPayment)
         _isComped = State(initialValue: client.isComped)
         _defaultDiscountPercent = State(initialValue: client.defaultDiscountPercent)
+        _tags = State(initialValue: client.tags)
     }
 
     // MARK: - Body
@@ -63,6 +68,7 @@ struct EditClientView: View {
     var body: some View {
         Form {
             contactSection
+            tagsSection
             billingSection
             stopNotesSection
             serviceAddressSection
@@ -151,6 +157,21 @@ struct EditClientView: View {
                     .buttonStyle(.borderless)
                 }
             }
+            HStack {
+                TextField("Email (optional)", text: $email)
+                    .textContentType(.emailAddress)
+                    .keyboardType(.emailAddress)
+                    .textInputAutocapitalization(.never)
+                if !email.isEmpty, let url = URL(string: "mailto:\(email)") {
+                    Button {
+                        openURL(url)
+                    } label: {
+                        Image(systemName: "envelope.fill")
+                            .foregroundStyle(.blue)
+                    }
+                    .buttonStyle(.borderless)
+                }
+            }
             Toggle(isOn: $skipNotificationPrompt) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Skip arrival message prompt")
@@ -168,6 +189,58 @@ struct EditClientView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Tags Section
+
+    private var tagsSection: some View {
+        Section {
+            if !tags.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(tags, id: \.self) { tag in
+                            HStack(spacing: 4) {
+                                Text(tag)
+                                    .font(.caption.weight(.semibold))
+                                Button {
+                                    tags.removeAll { $0 == tag }
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.caption)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(Color.accentColor.opacity(0.12))
+                            .foregroundStyle(Color.accentColor)
+                            .clipShape(Capsule())
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+                .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+            }
+            HStack {
+                TextField("Add tag…", text: $newTag)
+                    .submitLabel(.done)
+                    .onSubmit { addTag() }
+                Button("Add") { addTag() }
+                    .disabled(newTag.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        } header: {
+            Text("Tags")
+        } footer: {
+            Text("Group clients for bulk messaging — e.g. Residential, Priority, Seasonal.")
+                .font(.caption)
+        }
+    }
+
+    private func addTag() {
+        let trimmed = newTag.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty, !tags.contains(trimmed) else { return }
+        tags.append(trimmed)
+        newTag = ""
     }
 
     // MARK: - Billing Section
@@ -500,7 +573,20 @@ struct EditClientView: View {
                     .buttonStyle(.bordered)
                     .controlSize(.mini)
 
-                    if document.invoiceStatus == .draft || document.invoiceStatus == .sent {
+                    if document.invoiceStatus == .sent || document.invoiceStatus == .overdue {
+                        Button("Paid") {
+                            document.invoicePaidAt = Date()
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.mini)
+                        .tint(.green)
+                        Button("Edit") {
+                            editingProposal = document
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.mini)
+                        .tint(.blue)
+                    } else if document.invoiceStatus == .draft {
                         Button("Edit") {
                             editingProposal = document
                         }
@@ -630,12 +716,14 @@ struct EditClientView: View {
         isSaving = true
         client.name = name
         client.phone = phone
+        client.email = email
         client.skipNotificationPrompt = skipNotificationPrompt
         client.goalMinutes = goalMinutes
         client.defaultStopNotes = defaultStopNotes
         client.preferredPayment = preferredPayment
         client.isComped = isComped
         client.defaultDiscountPercent = defaultDiscountPercent
+        client.tags = tags
 
         if let coord = geocodedCoordinate, address != originalAddress {
             client.address = address
