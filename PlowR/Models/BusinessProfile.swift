@@ -14,6 +14,7 @@ final class BusinessProfile {
     var defaultDisclaimer: String = ""
     var accentColorHex: String = "1E3A8A"
     var colorPDFs: Bool = true
+    var compactHeader: Bool = false   // smaller document title in PDF output
 
     init(operatorID: String) {
         self.operatorID = operatorID

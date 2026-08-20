@@ -4,6 +4,8 @@ import SwiftData
 struct ProposalBuilderView: View {
     let client: Client
     var isInvoiceMode: Bool = false
+    var linkedVisitID: String = ""        // set when opened from a ScheduledVisit
+    var afterHoursMultiplier: Double = 1.0
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Environment(AuthManager.self) private var authManager
@@ -38,8 +40,11 @@ struct ProposalBuilderView: View {
     // MARK: - Computed Properties
 
     private var myServices: [ServiceItem] {
-        allServices.filter { $0.operatorID == authManager.userID && $0.isActive }
+        var seen = Set<String>()
+        return allServices
+            .filter { $0.operatorID == authManager.userID && $0.isActive }
             .sorted { $0.sortOrder < $1.sortOrder }
+            .filter { seen.insert($0.id.uuidString).inserted }
     }
 
     private var zones: [PropertyZone] { client.sortedZones }
@@ -118,6 +123,14 @@ struct ProposalBuilderView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            if afterHoursMultiplier > 1.0 {
+                HStack(spacing: 8) {
+                    Image(systemName: "moon.fill").foregroundStyle(.orange)
+                    Text("After hours — \(String(format: "%.2g", afterHoursMultiplier))× multiplier applied to service prices.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
     }
 
@@ -128,7 +141,7 @@ struct ProposalBuilderView: View {
                     DisclosureGroup {
                         ForEach(Array(zones.enumerated()), id: \.element.id) { index, zone in
                             let key = selectionKey(service: service, zoneIndex: index)
-                            let defaultAmt = zone.areaSquareFeet * service.pricePerUnit
+                            let defaultAmt = zone.areaSquareFeet * service.pricePerUnit * afterHoursMultiplier
                             VStack(alignment: .leading, spacing: 0) {
                                 Toggle(isOn: Binding(
                                     get: { selections.contains(key) },
@@ -158,7 +171,7 @@ struct ProposalBuilderView: View {
                     }
                 } else {
                     let key = selectionKey(service: service, zoneIndex: -1)
-                    let defaultAmt = service.pricePerUnit
+                    let defaultAmt = service.pricePerUnit * afterHoursMultiplier
                     VStack(alignment: .leading, spacing: 0) {
                         Toggle(isOn: Binding(
                             get: { selections.contains(key) },
@@ -451,9 +464,17 @@ struct ProposalBuilderView: View {
     }
 
     private func saveProposal(_ proposal: Proposal) {
+        proposal.visitID = linkedVisitID
+        // Insert items first so the cascade inverse relationship doesn't double-insert them
+        for item in (proposal.lineItems ?? []) { modelContext.insert(item) }
+        proposal.lineItems = proposal.lineItems   // re-affirm relationship after explicit inserts
         modelContext.insert(proposal)
-        for item in (proposal.lineItems ?? []) {
-            modelContext.insert(item)
+        // Write proposal ID back to the originating scheduled visit
+        if !linkedVisitID.isEmpty, let uuid = UUID(uuidString: linkedVisitID) {
+            let descriptor = FetchDescriptor<ScheduledVisit>(predicate: #Predicate { $0.id == uuid })
+            if let visit = try? modelContext.fetch(descriptor).first {
+                visit.proposalID = proposal.id.uuidString
+            }
         }
     }
 }

@@ -40,9 +40,49 @@ struct ClientStatsView: View {
             .reduce(0) { $0 + $1.total }
     }
 
+    // MARK: - Monthly Revenue
+
+    private struct MonthBucket: Identifiable {
+        let id: String // "YYYY-MM"
+        let label: String
+        let revenue: Double
+        let outstanding: Double
+    }
+
+    private static let monthKeyFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM"
+        return f
+    }()
+
+    private var monthlyBuckets: [MonthBucket] {
+        let cal = Calendar.current
+        let myInvoices = allProposals.filter { $0.operatorID == authManager.userID && $0.isInvoice }
+        var map: [String: (rev: Double, out: Double)] = [:]
+
+        for proposal in myInvoices {
+            let refDate = proposal.invoicePaidAt ?? proposal.invoiceSentAt ?? proposal.createdAt
+            let comps = cal.dateComponents([.year, .month], from: refDate)
+            guard let year = comps.year, let month = comps.month else { continue }
+            let key = String(format: "%04d-%02d", year, month)
+            var bucket = map[key] ?? (rev: 0, out: 0)
+            if proposal.invoicePaidAt != nil { bucket.rev += proposal.total }
+            else { bucket.out += proposal.total }
+            map[key] = bucket
+        }
+
+        return map.keys.sorted(by: >).prefix(12).compactMap { key in
+            guard let date = Self.monthKeyFormatter.date(from: key) else { return nil }
+            let label = date.formatted(.dateTime.month(.abbreviated).year())
+            let vals = map[key]!
+            return MonthBucket(id: key, label: label, revenue: vals.rev, outstanding: vals.out)
+        }
+    }
+
     var body: some View {
         List {
             summarySection
+            if !monthlyBuckets.isEmpty { monthlyRevenueSection }
             activitySection
             if !inactiveClients.isEmpty { inactiveSection }
         }
@@ -87,6 +127,57 @@ struct ClientStatsView: View {
         } footer: {
             Text("Stats are recorded automatically when route stops are completed.")
                 .font(.caption)
+        }
+    }
+
+    private var monthlyRevenueSection: some View {
+        let maxTotal = monthlyBuckets.map { $0.revenue + $0.outstanding }.max() ?? 1
+        return Section {
+            ForEach(monthlyBuckets) { bucket in
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text(bucket.label)
+                            .font(.subheadline.weight(.medium))
+                        Spacer()
+                        VStack(alignment: .trailing, spacing: 1) {
+                            if bucket.revenue > 0 {
+                                Text(bucket.revenue, format: .currency(code: "USD").precision(.fractionLength(0)))
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.green)
+                            }
+                            if bucket.outstanding > 0 {
+                                Text(bucket.outstanding, format: .currency(code: "USD").precision(.fractionLength(0)))
+                                    .font(.caption)
+                                    .foregroundStyle(.orange)
+                            }
+                        }
+                    }
+                    HStack(spacing: 2) {
+                        let revRatio = CGFloat(bucket.revenue / maxTotal)
+                        let outRatio = CGFloat(bucket.outstanding / maxTotal)
+                        if revRatio > 0 {
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(Color.green)
+                                .frame(width: max(revRatio * 200, 4), height: 6)
+                        }
+                        if outRatio > 0 {
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(Color.orange.opacity(0.7))
+                                .frame(width: max(outRatio * 200, 4), height: 6)
+                        }
+                        Spacer()
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+        } header: {
+            Text("Revenue by Month")
+        } footer: {
+            HStack(spacing: 16) {
+                Label("Collected", systemImage: "square.fill").foregroundStyle(.green)
+                Label("Outstanding", systemImage: "square.fill").foregroundStyle(.orange)
+            }
+            .font(.caption)
         }
     }
 

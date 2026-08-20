@@ -22,6 +22,7 @@ final class Proposal {
     var invoiceSentAt: Date?
     var invoicePaidAt: Date?
     var revisionOf: String = ""
+    var visitID: String = ""      // scheduled visit this invoice was created from
 
     @Relationship(deleteRule: .cascade, inverse: \ProposalLineItem.proposal) var lineItems: [ProposalLineItem]?
 
@@ -46,6 +47,20 @@ final class Proposal {
     }
 
     var isInvoice: Bool { !invoiceNumber.isEmpty }
+
+    func makeLineItemCopies() -> [ProposalLineItem] {
+        (lineItems ?? []).map { item in
+            ProposalLineItem(
+                serviceName: item.serviceName,
+                zoneLabel: item.zoneLabel,
+                quantity: item.quantity,
+                unitType: item.unitType,
+                unitPrice: item.unitPrice,
+                sortOrder: item.sortOrder,
+                itemNotes: item.itemNotes
+            )
+        }
+    }
 
     var invoiceStatus: InvoiceStatus {
         guard isInvoice else { return .proposal }

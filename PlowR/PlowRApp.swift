@@ -1,5 +1,13 @@
 import SwiftUI
 import SwiftData
+import UIKit
+
+// Adaptive navy: readable in both light and dark mode
+private let appAccentColor = Color(UIColor { traits in
+    traits.userInterfaceStyle == .dark
+        ? UIColor(red: 0.53, green: 0.70, blue: 1.00, alpha: 1)   // bright blue for dark mode
+        : UIColor(red: 0.118, green: 0.227, blue: 0.541, alpha: 1) // deep navy for light mode
+})
 
 @main
 struct PlowRApp: App {
@@ -17,6 +25,8 @@ struct PlowRApp: App {
             Proposal.self,
             ProposalLineItem.self,
             PaymentMethod.self,
+            StopPhoto.self,
+            ScheduledVisit.self,
         ])
         container = Self.makeContainer(schema: schema)
     }
@@ -54,6 +64,7 @@ struct PlowRApp: App {
         WindowGroup {
             ContentView()
                 .environment(authManager)
+                .tint(appAccentColor)
         }
         .modelContainer(container)
     }

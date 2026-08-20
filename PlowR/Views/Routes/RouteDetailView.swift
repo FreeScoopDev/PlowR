@@ -7,6 +7,7 @@ struct RouteDetailView: View {
 
     @State private var showingEditRoute = false
     @State private var isRouteActive = false
+    @State private var showingOptimizeConfirm = false
 
     var body: some View {
         List {
@@ -73,8 +74,24 @@ struct RouteDetailView: View {
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button("Edit") { showingEditRoute = true }
+                Menu {
+                    Button { showingEditRoute = true } label: {
+                        Label("Edit Route", systemImage: "pencil")
+                    }
+                    Button { showingOptimizeConfirm = true } label: {
+                        Label("Optimize Order", systemImage: "arrow.triangle.swap")
+                    }
+                    .disabled(route.sortedStops.filter { $0.latitude != 0 }.count < 2)
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
             }
+        }
+        .confirmationDialog("Optimize Stop Order?", isPresented: $showingOptimizeConfirm, titleVisibility: .visible) {
+            Button("Optimize") { optimizeRoute() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Reorders stops by shortest travel distance using GPS coordinates. Stops without GPS will be placed last.")
         }
         .safeAreaInset(edge: .bottom) {
             Button {
@@ -104,5 +121,36 @@ struct RouteDetailView: View {
     private func clientFor(_ stop: RouteStop) -> Client? {
         guard !stop.isCustomStop else { return nil }
         return allClients.first { $0.id == stop.clientID }
+    }
+
+    // MARK: - Route Optimization (nearest-neighbor greedy)
+
+    private func optimizeRoute() {
+        var withGPS = route.sortedStops.filter { $0.latitude != 0 }
+        let withoutGPS = route.sortedStops.filter { $0.latitude == 0 }
+        guard withGPS.count >= 2 else { return }
+
+        var ordered: [RouteStop] = [withGPS.removeFirst()]
+        while !withGPS.isEmpty {
+            let last = ordered.last!
+            let nearestIdx = withGPS.indices.min { i, j in
+                haversine(last, withGPS[i]) < haversine(last, withGPS[j])
+            }!
+            ordered.append(withGPS.remove(at: nearestIdx))
+        }
+
+        let all = ordered + withoutGPS
+        for (index, stop) in all.enumerated() {
+            stop.order = index
+        }
+    }
+
+    private func haversine(_ a: RouteStop, _ b: RouteStop) -> Double {
+        let dLat = (b.latitude - a.latitude) * .pi / 180
+        let dLon = (b.longitude - a.longitude) * .pi / 180
+        let sinLat = sin(dLat / 2)
+        let sinLon = sin(dLon / 2)
+        let h = sinLat * sinLat + cos(a.latitude * .pi / 180) * cos(b.latitude * .pi / 180) * sinLon * sinLon
+        return 2 * asin(sqrt(h))
     }
 }

@@ -15,12 +15,17 @@ struct EditClientView: View {
     @Query private var allProposals: [Proposal]
     @Query private var allProfiles: [BusinessProfile]
     @Query private var allPaymentMethods: [PaymentMethod]
+    @Query(sort: \ScheduledVisit.scheduledDate) private var allVisits: [ScheduledVisit]
 
     @State private var name: String
     @State private var phone: String
     @State private var address: String
     @State private var skipNotificationPrompt: Bool
     @State private var goalMinutes: Int
+    @State private var defaultStopNotes: String
+    @State private var preferredPayment: String
+    @State private var isComped: Bool
+    @State private var defaultDiscountPercent: Double
     @State private var geocodedCoordinate: CLLocationCoordinate2D?
     @State private var isSaving = false
     @State private var showingPropertyScanner = false
@@ -47,6 +52,10 @@ struct EditClientView: View {
         _address = State(initialValue: client.address)
         _skipNotificationPrompt = State(initialValue: client.skipNotificationPrompt)
         _goalMinutes = State(initialValue: client.goalMinutes)
+        _defaultStopNotes = State(initialValue: client.defaultStopNotes)
+        _preferredPayment = State(initialValue: client.preferredPayment)
+        _isComped = State(initialValue: client.isComped)
+        _defaultDiscountPercent = State(initialValue: client.defaultDiscountPercent)
     }
 
     // MARK: - Body
@@ -54,9 +63,13 @@ struct EditClientView: View {
     var body: some View {
         Form {
             contactSection
+            billingSection
+            stopNotesSection
             serviceAddressSection
             historySection
+            scheduleSection
             documentsSection
+            photosSection
             propertySection
         }
         .navigationTitle(name.isEmpty ? "Client" : name)
@@ -154,6 +167,53 @@ struct EditClientView: View {
                         .foregroundStyle(goalMinutes == 0 ? .secondary : .primary)
                 }
             }
+        }
+    }
+
+    // MARK: - Billing Section
+
+    private var billingSection: some View {
+        Section("Billing & Preferences") {
+            Picker("Preferred Payment", selection: $preferredPayment) {
+                Text("Not set").tag("")
+                Text("Cash").tag("cash")
+                Text("Check").tag("check")
+                Text("Zelle").tag("zelle")
+                Text("Card").tag("card")
+            }
+
+            Toggle("Comped / No Charge", isOn: $isComped)
+
+            if !isComped {
+                HStack {
+                    Text("Default Discount")
+                    Spacer()
+                    Picker("Discount", selection: $defaultDiscountPercent) {
+                        Text("None").tag(0.0)
+                        Text("5%").tag(5.0)
+                        Text("10%").tag(10.0)
+                        Text("15%").tag(15.0)
+                        Text("20%").tag(20.0)
+                        Text("25%").tag(25.0)
+                        Text("50%").tag(50.0)
+                    }
+                    .pickerStyle(.menu)
+                }
+            }
+        }
+    }
+
+    // MARK: - Stop Notes Section
+
+    private var stopNotesSection: some View {
+        Section {
+            TextField("Notes shown during active route (gate codes, special instructions…)", text: $defaultStopNotes, axis: .vertical)
+                .lineLimit(3)
+        } header: {
+            Text("Route Notes")
+        } footer: {
+            Text("Automatically copied to new route stops for this client.")
+                .font(.caption)
         }
     }
 
@@ -312,6 +372,57 @@ struct EditClientView: View {
         }
     }
 
+    // MARK: - Schedule Section
+
+    private var upcomingClientVisits: [ScheduledVisit] {
+        let clientID = client.id.uuidString
+        return allVisits
+            .filter { $0.clientID == clientID && $0.status == .scheduled && $0.scheduledDate >= Date() }
+            .prefix(3)
+            .map { $0 }
+    }
+
+    private var scheduleSection: some View {
+        Section("Upcoming Visits") {
+            if upcomingClientVisits.isEmpty {
+                Text("No upcoming visits scheduled.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(upcomingClientVisits) { visit in
+                    HStack(spacing: 10) {
+                        Image(systemName: "calendar")
+                            .foregroundStyle(.blue)
+                            .frame(width: 20)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(visit.scheduledDate, format: .dateTime.weekday(.abbreviated).month(.abbreviated).day())
+                                .font(.subheadline)
+                            Text(visit.scheduledDate, style: .time)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Label(visit.status.rawValue, systemImage: visit.status.systemImage)
+                            .font(.caption2)
+                            .foregroundStyle(visit.status.chipColor)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Photos Section
+
+    private var photosSection: some View {
+        Section("Photos") {
+            NavigationLink {
+                ClientPhotoGalleryView(client: client)
+            } label: {
+                Label("View Photo Gallery", systemImage: "photo.on.rectangle.angled")
+            }
+        }
+    }
+
     // MARK: - Data
 
     private var clientInvoices: [Proposal] {
@@ -438,17 +549,7 @@ struct EditClientView: View {
         revision.disclaimer = original.disclaimer
         revision.notes = original.notes
         revision.invoiceDueDate = Date().addingTimeInterval(30 * 86400)
-        let copies = (original.lineItems ?? []).map { item in
-            ProposalLineItem(
-                serviceName: item.serviceName,
-                zoneLabel: item.zoneLabel,
-                quantity: item.quantity,
-                unitType: item.unitType,
-                unitPrice: item.unitPrice,
-                sortOrder: item.sortOrder,
-                itemNotes: item.itemNotes
-            )
-        }
+        let copies = original.makeLineItemCopies()
         copies.forEach { modelContext.insert($0) }
         revision.lineItems = copies
         modelContext.insert(revision)
@@ -531,6 +632,10 @@ struct EditClientView: View {
         client.phone = phone
         client.skipNotificationPrompt = skipNotificationPrompt
         client.goalMinutes = goalMinutes
+        client.defaultStopNotes = defaultStopNotes
+        client.preferredPayment = preferredPayment
+        client.isComped = isComped
+        client.defaultDiscountPercent = defaultDiscountPercent
 
         if let coord = geocodedCoordinate, address != originalAddress {
             client.address = address

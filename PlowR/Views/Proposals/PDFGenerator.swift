@@ -61,8 +61,9 @@ struct PDFGenerator {
         let margin:  CGFloat = 54
         let contentW = pageW - margin * 2
 
-        let isInvoice = forceIsInvoice ?? proposal.isInvoice
-        let colorPDFs = profile?.colorPDFs ?? true
+        let isInvoice     = forceIsInvoice ?? proposal.isInvoice
+        let colorPDFs     = profile?.colorPDFs     ?? true
+        let compactHeader = profile?.compactHeader ?? false
         let accent: UIColor = colorPDFs
             ? (accentUIColor(from: profile?.accentColorHex) ?? defaultAccent)
             : UIColor(white: 0.08, alpha: 1)
@@ -74,7 +75,8 @@ struct PDFGenerator {
 
             y = drawHeader(profile: profile, isInvoice: isInvoice,
                            invoiceNumber: proposal.invoiceNumber, createdAt: proposal.createdAt,
-                           contentW: contentW, margin: margin, y: y, accent: accent)
+                           contentW: contentW, margin: margin, y: y, accent: accent,
+                           compactHeader: compactHeader)
             y += 18
             drawHRule(x: margin, y: y, width: contentW, weight: 0.75, color: ruleLight)
             y += 22
@@ -123,18 +125,20 @@ struct PDFGenerator {
     private static func drawHeader(
         profile: BusinessProfile?, isInvoice: Bool,
         invoiceNumber: String, createdAt: Date,
-        contentW: CGFloat, margin: CGFloat, y: CGFloat, accent: UIColor
+        contentW: CGFloat, margin: CGFloat, y: CGFloat, accent: UIColor,
+        compactHeader: Bool = false
     ) -> CGFloat {
         let rightW:  CGFloat = 180
         let leftW    = contentW - rightW - 14
         let dateFmt  = DateFormatter(); dateFmt.dateStyle = .short
 
-        // Right — large document title
+        // Right — document title; compact mode shrinks it for narrow logo-heavy headers
+        let titleSize: CGFloat = compactHeader ? 20 : 28
         let docTitle = isInvoice ? "INVOICE" : "PROPOSAL"
         drawText(docTitle, x: margin + leftW + 14, y: y - 4, width: rightW,
-                 font: displayFont(36), color: accent, kern: 1.5, alignment: .right, singleLine: true)
+                 font: displayFont(titleSize), color: accent, kern: 1.5, alignment: .right, singleLine: true)
 
-        var metaY = y + 40
+        var metaY = y + (compactHeader ? 24 : 33)
         if isInvoice && !invoiceNumber.isEmpty {
             labeled("Invoice\u{00A0}#", value: invoiceNumber)
                 .draw(in: CGRect(x: margin + leftW + 14, y: metaY, width: rightW, height: 20))

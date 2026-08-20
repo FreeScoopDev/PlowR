@@ -6,10 +6,14 @@ struct ProposalEditView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var dueDate: Date
+    @State private var discountString: String
+    @State private var taxRateString: String
 
     init(proposal: Proposal) {
         self.proposal = proposal
         _dueDate = State(initialValue: proposal.invoiceDueDate ?? Date().addingTimeInterval(30 * 86400))
+        _discountString = State(initialValue: proposal.discountAmount > 0 ? String(format: "%.2f", proposal.discountAmount) : "")
+        _taxRateString = State(initialValue: proposal.taxRate > 0 ? String(format: "%.1f", proposal.taxRate) : "")
     }
 
     // MARK: - Body
@@ -30,6 +34,8 @@ struct ProposalEditView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
                         proposal.invoiceDueDate = dueDate
+                        proposal.discountAmount = Double(discountString) ?? 0
+                        proposal.taxRate = Double(taxRateString) ?? 0
                         dismiss()
                     }
                 }
@@ -86,7 +92,32 @@ struct ProposalEditView: View {
 
     private var invoiceDetailsSection: some View {
         Section("Invoice") {
-            DatePicker("Due Date", selection: $dueDate, displayedComponents: .date)
+            if proposal.isInvoice {
+                DatePicker("Due Date", selection: $dueDate, displayedComponents: .date)
+            }
+            HStack {
+                Text("Discount $")
+                Spacer()
+                TextField("0.00", text: $discountString)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 80)
+            }
+            HStack {
+                Text("Tax")
+                Spacer()
+                TextField("0.0", text: $taxRateString)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 60)
+                Text("%").foregroundStyle(.secondary)
+            }
+            if let discount = Double(discountString), discount > 0 {
+                LabeledContent("Total") {
+                    Text(String(format: "$%.2f", proposal.total - discount))
+                        .fontWeight(.bold)
+                }
+            }
             TextField("Notes", text: $proposal.notes, axis: .vertical)
                 .lineLimit(3...)
         }

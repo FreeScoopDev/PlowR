@@ -89,8 +89,14 @@ struct ProposalDetailView: View {
         HStack(spacing: 12) {
             switch status {
             case .proposal:
+                Button { showingEditView = true } label: {
+                    Label("Edit", systemImage: "pencil")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+
                 Button { convertToInvoice() } label: {
-                    Label("Convert to Invoice", systemImage: "doc.badge.arrow.up")
+                    Label("Convert", systemImage: "doc.badge.arrow.up")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
@@ -111,6 +117,12 @@ struct ProposalDetailView: View {
                 .tint(.orange)
 
             case .sent, .overdue:
+                Button { showingEditView = true } label: {
+                    Label("Edit", systemImage: "pencil")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+
                 Button {
                     proposal.invoicePaidAt = Date()
                     generatePDF()
@@ -137,12 +149,16 @@ struct ProposalDetailView: View {
     // MARK: - PDF
 
     private func generatePDF() {
-        pdfData = PDFGenerator.generate(
-            proposal: proposal,
-            profile: profile,
-            paymentMethods: activePaymentMethods,
-            forceIsInvoice: proposal.isInvoice
-        )
+        Task { @MainActor in
+            // Yield so the ProgressView renders before the blocking PDF work starts
+            await Task.yield()
+            pdfData = PDFGenerator.generate(
+                proposal: proposal,
+                profile: profile,
+                paymentMethods: activePaymentMethods,
+                forceIsInvoice: proposal.isInvoice
+            )
+        }
     }
 
     private func shareDocument() {
@@ -189,17 +205,7 @@ struct ProposalDetailView: View {
         revision.disclaimer = proposal.disclaimer
         revision.notes = proposal.notes
         revision.invoiceDueDate = Date().addingTimeInterval(30 * 86400)
-        let copies = (proposal.lineItems ?? []).map { item in
-            ProposalLineItem(
-                serviceName: item.serviceName,
-                zoneLabel: item.zoneLabel,
-                quantity: item.quantity,
-                unitType: item.unitType,
-                unitPrice: item.unitPrice,
-                sortOrder: item.sortOrder,
-                itemNotes: item.itemNotes
-            )
-        }
+        let copies = proposal.makeLineItemCopies()
         copies.forEach { modelContext.insert($0) }
         revision.lineItems = copies
         modelContext.insert(revision)

@@ -24,6 +24,7 @@ struct ActiveRouteView: View {
     @State private var navStop: RouteStop? = nil
     @State private var currentStopStartTime: Date? = nil
     @State private var showingServiceRecorder = false
+    @State private var showingMassMessage = false
 
     // Map camera state
     @State private var mapCameraPosition: MapCameraPosition = .automatic
@@ -142,6 +143,9 @@ struct ActiveRouteView: View {
                     }
                 }
         )
+        .sheet(isPresented: $showingMassMessage) {
+            MassMessageView(stops: sortedStops, allClients: allClients)
+        }
         .onChange(of: locationManager.authorizationStatus) { _, status in
             switch status {
             case .authorizedAlways, .authorizedWhenInUse:
@@ -420,6 +424,25 @@ struct ActiveRouteView: View {
                 }
             }
 
+            if !stop.stopNotes.isEmpty || !stop.equipmentNotes.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    if !stop.stopNotes.isEmpty {
+                        Label(stop.stopNotes, systemImage: "note.text")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    if !stop.equipmentNotes.isEmpty {
+                        Label(stop.equipmentNotes, systemImage: "wrench.and.screwdriver")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.orange)
+                    }
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(.systemGray6))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+
             if !stop.isCustomStop {
                 Button {
                     showingServiceRecorder = true
@@ -510,9 +533,24 @@ struct ActiveRouteView: View {
 
     private var upcomingStopsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Up Next")
-                .font(.headline)
-                .foregroundStyle(.secondary)
+            HStack {
+                Text("Up Next")
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button {
+                    showingMassMessage = true
+                } label: {
+                    Label("Message All", systemImage: "bubble.left.and.bubble.right.fill")
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Color.blue.opacity(0.12))
+                        .foregroundStyle(.blue)
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
             ForEach(Array(upcomingStops.enumerated()), id: \.element.id) { index, stop in
                 HStack(spacing: 12) {
                     Text("\(currentStopIndex + 2 + index)")

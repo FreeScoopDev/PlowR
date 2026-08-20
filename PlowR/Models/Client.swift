@@ -20,6 +20,12 @@ final class Client {
     // Route behavior preferences
     var skipNotificationPrompt: Bool = false
     var goalMinutes: Int = 0
+    var defaultStopNotes: String = ""  // auto-copied to RouteStop on route creation
+
+    // Client badges / billing preferences
+    var preferredPayment: String = ""   // "cash", "check", "zelle", "card", or ""
+    var isComped: Bool = false
+    var defaultDiscountPercent: Double = 0.0
 
     var averageServiceMinutes: Double {
         guard totalVisits > 0 else { return 0 }

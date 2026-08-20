@@ -84,6 +84,7 @@ struct CreateRouteView: View {
                     onSelect: { client in
                         let stop = RouteStop(order: selectedStops.count, client: client)
                         if client.goalMinutes > 0 { stop.targetMinutes = client.goalMinutes }
+                        if !client.defaultStopNotes.isEmpty { stop.stopNotes = client.defaultStopNotes }
                         selectedStops.append(stop)
                     },
                     onCustomStop: { name, address, phone in

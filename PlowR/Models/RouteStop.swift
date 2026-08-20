@@ -16,6 +16,8 @@ final class RouteStop {
     var actualMinutes: Int = 0
     var completedServiceIDs: [String] = []
     var completedNotes: String = ""
+    var stopNotes: String = ""       // persistent operator reminders shown during route
+    var equipmentNotes: String = ""  // equipment/blade flags shown during route
     var route: PlowRoute?
 
     init(order: Int, client: Client) {

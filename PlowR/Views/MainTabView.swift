@@ -24,6 +24,9 @@ struct MainTabView: View {
                 .tabItem { Label("Documents", systemImage: "doc.stack.fill") }
                 .badge(documentsBadge > 0 ? documentsBadge : 0)
 
+            ScheduleView()
+                .tabItem { Label("Schedule", systemImage: "calendar") }
+
             NavigationStack { SettingsView() }
                 .tabItem { Label("Settings", systemImage: "gearshape.fill") }
         }

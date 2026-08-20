@@ -111,7 +111,7 @@ struct ProposalListView: View {
             Button("Cancel", role: .cancel) { proposalToDelete = nil }
         }
         .sheet(isPresented: $showingClientPicker) {
-            ClientPickerForProposalView(clients: myClients) { client in
+            ClientPickerForProposalView { client in
                 // Bake isInvoice into the context at selection time — eliminates stale-capture bug
                 creationContext = ProposalCreationContext(client: client, isInvoice: pendingIsInvoice)
             }
@@ -170,26 +170,38 @@ struct ProposalCreationContext: Identifiable {
 }
 
 struct ClientPickerForProposalView: View {
-    let clients: [Client]
     let onSelect: (Client) -> Void
+    @Environment(AuthManager.self) private var authManager
     @Environment(\.dismiss) private var dismiss
+    @Query(sort: \Client.name) private var allClients: [Client]
+    @State private var showingAddClient = false
+
+    private var myClients: [Client] {
+        allClients.filter { $0.operatorID == authManager.userID }
+    }
 
     var body: some View {
         NavigationStack {
             Group {
-                if clients.isEmpty {
-                    ContentUnavailableView("No Clients", systemImage: "person.slash",
-                        description: Text("Add clients before creating a proposal."))
+                if myClients.isEmpty {
+                    ContentUnavailableView(
+                        "No Clients Yet",
+                        systemImage: "person.badge.plus",
+                        description: Text("Add a client to create a proposal.")
+                    )
                 } else {
-                    List(clients) { client in
+                    List(myClients) { client in
                         Button {
                             onSelect(client)
                             dismiss()
                         } label: {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(client.name).font(.headline).foregroundStyle(.primary)
-                                Text(client.address).font(.caption).foregroundStyle(.secondary)
+                                if !client.address.isEmpty {
+                                    Text(client.address).font(.caption).foregroundStyle(.secondary)
+                                }
                             }
+                            .padding(.vertical, 2)
                         }
                     }
                 }
@@ -200,6 +212,16 @@ struct ClientPickerForProposalView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showingAddClient = true
+                    } label: {
+                        Label("New Client", systemImage: "person.badge.plus")
+                    }
+                }
+            }
+            .sheet(isPresented: $showingAddClient) {
+                AddClientView()
             }
         }
     }

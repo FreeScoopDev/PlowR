@@ -34,6 +34,7 @@ struct BusinessProfileView: View {
     @State private var defaultDisclaimer = ""
     @State private var accentColor: Color = .blue
     @State private var colorPDFs = true
+    @State private var compactHeader = false
     @State private var logoItem: PhotosPickerItem?
     @State private var logoImage: Image?
     @State private var logoData: Data?
@@ -95,10 +96,11 @@ struct BusinessProfileView: View {
                 if colorPDFs {
                     ColorPicker("Accent color", selection: $accentColor, supportsOpacity: false)
                 }
+                Toggle("Compact header", isOn: $compactHeader)
             } header: {
                 Text("PDF Appearance")
             } footer: {
-                Text("Turn off for black-and-white print-ready documents.")
+                Text("Compact header uses a smaller document title — useful when a wide logo fills the header.")
             }
 
             Section("Default Proposal Disclaimer") {
@@ -136,6 +138,7 @@ struct BusinessProfileView: View {
         licenseNumber = p.licenseNumber
         defaultDisclaimer = p.defaultDisclaimer
         colorPDFs = p.colorPDFs
+        compactHeader = p.compactHeader
         accentColor = Color(hex: p.accentColorHex) ?? .blue
         if let data = p.logoData, let uiImage = UIImage(data: data) {
             logoImage = Image(uiImage: uiImage)
@@ -156,6 +159,7 @@ struct BusinessProfileView: View {
         p.licenseNumber = licenseNumber
         p.defaultDisclaimer = defaultDisclaimer
         p.colorPDFs = colorPDFs
+        p.compactHeader = compactHeader
         p.accentColorHex = accentColor.hexString
         if let data = logoData { p.logoData = data }
     }

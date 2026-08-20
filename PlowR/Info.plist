@@ -14,6 +14,8 @@
 	<string>PlowR uses your location in the background to automatically detect when you leave a stop and prompt you to notify the next client.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>PlowR uses your location in the background to automatically detect when you leave a stop and prompt you to notify the next client.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>PlowR uses your camera to capture before and after photos of service stops.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>LSApplicationQueriesSchemes</key>

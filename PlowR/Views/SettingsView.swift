@@ -6,7 +6,6 @@ struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
 
     @State private var showingFindService = false
-    @State private var showingClients = false
     @State private var sampleDataInserted = false
 
     var body: some View {
