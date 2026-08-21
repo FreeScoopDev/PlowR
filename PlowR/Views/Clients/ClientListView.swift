@@ -105,11 +105,17 @@ struct ClientListView: View {
                                 onVisitTap: { statsClient = client }
                             )
                         }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        .contextMenu {
+                            Button {
+                                statsClient = client
+                            } label: {
+                                Label("View Visit History", systemImage: "chart.bar.fill")
+                            }
+                            Divider()
                             Button(role: .destructive) {
                                 clientToDelete = client
                             } label: {
-                                Label("Delete", systemImage: "trash")
+                                Label("Delete Client", systemImage: "trash")
                             }
                         }
                     }

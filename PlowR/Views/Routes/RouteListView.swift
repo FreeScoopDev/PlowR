@@ -30,11 +30,11 @@ struct RouteListView: View {
                         } label: {
                             RouteRowView(route: route)
                         }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        .contextMenu {
                             Button(role: .destructive) {
                                 routeToDelete = route
                             } label: {
-                                Label("Delete", systemImage: "trash")
+                                Label("Delete Route", systemImage: "trash")
                             }
                         }
                     }

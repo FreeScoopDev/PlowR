@@ -56,21 +56,20 @@ struct ProposalListView: View {
                         } label: {
                             ProposalRowView(proposal: proposal)
                         }
-                        .swipeActions(edge: .leading, allowsFullSwipe: false) {
-                            invoiceSwipeActions(for: proposal)
-                        }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            Button(role: .destructive) {
-                                proposalToDelete = proposal
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
+                        .contextMenu {
+                            proposalContextActions(for: proposal)
+                            Divider()
                             Button {
                                 duplicateProposal(proposal)
                             } label: {
                                 Label("Duplicate", systemImage: "doc.on.doc")
                             }
-                            .tint(.indigo)
+                            Divider()
+                            Button(role: .destructive) {
+                                proposalToDelete = proposal
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
                         }
                     }
                 }
@@ -133,17 +132,16 @@ struct ProposalListView: View {
         }
     }
 
-    // MARK: - Swipe Actions
+    // MARK: - Context Menu Actions
 
     @ViewBuilder
-    private func invoiceSwipeActions(for proposal: Proposal) -> some View {
+    private func proposalContextActions(for proposal: Proposal) -> some View {
         if !proposal.isInvoice {
             Button {
                 convertToInvoice(proposal)
             } label: {
-                Label("Invoice", systemImage: "doc.badge.arrow.up")
+                Label("Convert to Invoice", systemImage: "doc.badge.arrow.up")
             }
-            .tint(.blue)
         } else if proposal.invoiceStatus == .draft {
             Button {
                 proposal.invoiceSentAt = Date()
@@ -153,22 +151,19 @@ struct ProposalListView: View {
             } label: {
                 Label("Mark Sent", systemImage: "paperplane.fill")
             }
-            .tint(.orange)
         } else if proposal.invoiceStatus == .sent || proposal.invoiceStatus == .overdue {
             Button {
                 proposal.invoicePaidAt = Date()
             } label: {
                 Label("Mark Paid", systemImage: "checkmark.seal.fill")
             }
-            .tint(.green)
             let clientPhone = myClients.first(where: { $0.id.uuidString == proposal.clientID })?.phone ?? ""
             if MFMessageComposeViewController.canSendText() && !clientPhone.isEmpty {
                 Button {
                     reminderProposal = proposal
                 } label: {
-                    Label("Remind", systemImage: "message.fill")
+                    Label("Send Reminder", systemImage: "message.fill")
                 }
-                .tint(.orange)
             }
         }
     }

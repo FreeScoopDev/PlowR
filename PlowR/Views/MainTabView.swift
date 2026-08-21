@@ -14,6 +14,9 @@ struct MainTabView: View {
 
     var body: some View {
         TabView {
+            DashboardView()
+                .tabItem { Label("Home", systemImage: "house.fill") }
+
             NavigationStack { ClientListView() }
                 .tabItem { Label("Clients", systemImage: "person.2.fill") }
 
@@ -26,9 +29,6 @@ struct MainTabView: View {
 
             ScheduleView()
                 .tabItem { Label("Schedule", systemImage: "calendar") }
-
-            NavigationStack { SettingsView() }
-                .tabItem { Label("Settings", systemImage: "gearshape.fill") }
         }
     }
 }
