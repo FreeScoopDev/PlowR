@@ -36,6 +36,27 @@ struct SettingsView: View {
                 }
             }
 
+            Section {
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: "icloud.fill")
+                        .font(.title2)
+                        .foregroundStyle(.blue)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Data Backed Up to iCloud")
+                            .font(.subheadline.weight(.semibold))
+                        Text("Your clients, routes, and documents sync automatically across your devices and are stored securely in your private iCloud account.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.vertical, 4)
+            } header: {
+                Text("Data & Backup")
+            } footer: {
+                Text("Need a manual export or have questions about your data? Contact support.")
+                    .font(.caption)
+            }
+
             Section("Account") {
                 if !authManager.operatorName.isEmpty {
                     LabeledContent("Name", value: authManager.operatorName)

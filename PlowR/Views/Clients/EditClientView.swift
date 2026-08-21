@@ -45,9 +45,11 @@ struct EditClientView: View {
     @State private var revisePaidDoc: Proposal?
     @State private var editingProposal: Proposal?
     @State private var notes: String
+    @State private var isActive: Bool
     @State private var showingProposalBuilder = false
     @State private var showingInvoiceBuilder = false
     @State private var showingAddVisit = false
+    @State private var showingMessageComposer = false
 
     init(client: Client) {
         self.client = client
@@ -64,12 +66,14 @@ struct EditClientView: View {
         _defaultDiscountPercent = State(initialValue: client.defaultDiscountPercent)
         _tags = State(initialValue: client.tags)
         _notes = State(initialValue: client.notes)
+        _isActive = State(initialValue: client.isActive)
     }
 
     // MARK: - Body
 
     var body: some View {
         Form {
+            actionTilesSection
             contactSection
             tagsSection
             notesSection
@@ -114,6 +118,14 @@ struct EditClientView: View {
         .sheet(isPresented: $showingAddVisit) {
             AddVisitView(client: client)
         }
+        .sheet(isPresented: $showingMessageComposer) {
+            if !phone.isEmpty {
+                MessageComposer(recipients: [phone], body: "") {
+                    client.lastMessageSentAt = Date()
+                    client.clientRespondedAt = nil
+                }
+            }
+        }
         .lookAroundViewer(isPresented: $showingLookAround, initialScene: lookAroundScene)
         .alert("Street View Unavailable", isPresented: $showingLookAroundUnavailable) {
             Button("OK", role: .cancel) { }
@@ -142,6 +154,66 @@ struct EditClientView: View {
                 Text("'\(doc.invoiceNumber)' is marked paid. 'Save as Revision Copy' creates \(doc.invoiceNumber)-R1 as a new draft. 'Overwrite' resets it to Draft so you can resend.")
             }
         }
+    }
+
+    // MARK: - Action Tiles
+
+    private var actionTilesSection: some View {
+        Section {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    actionTile(title: "Call", icon: "phone.fill", color: .green) {
+                        if let url = URL(string: "tel:\(phone.filter { $0.isNumber })"),
+                           !phone.isEmpty {
+                            openURL(url)
+                        }
+                    }
+                    actionTile(title: "Message", icon: "message.fill", color: .blue) {
+                        showingMessageComposer = true
+                    }
+                    actionTile(title: "Invoice", icon: "doc.badge.arrow.up", color: .orange) {
+                        if let latest = clientDocuments.first(where: { $0.isInvoice && $0.invoicePaidAt == nil }) {
+                            editingProposal = latest
+                        } else {
+                            showingInvoiceBuilder = true
+                        }
+                    }
+                    actionTile(title: "Schedule", icon: "calendar.badge.plus", color: .purple) {
+                        showingAddVisit = true
+                    }
+                    NavigationLink {
+                        ClientPhotoGalleryView(client: client)
+                    } label: {
+                        actionTileLabel(title: "Photos", icon: "photo.on.rectangle.angled", color: .teal)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.vertical, 8)
+            }
+            .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+        }
+    }
+
+    private func actionTile(title: String, icon: String, color: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            actionTileLabel(title: title, icon: icon, color: color)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func actionTileLabel(title: String, icon: String, color: Color) -> some View {
+        VStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(color)
+                .frame(width: 50, height: 40)
+                .background(color.opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+            Text(title)
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(.secondary)
+        }
+        .frame(width: 64)
     }
 
     // MARK: - Contact Section
@@ -194,6 +266,14 @@ struct EditClientView: View {
                     Spacer()
                     Text(goalMinutes == 0 ? "Not set" : "\(goalMinutes) min")
                         .foregroundStyle(goalMinutes == 0 ? .secondary : .primary)
+                }
+            }
+            Toggle(isOn: $isActive) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Active client")
+                    Text("Inactive clients appear separately in the list")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
         }
@@ -416,6 +496,30 @@ struct EditClientView: View {
             } else if !clientInvoices.isEmpty {
                 LabeledContent("Balance") {
                     Text("Paid in full").foregroundStyle(.green)
+                }
+            }
+
+            if let sent = client.lastMessageSentAt {
+                let responded = client.clientRespondedAt
+                let awaitingResponse = responded == nil || responded! < sent
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(awaitingResponse ? "Awaiting Response" : "Client Responded")
+                            .font(.subheadline)
+                            .foregroundStyle(awaitingResponse ? .orange : .green)
+                        Text("Last message sent \(sent, format: .relative(presentation: .named))")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    if awaitingResponse {
+                        Button("Mark Responded") {
+                            client.clientRespondedAt = Date()
+                        }
+                        .font(.caption)
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
                 }
             }
         }
@@ -807,6 +911,7 @@ struct EditClientView: View {
         client.defaultDiscountPercent = defaultDiscountPercent
         client.tags = tags
         client.notes = notes
+        client.isActive = isActive
 
         if let coord = geocodedCoordinate, address != originalAddress {
             client.address = address

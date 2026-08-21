@@ -46,7 +46,20 @@ struct ClientListView: View {
         }
     }
 
-    var clients: [Client] {
+    private func sortedClients(from base: [Client]) -> [Client] {
+        base.sorted { a, b in
+            switch sortOption {
+            case .name:        return a.name < b.name
+            case .lastService:
+                guard let aDate = a.lastServiceDate else { return false }
+                guard let bDate = b.lastServiceDate else { return true }
+                return aDate > bDate
+            case .mostVisits:  return a.totalVisits > b.totalVisits
+            }
+        }
+    }
+
+    private var filteredClients: [Client] {
         let base = allClients.filter { $0.operatorID == authManager.userID }
 
         let filtered: [Client]
@@ -58,30 +71,25 @@ struct ClientListView: View {
 
         let tagFiltered = activeTagFilter.map { tag in filtered.filter { $0.tags.contains(tag) } } ?? filtered
 
-        let searched: [Client]
-        if searchText.isEmpty {
-            searched = tagFiltered
-        } else {
-            let q = searchText.lowercased()
-            searched = tagFiltered.filter {
-                $0.name.lowercased().contains(q) ||
-                $0.address.lowercased().contains(q) ||
-                $0.phone.lowercased().contains(q) ||
-                $0.tags.contains { $0.lowercased().contains(q) }
-            }
-        }
-
-        return searched.sorted { a, b in
-            switch sortOption {
-            case .name:        return a.name < b.name
-            case .lastService:
-                guard let aDate = a.lastServiceDate else { return false }
-                guard let bDate = b.lastServiceDate else { return true }
-                return aDate > bDate
-            case .mostVisits:  return a.totalVisits > b.totalVisits
-            }
+        if searchText.isEmpty { return tagFiltered }
+        let q = searchText.lowercased()
+        return tagFiltered.filter {
+            $0.name.lowercased().contains(q) ||
+            $0.address.lowercased().contains(q) ||
+            $0.phone.lowercased().contains(q) ||
+            $0.tags.contains { $0.lowercased().contains(q) }
         }
     }
+
+    var activeClients: [Client] {
+        sortedClients(from: filteredClients.filter { $0.isActive })
+    }
+
+    var inactiveClients: [Client] {
+        sortedClients(from: filteredClients.filter { !$0.isActive })
+    }
+
+    var clients: [Client] { activeClients + inactiveClients }
 
     var body: some View {
         Group {
@@ -95,28 +103,13 @@ struct ClientListView: View {
                 )
             } else {
                 List {
-                    ForEach(clients) { client in
-                        NavigationLink {
-                            EditClientView(client: client)
-                        } label: {
-                            ClientRowView(
-                                client: client,
-                                outstandingBalance: outstandingBalance(for: client),
-                                isOverdue: hasOverdue(for: client),
-                                onVisitTap: { statsClient = client }
-                            )
-                        }
-                        .contextMenu {
-                            Button {
-                                statsClient = client
-                            } label: {
-                                Label("View Visit History", systemImage: "chart.bar.fill")
-                            }
-                            Divider()
-                            Button(role: .destructive) {
-                                clientToDelete = client
-                            } label: {
-                                Label("Delete Client", systemImage: "trash")
+                    ForEach(activeClients) { client in
+                        clientRow(client)
+                    }
+                    if !inactiveClients.isEmpty {
+                        Section("Inactive") {
+                            ForEach(inactiveClients) { client in
+                                clientRow(client)
                             }
                         }
                     }
@@ -229,6 +222,55 @@ struct ClientListView: View {
             Button("Cancel", role: .cancel) { clientToDelete = nil }
         } message: {
             Text("This client will be removed from all routes.")
+        }
+    }
+
+    @ViewBuilder
+    private func clientRow(_ client: Client) -> some View {
+        NavigationLink {
+            EditClientView(client: client)
+        } label: {
+            ClientRowView(
+                client: client,
+                outstandingBalance: outstandingBalance(for: client),
+                isOverdue: hasOverdue(for: client),
+                onVisitTap: { statsClient = client }
+            )
+        }
+        .contextMenu {
+            Button {
+                statsClient = client
+            } label: {
+                Label("View Visit History", systemImage: "chart.bar.fill")
+            }
+            Button {
+                client.isActive.toggle()
+            } label: {
+                Label(client.isActive ? "Mark Inactive" : "Mark Active",
+                      systemImage: client.isActive ? "archivebox" : "person.crop.circle.badge.checkmark")
+            }
+            Divider()
+            Button(role: .destructive) {
+                clientToDelete = client
+            } label: {
+                Label("Delete Client", systemImage: "trash")
+            }
+        }
+        .swipeActions(edge: .trailing) {
+            Button(role: .destructive) {
+                clientToDelete = client
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+        .swipeActions(edge: .leading) {
+            Button {
+                client.isActive.toggle()
+            } label: {
+                Label(client.isActive ? "Inactive" : "Active",
+                      systemImage: client.isActive ? "archivebox" : "person.crop.circle")
+            }
+            .tint(client.isActive ? .secondary : .blue)
         }
     }
 }

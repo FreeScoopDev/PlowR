@@ -423,6 +423,8 @@ struct AddVisitView: View {
             }
         }
 
+        client.isActive = true
+
         for date in dates {
             let visit = ScheduledVisit(
                 operatorID: authManager.userID,

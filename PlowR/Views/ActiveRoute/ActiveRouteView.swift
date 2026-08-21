@@ -15,6 +15,7 @@ struct ActiveRouteView: View {
     @State private var currentStopIndex = 0
     @State private var showingNotifyPrompt = false
     @State private var showingEndConfirmation = false
+    @State private var showingRouteRecap = false
     @State private var showingLocationDeniedAlert = false
     @State private var liveActivity: Activity<PlowRRouteAttributes>?
 
@@ -88,7 +89,7 @@ struct ActiveRouteView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("End Route") { showingEndConfirmation = true }
+                    Button("End Route") { showingRouteRecap = true }
                         .foregroundStyle(.red)
                 }
             }
@@ -146,6 +147,17 @@ struct ActiveRouteView: View {
         .sheet(isPresented: $showingMassMessage) {
             MassMessageView(stops: sortedStops, allClients: allClients)
         }
+        .sheet(isPresented: $showingRouteRecap) {
+            RouteRecapView(
+                route: route,
+                stops: sortedStops,
+                allClients: allClients,
+                onEndRoute: {
+                    endLiveActivity()
+                    dismiss()
+                }
+            )
+        }
         .onChange(of: locationManager.authorizationStatus) { _, status in
             switch status {
             case .authorizedAlways, .authorizedWhenInUse:
@@ -165,15 +177,6 @@ struct ActiveRouteView: View {
             Button("Cancel", role: .cancel) { dismiss() }
         } message: {
             Text("PlowR needs location access to track your route. Enable it in Settings > Privacy > Location Services.")
-        }
-        .confirmationDialog("End Route?", isPresented: $showingEndConfirmation, titleVisibility: .visible) {
-            Button("End Route", role: .destructive) {
-                endLiveActivity()
-                dismiss()
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This will stop GPS tracking and end your current route.")
         }
         .confirmationDialog("Open in Maps", isPresented: $showingNavPicker, titleVisibility: .visible) {
             if let stop = navStop {
@@ -473,8 +476,7 @@ struct ActiveRouteView: View {
             if isLastStop {
                 Button {
                     recordStopStats(for: currentStop)
-                    endLiveActivity()
-                    dismiss()
+                    showingRouteRecap = true
                 } label: {
                     Label("Complete Route", systemImage: "checkmark.circle.fill")
                         .font(.headline)
@@ -513,10 +515,9 @@ struct ActiveRouteView: View {
             Text("All stops complete!")
                 .font(.title2.weight(.bold))
             Button {
-                endLiveActivity()
-                dismiss()
+                showingRouteRecap = true
             } label: {
-                Text("End Route")
+                Text("Review & End Route")
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .padding()
