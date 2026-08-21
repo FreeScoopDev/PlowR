@@ -19,6 +19,7 @@ struct ClientListView: View {
     @Query private var allClients: [Client]
     @Query private var allProposals: [Proposal]
     @State private var showingAddClient = false
+    @State private var showingContactScanner = false
     @State private var clientToDelete: Client?
     @State private var statsClient: Client?
     @State private var sortOption: ClientSortOption = .name
@@ -126,7 +127,20 @@ struct ClientListView: View {
         .searchable(text: $searchText, prompt: "Search clients")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button { showingAddClient = true } label: {
+                Menu {
+                    Button {
+                        showingAddClient = true
+                    } label: {
+                        Label("Add Manually", systemImage: "person.badge.plus")
+                    }
+                    if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                        Button {
+                            showingContactScanner = true
+                        } label: {
+                            Label("Scan with Camera", systemImage: "camera.viewfinder")
+                        }
+                    }
+                } label: {
                     Image(systemName: "plus")
                 }
             }
@@ -191,6 +205,9 @@ struct ClientListView: View {
         }
         .sheet(isPresented: $showingAddClient) {
             AddClientView()
+        }
+        .sheet(isPresented: $showingContactScanner) {
+            ContactScannerView()
         }
         .sheet(item: $statsClient) { client in
             ClientVisitSummaryView(client: client)
