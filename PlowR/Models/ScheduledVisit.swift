@@ -13,6 +13,8 @@ final class ScheduledVisit {
     var estimatedMinutes: Int = 0
     var statusRaw: String = VisitStatus.scheduled.rawValue
     var notes: String = ""
+    var visitReason: String = ""              // preset or custom reason for the visit
+    var expectedServiceIDs: [String] = []    // service catalog item IDs expected this visit
     var completedAt: Date? = nil
     var proposalID: String = ""    // invoice generated from this visit
     var isAfterHours: Bool = false

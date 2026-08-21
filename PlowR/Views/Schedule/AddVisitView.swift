@@ -7,6 +7,12 @@ struct AddVisitView: View {
     @Environment(\.dismiss) private var dismiss
 
     @Query private var allClients: [Client]
+    @Query private var allServiceItems: [ServiceItem]
+
+    private static let reasonPresets = [
+        "Snow Plowing", "Salting / Ice Melt", "Walkway Shoveling",
+        "Roof Snow Removal", "Inspection", "Routine Visit"
+    ]
 
     // MARK: - Mode
     var editing: ScheduledVisit?
@@ -24,6 +30,9 @@ struct AddVisitView: View {
     @State private var recurrenceWeekdays: Set<Int>
     @State private var isAfterHours: Bool
     @State private var afterHoursMultiplier: Double
+    @State private var selectedReasonPreset: String
+    @State private var customReason: String
+    @State private var selectedServiceIDs: Set<String>
     @State private var showingAddClientSheet = false
     @State private var showingRecurringEditDialog = false
 
@@ -42,6 +51,9 @@ struct AddVisitView: View {
         _selectedClient = State(initialValue: nil)
         _isAfterHours = State(initialValue: false)
         _afterHoursMultiplier = State(initialValue: 1.5)
+        _selectedReasonPreset = State(initialValue: "")
+        _customReason = State(initialValue: "")
+        _selectedServiceIDs = State(initialValue: [])
     }
 
     // Create new visit pre-filled for a specific client
@@ -59,6 +71,9 @@ struct AddVisitView: View {
         _selectedClient = State(initialValue: client)
         _isAfterHours = State(initialValue: false)
         _afterHoursMultiplier = State(initialValue: 1.5)
+        _selectedReasonPreset = State(initialValue: "")
+        _customReason = State(initialValue: "")
+        _selectedServiceIDs = State(initialValue: [])
     }
 
     // Edit existing visit
@@ -76,11 +91,25 @@ struct AddVisitView: View {
         _selectedClient = State(initialValue: nil) // resolved in onAppear
         _isAfterHours = State(initialValue: editing.isAfterHours)
         _afterHoursMultiplier = State(initialValue: editing.afterHoursMultiplier)
+        // Reason
+        let isPreset = AddVisitView.reasonPresets.contains(editing.visitReason)
+        _selectedReasonPreset = State(initialValue: isPreset ? editing.visitReason : (editing.visitReason.isEmpty ? "" : "Other"))
+        _customReason = State(initialValue: isPreset ? "" : editing.visitReason)
+        _selectedServiceIDs = State(initialValue: Set(editing.expectedServiceIDs))
     }
 
     private var myClients: [Client] {
         allClients.filter { $0.operatorID == authManager.userID }
             .sorted { $0.name < $1.name }
+    }
+
+    private var myServices: [ServiceItem] {
+        allServiceItems.filter { $0.operatorID == authManager.userID && $0.isActive }
+            .sorted { $0.sortOrder < $1.sortOrder }
+    }
+
+    private var resolvedReason: String {
+        selectedReasonPreset == "Other" ? customReason : selectedReasonPreset
     }
 
     private var isValid: Bool { selectedClient != nil }
@@ -99,6 +128,7 @@ struct AddVisitView: View {
             Form {
                 clientSection
                 dateSection
+                visitInfoSection
                 detailsSection
                 if editing == nil { recurrenceSection }
             }
@@ -213,6 +243,67 @@ struct AddVisitView: View {
         .buttonStyle(.bordered)
         .controlSize(.small)
         .tint(isSelected ? .blue : nil)
+    }
+
+    private var visitInfoSection: some View {
+        Section("Visit Info") {
+            Picker("Reason", selection: $selectedReasonPreset) {
+                Text("None").tag("")
+                ForEach(Self.reasonPresets, id: \.self) { preset in
+                    Text(preset).tag(preset)
+                }
+                Text("Other…").tag("Other")
+            }
+            if selectedReasonPreset == "Other" {
+                TextField("Describe the visit reason…", text: $customReason)
+            }
+            if !myServices.isEmpty {
+                NavigationLink {
+                    servicePickerView
+                } label: {
+                    HStack {
+                        Text("Expected Services")
+                        Spacer()
+                        if selectedServiceIDs.isEmpty {
+                            Text("None")
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text("\(selectedServiceIDs.count) selected")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var servicePickerView: some View {
+        List {
+            ForEach(myServices) { service in
+                let isSelected = selectedServiceIDs.contains(service.id.uuidString)
+                Button {
+                    if isSelected {
+                        selectedServiceIDs.remove(service.id.uuidString)
+                    } else {
+                        selectedServiceIDs.insert(service.id.uuidString)
+                    }
+                } label: {
+                    HStack {
+                        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                            .foregroundStyle(isSelected ? .blue : .secondary)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(service.name)
+                                .foregroundStyle(.primary)
+                            Text(service.category.capitalized)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle("Expected Services")
+        .navigationBarTitleDisplayMode(.inline)
     }
 
     private var detailsSection: some View {
@@ -342,6 +433,8 @@ struct AddVisitView: View {
             )
             visit.estimatedMinutes = estimatedMinutes
             visit.notes = notes
+            visit.visitReason = resolvedReason
+            visit.expectedServiceIDs = Array(selectedServiceIDs)
             visit.isRecurring = isRecurring
             visit.recurrenceType = recurrenceType
             visit.recurrenceInterval = recurrenceInterval
@@ -362,6 +455,8 @@ struct AddVisitView: View {
         existing.scheduledDate = scheduledDate
         existing.estimatedMinutes = estimatedMinutes
         existing.notes = notes
+        existing.visitReason = resolvedReason
+        existing.expectedServiceIDs = Array(selectedServiceIDs)
         existing.isAfterHours = isAfterHours
         existing.afterHoursMultiplier = afterHoursMultiplier
     }
@@ -393,6 +488,8 @@ struct AddVisitView: View {
             }
             visit.estimatedMinutes = estimatedMinutes
             visit.notes = notes
+            visit.visitReason = resolvedReason
+            visit.expectedServiceIDs = Array(selectedServiceIDs)
             visit.isAfterHours = isAfterHours
             visit.afterHoursMultiplier = afterHoursMultiplier
         }
