@@ -51,16 +51,45 @@ final class ScheduledVisit {
     // Generate the next occurrence date based on recurrence settings
     func nextOccurrence(after date: Date) -> Date? {
         guard isRecurring else { return nil }
+
+        if recurrenceType == .weekly && !recurrenceWeekdays.isEmpty {
+            return nextWeekdayOccurrence(after: date)
+        }
+
         var components = DateComponents()
         switch recurrenceType {
-        case .daily:   components.day = recurrenceInterval
-        case .weekly:  components.weekOfYear = recurrenceInterval
+        case .daily:    components.day = recurrenceInterval
+        case .weekly:   components.weekOfYear = recurrenceInterval
         case .biweekly: components.weekOfYear = 2
-        case .monthly: components.month = recurrenceInterval
+        case .monthly:  components.month = recurrenceInterval
         }
         let next = Calendar.current.date(byAdding: components, to: date) ?? date
         if let end = recurrenceEndDate, next > end { return nil }
         return next
+    }
+
+    // For weekly recurrence with specific weekdays: find the next matching day.
+    // If a later weekday exists in the same week (interval == 1), use it.
+    // Otherwise advance N weeks from the current week's Sunday and use the first weekday.
+    private func nextWeekdayOccurrence(after date: Date) -> Date? {
+        let cal = Calendar.current
+        let sorted = recurrenceWeekdays.sorted()
+        let currentWeekday = cal.component(.weekday, from: date)
+
+        if recurrenceInterval == 1, let nextWD = sorted.first(where: { $0 > currentWeekday }) {
+            let candidate = cal.date(byAdding: .day, value: nextWD - currentWeekday, to: date)
+            if let end = recurrenceEndDate, let c = candidate, c > end { return nil }
+            return candidate
+        }
+
+        guard let weekStart = cal.dateInterval(of: .weekOfYear, for: date)?.start,
+              let targetStart = cal.date(byAdding: .weekOfYear, value: recurrenceInterval, to: weekStart),
+              let firstWD = sorted.first else { return nil }
+
+        // Calendar weekday 1 = Sunday = offset 0 from week start
+        let candidate = cal.date(byAdding: .day, value: firstWD - 1, to: targetStart)
+        if let end = recurrenceEndDate, let c = candidate, c > end { return nil }
+        return candidate
     }
 }
 
