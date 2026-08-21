@@ -269,51 +269,67 @@ struct PropertyScannerView: View {
     // MARK: - Overlays
 
     private var addressConfirmationBanner: some View {
-        VStack(spacing: 12) {
-            Text("Is this the correct property?")
-                .font(.headline)
-            Text(client.address)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+        VStack(spacing: 14) {
+            // Address display
+            HStack(spacing: 10) {
+                Image(systemName: "mappin.circle.fill")
+                    .font(.title2)
+                    .foregroundStyle(.blue)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Is this the correct property?")
+                        .font(.subheadline.weight(.semibold))
+                    Text(client.address)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+                Spacer()
+            }
+
+            // Secondary actions row
             HStack(spacing: 8) {
-                Button("Wrong Address") { dismiss() }
-                    .buttonStyle(.bordered)
                 Button {
                     showingLocationAdjust = true
                 } label: {
                     Label("Move Pin", systemImage: "mappin.and.ellipse")
+                        .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
                 .disabled(client.latitude == 0)
+
                 Button {
                     loadLookAround()
                 } label: {
                     if isLoadingLookAround {
-                        ProgressView().scaleEffect(0.8).frame(width: 44)
+                        ProgressView().scaleEffect(0.8).frame(maxWidth: .infinity)
                     } else {
                         Label("Street View", systemImage: "binoculars")
+                            .frame(maxWidth: .infinity)
                     }
                 }
                 .buttonStyle(.bordered)
                 .disabled(isLoadingLookAround || client.latitude == 0)
-                Button("Correct") { addressConfirmed = true }
+            }
+
+            // Primary choice row
+            HStack(spacing: 8) {
+                Button("Wrong Address") { dismiss() }
+                    .buttonStyle(.bordered)
+                    .frame(maxWidth: .infinity)
+
+                Button("Looks Right") { addressConfirmed = true }
                     .buttonStyle(.borderedProminent)
+                    .frame(maxWidth: .infinity)
             }
         }
-        .padding()
+        .padding(16)
         .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .padding()
         .sheet(isPresented: $showingLocationAdjust) {
             NavigationStack {
                 LocationAdjustView(client: client) { coord, address in
-                    // Update the map camera to the corrected location
-                    cameraPosition = .camera(MapCamera(
-                        centerCoordinate: coord,
-                        distance: 80
-                    ))
-                    // Persist coordinate + address immediately
+                    cameraPosition = .camera(MapCamera(centerCoordinate: coord, distance: 80))
                     client.latitude = coord.latitude
                     client.longitude = coord.longitude
                     if !address.isEmpty { client.address = address }

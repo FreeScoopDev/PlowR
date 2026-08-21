@@ -1,13 +1,21 @@
 import SwiftUI
 import SwiftData
+import PhotosUI
 
 struct ClientPhotoGalleryView: View {
     let client: Client
     @Environment(\.modelContext) private var modelContext
+    @Environment(AuthManager.self) private var authManager
     @Query private var allPhotos: [StopPhoto]
 
     @State private var selectedPhoto: StopPhoto?
-    @State private var filterBefore: Bool? = nil // nil = all, true = before, false = after
+    @State private var filterBefore: Bool? = nil
+
+    // Import state
+    @State private var selectedPickerItem: PhotosPickerItem? = nil
+    @State private var showingCamera = false
+    @State private var pendingImageData: Data? = nil
+    @State private var showingPhotoTypePrompt = false
 
     private var clientPhotos: [StopPhoto] {
         allPhotos
@@ -16,9 +24,7 @@ struct ClientPhotoGalleryView: View {
             .sorted { $0.takenAt > $1.takenAt }
     }
 
-    private let columns = [
-        GridItem(.adaptive(minimum: 110, maximum: 160), spacing: 3)
-    ]
+    private let columns = [GridItem(.adaptive(minimum: 110, maximum: 160), spacing: 3)]
 
     var body: some View {
         Group {
@@ -39,13 +45,63 @@ struct ClientPhotoGalleryView: View {
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
+                addPhotoMenu
+            }
+            ToolbarItem(placement: .topBarLeading) {
                 filterMenu
             }
         }
         .sheet(item: $selectedPhoto) { photo in
             PhotoDetailView(photo: photo)
         }
+        .sheet(isPresented: $showingCamera) {
+            CameraCapture { image in
+                if let data = image.jpegData(compressionQuality: 0.85) {
+                    pendingImageData = data
+                    showingPhotoTypePrompt = true
+                }
+            }
+        }
+        .confirmationDialog("Label this photo", isPresented: $showingPhotoTypePrompt, titleVisibility: .visible) {
+            Button("Before Service") { savePhoto(isBefore: true) }
+            Button("After Service")  { savePhoto(isBefore: false) }
+            Button("Cancel", role: .cancel) { pendingImageData = nil }
+        } message: {
+            Text("Is this a before or after photo?")
+        }
+        .onChange(of: selectedPickerItem) { _, newItem in
+            Task {
+                guard let item = newItem else { return }
+                if let data = try? await item.loadTransferable(type: Data.self) {
+                    pendingImageData = data
+                    showingPhotoTypePrompt = true
+                }
+                selectedPickerItem = nil
+            }
+        }
     }
+
+    // MARK: - Add Menu
+
+    @MainActor
+    private var addPhotoMenu: some View {
+        Menu {
+            if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                Button {
+                    showingCamera = true
+                } label: {
+                    Label("Take Photo", systemImage: "camera.fill")
+                }
+            }
+            PhotosPicker(selection: $selectedPickerItem, matching: .images) {
+                Label("Choose from Library", systemImage: "photo.on.rectangle")
+            }
+        } label: {
+            Image(systemName: "plus")
+        }
+    }
+
+    // MARK: - Photo Cell
 
     private func photoCell(_ photo: StopPhoto) -> some View {
         ZStack(alignment: .bottomLeading) {
@@ -60,10 +116,10 @@ struct ClientPhotoGalleryView: View {
                     .fill(Color(.systemGray5))
                     .frame(height: 110)
             }
-            Label(photo.isBefore ? "Before" : "After", systemImage: photo.isBefore ? "clock" : "checkmark")
+            Label(photo.isBefore ? "Before" : "After",
+                  systemImage: photo.isBefore ? "clock" : "checkmark")
                 .font(.system(size: 9, weight: .semibold))
-                .padding(.horizontal, 5)
-                .padding(.vertical, 2)
+                .padding(.horizontal, 5).padding(.vertical, 2)
                 .background(photo.isBefore ? Color.orange.opacity(0.85) : Color.green.opacity(0.85))
                 .foregroundStyle(.white)
                 .clipShape(Capsule())
@@ -73,6 +129,7 @@ struct ClientPhotoGalleryView: View {
         .contentShape(Rectangle())
     }
 
+    // MARK: - Filter Menu
 
     private var filterMenu: some View {
         Menu {
@@ -96,20 +153,88 @@ struct ClientPhotoGalleryView: View {
         }
     }
 
+    // MARK: - Empty State
+
     private var emptyState: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 20) {
             Spacer()
             Image(systemName: "photo.on.rectangle.angled")
                 .font(.system(size: 52))
                 .foregroundStyle(.secondary)
             Text("No Photos Yet")
                 .font(.headline)
-            Text("Photos taken during route stops will appear here.")
+            Text("Add photos from your library or camera, or take them during a route stop.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
+
+            HStack(spacing: 12) {
+                if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                    Button {
+                        showingCamera = true
+                    } label: {
+                        Label("Take Photo", systemImage: "camera.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                }
+                PhotosPicker(selection: $selectedPickerItem, matching: .images) {
+                    Label("Library", systemImage: "photo.on.rectangle")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+            }
+            .padding(.horizontal, 40)
+
             Spacer()
+        }
+    }
+
+    // MARK: - Save
+
+    private func savePhoto(isBefore: Bool) {
+        guard let data = pendingImageData else { return }
+        let photo = StopPhoto(
+            operatorID: authManager.userID,
+            clientID: client.id.uuidString,
+            routeID: "",
+            isBefore: isBefore,
+            imageData: data
+        )
+        modelContext.insert(photo)
+        pendingImageData = nil
+    }
+}
+
+// MARK: - Camera Capture
+
+private struct CameraCapture: UIViewControllerRepresentable {
+    let onCapture: (UIImage) -> Void
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = .camera
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let parent: CameraCapture
+        init(_ parent: CameraCapture) { self.parent = parent }
+
+        func imagePickerController(_ picker: UIImagePickerController,
+                                   didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+            if let image = info[.originalImage] as? UIImage { parent.onCapture(image) }
+            picker.dismiss(animated: true)
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            picker.dismiss(animated: true)
         }
     }
 }
@@ -169,9 +294,7 @@ private struct PhotoDetailView: View {
                     Button("Done") { dismiss() }
                 }
                 ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showingShareSheet = true
-                    } label: {
+                    Button { showingShareSheet = true } label: {
                         Image(systemName: "square.and.arrow.up")
                     }
                     .disabled(image == nil)
@@ -186,9 +309,7 @@ private struct PhotoDetailView: View {
                 }
             }
             .sheet(isPresented: $showingShareSheet) {
-                if let img = image {
-                    PhotoShareSheet(image: img)
-                }
+                if let img = image { PhotoShareSheet(image: img) }
             }
         }
     }

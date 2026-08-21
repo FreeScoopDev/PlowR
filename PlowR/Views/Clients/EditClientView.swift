@@ -446,26 +446,26 @@ struct EditClientView: View {
             }
 
             if client.latitude != 0 {
-                HStack(spacing: 12) {
+                HStack(spacing: 10) {
                     Button {
                         showingLocationAdjust = true
                     } label: {
                         Label("Adjust Pin", systemImage: "mappin.and.ellipse")
+                            .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
-                    .controlSize(.small)
 
                     Button {
                         loadLookAround()
                     } label: {
                         if isLoadingLookAround {
-                            ProgressView().scaleEffect(0.8)
+                            ProgressView().scaleEffect(0.8).frame(maxWidth: .infinity)
                         } else {
                             Label("Street View", systemImage: "binoculars")
+                                .frame(maxWidth: .infinity)
                         }
                     }
                     .buttonStyle(.bordered)
-                    .controlSize(.small)
                     .disabled(isLoadingLookAround)
                 }
             }
