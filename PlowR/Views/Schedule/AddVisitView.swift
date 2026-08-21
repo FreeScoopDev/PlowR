@@ -44,6 +44,23 @@ struct AddVisitView: View {
         _afterHoursMultiplier = State(initialValue: 1.5)
     }
 
+    // Create new visit pre-filled for a specific client
+    init(client: Client, initialDate: Date = Date()) {
+        self.editing = nil
+        _scheduledDate = State(initialValue: initialDate)
+        _estimatedMinutes = State(initialValue: client.goalMinutes)
+        _notes = State(initialValue: client.defaultStopNotes)
+        _isRecurring = State(initialValue: false)
+        _recurrenceType = State(initialValue: .weekly)
+        _recurrenceInterval = State(initialValue: 1)
+        _hasEndDate = State(initialValue: false)
+        _recurrenceEndDate = State(initialValue: Date().addingTimeInterval(86400 * 90))
+        _recurrenceWeekdays = State(initialValue: [])
+        _selectedClient = State(initialValue: client)
+        _isAfterHours = State(initialValue: false)
+        _afterHoursMultiplier = State(initialValue: 1.5)
+    }
+
     // Edit existing visit
     init(editing: ScheduledVisit) {
         self.editing = editing

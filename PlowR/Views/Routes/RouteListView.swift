@@ -78,13 +78,27 @@ struct RouteListView: View {
 struct RouteRowView: View {
     let route: PlowRoute
 
+    private var completedCount: Int {
+        route.sortedStops.filter { $0.actualMinutes > 0 }.count
+    }
+
+    private var totalCount: Int { route.sortedStops.count }
+
+    private var subtitleText: String {
+        guard totalCount > 0 else { return "No stops" }
+        if completedCount == 0 {
+            return "\(totalCount) stop\(totalCount == 1 ? "" : "s")"
+        }
+        return "\(totalCount) stop\(totalCount == 1 ? "" : "s") · \(completedCount)/\(totalCount) complete"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(route.name)
                 .font(.headline)
-            Text("\(route.sortedStops.count) stop\(route.sortedStops.count == 1 ? "" : "s")")
+            Text(subtitleText)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(completedCount > 0 && completedCount < totalCount ? .orange : .secondary)
         }
         .padding(.vertical, 4)
     }

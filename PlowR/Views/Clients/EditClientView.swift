@@ -46,8 +46,10 @@ struct EditClientView: View {
     @State private var showingShareSheet = false
     @State private var revisePaidDoc: Proposal?
     @State private var editingProposal: Proposal?
+    @State private var notes: String
     @State private var showingProposalBuilder = false
     @State private var showingInvoiceBuilder = false
+    @State private var showingAddVisit = false
 
     init(client: Client) {
         self.client = client
@@ -63,6 +65,7 @@ struct EditClientView: View {
         _isComped = State(initialValue: client.isComped)
         _defaultDiscountPercent = State(initialValue: client.defaultDiscountPercent)
         _tags = State(initialValue: client.tags)
+        _notes = State(initialValue: client.notes)
     }
 
     // MARK: - Body
@@ -71,6 +74,7 @@ struct EditClientView: View {
         Form {
             contactSection
             tagsSection
+            notesSection
             billingSection
             stopNotesSection
             serviceAddressSection
@@ -113,6 +117,9 @@ struct EditClientView: View {
         }
         .sheet(isPresented: $showingInvoiceBuilder) {
             NavigationStack { ProposalBuilderView(client: client, isInvoiceMode: true) }
+        }
+        .sheet(isPresented: $showingAddVisit) {
+            AddVisitView(client: client)
         }
         .lookAroundViewer(isPresented: $showingLookAround, initialScene: lookAroundScene)
         .alert("Street View Unavailable", isPresented: $showingLookAroundUnavailable) {
@@ -249,6 +256,20 @@ struct EditClientView: View {
         guard !trimmed.isEmpty, !tags.contains(trimmed) else { return }
         tags.append(trimmed)
         newTag = ""
+    }
+
+    // MARK: - Notes Section
+
+    private var notesSection: some View {
+        Section {
+            TextField("Internal notes…", text: $notes, axis: .vertical)
+                .lineLimit(3...8)
+        } header: {
+            Text("Notes")
+        } footer: {
+            Text("Private notes about this client — not shown on route or documents.")
+                .font(.caption)
+        }
     }
 
     // MARK: - Billing Section
@@ -508,6 +529,12 @@ struct EditClientView: View {
                     }
                 }
             }
+            Button {
+                showingAddVisit = true
+            } label: {
+                Label("Schedule Visit", systemImage: "calendar.badge.plus")
+                    .font(.subheadline)
+            }
         }
     }
 
@@ -751,6 +778,7 @@ struct EditClientView: View {
         client.isComped = isComped
         client.defaultDiscountPercent = defaultDiscountPercent
         client.tags = tags
+        client.notes = notes
 
         if let coord = geocodedCoordinate, address != originalAddress {
             client.address = address

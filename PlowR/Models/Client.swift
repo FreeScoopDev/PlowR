@@ -28,6 +28,7 @@ final class Client {
     var defaultDiscountPercent: Double = 0.0
     var email: String = ""
     var tags: [String] = []
+    var notes: String = ""          // general CRM notes, not shown on route
 
     var averageServiceMinutes: Double {
         guard totalVisits > 0 else { return 0 }
