@@ -37,6 +37,9 @@ struct ServiceCatalogView: View {
                             serviceToEdit = item
                         }
                     }
+                    .onDelete { offsets in
+                        offsets.map { group.items[$0] }.forEach { modelContext.delete($0) }
+                    }
                 }
             }
 
@@ -60,8 +63,10 @@ struct ServiceCatalogView: View {
     }
 
     private func seedIfNeeded() {
-        guard myServices.isEmpty else { return }
-        for (index, def) in ServiceItem.defaultServices.enumerated() {
+        let existingNames = Set(myServices.map { $0.name })
+        let toSeed = ServiceItem.defaultServices.enumerated().filter { !existingNames.contains($0.element.name) }
+        guard !toSeed.isEmpty else { return }
+        for (index, def) in toSeed {
             let item = ServiceItem(
                 name: def.name,
                 category: def.category,

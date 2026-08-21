@@ -14,6 +14,7 @@ struct ClientPhotoGalleryView: View {
     // Import state
     @State private var selectedPickerItem: PhotosPickerItem? = nil
     @State private var showingCamera = false
+    @State private var showingLibraryPicker = false
     @State private var pendingImageData: Data? = nil
     @State private var showingPhotoTypePrompt = false
 
@@ -51,6 +52,7 @@ struct ClientPhotoGalleryView: View {
                 filterMenu
             }
         }
+        .photosPicker(isPresented: $showingLibraryPicker, selection: $selectedPickerItem, matching: .images)
         .sheet(item: $selectedPhoto) { photo in
             PhotoDetailView(photo: photo)
         }
@@ -83,7 +85,6 @@ struct ClientPhotoGalleryView: View {
 
     // MARK: - Add Menu
 
-    @MainActor
     private var addPhotoMenu: some View {
         Menu {
             if UIImagePickerController.isSourceTypeAvailable(.camera) {
@@ -93,7 +94,9 @@ struct ClientPhotoGalleryView: View {
                     Label("Take Photo", systemImage: "camera.fill")
                 }
             }
-            PhotosPicker(selection: $selectedPickerItem, matching: .images) {
+            Button {
+                showingLibraryPicker = true
+            } label: {
                 Label("Choose from Library", systemImage: "photo.on.rectangle")
             }
         } label: {
@@ -179,7 +182,9 @@ struct ClientPhotoGalleryView: View {
                     }
                     .buttonStyle(.bordered)
                 }
-                PhotosPicker(selection: $selectedPickerItem, matching: .images) {
+                Button {
+                    showingLibraryPicker = true
+                } label: {
                     Label("Library", systemImage: "photo.on.rectangle")
                         .frame(maxWidth: .infinity)
                 }

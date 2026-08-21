@@ -11,7 +11,6 @@ struct ProposalDetailView: View {
     @Query private var allProposals: [Proposal]
 
     @State private var pdfData: Data? = nil
-    @State private var isSharing = false
     @State private var shareURL: URL? = nil
     @State private var showingEditView = false
     @State private var showingReviseDialog = false
@@ -67,10 +66,17 @@ struct ProposalDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button { shareDocument() } label: {
+                if let url = shareURL {
+                    ShareLink(
+                        item: url,
+                        preview: SharePreview(navTitle, icon: Image(systemName: "doc.fill"))
+                    ) {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                } else {
                     Image(systemName: "square.and.arrow.up")
+                        .foregroundStyle(.tertiary)
                 }
-                .disabled(pdfData == nil)
             }
         }
         .safeAreaInset(edge: .bottom) {
@@ -81,9 +87,7 @@ struct ProposalDetailView: View {
         .onChange(of: proposal.total) { _, _ in generatePDF() }
         .onChange(of: proposal.invoicePaidAt) { _, _ in generatePDF() }
         .onChange(of: proposal.invoiceSentAt) { _, _ in generatePDF() }
-        .sheet(isPresented: $isSharing) {
-            if let url = shareURL { ProposalShareSheet(url: url) }
-        }
+        .onChange(of: allProfiles) { _, _ in generatePDF() }
         .sheet(isPresented: $showingReminder) {
             if let phone = proposalClient?.phone, !phone.isEmpty {
                 MessageComposer(recipients: [phone], body: reminderMessage) { }
@@ -179,25 +183,21 @@ struct ProposalDetailView: View {
 
     private func generatePDF() {
         Task { @MainActor in
-            // Yield so the ProgressView renders before the blocking PDF work starts
             await Task.yield()
-            pdfData = PDFGenerator.generate(
+            let data = PDFGenerator.generate(
                 proposal: proposal,
                 profile: profile,
                 paymentMethods: activePaymentMethods,
                 forceIsInvoice: proposal.isInvoice
             )
+            pdfData = data
+            let prefix = proposal.isInvoice ? "Invoice" : "Proposal"
+            let safe = proposal.clientName.replacingOccurrences(of: "/", with: "-")
+            let url = FileManager.default.temporaryDirectory
+                .appendingPathComponent("\(prefix)-\(safe).pdf")
+            try? data.write(to: url)
+            shareURL = url
         }
-    }
-
-    private func shareDocument() {
-        guard let data = pdfData else { return }
-        let prefix = proposal.isInvoice ? "Invoice" : "Proposal"
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("\(prefix)-\(proposal.clientName).pdf")
-        try? data.write(to: url)
-        shareURL = url
-        isSharing = true
     }
 
     // MARK: - Actions
