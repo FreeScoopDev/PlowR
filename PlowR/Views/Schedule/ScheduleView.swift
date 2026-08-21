@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 struct ScheduleView: View {
     @Environment(AuthManager.self) private var authManager
@@ -38,6 +39,18 @@ struct ScheduleView: View {
             .filter { $0.status == .scheduled && $0.scheduledDate >= start }
             .prefix(5)
             .map { $0 }
+    }
+
+    private var visitDateStrings: Set<String> {
+        var strings = Set<String>()
+        let cal = Calendar.current
+        for visit in myVisits {
+            let comps = cal.dateComponents([.year, .month, .day], from: visit.scheduledDate)
+            if let y = comps.year, let m = comps.month, let d = comps.day {
+                strings.insert(String(format: "%04d-%02d-%02d", y, m, d))
+            }
+        }
+        return strings
     }
 
     private func clientForVisit(_ visit: ScheduledVisit) -> Client? {
@@ -98,11 +111,10 @@ struct ScheduleView: View {
 
     private var calendarSection: some View {
         Section {
-            DatePicker("", selection: $selectedDate, displayedComponents: .date)
-                .datePickerStyle(.graphical)
-                .labelsHidden()
+            CalendarDotView(selectedDate: $selectedDate, visitDateStrings: visitDateStrings)
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets())
         }
     }
 
@@ -371,6 +383,91 @@ struct ScheduleView: View {
             next.isAfterHours = visit.isAfterHours
             next.afterHoursMultiplier = visit.afterHoursMultiplier
             modelContext.insert(next)
+        }
+    }
+}
+
+// MARK: - Calendar Dot View
+
+private struct CalendarDotView: UIViewRepresentable {
+    @Binding var selectedDate: Date
+    let visitDateStrings: Set<String>
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(selectedDate: $selectedDate, visitDateStrings: visitDateStrings)
+    }
+
+    func makeUIView(context: Context) -> UICalendarView {
+        let cal = UICalendarView()
+        cal.calendar = .current
+        cal.locale = .current
+        cal.fontDesign = .rounded
+        cal.delegate = context.coordinator
+
+        let sel = UICalendarSelectionSingleDate(delegate: context.coordinator)
+        cal.selectionBehavior = sel
+
+        let comps = Calendar.current.dateComponents([.year, .month, .day], from: selectedDate)
+        sel.setSelected(comps, animated: false)
+
+        return cal
+    }
+
+    func updateUIView(_ uiView: UICalendarView, context: Context) {
+        let old = context.coordinator.visitDateStrings
+        let new = visitDateStrings
+        if old != new {
+            context.coordinator.visitDateStrings = new
+            let toReload = old.union(new).compactMap { str -> DateComponents? in
+                let parts = str.split(separator: "-").compactMap { Int($0) }
+                guard parts.count == 3 else { return nil }
+                return DateComponents(year: parts[0], month: parts[1], day: parts[2])
+            }
+            if !toReload.isEmpty {
+                uiView.reloadDecorations(forDateComponents: toReload, animated: false)
+            }
+        }
+
+        let comps = Calendar.current.dateComponents([.year, .month, .day], from: selectedDate)
+        if let sel = uiView.selectionBehavior as? UICalendarSelectionSingleDate {
+            let cur = sel.selectedDate
+            if cur?.year != comps.year || cur?.month != comps.month || cur?.day != comps.day {
+                sel.setSelected(comps, animated: false)
+            }
+        }
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: UICalendarView, context: Context) -> CGSize? {
+        let width = proposal.width ?? UIScreen.main.bounds.width
+        let height = uiView.sizeThatFits(
+            CGSize(width: width, height: UIView.layoutFittingCompressedSize.height)
+        ).height
+        return CGSize(width: width, height: max(height, 320))
+    }
+
+    class Coordinator: NSObject, UICalendarViewDelegate, UICalendarSelectionSingleDateDelegate {
+        var selectedDate: Binding<Date>
+        var visitDateStrings: Set<String>
+
+        init(selectedDate: Binding<Date>, visitDateStrings: Set<String>) {
+            self.selectedDate = selectedDate
+            self.visitDateStrings = visitDateStrings
+        }
+
+        func calendarView(_ calendarView: UICalendarView,
+                          decorationFor dateComponents: DateComponents) -> UICalendarView.Decoration? {
+            guard let y = dateComponents.year,
+                  let m = dateComponents.month,
+                  let d = dateComponents.day else { return nil }
+            let key = String(format: "%04d-%02d-%02d", y, m, d)
+            return visitDateStrings.contains(key) ? .default(color: .systemBlue, size: .small) : nil
+        }
+
+        func dateSelection(_ selection: UICalendarSelectionSingleDate,
+                           didSelectDate dateComponents: DateComponents?) {
+            guard let dc = dateComponents,
+                  let date = Calendar.current.date(from: dc) else { return }
+            selectedDate.wrappedValue = date
         }
     }
 }

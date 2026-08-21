@@ -35,7 +35,7 @@ struct ClientPhotoGalleryView: View {
                 }
             }
         }
-        .navigationTitle("Photos")
+        .navigationTitle("Photos (\(clientPhotos.count))")
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -43,7 +43,7 @@ struct ClientPhotoGalleryView: View {
             }
         }
         .sheet(item: $selectedPhoto) { photo in
-            photoDetailView(photo)
+            PhotoDetailView(photo: photo)
         }
     }
 
@@ -73,47 +73,6 @@ struct ClientPhotoGalleryView: View {
         .contentShape(Rectangle())
     }
 
-    @ViewBuilder
-    private func photoDetailView(_ photo: StopPhoto) -> some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 16) {
-                    if let image = UIImage(data: photo.imageData) {
-                        Image(uiImage: image)
-                            .resizable()
-                            .scaledToFit()
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                            .padding()
-                    }
-                    VStack(alignment: .leading, spacing: 8) {
-                        LabeledContent("Type", value: photo.isBefore ? "Before Service" : "After Service")
-                        LabeledContent("Date") {
-                            Text(photo.takenAt, format: .dateTime.month(.abbreviated).day().year().hour().minute())
-                        }
-                        if !photo.caption.isEmpty {
-                            LabeledContent("Caption", value: photo.caption)
-                        }
-                    }
-                    .padding(.horizontal)
-                }
-            }
-            .navigationTitle(photo.isBefore ? "Before Photo" : "After Photo")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { selectedPhoto = nil }
-                }
-                ToolbarItem(placement: .destructiveAction) {
-                    Button(role: .destructive) {
-                        modelContext.delete(photo)
-                        selectedPhoto = nil
-                    } label: {
-                        Image(systemName: "trash")
-                    }
-                }
-            }
-        }
-    }
 
     private var filterMenu: some View {
         Menu {
@@ -153,4 +112,92 @@ struct ClientPhotoGalleryView: View {
             Spacer()
         }
     }
+}
+
+// MARK: - Photo Detail View
+
+private struct PhotoDetailView: View {
+    let photo: StopPhoto
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
+    @State private var scale: CGFloat = 1.0
+    @State private var lastScale: CGFloat = 1.0
+    @State private var showingShareSheet = false
+
+    private var image: UIImage? { UIImage(data: photo.imageData) }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 16) {
+                    if let img = image {
+                        Image(uiImage: img)
+                            .resizable()
+                            .scaledToFit()
+                            .scaleEffect(scale)
+                            .gesture(
+                                MagnificationGesture()
+                                    .onChanged { value in
+                                        scale = max(1.0, min(lastScale * value, 5.0))
+                                    }
+                                    .onEnded { _ in lastScale = scale }
+                            )
+                            .onTapGesture(count: 2) {
+                                withAnimation(.spring()) {
+                                    if scale > 1.05 { scale = 1.0; lastScale = 1.0 }
+                                    else { scale = 2.0; lastScale = 2.0 }
+                                }
+                            }
+                            .padding()
+                    }
+                    VStack(alignment: .leading, spacing: 8) {
+                        LabeledContent("Type", value: photo.isBefore ? "Before Service" : "After Service")
+                        LabeledContent("Date") {
+                            Text(photo.takenAt, format: .dateTime.month(.abbreviated).day().year().hour().minute())
+                        }
+                        if !photo.caption.isEmpty {
+                            LabeledContent("Caption", value: photo.caption)
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+            }
+            .navigationTitle(photo.isBefore ? "Before Photo" : "After Photo")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { dismiss() }
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showingShareSheet = true
+                    } label: {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                    .disabled(image == nil)
+                }
+                ToolbarItem(placement: .destructiveAction) {
+                    Button(role: .destructive) {
+                        modelContext.delete(photo)
+                        dismiss()
+                    } label: {
+                        Image(systemName: "trash")
+                    }
+                }
+            }
+            .sheet(isPresented: $showingShareSheet) {
+                if let img = image {
+                    PhotoShareSheet(image: img)
+                }
+            }
+        }
+    }
+}
+
+private struct PhotoShareSheet: UIViewControllerRepresentable {
+    let image: UIImage
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: [image], applicationActivities: nil)
+    }
+    func updateUIViewController(_ uvc: UIActivityViewController, context: Context) {}
 }

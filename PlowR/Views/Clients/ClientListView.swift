@@ -23,8 +23,14 @@ struct ClientListView: View {
     @State private var statsClient: Client?
     @State private var sortOption: ClientSortOption = .name
     @State private var filterOption: ClientFilterOption = .all
+    @State private var activeTagFilter: String? = nil
 
-    private var isFiltered: Bool { sortOption != .name || filterOption != .all }
+    private var availableTags: [String] {
+        let mine = allClients.filter { $0.operatorID == authManager.userID }
+        return Array(Set(mine.flatMap { $0.tags })).sorted()
+    }
+
+    private var isFiltered: Bool { sortOption != .name || filterOption != .all || activeTagFilter != nil }
 
     private func outstandingBalance(for client: Client) -> Double {
         allProposals
@@ -48,7 +54,9 @@ struct ClientListView: View {
         case .noHistory: filtered = base.filter { $0.totalVisits == 0 }
         }
 
-        return filtered.sorted { a, b in
+        let tagFiltered = activeTagFilter.map { tag in filtered.filter { $0.tags.contains(tag) } } ?? filtered
+
+        return tagFiltered.sorted { a, b in
             switch sortOption {
             case .name:        return a.name < b.name
             case .lastService:
@@ -64,9 +72,9 @@ struct ClientListView: View {
         Group {
             if clients.isEmpty {
                 ContentUnavailableView(
-                    filterOption == .all ? "No Clients Yet" : "No Clients Match",
-                    systemImage: filterOption == .all ? "person.badge.plus" : "line.3.horizontal.decrease.circle",
-                    description: Text(filterOption == .all
+                    filterOption == .all && activeTagFilter == nil ? "No Clients Yet" : "No Clients Match",
+                    systemImage: filterOption == .all && activeTagFilter == nil ? "person.badge.plus" : "line.3.horizontal.decrease.circle",
+                    description: Text(filterOption == .all && activeTagFilter == nil
                         ? "Add your first client to get started."
                         : "Try adjusting your filter.")
                 )
@@ -125,6 +133,30 @@ struct ClientListView: View {
                                     Label(option.rawValue, systemImage: "checkmark")
                                 } else {
                                     Text(option.rawValue)
+                                }
+                            }
+                        }
+                    }
+                    if !availableTags.isEmpty {
+                        Section("Tag") {
+                            Button {
+                                activeTagFilter = nil
+                            } label: {
+                                if activeTagFilter == nil {
+                                    Label("All Tags", systemImage: "checkmark")
+                                } else {
+                                    Text("All Tags")
+                                }
+                            }
+                            ForEach(availableTags, id: \.self) { tag in
+                                Button {
+                                    activeTagFilter = activeTagFilter == tag ? nil : tag
+                                } label: {
+                                    if activeTagFilter == tag {
+                                        Label(tag, systemImage: "checkmark")
+                                    } else {
+                                        Text(tag)
+                                    }
                                 }
                             }
                         }

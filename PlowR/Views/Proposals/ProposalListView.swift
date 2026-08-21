@@ -63,6 +63,12 @@ struct ProposalListView: View {
                             } label: {
                                 Label("Delete", systemImage: "trash")
                             }
+                            Button {
+                                duplicateProposal(proposal)
+                            } label: {
+                                Label("Duplicate", systemImage: "doc.on.doc")
+                            }
+                            .tint(.indigo)
                         }
                     }
                 }
@@ -158,6 +164,20 @@ struct ProposalListView: View {
         let count = allProposals.filter { $0.isInvoice && $0.operatorID == authManager.userID }.count
         proposal.invoiceNumber = String(format: "INV-%04d", count + 1)
         proposal.invoiceDueDate = Date().addingTimeInterval(30 * 86400)
+    }
+
+    private func duplicateProposal(_ proposal: Proposal) {
+        guard let client = myClients.first(where: { $0.id.uuidString == proposal.clientID }) else { return }
+        let copy = Proposal(operatorID: proposal.operatorID, client: client)
+        copy.notes = proposal.notes
+        copy.disclaimer = proposal.disclaimer
+        copy.discountAmount = proposal.discountAmount
+        copy.taxRate = proposal.taxRate
+        copy.validUntil = proposal.validUntil
+        let lineItemCopies = proposal.makeLineItemCopies()
+        lineItemCopies.forEach { modelContext.insert($0) }
+        copy.lineItems = lineItemCopies
+        modelContext.insert(copy)
     }
 }
 
