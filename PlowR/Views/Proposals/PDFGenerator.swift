@@ -73,6 +73,10 @@ struct PDFGenerator {
             ctx.beginPage()
             var y: CGFloat = margin
 
+            // Top accent bar — professional framing at page edge
+            accent.withAlphaComponent(0.9).setFill()
+            UIBezierPath(rect: CGRect(x: 0, y: 0, width: pageW, height: 5)).fill()
+
             y = drawHeader(profile: profile, isInvoice: isInvoice,
                            invoiceNumber: proposal.invoiceNumber, createdAt: proposal.createdAt,
                            contentW: contentW, margin: margin, y: y, accent: accent,
@@ -133,12 +137,12 @@ struct PDFGenerator {
         let dateFmt  = DateFormatter(); dateFmt.dateStyle = .short
 
         // Right — document title; compact mode shrinks it for narrow logo-heavy headers
-        let titleSize: CGFloat = compactHeader ? 20 : 28
+        let titleSize: CGFloat = compactHeader ? 15 : 20
         let docTitle = isInvoice ? "INVOICE" : "PROPOSAL"
-        drawText(docTitle, x: margin + leftW + 14, y: y - 4, width: rightW,
-                 font: displayFont(titleSize), color: accent, kern: 1.5, alignment: .right, singleLine: true)
+        drawText(docTitle, x: margin + leftW + 14, y: y - 2, width: rightW,
+                 font: displayFont(titleSize), color: accent, kern: 2.5, alignment: .right, singleLine: true)
 
-        var metaY = y + (compactHeader ? 24 : 33)
+        var metaY = y + (compactHeader ? 20 : 27)
         if isInvoice && !invoiceNumber.isEmpty {
             labeled("Invoice\u{00A0}#", value: invoiceNumber)
                 .draw(in: CGRect(x: margin + leftW + 14, y: metaY, width: rightW, height: 20))
@@ -160,26 +164,34 @@ struct PDFGenerator {
         }
         let name = profile?.companyName.isEmpty == false ? profile!.companyName : "Service Provider"
         drawText(name, x: margin + logoOffset, y: leftY, width: leftW - logoOffset,
-                 font: headingFont(15), color: ink, singleLine: true)
-        leftY += 20
+                 font: headingFont(14), color: ink, singleLine: true)
+        leftY += 18
         if let tagline = profile?.tagline, !tagline.isEmpty {
             drawText(tagline, x: margin + logoOffset, y: leftY, width: leftW - logoOffset,
-                     font: bodyFont(10), color: inkMid, singleLine: true)
-            leftY += 14
+                     font: bodyFont(9.5), color: inkMid, singleLine: true)
+            leftY += 13
         }
         let contacts = [profile?.phone, profile?.email].compactMap { $0 }.filter { !$0.isEmpty }
         if !contacts.isEmpty {
             drawText(contacts.joined(separator: "   ·   "), x: margin + logoOffset, y: leftY,
-                     width: leftW - logoOffset, font: bodyFont(9.5), color: inkLight, singleLine: true)
-            leftY += 13
+                     width: leftW - logoOffset, font: bodyFont(9), color: inkLight, singleLine: true)
+            leftY += 12
         }
         if let lic = profile?.licenseNumber, !lic.isEmpty {
             drawText("License: \(lic)", x: margin + logoOffset, y: leftY,
-                     width: leftW - logoOffset, font: bodyFont(9.5), color: inkLight)
-            leftY += 13
+                     width: leftW - logoOffset, font: bodyFont(9), color: inkLight)
+            leftY += 12
         }
 
-        return max(leftY, metaY)
+        // Thin vertical rule separating company block from document-type block
+        let ruleBottom = max(leftY, metaY)
+        ruleLight.withAlphaComponent(0.6).setStroke()
+        let vr = UIBezierPath()
+        vr.move(to: CGPoint(x: margin + leftW + 7, y: y))
+        vr.addLine(to: CGPoint(x: margin + leftW + 7, y: ruleBottom))
+        vr.lineWidth = 0.5; vr.stroke()
+
+        return ruleBottom
     }
 
     /// Gill Sans bold label + Verdana value, right-aligned.
@@ -668,6 +680,9 @@ struct PDFGenerator {
             ctx.beginPage()
             var y: CGFloat = margin
 
+            accent.withAlphaComponent(0.9).setFill()
+            UIBezierPath(rect: CGRect(x: 0, y: 0, width: pageW, height: 5)).fill()
+
             y = drawSeasonHeader(profile: profile, reportDate: reportDate,
                                  contentW: contentW, margin: margin, y: y, accent: accent)
             y += 16
@@ -745,7 +760,7 @@ struct PDFGenerator {
         let dateFmt = DateFormatter(); dateFmt.dateStyle = .medium
 
         drawText("SEASON REPORT", x: margin + leftW + 14, y: y, width: rightW,
-                 font: displayFont(20), color: accent, kern: 1.0, alignment: .right, singleLine: true)
+                 font: displayFont(17), color: accent, kern: 2.0, alignment: .right, singleLine: true)
         drawText("Generated: \(dateFmt.string(from: reportDate))",
                  x: margin + leftW + 14, y: y + 28, width: rightW,
                  font: bodyFont(9), color: inkLight, alignment: .right, singleLine: true)
