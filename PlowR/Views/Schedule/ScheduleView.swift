@@ -494,51 +494,99 @@ private struct WeatherBannerRow: View {
     let fetcher: WeatherFetcher
 
     var body: some View {
-        HStack(spacing: 12) {
-            if fetcher.isLoading {
-                ProgressView().controlSize(.small)
-                Text("Checking weather…")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else if let w = fetcher.condition {
-                Image(systemName: w.symbolName)
-                    .font(.title2)
-                    .foregroundStyle(iconColor(for: w))
-                    .frame(width: 30)
+        VStack(alignment: .leading, spacing: 10) {
+            // Current conditions
+            HStack(spacing: 12) {
+                if fetcher.isLoading {
+                    ProgressView().controlSize(.small)
+                    Text("Checking weather…")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else if let w = fetcher.condition {
+                    Image(systemName: w.symbolName)
+                        .font(.title2)
+                        .foregroundStyle(conditionColor(w.description))
+                        .frame(width: 30)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text("\(Int(w.temperatureF))°F")
-                            .font(.headline.weight(.semibold))
-                        Text("·")
-                            .foregroundStyle(.tertiary)
-                        Text(w.description)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 6) {
+                            Text("\(Int(w.temperatureF))°F")
+                                .font(.headline.weight(.semibold))
+                            Text("·")
+                                .foregroundStyle(.tertiary)
+                            Text(w.description)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        if w.windSpeedMph >= 1 {
+                            Text("\(Int(w.windSpeedMph)) mph \(w.windDirectionLabel)")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
                     }
-                    if w.windSpeedMph >= 1 {
-                        Text("\(Int(w.windSpeedMph)) mph \(w.windDirectionLabel)")
+
+                    Spacer()
+
+                    Button { fetcher.refresh() } label: {
+                        Image(systemName: "arrow.clockwise")
                             .font(.caption)
                             .foregroundStyle(.tertiary)
                     }
+                    .buttonStyle(.plain)
                 }
+            }
 
-                Spacer()
-
-                Button { fetcher.refresh() } label: {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
+            // 7-day forecast strip
+            if !fetcher.forecast.isEmpty {
+                Divider()
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 4) {
+                        ForEach(fetcher.forecast, id: \.date) { day in
+                            forecastCell(day)
+                        }
+                    }
+                    .padding(.horizontal, 2)
                 }
-                .buttonStyle(.plain)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
         .onAppear { fetcher.load() }
     }
 
-    private func iconColor(for w: WeatherCondition) -> Color {
-        let d = w.description.lowercased()
+    private func forecastCell(_ day: DayForecast) -> some View {
+        VStack(spacing: 3) {
+            Text(day.date, format: .dateTime.weekday(.abbreviated))
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(.secondary)
+            Image(systemName: day.symbolName)
+                .font(.subheadline)
+                .foregroundStyle(conditionColor(day.description))
+            if day.hasSignificantPrecip {
+                Text(String(format: "%.1f\"", day.precipitationMm / 25.4))
+                    .font(.system(size: 8))
+                    .foregroundStyle(.blue)
+            } else {
+                Color.clear.frame(height: 10)
+            }
+            Text("\(Int(day.maxTempF))°")
+                .font(.caption.weight(.semibold))
+            Text("\(Int(day.minTempF))°")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .frame(minWidth: 42)
+        .padding(.vertical, 4)
+        .padding(.horizontal, 6)
+        .background {
+            if Calendar.current.isDateInToday(day.date) {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color(.systemGray6))
+            }
+        }
+    }
+
+    private func conditionColor(_ description: String) -> Color {
+        let d = description.lowercased()
         if d.contains("snow") || d.contains("freezing") { return .blue }
         if d.contains("rain") || d.contains("drizzle") || d.contains("shower") { return .indigo }
         if d.contains("thunder") { return .yellow }
@@ -551,6 +599,7 @@ private struct WeatherBannerRow: View {
 @Observable
 private final class WeatherFetcher {
     var condition: WeatherCondition?
+    var forecast: [DayForecast] = []
     var isLoading = false
 
     private let locMgr = CLLocationManager()
@@ -561,11 +610,13 @@ private final class WeatherFetcher {
         locMgr.desiredAccuracy = kCLLocationAccuracyKilometer
         locDelegate.onGotLocation = { [weak self] loc in
             guard let self else { return }
+            let lat = loc.coordinate.latitude
+            let lon = loc.coordinate.longitude
             Task { @MainActor in
-                self.condition = try? await WeatherService.shared.fetch(
-                    latitude: loc.coordinate.latitude,
-                    longitude: loc.coordinate.longitude
-                )
+                async let conditionTask = WeatherService.shared.fetch(latitude: lat, longitude: lon)
+                async let forecastTask = WeatherService.shared.fetchForecast(latitude: lat, longitude: lon)
+                self.condition = try? await conditionTask
+                self.forecast = (try? await forecastTask) ?? []
                 self.isLoading = false
             }
         }
