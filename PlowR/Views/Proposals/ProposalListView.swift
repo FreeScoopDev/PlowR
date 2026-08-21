@@ -71,6 +71,13 @@ struct ProposalListView: View {
                                 Label("Delete", systemImage: "trash")
                             }
                         }
+                        .swipeActions(edge: .trailing) {
+                            Button(role: .destructive) {
+                                proposalToDelete = proposal
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
                     }
                 }
             }

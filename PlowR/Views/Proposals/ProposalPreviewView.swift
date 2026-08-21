@@ -9,7 +9,6 @@ struct ProposalPreviewView: View {
 
     @Environment(\.dismiss) private var dismiss
 
-    @State private var isSharing = false
     @State private var shareURL: URL?
 
     private var docTitle: String { isInvoice ? "Invoice Preview" : "Proposal Preview" }
@@ -27,8 +26,13 @@ struct ProposalPreviewView: View {
                     }
                     ToolbarItem(placement: .primaryAction) {
                         HStack(spacing: 8) {
-                            Button { prepareShare() } label: {
-                                Image(systemName: "square.and.arrow.up")
+                            if let url = shareURL {
+                                ShareLink(
+                                    item: url,
+                                    preview: SharePreview(docTitle, icon: Image(systemName: "doc.fill"))
+                                ) {
+                                    Image(systemName: "square.and.arrow.up")
+                                }
                             }
                             Button {
                                 onSave()
@@ -41,20 +45,16 @@ struct ProposalPreviewView: View {
                         }
                     }
                 }
-                .sheet(isPresented: $isSharing) {
-                    if let url = shareURL {
-                        ProposalShareSheet(url: url)
-                    }
-                }
         }
+        .onAppear { prepareShareURL() }
     }
 
-    private func prepareShare() {
+    private func prepareShareURL() {
+        let safe = client.name.replacingOccurrences(of: "/", with: "-")
         let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("\(filePrefix)-\(client.name).pdf")
+            .appendingPathComponent("\(filePrefix)-\(safe).pdf")
         try? pdfData.write(to: url)
         shareURL = url
-        isSharing = true
     }
 }
 

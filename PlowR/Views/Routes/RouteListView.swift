@@ -37,6 +37,13 @@ struct RouteListView: View {
                                 Label("Delete Route", systemImage: "trash")
                             }
                         }
+                        .swipeActions(edge: .trailing) {
+                            Button(role: .destructive) {
+                                routeToDelete = route
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
                     }
                 }
             }

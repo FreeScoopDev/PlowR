@@ -42,8 +42,6 @@ struct EditClientView: View {
     @State private var showingLocationAdjust = false
 
     // Documents
-    @State private var sharingDocumentURL: URL?
-    @State private var showingShareSheet = false
     @State private var revisePaidDoc: Proposal?
     @State private var editingProposal: Proposal?
     @State private var notes: String
@@ -102,11 +100,6 @@ struct EditClientView: View {
         .sheet(isPresented: $showingLocationAdjust) {
             NavigationStack {
                 LocationAdjustView(client: client)
-            }
-        }
-        .sheet(isPresented: $showingShareSheet) {
-            if let url = sharingDocumentURL {
-                ProposalShareSheet(url: url)
             }
         }
         .sheet(item: $editingProposal) { proposal in
@@ -208,6 +201,11 @@ struct EditClientView: View {
 
     // MARK: - Tags Section
 
+    private static let tagSuggestions = [
+        "Residential", "Commercial", "Priority", "Seasonal",
+        "Driveway Only", "Walkways", "Back Lot", "Comped"
+    ]
+
     private var tagsSection: some View {
         Section {
             if !tags.isEmpty {
@@ -242,6 +240,29 @@ struct EditClientView: View {
                     .onSubmit { addTag() }
                 Button("Add") { addTag() }
                     .disabled(newTag.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+            let suggestions = Self.tagSuggestions.filter { !tags.contains($0) }
+            if !suggestions.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(suggestions, id: \.self) { suggestion in
+                            Button {
+                                tags.append(suggestion)
+                            } label: {
+                                Text("+ \(suggestion)")
+                                    .font(.caption.weight(.medium))
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 4)
+                                    .background(Color(.systemGray5))
+                                    .foregroundStyle(.secondary)
+                                    .clipShape(Capsule())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
+                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 4, trailing: 16))
             }
         } header: {
             Text("Tags")
@@ -672,11 +693,18 @@ struct EditClientView: View {
             forceIsInvoice: proposal.isInvoice
         )
         let prefix = proposal.isInvoice ? "Invoice" : "Proposal"
+        let safe = client.name.replacingOccurrences(of: "/", with: "-")
         let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("\(prefix)-\(client.name).pdf")
+            .appendingPathComponent("\(prefix)-\(safe)-\(proposal.id.uuidString.prefix(6)).pdf")
         try? data.write(to: url)
-        sharingDocumentURL = url
-        showingShareSheet = true
+
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = windowScene.windows.first else { return }
+        let vc = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        vc.popoverPresentationController?.sourceView = window
+        var topVC = window.rootViewController
+        while let presented = topVC?.presentedViewController { topVC = presented }
+        topVC?.present(vc, animated: true)
     }
 
     private func createRevision(of original: Proposal) {

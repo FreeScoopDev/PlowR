@@ -23,6 +23,7 @@ extension Color {
 
 struct BusinessProfileView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
     @Environment(AuthManager.self) private var authManager
     @Query private var profiles: [BusinessProfile]
 
@@ -162,5 +163,6 @@ struct BusinessProfileView: View {
         p.compactHeader = compactHeader
         p.accentColorHex = accentColor.hexString
         if let data = logoData { p.logoData = data }
+        dismiss()
     }
 }
