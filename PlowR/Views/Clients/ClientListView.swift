@@ -24,13 +24,14 @@ struct ClientListView: View {
     @State private var sortOption: ClientSortOption = .name
     @State private var filterOption: ClientFilterOption = .all
     @State private var activeTagFilter: String? = nil
+    @State private var searchText = ""
 
     private var availableTags: [String] {
         let mine = allClients.filter { $0.operatorID == authManager.userID }
         return Array(Set(mine.flatMap { $0.tags })).sorted()
     }
 
-    private var isFiltered: Bool { sortOption != .name || filterOption != .all || activeTagFilter != nil }
+    private var isFiltered: Bool { sortOption != .name || filterOption != .all || activeTagFilter != nil || !searchText.isEmpty }
 
     private func outstandingBalance(for client: Client) -> Double {
         allProposals
@@ -56,7 +57,20 @@ struct ClientListView: View {
 
         let tagFiltered = activeTagFilter.map { tag in filtered.filter { $0.tags.contains(tag) } } ?? filtered
 
-        return tagFiltered.sorted { a, b in
+        let searched: [Client]
+        if searchText.isEmpty {
+            searched = tagFiltered
+        } else {
+            let q = searchText.lowercased()
+            searched = tagFiltered.filter {
+                $0.name.lowercased().contains(q) ||
+                $0.address.lowercased().contains(q) ||
+                $0.phone.lowercased().contains(q) ||
+                $0.tags.contains { $0.lowercased().contains(q) }
+            }
+        }
+
+        return searched.sorted { a, b in
             switch sortOption {
             case .name:        return a.name < b.name
             case .lastService:
@@ -72,11 +86,11 @@ struct ClientListView: View {
         Group {
             if clients.isEmpty {
                 ContentUnavailableView(
-                    filterOption == .all && activeTagFilter == nil ? "No Clients Yet" : "No Clients Match",
-                    systemImage: filterOption == .all && activeTagFilter == nil ? "person.badge.plus" : "line.3.horizontal.decrease.circle",
-                    description: Text(filterOption == .all && activeTagFilter == nil
-                        ? "Add your first client to get started."
-                        : "Try adjusting your filter.")
+                    isFiltered ? "No Clients Match" : "No Clients Yet",
+                    systemImage: isFiltered ? "line.3.horizontal.decrease.circle" : "person.badge.plus",
+                    description: Text(isFiltered
+                        ? "Try adjusting your filter or search."
+                        : "Add your first client to get started.")
                 )
             } else {
                 List {
@@ -103,6 +117,7 @@ struct ClientListView: View {
             }
         }
         .navigationTitle("Clients")
+        .searchable(text: $searchText, prompt: "Search clients")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button { showingAddClient = true } label: {

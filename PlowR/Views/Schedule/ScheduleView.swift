@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import UIKit
+import CoreLocation
 
 struct ScheduleView: View {
     @Environment(AuthManager.self) private var authManager
@@ -9,6 +10,7 @@ struct ScheduleView: View {
     @Query private var allClients: [Client]
 
     @State private var selectedDate = Date()
+    @State private var weatherFetcher = WeatherFetcher()
     @State private var showingAddVisit = false
     @State private var visitToEdit: ScheduledVisit?
     @State private var invoicingVisit: ScheduledVisit?
@@ -62,6 +64,7 @@ struct ScheduleView: View {
     var body: some View {
         NavigationStack {
             List {
+                weatherSection
                 calendarSection
                 if Calendar.current.isDateInToday(selectedDate) { overdueSection }
                 daySection
@@ -103,6 +106,19 @@ struct ScheduleView: View {
                 Button("OK", role: .cancel) { }
             } message: {
                 Text("\"\(createdRouteName)\" has been added to your Routes tab.")
+            }
+        }
+    }
+
+    // MARK: - Weather Section
+
+    @ViewBuilder
+    private var weatherSection: some View {
+        if weatherFetcher.isLoading || weatherFetcher.condition != nil {
+            Section {
+                WeatherBannerRow(fetcher: weatherFetcher)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
             }
         }
     }
@@ -469,5 +485,134 @@ private struct CalendarDotView: UIViewRepresentable {
                   let date = Calendar.current.date(from: dc) else { return }
             selectedDate.wrappedValue = date
         }
+    }
+}
+
+// MARK: - Weather Banner
+
+private struct WeatherBannerRow: View {
+    let fetcher: WeatherFetcher
+
+    var body: some View {
+        HStack(spacing: 12) {
+            if fetcher.isLoading {
+                ProgressView().controlSize(.small)
+                Text("Checking weather…")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else if let w = fetcher.condition {
+                Image(systemName: w.symbolName)
+                    .font(.title2)
+                    .foregroundStyle(iconColor(for: w))
+                    .frame(width: 30)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text("\(Int(w.temperatureF))°F")
+                            .font(.headline.weight(.semibold))
+                        Text("·")
+                            .foregroundStyle(.tertiary)
+                        Text(w.description)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    if w.windSpeedMph >= 1 {
+                        Text("\(Int(w.windSpeedMph)) mph \(w.windDirectionLabel)")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+
+                Spacer()
+
+                Button { fetcher.refresh() } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.vertical, 4)
+        .onAppear { fetcher.load() }
+    }
+
+    private func iconColor(for w: WeatherCondition) -> Color {
+        let d = w.description.lowercased()
+        if d.contains("snow") || d.contains("freezing") { return .blue }
+        if d.contains("rain") || d.contains("drizzle") || d.contains("shower") { return .indigo }
+        if d.contains("thunder") { return .yellow }
+        if d.contains("fog") { return .gray }
+        if d.contains("cloud") { return Color(.systemGray) }
+        return .orange
+    }
+}
+
+@Observable
+private final class WeatherFetcher {
+    var condition: WeatherCondition?
+    var isLoading = false
+
+    private let locMgr = CLLocationManager()
+    private let locDelegate = _LocDelegate()
+
+    init() {
+        locMgr.delegate = locDelegate
+        locMgr.desiredAccuracy = kCLLocationAccuracyKilometer
+        locDelegate.onGotLocation = { [weak self] loc in
+            guard let self else { return }
+            Task { @MainActor in
+                self.condition = try? await WeatherService.shared.fetch(
+                    latitude: loc.coordinate.latitude,
+                    longitude: loc.coordinate.longitude
+                )
+                self.isLoading = false
+            }
+        }
+        locDelegate.onFailed = { [weak self] in
+            Task { @MainActor in self?.isLoading = false }
+        }
+    }
+
+    func load() {
+        guard condition == nil && !isLoading else { return }
+        isLoading = true
+        switch locMgr.authorizationStatus {
+        case .notDetermined:
+            locMgr.requestWhenInUseAuthorization()
+        case .authorizedWhenInUse, .authorizedAlways:
+            locMgr.requestLocation()
+        default:
+            isLoading = false
+        }
+    }
+
+    func refresh() {
+        condition = nil
+        load()
+    }
+}
+
+private final class _LocDelegate: NSObject, CLLocationManagerDelegate {
+    var onGotLocation: ((CLLocation) -> Void)?
+    var onFailed: (() -> Void)?
+
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        if let loc = locations.first { onGotLocation?(loc) }
+    }
+
+    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        switch manager.authorizationStatus {
+        case .authorizedWhenInUse, .authorizedAlways:
+            manager.requestLocation()
+        case .denied, .restricted:
+            onFailed?()
+        default:
+            break
+        }
+    }
+
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        onFailed?()
     }
 }

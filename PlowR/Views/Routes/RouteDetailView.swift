@@ -18,7 +18,7 @@ struct RouteDetailView: View {
                     description: Text("Tap Edit to add stops to this route.")
                 )
             } else {
-                Section("\(route.sortedStops.count) stop\(route.sortedStops.count == 1 ? "" : "s")") {
+                Section(stopsSectionHeader) {
                     ForEach(Array(route.sortedStops.enumerated()), id: \.element.id) { index, stop in
                         HStack(spacing: 12) {
                             Text("\(index + 1)")
@@ -121,6 +121,25 @@ struct RouteDetailView: View {
     private func clientFor(_ stop: RouteStop) -> Client? {
         guard !stop.isCustomStop else { return nil }
         return allClients.first { $0.id == stop.clientID }
+    }
+
+    private var estimatedRouteMinutes: Int {
+        route.sortedStops.reduce(0) { total, stop in
+            guard let client = clientFor(stop), client.averageServiceMinutes > 0 else { return total }
+            return total + Int(client.averageServiceMinutes)
+        }
+    }
+
+    private var stopsSectionHeader: String {
+        let count = route.sortedStops.count
+        var label = "\(count) stop\(count == 1 ? "" : "s")"
+        let est = estimatedRouteMinutes
+        if est > 0 {
+            let h = est / 60; let m = est % 60
+            let timeStr = h > 0 ? (m > 0 ? "\(h)h \(m)m" : "\(h)h") : "\(m)m"
+            label += " · est. \(timeStr)"
+        }
+        return label
     }
 
     // MARK: - Route Optimization (nearest-neighbor greedy)
