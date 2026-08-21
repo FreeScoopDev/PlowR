@@ -639,6 +639,277 @@ struct PDFGenerator {
         return UIImage(cgImage: cg)
     }
 
+    // MARK: - Season Report
+
+    static func generateSeasonReport(
+        clients: [Client],
+        proposals: [Proposal],
+        profile: BusinessProfile?,
+        reportDate: Date = Date()
+    ) -> Data {
+        let pageW:  CGFloat = 612
+        let pageH:  CGFloat = 792
+        let margin: CGFloat = 54
+        let contentW = pageW - margin * 2
+        let colorPDFs = profile?.colorPDFs ?? true
+        let accent: UIColor = colorPDFs
+            ? (accentUIColor(from: profile?.accentColorHex) ?? defaultAccent)
+            : UIColor(white: 0.08, alpha: 1)
+
+        let invoices         = proposals.filter { $0.isInvoice }
+        let totalVisits      = clients.reduce(0)   { $0 + $1.totalVisits }
+        let totalMinutes     = clients.reduce(0.0) { $0 + $1.totalServiceMinutes }
+        let totalRevenue     = proposals.filter { $0.invoicePaidAt != nil }.reduce(0.0) { $0 + $1.total }
+        let totalOutstanding = invoices.filter { $0.invoicePaidAt == nil }.reduce(0.0) { $0 + $1.total }
+        let activeClients    = clients.filter { $0.totalVisits > 0 }.sorted { $0.totalVisits > $1.totalVisits }
+
+        let renderer = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: pageW, height: pageH))
+        return renderer.pdfData { ctx in
+            ctx.beginPage()
+            var y: CGFloat = margin
+
+            y = drawSeasonHeader(profile: profile, reportDate: reportDate,
+                                 contentW: contentW, margin: margin, y: y, accent: accent)
+            y += 16
+            drawHRule(x: margin, y: y, width: contentW, weight: 0.75, color: ruleLight)
+            y += 22
+
+            y = drawSeasonMetrics(
+                totalClients: clients.count, totalVisits: totalVisits,
+                totalMinutes: totalMinutes, totalRevenue: totalRevenue,
+                totalOutstanding: totalOutstanding,
+                contentW: contentW, margin: margin, y: y, accent: accent
+            )
+            y += 20
+            drawHRule(x: margin, y: y, width: contentW, weight: 0.5, color: ruleLight)
+            y += 20
+
+            let monthly = seasonMonthBuckets(from: proposals)
+            if !monthly.isEmpty {
+                y = drawSeasonMonthly(buckets: monthly, contentW: contentW,
+                                     margin: margin, y: y, accent: accent)
+                y += 20
+                drawHRule(x: margin, y: y, width: contentW, weight: 0.5, color: ruleLight)
+                y += 20
+            }
+
+            drawSeasonClientTable(
+                clients: activeClients, proposals: proposals,
+                contentW: contentW, margin: margin, y: y, accent: accent,
+                ctx: ctx, profile: profile, pageW: pageW, pageH: pageH
+            )
+
+            drawFooter(profile: profile, pageW: pageW, pageH: pageH, margin: margin, contentW: contentW)
+        }
+    }
+
+    private struct SeasonMonthBucket {
+        let label: String
+        let revenue: Double
+        let outstanding: Double
+    }
+
+    private static func seasonMonthBuckets(from proposals: [Proposal]) -> [SeasonMonthBucket] {
+        let cal    = Calendar.current
+        var map:   [String: (rev: Double, out: Double)] = [:]
+        let keyFmt = DateFormatter(); keyFmt.dateFormat = "yyyy-MM"
+        let lblFmt = DateFormatter(); lblFmt.dateFormat = "MMM yyyy"
+
+        for proposal in proposals where proposal.isInvoice {
+            let refDate = proposal.invoicePaidAt ?? proposal.invoiceSentAt ?? proposal.createdAt
+            let comps   = cal.dateComponents([.year, .month], from: refDate)
+            guard let year = comps.year, let month = comps.month else { continue }
+            let key    = String(format: "%04d-%02d", year, month)
+            var bucket = map[key] ?? (rev: 0, out: 0)
+            if proposal.invoicePaidAt != nil { bucket.rev += proposal.total }
+            else { bucket.out += proposal.total }
+            map[key] = bucket
+        }
+
+        return map.keys.sorted(by: >).prefix(12).compactMap { key in
+            guard let date = keyFmt.date(from: key) else { return nil }
+            let vals = map[key]!
+            return SeasonMonthBucket(label: lblFmt.string(from: date),
+                                     revenue: vals.rev, outstanding: vals.out)
+        }
+    }
+
+    @discardableResult
+    private static func drawSeasonHeader(
+        profile: BusinessProfile?,
+        reportDate: Date,
+        contentW: CGFloat, margin: CGFloat, y: CGFloat, accent: UIColor
+    ) -> CGFloat {
+        let rightW: CGFloat = 190
+        let leftW   = contentW - rightW - 14
+        let dateFmt = DateFormatter(); dateFmt.dateStyle = .medium
+
+        drawText("SEASON REPORT", x: margin + leftW + 14, y: y, width: rightW,
+                 font: displayFont(20), color: accent, kern: 1.0, alignment: .right, singleLine: true)
+        drawText("Generated: \(dateFmt.string(from: reportDate))",
+                 x: margin + leftW + 14, y: y + 28, width: rightW,
+                 font: bodyFont(9), color: inkLight, alignment: .right, singleLine: true)
+
+        var leftY: CGFloat = y
+        var logoOffset: CGFloat = 0
+        if let logoData = profile?.logoData, let logo = UIImage(data: logoData) {
+            let logoH: CGFloat = 44
+            let scale  = min(logoH / logo.size.height, 68.0 / logo.size.width)
+            let lW = logo.size.width * scale, lH = logo.size.height * scale
+            logo.draw(in: CGRect(x: margin, y: leftY, width: lW, height: lH))
+            logoOffset = lW + 12
+        }
+        let name = profile?.companyName.isEmpty == false ? profile!.companyName : "Service Provider"
+        drawText(name, x: margin + logoOffset, y: leftY, width: leftW - logoOffset,
+                 font: headingFont(15), color: ink, singleLine: true)
+        leftY += 20
+        let contacts = [profile?.phone, profile?.email].compactMap { $0 }.filter { !$0.isEmpty }
+        if !contacts.isEmpty {
+            drawText(contacts.joined(separator: "   ·   "),
+                     x: margin + logoOffset, y: leftY, width: leftW - logoOffset,
+                     font: bodyFont(9.5), color: inkLight, singleLine: true)
+            leftY += 14
+        }
+        return max(leftY, y + 44)
+    }
+
+    @discardableResult
+    private static func drawSeasonMetrics(
+        totalClients: Int, totalVisits: Int, totalMinutes: Double,
+        totalRevenue: Double, totalOutstanding: Double,
+        contentW: CGFloat, margin: CGFloat, y: CGFloat, accent: UIColor
+    ) -> CGFloat {
+        let colW = contentW / 4
+        let metrics: [(String, String, UIColor)] = [
+            ("CLIENTS",     "\(totalClients)", accent),
+            ("VISITS",      "\(totalVisits)",  accent),
+            ("COLLECTED",   String(format: "$%.0f", totalRevenue), UIColor.systemGreen),
+            ("OUTSTANDING",
+             totalOutstanding == 0 ? "$0" : String(format: "$%.0f", totalOutstanding),
+             totalOutstanding > 0 ? UIColor.systemRed : inkMid),
+        ]
+        for (i, (label, value, color)) in metrics.enumerated() {
+            let x = margin + CGFloat(i) * colW
+            drawText(label, x: x, y: y, width: colW - 4,
+                     font: labelFont(7.5), color: inkLight, kern: 1.2)
+            drawText(value, x: x, y: y + 14, width: colW - 4,
+                     font: bodyBoldFont(18), color: color, singleLine: true)
+        }
+        var bottom = y + 14 + 26
+        if totalMinutes > 0 {
+            let h = Int(totalMinutes) / 60, m = Int(totalMinutes) % 60
+            let t = h > 0 ? "\(h)h \(m)m total on-site" : "\(m) min total on-site"
+            drawText(t, x: margin, y: bottom + 4, width: contentW, font: bodyFont(10), color: inkMid)
+            bottom += 18
+        }
+        return bottom
+    }
+
+    @discardableResult
+    private static func drawSeasonMonthly(
+        buckets: [SeasonMonthBucket],
+        contentW: CGFloat, margin: CGFloat, y: CGFloat, accent: UIColor
+    ) -> CGFloat {
+        var curY = y
+        drawText("REVENUE BY MONTH", x: margin, y: curY, width: contentW,
+                 font: labelFont(8.5), color: accent, kern: 2)
+        curY += 16
+
+        let c1: CGFloat = contentW * 0.36
+        let c2: CGFloat = contentW * 0.32
+        let c3 = contentW - c1 - c2
+        drawText("MONTH",       x: margin,           y: curY, width: c1,
+                 font: labelFont(8), color: inkMid, kern: 0.4)
+        drawText("COLLECTED",   x: margin + c1,      y: curY, width: c2,
+                 font: labelFont(8), color: inkMid, kern: 0.4, alignment: .right)
+        drawText("OUTSTANDING", x: margin + c1 + c2, y: curY, width: c3,
+                 font: labelFont(8), color: inkMid, kern: 0.4, alignment: .right)
+        curY += 12
+        accent.withAlphaComponent(0.55).setStroke()
+        let rl = UIBezierPath()
+        rl.move(to: CGPoint(x: margin, y: curY))
+        rl.addLine(to: CGPoint(x: margin + contentW, y: curY))
+        rl.lineWidth = 1.0; rl.stroke()
+        curY += 8
+
+        for bucket in buckets {
+            drawText(bucket.label, x: margin, y: curY, width: c1, font: bodyFont(10.5), color: ink)
+            let revStr = bucket.revenue > 0 ? String(format: "$%.0f", bucket.revenue) : "—"
+            let outStr = bucket.outstanding > 0 ? String(format: "$%.0f", bucket.outstanding) : "—"
+            drawText(revStr, x: margin + c1, y: curY, width: c2, font: bodyFont(10.5),
+                     color: bucket.revenue > 0 ? UIColor.systemGreen : inkLight, alignment: .right)
+            drawText(outStr, x: margin + c1 + c2, y: curY, width: c3, font: bodyFont(10.5),
+                     color: bucket.outstanding > 0 ? UIColor.systemOrange : inkLight, alignment: .right)
+            curY += 17
+            drawHRule(x: margin, y: curY, width: contentW, weight: 0.4, color: ruleLight)
+            curY += 2
+        }
+        return curY
+    }
+
+    @discardableResult
+    private static func drawSeasonClientTable(
+        clients: [Client], proposals: [Proposal],
+        contentW: CGFloat, margin: CGFloat, y: CGFloat,
+        accent: UIColor, ctx: UIGraphicsPDFRendererContext,
+        profile: BusinessProfile?, pageW: CGFloat, pageH: CGFloat
+    ) -> CGFloat {
+        guard !clients.isEmpty else { return y }
+        var curY = y
+        let pageBottom = pageH - margin - 30
+
+        drawText("CLIENT BREAKDOWN", x: margin, y: curY, width: contentW,
+                 font: labelFont(8.5), color: accent, kern: 2)
+        curY += 16
+
+        let c1: CGFloat = contentW * 0.40
+        let c2: CGFloat = contentW * 0.13
+        let c3: CGFloat = contentW * 0.22
+        let c4 = contentW - c1 - c2 - c3
+        drawText("CLIENT",       x: margin,                y: curY, width: c1,
+                 font: labelFont(8), color: inkMid, kern: 0.4)
+        drawText("VISITS",       x: margin + c1,           y: curY, width: c2,
+                 font: labelFont(8), color: inkMid, kern: 0.4, alignment: .right)
+        drawText("COLLECTED",    x: margin + c1 + c2,      y: curY, width: c3,
+                 font: labelFont(8), color: inkMid, kern: 0.4, alignment: .right)
+        drawText("LAST SERVICE", x: margin + c1 + c2 + c3, y: curY, width: c4,
+                 font: labelFont(8), color: inkMid, kern: 0.4, alignment: .right)
+        curY += 12
+        accent.withAlphaComponent(0.55).setStroke()
+        let rl2 = UIBezierPath()
+        rl2.move(to: CGPoint(x: margin, y: curY))
+        rl2.addLine(to: CGPoint(x: margin + contentW, y: curY))
+        rl2.lineWidth = 1.0; rl2.stroke()
+        curY += 8
+
+        let dateFmt = DateFormatter(); dateFmt.dateStyle = .medium
+        for client in clients {
+            if curY + 22 > pageBottom {
+                drawFooter(profile: profile, pageW: pageW, pageH: pageH, margin: margin, contentW: contentW)
+                ctx.beginPage()
+                curY = margin
+            }
+            let collected = proposals
+                .filter { $0.clientID == client.id.uuidString && $0.invoicePaidAt != nil }
+                .reduce(0.0) { $0 + $1.total }
+            let lastStr = client.lastServiceDate.map { dateFmt.string(from: $0) } ?? "—"
+            let collStr = collected > 0 ? String(format: "$%.0f", collected) : "—"
+            drawText(client.name, x: margin, y: curY, width: c1,
+                     font: bodyFont(10.5), color: ink, singleLine: true)
+            drawText("\(client.totalVisits)", x: margin + c1, y: curY, width: c2,
+                     font: bodyFont(10.5), color: inkDark, alignment: .right, singleLine: true)
+            drawText(collStr, x: margin + c1 + c2, y: curY, width: c3,
+                     font: bodyFont(10.5), color: collected > 0 ? UIColor.systemGreen : inkMid,
+                     alignment: .right, singleLine: true)
+            drawText(lastStr, x: margin + c1 + c2 + c3, y: curY, width: c4,
+                     font: bodyFont(10.5), color: inkLight, alignment: .right, singleLine: true)
+            curY += 20
+            drawHRule(x: margin, y: curY, width: contentW, weight: 0.4, color: ruleLight)
+            curY += 2
+        }
+        return curY
+    }
+
     // MARK: - Primitives
 
     private static func drawHRule(x: CGFloat, y: CGFloat, width: CGFloat, weight: CGFloat, color: UIColor) {

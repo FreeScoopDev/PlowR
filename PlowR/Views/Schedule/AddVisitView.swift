@@ -25,6 +25,7 @@ struct AddVisitView: View {
     @State private var isAfterHours: Bool
     @State private var afterHoursMultiplier: Double
     @State private var showingAddClientSheet = false
+    @State private var showingRecurringEditDialog = false
 
     // Create new visit
     init(initialDate: Date = Date()) {
@@ -92,8 +93,12 @@ struct AddVisitView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(editing == nil ? "Add" : "Save") {
-                        save()
-                        dismiss()
+                        if editing?.isRecurring == true && !(editing?.seriesID.isEmpty ?? true) {
+                            showingRecurringEditDialog = true
+                        } else {
+                            save()
+                            dismiss()
+                        }
                     }
                     .disabled(!isValid)
                     .fontWeight(.semibold)
@@ -107,6 +112,23 @@ struct AddVisitView: View {
         }
         .sheet(isPresented: $showingAddClientSheet) {
             AddClientView()
+        }
+        .confirmationDialog(
+            "Edit Recurring Visit",
+            isPresented: $showingRecurringEditDialog,
+            titleVisibility: .visible
+        ) {
+            Button("This Visit Only") {
+                saveThisOnly()
+                dismiss()
+            }
+            Button("This & All Future Visits") {
+                saveAllFuture()
+                dismiss()
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("How would you like to apply your changes?")
         }
     }
 
@@ -277,18 +299,8 @@ struct AddVisitView: View {
 
     private func save() {
         guard let client = selectedClient else { return }
+        if editing != nil { saveThisOnly(); return }
 
-        if let existing = editing {
-            existing.clientID = client.id.uuidString
-            existing.clientName = client.name
-            existing.clientAddress = client.address
-            existing.scheduledDate = scheduledDate
-            existing.estimatedMinutes = estimatedMinutes
-            existing.notes = notes
-            existing.isAfterHours = isAfterHours
-            existing.afterHoursMultiplier = afterHoursMultiplier
-            return
-        }
 
         let seriesID = UUID().uuidString
         var dates: [Date] = [scheduledDate]
@@ -322,6 +334,50 @@ struct AddVisitView: View {
             visit.isAfterHours = isAfterHours
             visit.afterHoursMultiplier = afterHoursMultiplier
             modelContext.insert(visit)
+        }
+    }
+
+    private func saveThisOnly() {
+        guard let client = selectedClient, let existing = editing else { return }
+        existing.clientID = client.id.uuidString
+        existing.clientName = client.name
+        existing.clientAddress = client.address
+        existing.scheduledDate = scheduledDate
+        existing.estimatedMinutes = estimatedMinutes
+        existing.notes = notes
+        existing.isAfterHours = isAfterHours
+        existing.afterHoursMultiplier = afterHoursMultiplier
+    }
+
+    private func saveAllFuture() {
+        guard let client = selectedClient, let existing = editing else { return }
+        let cal = Calendar.current
+        let newHour = cal.component(.hour, from: scheduledDate)
+        let newMinute = cal.component(.minute, from: scheduledDate)
+        let cutoff = existing.scheduledDate
+        let sid = existing.seriesID
+
+        let descriptor = FetchDescriptor<ScheduledVisit>(
+            predicate: #Predicate<ScheduledVisit> { $0.seriesID == sid }
+        )
+        guard let seriesVisits = try? modelContext.fetch(descriptor) else {
+            saveThisOnly()
+            return
+        }
+
+        for visit in seriesVisits where visit.scheduledDate >= cutoff {
+            visit.clientID = client.id.uuidString
+            visit.clientName = client.name
+            visit.clientAddress = client.address
+            if visit.id == existing.id {
+                visit.scheduledDate = scheduledDate
+            } else if let newDate = cal.date(bySettingHour: newHour, minute: newMinute, second: 0, of: visit.scheduledDate) {
+                visit.scheduledDate = newDate
+            }
+            visit.estimatedMinutes = estimatedMinutes
+            visit.notes = notes
+            visit.isAfterHours = isAfterHours
+            visit.afterHoursMultiplier = afterHoursMultiplier
         }
     }
 }

@@ -5,6 +5,9 @@ struct ClientStatsView: View {
     @Environment(AuthManager.self) private var authManager
     @Query private var allClients: [Client]
     @Query private var allProposals: [Proposal]
+    @Query private var profiles: [BusinessProfile]
+
+    @State private var shareItem: IdentifiableURL? = nil
 
     private var myClients: [Client] {
         allClients.filter { $0.operatorID == authManager.userID }
@@ -88,6 +91,18 @@ struct ClientStatsView: View {
         }
         .navigationTitle("Reports")
         .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    shareItem = buildReportURL()
+                } label: {
+                    Image(systemName: "square.and.arrow.up")
+                }
+            }
+        }
+        .sheet(item: $shareItem) { item in
+            ShareSheet(url: item.url)
+        }
     }
 
     private var summarySection: some View {
@@ -287,4 +302,31 @@ struct ClientStatsView: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .shadow(color: .black.opacity(0.06), radius: 4, y: 2)
     }
+
+    private func buildReportURL() -> IdentifiableURL? {
+        let profile = profiles.first { $0.operatorID == authManager.userID }
+        let myProposals = allProposals.filter { $0.operatorID == authManager.userID }
+        let data = PDFGenerator.generateSeasonReport(
+            clients: myClients,
+            proposals: myProposals,
+            profile: profile
+        )
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("PlowR_Season_Report.pdf")
+        guard (try? data.write(to: url)) != nil else { return nil }
+        return IdentifiableURL(url: url)
+    }
+}
+
+private struct IdentifiableURL: Identifiable {
+    let id = UUID()
+    let url: URL
+}
+
+private struct ShareSheet: UIViewControllerRepresentable {
+    let url: URL
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: [url], applicationActivities: nil)
+    }
+    func updateUIViewController(_ uvc: UIActivityViewController, context: Context) {}
 }

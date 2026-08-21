@@ -49,6 +49,7 @@ struct MassMessageView: View {
             Form {
                 presetsSection
                 messageSection
+                tagFilterSection
                 recipientsSection
             }
             .navigationTitle("Message Clients")
@@ -163,6 +164,62 @@ struct MassMessageView: View {
             }
         } header: {
             Text("Recipients").textCase(nil)
+        }
+    }
+
+    // MARK: - Tag Filtering
+
+    private func tagsForStop(_ stop: RouteStop) -> [String] {
+        allClients.first { $0.id == stop.clientID }?.tags ?? []
+    }
+
+    private var availableTags: [String] {
+        Array(Set(stops.flatMap { tagsForStop($0) })).sorted()
+    }
+
+    private func stopsForTag(_ tag: String) -> [RouteStop] {
+        stops.filter { tagsForStop($0).contains(tag) }
+    }
+
+    private func toggleTag(_ tag: String) {
+        let tagIDs = Set(stopsForTag(tag).map { $0.id })
+        if tagIDs.isSubset(of: includedIDs) {
+            includedIDs.subtract(tagIDs)
+        } else {
+            includedIDs.formUnion(tagIDs)
+        }
+    }
+
+    @ViewBuilder
+    private var tagFilterSection: some View {
+        if !availableTags.isEmpty {
+            Section {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(availableTags, id: \.self) { tag in
+                            let tagIDs = Set(stopsForTag(tag).map { $0.id })
+                            let allSelected = tagIDs.isSubset(of: includedIDs)
+                            Button { toggleTag(tag) } label: {
+                                Text(tag)
+                                    .font(.caption.weight(.semibold))
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 7)
+                                    .background(allSelected ? Color.accentColor : Color(.systemGray5))
+                                    .foregroundStyle(allSelected ? .white : .primary)
+                                    .clipShape(Capsule())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+                .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+            } header: {
+                Text("Filter by Tag").textCase(nil)
+            } footer: {
+                Text("Tap a tag to select or deselect all clients with that tag.")
+                    .font(.caption)
+            }
         }
     }
 
