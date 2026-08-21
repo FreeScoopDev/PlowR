@@ -46,6 +46,8 @@ struct EditClientView: View {
     @State private var showingShareSheet = false
     @State private var revisePaidDoc: Proposal?
     @State private var editingProposal: Proposal?
+    @State private var showingProposalBuilder = false
+    @State private var showingInvoiceBuilder = false
 
     init(client: Client) {
         self.client = client
@@ -105,6 +107,12 @@ struct EditClientView: View {
         }
         .sheet(item: $editingProposal) { proposal in
             ProposalEditView(proposal: proposal)
+        }
+        .sheet(isPresented: $showingProposalBuilder) {
+            NavigationStack { ProposalBuilderView(client: client, isInvoiceMode: false) }
+        }
+        .sheet(isPresented: $showingInvoiceBuilder) {
+            NavigationStack { ProposalBuilderView(client: client, isInvoiceMode: true) }
         }
         .lookAroundViewer(isPresented: $showingLookAround, initialScene: lookAroundScene)
         .alert("Street View Unavailable", isPresented: $showingLookAroundUnavailable) {
@@ -383,6 +391,25 @@ struct EditClientView: View {
                 ForEach(clientDocuments) { doc in
                     clientDocumentRow(doc)
                 }
+            }
+            HStack(spacing: 0) {
+                Button {
+                    showingProposalBuilder = true
+                } label: {
+                    Label("New Proposal", systemImage: "doc.text")
+                        .font(.subheadline)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderless)
+                Divider().frame(height: 20)
+                Button {
+                    showingInvoiceBuilder = true
+                } label: {
+                    Label("New Invoice", systemImage: "doc.badge.arrow.up")
+                        .font(.subheadline)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderless)
             }
         }
     }

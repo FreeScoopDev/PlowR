@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import MessageUI
 
 struct ProposalListView: View {
     @Environment(\.modelContext) private var modelContext
@@ -12,6 +13,7 @@ struct ProposalListView: View {
     @State private var creationContext: ProposalCreationContext?
     @State private var proposalToDelete: Proposal?
     @State private var filterStatus: FilterStatus = .all
+    @State private var reminderProposal: Proposal?
 
     enum FilterStatus: String, CaseIterable {
         case all = "All"
@@ -125,6 +127,10 @@ struct ProposalListView: View {
         .sheet(item: $creationContext) { ctx in
             ProposalBuilderView(client: ctx.client, isInvoiceMode: ctx.isInvoice)
         }
+        .sheet(item: $reminderProposal) { proposal in
+            let phone = myClients.first(where: { $0.id.uuidString == proposal.clientID })?.phone ?? ""
+            MessageComposer(recipients: [phone], body: reminderMessage(for: proposal)) { }
+        }
     }
 
     // MARK: - Swipe Actions
@@ -155,6 +161,15 @@ struct ProposalListView: View {
                 Label("Mark Paid", systemImage: "checkmark.seal.fill")
             }
             .tint(.green)
+            let clientPhone = myClients.first(where: { $0.id.uuidString == proposal.clientID })?.phone ?? ""
+            if MFMessageComposeViewController.canSendText() && !clientPhone.isEmpty {
+                Button {
+                    reminderProposal = proposal
+                } label: {
+                    Label("Remind", systemImage: "message.fill")
+                }
+                .tint(.orange)
+            }
         }
     }
 
@@ -164,6 +179,17 @@ struct ProposalListView: View {
         let count = allProposals.filter { $0.isInvoice && $0.operatorID == authManager.userID }.count
         proposal.invoiceNumber = String(format: "INV-%04d", count + 1)
         proposal.invoiceDueDate = Date().addingTimeInterval(30 * 86400)
+    }
+
+    private func reminderMessage(for proposal: Proposal) -> String {
+        let amount = proposal.total.formatted(.currency(code: "USD").precision(.fractionLength(0)))
+        let statusWord = proposal.invoiceStatus == .overdue ? "overdue" : "outstanding"
+        var msg = "Hi \(proposal.clientName), just a friendly reminder that invoice \(proposal.invoiceNumber) for \(amount) is \(statusWord)."
+        if let due = proposal.invoiceDueDate {
+            msg += " Due: \(due.formatted(.dateTime.month(.abbreviated).day().year()))."
+        }
+        msg += " Please reach out if you have any questions — thank you!"
+        return msg
     }
 
     private func duplicateProposal(_ proposal: Proposal) {
