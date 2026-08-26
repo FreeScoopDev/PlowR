@@ -35,7 +35,7 @@ final class ClientWorkOrderStore {
 
     // MARK: - Storage
 
-    private static var fileURL: URL {
+    static var fileURL: URL {
         let fm = FileManager.default
         let support = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         try? fm.createDirectory(at: support, withIntermediateDirectories: true)

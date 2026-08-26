@@ -3,147 +3,125 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PlowR – Privacy Policy</title>
+    <title>PlowR — Privacy Policy</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            color: #1c1c1e;
-            background: #f2f2f7;
-            line-height: 1.7;
-        }
-        .container {
-            max-width: 720px;
-            margin: 0 auto;
-            padding: 48px 24px 80px;
-        }
-        header {
-            margin-bottom: 40px;
-            padding-bottom: 24px;
-            border-bottom: 1px solid #d1d1d6;
-        }
-        h1 {
-            font-size: 28px;
-            font-weight: 700;
-            letter-spacing: -0.5px;
-            color: #000;
-        }
-        .subtitle {
-            margin-top: 6px;
-            font-size: 14px;
-            color: #6c6c70;
-        }
-        h2 {
-            font-size: 18px;
-            font-weight: 600;
-            margin: 32px 0 10px;
-            color: #000;
-        }
-        p, li {
-            font-size: 15px;
-            color: #3a3a3c;
-        }
-        ul {
-            padding-left: 22px;
-            margin-top: 8px;
-        }
-        li { margin-bottom: 6px; }
-        .callout {
-            background: #e8f4fd;
-            border-left: 4px solid #007aff;
-            border-radius: 4px;
-            padding: 14px 18px;
-            margin: 24px 0;
-        }
-        .callout p {
-            font-size: 15px;
-            color: #1c1c1e;
-        }
-        a { color: #007aff; text-decoration: none; }
-        a:hover { text-decoration: underline; }
-        footer {
-            margin-top: 60px;
-            padding-top: 24px;
-            border-top: 1px solid #d1d1d6;
-            font-size: 13px;
-            color: #8e8e93;
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 760px; margin: 40px auto; padding: 0 20px; color: #1c1c1e; line-height: 1.6; }
+        h1 { font-size: 2em; margin-bottom: 4px; }
+        h2 { margin-top: 2em; }
+        p.updated { color: #6e6e73; margin-top: 0; }
+        ul { padding-left: 1.4em; }
+        li { margin-bottom: 0.4em; }
+        a { color: #0071e3; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid #d1d1d6; padding: 10px 14px; text-align: left; vertical-align: top; }
+        th { background: #f2f2f7; }
     </style>
 </head>
 <body>
-<div class="container">
 
-    <header>
-        <h1>PlowR – Privacy Policy</h1>
-        <p class="subtitle">Last updated: July 29, 2026</p>
-    </header>
+<h1>Privacy Policy</h1>
+<p class="updated">Last updated: August 26, 2026</p>
 
-    <div class="callout">
-        <p><strong>Short version:</strong> PlowR does not collect, sell, or share your personal information. All your business data stays on your device and in your own private iCloud account. We do not run ads or analytics.</p>
-    </div>
+<p>This Privacy Policy describes how PlowR ("the App", "We", "Us") handles your information when you use our iOS application. PlowR is built for property-service operators — snow removal, lawn care, landscaping, and related trades — to manage clients, plan routes, and generate proposals and invoices.</p>
 
-    <h2>1. Who We Are</h2>
-    <p>PlowR is an iOS application built for snow-removal and property-service operators to manage clients, plan routes, and generate proposals and invoices. The app is developed and maintained independently.</p>
+<h2>Summary</h2>
+<p>PlowR is a local-first app. We do not operate servers, do not sell your data, and do not run ads or analytics. All your business and client data stays on your device and in your own private iCloud account — the developer has no access to it. A small amount of anonymous location data is sent to free public APIs solely to retrieve weather and elevation information.</p>
 
-    <h2>2. Data We Collect and How It Is Used</h2>
+<h2>What We Access and Why</h2>
 
-    <h2>2a. Account Information (Apple Sign In)</h2>
-    <p>PlowR uses <strong>Sign in with Apple</strong> for authentication. Apple provides the app with an anonymized user identifier only. We do not receive, store, or process your Apple ID email address or full name on any server. Your name, if provided during first sign-in, is stored only on your local device and your own iCloud account.</p>
+<table>
+    <tr>
+        <th>Data</th>
+        <th>Purpose</th>
+        <th>Stored or shared?</th>
+    </tr>
+    <tr>
+        <td>Apple Sign In (anonymized user ID)</td>
+        <td>Authenticate your operator account</td>
+        <td>Stored in your device's Keychain only. Apple provides an anonymized identifier — we never receive your Apple ID email or password.</td>
+    </tr>
+    <tr>
+        <td>Business &amp; client data (names, phones, addresses, routes, service history, proposals, invoices, photos)</td>
+        <td>Core app functionality</td>
+        <td>Stored on your device and synced to your own <strong>private iCloud account</strong> via Apple CloudKit. The developer cannot access this data. Never transmitted to any other server.</td>
+    </tr>
+    <tr>
+        <td>Location — When In Use</td>
+        <td>Display your position on the route map and calculate stop ETAs</td>
+        <td>Used on-device only during an active route. Not stored persistently after the session ends.</td>
+    </tr>
+    <tr>
+        <td>Location — Background (Always)</td>
+        <td>Detect when you leave a job site (geofencing) to prompt client notification</td>
+        <td>Handled on-device by iOS region monitoring. Your location is not transmitted to any server for geofencing.</td>
+    </tr>
+    <tr>
+        <td>Approximate location (~1 km precision)</td>
+        <td>Retrieve local weather for the Dashboard and next-day weather alerts</td>
+        <td>Sent to <a href="https://open-meteo.com" target="_blank">Open-Meteo</a> — a free, keyless public weather API. Coordinates are rounded before transmission. No user identity is included.</td>
+    </tr>
+    <tr>
+        <td>Property coordinates</td>
+        <td>Retrieve terrain elevation during property scans</td>
+        <td>Sent to <a href="https://www.opentopodata.org" target="_blank">Open Topo Data</a> — a free, keyless public API. No user identity is included.</td>
+    </tr>
+    <tr>
+        <td>Camera</td>
+        <td>Capture before/after photos at job sites; scan business cards to auto-fill a new client (on-device OCR)</td>
+        <td>Photos are stored on your device and synced to your private iCloud. Business card scanning is performed entirely on-device using Apple's Vision framework — no image is transmitted externally.</td>
+    </tr>
+    <tr>
+        <td>Contacts (optional)</td>
+        <td>Pre-fill client name, phone, and address when adding a new client</td>
+        <td>Uses Apple's system contact picker — the app receives only the single contact you choose. No contacts data is transmitted externally.</td>
+    </tr>
+    <tr>
+        <td>Calendar</td>
+        <td>Add scheduled visits to Calendar.app with a 1-hour reminder</td>
+        <td>Written to your local Calendar using Apple EventKit. No calendar data is read or transmitted beyond your device.</td>
+    </tr>
+    <tr>
+        <td>Notifications</td>
+        <td>Weather alerts the evening before severe forecast days; overdue invoice reminders</td>
+        <td>Local notifications only — no server or push token is involved.</td>
+    </tr>
+</table>
 
-    <h2>2b. Business &amp; Client Data</h2>
-    <p>Information you enter into PlowR — including your business profile, client names, phone numbers, addresses, routes, service history, proposals, and invoices — is stored:</p>
-    <ul>
-        <li>Locally on your device using Apple's SwiftData framework.</li>
-        <li>Synced to your own <strong>private iCloud account</strong> via Apple CloudKit, if you are signed in to iCloud. No one other than you can access this data — it is not accessible to the app developer.</li>
-    </ul>
-    <p>This data is never transmitted to our servers because we do not operate any servers.</p>
+<p>You can revoke any of these permissions at any time in <strong>iOS Settings → PlowR</strong>.</p>
 
-    <h2>2c. Location Data</h2>
-    <p>PlowR requests access to your device's location <strong>only while an active route is running</strong>. Location data is used to:</p>
-    <ul>
-        <li>Display your position on the in-app map.</li>
-        <li>Detect when you leave a job site (geofencing) to prompt client notifications.</li>
-        <li>Retrieve local weather conditions and route stop ETAs.</li>
-    </ul>
-    <p>Your precise GPS coordinates are <strong>never transmitted with any identifier</strong>. The app sends anonymous latitude/longitude coordinates to the following free, public APIs solely to retrieve weather and elevation data for your current location:</p>
-    <ul>
-        <li><strong>Open-Meteo</strong> (<a href="https://open-meteo.com" target="_blank">open-meteo.com</a>) — weather data. No account or API key is required; no user identity is sent.</li>
-        <li><strong>Open Topo Data</strong> (<a href="https://www.opentopodata.org" target="_blank">opentopodata.org</a>) — elevation data. No account or API key is required; no user identity is sent.</li>
-    </ul>
-    <p>Location data is not stored persistently beyond the active route session and is not shared with any other third party.</p>
+<h2>Data We Do Not Collect</h2>
+<ul>
+    <li>We do not use analytics, crash-reporting SDKs, or usage tracking of any kind</li>
+    <li>We do not use advertising or tracking frameworks</li>
+    <li>We do not process payments — PlowR generates invoice PDFs for your own use only</li>
+    <li>We do not operate any servers that receive your business or client data</li>
+    <li>We do not sell or share your data with third parties for any purpose</li>
+</ul>
 
-    <h2>2d. Contacts (Optional)</h2>
-    <p>PlowR includes an optional <em>Import from Contacts</em> feature that uses Apple's system contact picker. This picker is provided by iOS and does not grant the app access to your full contacts list. Only the specific contact you select is returned to the app, and only to pre-fill the name, phone, and address fields when adding a new client. No contact data is transmitted externally.</p>
+<h2>Third-Party Services</h2>
+<p>PlowR uses the following external services. All are free, keyless public APIs that receive no account information or personal identifiers:</p>
+<ul>
+    <li><strong>Open-Meteo</strong> (<a href="https://open-meteo.com" target="_blank">open-meteo.com</a>) — weather conditions and 7-day forecast based on rounded coordinates.</li>
+    <li><strong>Open Topo Data</strong> (<a href="https://www.opentopodata.org" target="_blank">opentopodata.org</a>) — terrain elevation for property-grade calculations.</li>
+</ul>
+<p>Authentication and iCloud sync use Apple's own infrastructure and are governed by <a href="https://www.apple.com/legal/privacy/" target="_blank">Apple's Privacy Policy</a>.</p>
 
-    <h2>3. Data We Do Not Collect</h2>
-    <ul>
-        <li>No crash analytics or usage analytics.</li>
-        <li>No advertising identifiers (IDFA or similar).</li>
-        <li>No cookies or web tracking.</li>
-        <li>No payment card data — PlowR generates invoice PDFs for your own use; it does not process payments.</li>
-        <li>No data is ever sold or shared with third parties for marketing purposes.</li>
-    </ul>
+<h2>Account Data and Deletion</h2>
+<p>Because all data is stored in your private iCloud account, you are in full control of it at all times. To delete your account and all associated data:</p>
+<ul>
+    <li><strong>In-app:</strong> Go to <em>Settings → Delete Account &amp; Data</em>. This removes all clients, routes, proposals, and settings from your device and signs you out.</li>
+    <li><strong>iCloud data:</strong> After signing out, go to <em>iOS Settings → [your name] → iCloud → Manage Account Storage → PlowR</em> to remove the iCloud copy.</li>
+    <li><strong>Uninstall:</strong> Deleting the app also removes all local data from your device.</li>
+</ul>
 
-    <h2>4. Data Retention and Deletion</h2>
-    <p>All app data is stored locally on your device and in your personal iCloud account. To delete all PlowR data:</p>
-    <ul>
-        <li><strong>Device data:</strong> Delete the PlowR app from your iPhone. This removes all local data.</li>
-        <li><strong>iCloud data:</strong> Go to <em>Settings → [your name] → iCloud → Manage Storage → PlowR</em> and delete the associated data.</li>
-    </ul>
+<h2>Children's Privacy</h2>
+<p>PlowR is designed for business use by adults. The app is not directed at children under 13 and does not knowingly collect data from children.</p>
 
-    <h2>5. Children's Privacy</h2>
-    <p>PlowR is designed for business use by adults. The app is not directed at children under 13 and does not knowingly collect data from children.</p>
+<h2>Changes to This Policy</h2>
+<p>We may update this Privacy Policy from time to time. Any changes will be posted on this page with an updated date. Continued use of the app after changes are posted constitutes acceptance of the updated policy.</p>
 
-    <h2>6. Changes to This Policy</h2>
-    <p>If we make material changes to this privacy policy, we will update the <em>Last updated</em> date at the top of this page. Continued use of the app after changes constitutes acceptance of the revised policy.</p>
+<h2>Contact</h2>
+<p>Questions about this Privacy Policy can be directed to <a href="mailto:joseph.amanatidis@gmail.com">joseph.amanatidis@gmail.com</a> or by opening an issue on our <a href="https://github.com/FreeScoopDev/PlowR" target="_blank">GitHub repository</a>.</p>
 
-    <h2>7. Contact</h2>
-    <p>Questions or concerns about this privacy policy can be directed to: <a href="mailto:joseph.amanatidis@gmail.com">joseph.amanatidis@gmail.com</a></p>
-
-    <footer>
-        <p>PlowR Privacy Policy · Last updated July 29, 2026</p>
-    </footer>
-
-</div>
 </body>
 </html>

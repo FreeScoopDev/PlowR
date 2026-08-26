@@ -5,6 +5,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- **Privacy Policy link** in Settings → Legal — satisfies App Store Review Guideline 5.1.1 requirement for an in-app privacy policy link
+- **Delete Account & Data** in Settings — permanently removes all local SwiftData records, the encrypted client work orders file, and Keychain credentials, then signs out; satisfies App Store Review Guideline 5.1.1(v) account deletion requirement
+- **Privacy policy page** (`docs/privacy-policy.html`) hosted at `freescoopdev.github.io/PlowR/privacy-policy.html` — covers all data use cases including Sign In with Apple, CloudKit sync, location/geofencing, camera/OCR, Open-Meteo, Open-Topo-Data, contacts picker, and calendar
+
 ## [1.1.0] - 2026-08-22
 
 ### Added

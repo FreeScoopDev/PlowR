@@ -7,6 +7,7 @@ struct SettingsView: View {
 
     @State private var showingFindService = false
     @State private var sampleDataInserted = false
+    @State private var showingDeleteConfirmation = false
 
     var body: some View {
         Form {
@@ -64,6 +65,16 @@ struct SettingsView: View {
                 } label: {
                     Text("Sign Out")
                 }
+
+                Button(role: .destructive) {
+                    showingDeleteConfirmation = true
+                } label: {
+                    Text("Delete Account & Data")
+                }
+            }
+
+            Section("Legal") {
+                Link("Privacy Policy", destination: URL(string: "https://freescoopdev.github.io/PlowR/privacy-policy.html")!)
             }
 
             #if DEBUG
@@ -88,6 +99,28 @@ struct SettingsView: View {
         .sheet(isPresented: $showingFindService) {
             FindServiceFlow()
         }
+        .alert("Delete Account", isPresented: $showingDeleteConfirmation) {
+            Button("Delete Everything", role: .destructive, action: deleteAccount)
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This permanently removes all clients, routes, proposals, and settings from this device. To also remove your iCloud data, go to Settings → [your name] → iCloud → Manage Account Storage → PlowR after signing out.")
+        }
+    }
+
+    private func deleteAccount() {
+        try? modelContext.delete(model: StopPhoto.self)
+        try? modelContext.delete(model: RouteStop.self)
+        try? modelContext.delete(model: PropertyZone.self)
+        try? modelContext.delete(model: PlowRoute.self)
+        try? modelContext.delete(model: ProposalLineItem.self)
+        try? modelContext.delete(model: Proposal.self)
+        try? modelContext.delete(model: ScheduledVisit.self)
+        try? modelContext.delete(model: ServiceItem.self)
+        try? modelContext.delete(model: PaymentMethod.self)
+        try? modelContext.delete(model: Client.self)
+        try? modelContext.delete(model: BusinessProfile.self)
+        try? FileManager.default.removeItem(at: ClientWorkOrderStore.fileURL)
+        authManager.signOut()
     }
 
     #if DEBUG
