@@ -8,8 +8,9 @@ struct AddVisitView: View {
 
     @Query private var allClients: [Client]
     @Query private var allServiceItems: [ServiceItem]
+    @Query private var allProfiles: [BusinessProfile]
 
-    private static let reasonPresets = [
+    private static let defaultReasonPresets = [
         "Snow Plowing", "Salting / Ice Melt", "Walkway Shoveling",
         "Roof Snow Removal", "Inspection", "Routine Visit"
     ]
@@ -76,7 +77,7 @@ struct AddVisitView: View {
         _selectedServiceIDs = State(initialValue: [])
     }
 
-    // Edit existing visit
+    // Edit existing visit — note: reasonPresets reference updated below to use static default list
     init(editing: ScheduledVisit) {
         self.editing = editing
         _scheduledDate = State(initialValue: editing.scheduledDate)
@@ -92,7 +93,7 @@ struct AddVisitView: View {
         _isAfterHours = State(initialValue: editing.isAfterHours)
         _afterHoursMultiplier = State(initialValue: editing.afterHoursMultiplier)
         // Reason
-        let isPreset = AddVisitView.reasonPresets.contains(editing.visitReason)
+        let isPreset = AddVisitView.defaultReasonPresets.contains(editing.visitReason)
         _selectedReasonPreset = State(initialValue: isPreset ? editing.visitReason : (editing.visitReason.isEmpty ? "" : "Other"))
         _customReason = State(initialValue: isPreset ? "" : editing.visitReason)
         _selectedServiceIDs = State(initialValue: Set(editing.expectedServiceIDs))
@@ -108,8 +109,27 @@ struct AddVisitView: View {
             .sorted { $0.sortOrder < $1.sortOrder }
     }
 
+    private var operatorProfile: BusinessProfile? {
+        allProfiles.first { $0.operatorID == authManager.userID }
+    }
+
+    private var allReasonPresets: [String] {
+        let custom = operatorProfile?.customVisitReasons ?? []
+        return Self.defaultReasonPresets + custom
+    }
+
     private var resolvedReason: String {
         selectedReasonPreset == "Other" ? customReason : selectedReasonPreset
+    }
+
+    private func saveReasonAsPreset() {
+        guard !customReason.isEmpty,
+              let profile = operatorProfile,
+              !profile.customVisitReasons.contains(customReason),
+              !Self.defaultReasonPresets.contains(customReason) else { return }
+        profile.customVisitReasons.append(customReason)
+        selectedReasonPreset = customReason
+        customReason = ""
     }
 
     private var isValid: Bool { selectedClient != nil }
@@ -249,13 +269,23 @@ struct AddVisitView: View {
         Section("Visit Info") {
             Picker("Reason", selection: $selectedReasonPreset) {
                 Text("None").tag("")
-                ForEach(Self.reasonPresets, id: \.self) { preset in
+                ForEach(allReasonPresets, id: \.self) { preset in
                     Text(preset).tag(preset)
                 }
                 Text("Other…").tag("Other")
             }
             if selectedReasonPreset == "Other" {
                 TextField("Describe the visit reason…", text: $customReason)
+                if !customReason.isEmpty,
+                   !allReasonPresets.contains(customReason),
+                   operatorProfile != nil {
+                    Button {
+                        saveReasonAsPreset()
+                    } label: {
+                        Label("Save as Preset", systemImage: "plus.circle")
+                            .font(.subheadline)
+                    }
+                }
             }
             if !myServices.isEmpty {
                 NavigationLink {
@@ -446,6 +476,12 @@ struct AddVisitView: View {
             visit.isAfterHours = isAfterHours
             visit.afterHoursMultiplier = afterHoursMultiplier
             modelContext.insert(visit)
+            let capturedVisit = visit
+            Task {
+                if let eventID = await CalendarService.shared.addVisit(capturedVisit) {
+                    capturedVisit.externalCalendarID = eventID
+                }
+            }
         }
     }
 

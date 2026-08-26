@@ -20,19 +20,39 @@ struct ProposalListView: View {
         case proposals = "Proposals"
         case invoices = "Invoices"
         case overdue = "Overdue"
+        case draft = "Draft"
+    }
+
+    init(initialFilter: FilterStatus = .all) {
+        _filterStatus = State(initialValue: initialFilter)
     }
 
     // MARK: - Computed Properties
 
+    private var base: [Proposal] {
+        allProposals.filter { $0.operatorID == authManager.userID }
+    }
+
     private var myProposals: [Proposal] {
-        let base = allProposals.filter { $0.operatorID == authManager.userID }
         switch filterStatus {
-        case .all:       return base
+        case .all:       return base.filter { $0.invoicePaidAt == nil }
         case .proposals: return base.filter { !$0.isInvoice }
-        case .invoices:  return base.filter { $0.isInvoice }
+        case .invoices:  return base.filter { $0.isInvoice && $0.invoicePaidAt == nil }
         case .overdue:   return base.filter { $0.invoiceStatus == .overdue }
+        case .draft:     return base.filter { $0.isInvoice && $0.invoiceStatus == .draft }
         }
     }
+
+    private var archivedProposals: [Proposal] {
+        guard filterStatus == .all else { return [] }
+        return base.filter { $0.invoicePaidAt != nil }.sorted { ($0.invoicePaidAt ?? .distantPast) > ($1.invoicePaidAt ?? .distantPast) }
+    }
+
+    private var outstandingTotal: Double {
+        base.filter { $0.isInvoice && $0.invoicePaidAt == nil }.reduce(0) { $0 + $1.total }
+    }
+
+    private var overdueCount: Int { base.filter { $0.invoiceStatus == .overdue }.count }
 
     private var myClients: [Client] {
         allClients.filter { $0.operatorID == authManager.userID }.sorted { $0.name < $1.name }
@@ -42,7 +62,7 @@ struct ProposalListView: View {
 
     var body: some View {
         Group {
-            if myProposals.isEmpty {
+            if myProposals.isEmpty && archivedProposals.isEmpty {
                 ContentUnavailableView(
                     "No \(filterStatus == .all ? "Proposals" : filterStatus.rawValue) Yet",
                     systemImage: "doc.text",
@@ -50,32 +70,16 @@ struct ProposalListView: View {
                 )
             } else {
                 List {
+                    if filterStatus == .all && (outstandingTotal > 0 || overdueCount > 0) {
+                        summarySection
+                    }
                     ForEach(myProposals) { proposal in
-                        NavigationLink {
-                            ProposalDetailView(proposal: proposal)
-                        } label: {
-                            ProposalRowView(proposal: proposal)
-                        }
-                        .contextMenu {
-                            proposalContextActions(for: proposal)
-                            Divider()
-                            Button {
-                                duplicateProposal(proposal)
-                            } label: {
-                                Label("Duplicate", systemImage: "doc.on.doc")
-                            }
-                            Divider()
-                            Button(role: .destructive) {
-                                proposalToDelete = proposal
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        }
-                        .swipeActions(edge: .trailing) {
-                            Button(role: .destructive) {
-                                proposalToDelete = proposal
-                            } label: {
-                                Label("Delete", systemImage: "trash")
+                        proposalRow(proposal)
+                    }
+                    if !archivedProposals.isEmpty {
+                        Section("Archived — Paid") {
+                            ForEach(archivedProposals) { proposal in
+                                proposalRow(proposal)
                             }
                         }
                     }
@@ -136,6 +140,75 @@ struct ProposalListView: View {
         .sheet(item: $reminderProposal) { proposal in
             let phone = myClients.first(where: { $0.id.uuidString == proposal.clientID })?.phone ?? ""
             MessageComposer(recipients: [phone], body: reminderMessage(for: proposal)) { }
+        }
+    }
+
+    // MARK: - Summary Section
+
+    private var summarySection: some View {
+        Section {
+            HStack(spacing: 12) {
+                if outstandingTotal > 0 {
+                    summaryTile(
+                        value: outstandingTotal.formatted(.currency(code: "USD").precision(.fractionLength(0))),
+                        label: "Outstanding",
+                        color: .orange
+                    )
+                }
+                if overdueCount > 0 {
+                    summaryTile(value: "\(overdueCount)", label: "Overdue", color: .red)
+                }
+                let draftCount = base.filter { $0.isInvoice && $0.invoiceStatus == .draft }.count
+                if draftCount > 0 {
+                    summaryTile(value: "\(draftCount)", label: "Drafts", color: .blue)
+                }
+            }
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets())
+        }
+    }
+
+    private func summaryTile(value: String, label: String, color: Color) -> some View {
+        VStack(spacing: 4) {
+            Text(value).font(.headline.weight(.bold)).foregroundStyle(color)
+            Text(label).font(.caption2).foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(color.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    // MARK: - Proposal Row
+
+    @ViewBuilder
+    private func proposalRow(_ proposal: Proposal) -> some View {
+        NavigationLink {
+            ProposalDetailView(proposal: proposal)
+        } label: {
+            ProposalRowView(proposal: proposal)
+        }
+        .contextMenu {
+            proposalContextActions(for: proposal)
+            Divider()
+            Button {
+                duplicateProposal(proposal)
+            } label: {
+                Label("Duplicate", systemImage: "doc.on.doc")
+            }
+            Divider()
+            Button(role: .destructive) {
+                proposalToDelete = proposal
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+        .swipeActions(edge: .trailing) {
+            Button(role: .destructive) {
+                proposalToDelete = proposal
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
         }
     }
 

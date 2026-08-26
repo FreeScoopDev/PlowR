@@ -8,6 +8,7 @@ final class ServiceItem {
     var category: String = "custom"   // "snow", "lawn", "cleanup", "custom"
     var unitType: String = "flat"     // "flat", "perSqFt"
     var pricePerUnit: Double = 0.0
+    var unitLabel: String = ""  // e.g. "bag", "hr", "ton" — used when unitType == "perUnit"
     var isActive: Bool = true
     var isBuiltIn: Bool = false
     var operatorID: String = ""

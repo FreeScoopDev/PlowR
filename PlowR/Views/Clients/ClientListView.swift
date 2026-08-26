@@ -91,9 +91,25 @@ struct ClientListView: View {
 
     var clients: [Client] { activeClients + inactiveClients }
 
+    private var myClients: [Client] {
+        allClients.filter { $0.operatorID == authManager.userID }
+    }
+
+    private var totalOutstanding: Double {
+        allProposals
+            .filter { $0.operatorID == authManager.userID && $0.isInvoice && $0.invoicePaidAt == nil }
+            .reduce(0) { $0 + $1.total }
+    }
+
+    private var totalCollected: Double {
+        allProposals
+            .filter { $0.operatorID == authManager.userID && $0.isInvoice && $0.invoicePaidAt != nil }
+            .reduce(0) { $0 + $1.total }
+    }
+
     var body: some View {
         Group {
-            if clients.isEmpty {
+            if clients.isEmpty && myClients.isEmpty {
                 ContentUnavailableView(
                     isFiltered ? "No Clients Match" : "No Clients Yet",
                     systemImage: isFiltered ? "line.3.horizontal.decrease.circle" : "person.badge.plus",
@@ -103,6 +119,9 @@ struct ClientListView: View {
                 )
             } else {
                 List {
+                    if !myClients.isEmpty {
+                        clientSummarySection
+                    }
                     ForEach(activeClients) { client in
                         clientRow(client)
                     }
@@ -224,6 +243,53 @@ struct ClientListView: View {
             Text("This client will be removed from all routes.")
         }
     }
+
+    // MARK: - Summary Section
+
+    private var clientSummarySection: some View {
+        Section {
+            HStack(spacing: 10) {
+                clientStatTile(
+                    value: "\(myClients.filter { $0.isActive }.count)",
+                    label: "Active",
+                    color: .blue
+                )
+                if totalOutstanding > 0 {
+                    clientStatTile(
+                        value: totalOutstanding.formatted(.currency(code: "USD").precision(.fractionLength(0))),
+                        label: "Outstanding",
+                        color: .orange
+                    )
+                }
+                if totalCollected > 0 {
+                    clientStatTile(
+                        value: totalCollected.formatted(.currency(code: "USD").precision(.fractionLength(0))),
+                        label: "Collected",
+                        color: .green
+                    )
+                }
+            }
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets())
+        }
+    }
+
+    private func clientStatTile(value: String, label: String, color: Color) -> some View {
+        VStack(spacing: 4) {
+            Text(value)
+                .font(.headline.weight(.bold))
+                .foregroundStyle(color)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Text(label).font(.caption2).foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(color.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    // MARK: - Client Row
 
     @ViewBuilder
     private func clientRow(_ client: Client) -> some View {

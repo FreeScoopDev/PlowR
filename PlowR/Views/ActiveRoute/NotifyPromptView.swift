@@ -29,13 +29,14 @@ struct NotifyPromptView: View {
     let stop: RouteStop
     let locationManager: LocationManager
     let onAdvance: () -> Void
+    var promptTitle: String = "Notify Next Client?"
 
     @Environment(\.dismiss) private var dismiss
     @State private var estimatedMinutes: Int?
     @State private var showingMessageComposer = false
     @State private var customNote: String = ""
     @State private var selectedPresetIDs: Set<UUID> = []
-    @State private var includeLocation: Bool = true
+    @AppStorage("notifyIncludeLocation") private var includeLocation: Bool = false
 
     // MARK: - Computed
 
@@ -117,7 +118,7 @@ struct NotifyPromptView: View {
 
     private var clientHeader: some View {
         VStack(spacing: 6) {
-            Text("Notify Next Client?")
+            Text(promptTitle)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             Text(stop.clientName)

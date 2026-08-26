@@ -90,21 +90,32 @@ struct ServiceRowView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.name)
                     .font(.headline)
-                Text(item.unitType == "flat"
-                     ? String(format: "$%.2f flat", item.pricePerUnit)
-                     : String(format: "$%.3f / sq ft", item.pricePerUnit))
+                Text(priceLabel)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             Spacer()
             Toggle("", isOn: Binding(
                 get: { item.isActive },
-                set: { item.isActive = $0 }
+                set: { v in
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    item.isActive = v
+                }
             ))
             .labelsHidden()
         }
         .contentShape(Rectangle())
         .onTapGesture { onEdit() }
+    }
+
+    private var priceLabel: String {
+        switch item.unitType {
+        case "flat":    return String(format: "$%.2f flat", item.pricePerUnit)
+        case "perSqFt": return String(format: "$%.3f / sq ft", item.pricePerUnit)
+        default:
+            let label = item.unitLabel.isEmpty ? "unit" : item.unitLabel
+            return String(format: "$%.2f / %@", item.pricePerUnit, label)
+        }
     }
 }
 
@@ -117,7 +128,25 @@ struct ServiceItemEditView: View {
 
     @State private var name = ""
     @State private var unitType = "flat"
+    @State private var unitLabel = ""
     @State private var price = ""
+
+    private var pricePlaceholder: String {
+        switch unitType {
+        case "perSqFt": return "0.000"
+        default:        return "0.00"
+        }
+    }
+
+    private var priceSuffix: String {
+        switch unitType {
+        case "perSqFt": return "/ sq ft"
+        case "perUnit":
+            let lbl = unitLabel.trimmingCharacters(in: .whitespaces)
+            return lbl.isEmpty ? "/ unit" : "/ \(lbl)"
+        default: return ""
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -129,14 +158,17 @@ struct ServiceItemEditView: View {
                     Picker("Unit Type", selection: $unitType) {
                         Text("Flat Rate").tag("flat")
                         Text("Per Sq Ft").tag("perSqFt")
+                        Text("Per Unit").tag("perUnit")
+                    }
+                    if unitType == "perUnit" {
+                        TextField("Unit label (e.g. bag, hr, ton)", text: $unitLabel)
                     }
                     HStack {
                         Text("$")
-                        TextField(unitType == "flat" ? "0.00" : "0.000", text: $price)
+                        TextField(pricePlaceholder, text: $price)
                             .keyboardType(.decimalPad)
-                        if unitType == "perSqFt" {
-                            Text("/ sq ft")
-                                .foregroundStyle(.secondary)
+                        if !priceSuffix.isEmpty {
+                            Text(priceSuffix).foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -154,9 +186,10 @@ struct ServiceItemEditView: View {
             }
             .onAppear {
                 if let item {
-                    name = item.name
-                    unitType = item.unitType
-                    price = String(item.pricePerUnit)
+                    name      = item.name
+                    unitType  = item.unitType
+                    unitLabel = item.unitLabel
+                    price     = String(item.pricePerUnit)
                 }
             }
         }
@@ -165,8 +198,9 @@ struct ServiceItemEditView: View {
     private func save() {
         let priceValue = Double(price) ?? 0
         if let item {
-            item.name = name
-            item.unitType = unitType
+            item.name      = name
+            item.unitType  = unitType
+            item.unitLabel = unitType == "perUnit" ? unitLabel.trimmingCharacters(in: .whitespaces) : ""
             item.pricePerUnit = priceValue
         } else {
             let new = ServiceItem(
@@ -177,6 +211,7 @@ struct ServiceItemEditView: View {
                 operatorID: operatorID,
                 sortOrder: 999
             )
+            new.unitLabel = unitType == "perUnit" ? unitLabel.trimmingCharacters(in: .whitespaces) : ""
             modelContext.insert(new)
         }
         dismiss()

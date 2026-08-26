@@ -4,6 +4,7 @@ import SwiftData
 struct MainTabView: View {
     @Environment(AuthManager.self) private var authManager
     @Query private var allProposals: [Proposal]
+    @Binding var selectedTab: Int
 
     private var documentsBadge: Int {
         allProposals.filter {
@@ -13,27 +14,32 @@ struct MainTabView: View {
     }
 
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             DashboardView()
                 .tabItem { Label("Home", systemImage: "house.fill") }
+                .tag(0)
 
             NavigationStack { ClientListView() }
                 .tabItem { Label("Clients", systemImage: "person.2.fill") }
+                .tag(1)
 
             NavigationStack { RouteListView() }
                 .tabItem { Label("Routes", systemImage: "map.fill") }
+                .tag(2)
 
             NavigationStack { ProposalListView() }
                 .tabItem { Label("Documents", systemImage: "doc.stack.fill") }
                 .badge(documentsBadge > 0 ? documentsBadge : 0)
+                .tag(3)
 
             ScheduleView()
                 .tabItem { Label("Schedule", systemImage: "calendar") }
+                .tag(4)
         }
     }
 }
 
 #Preview {
-    MainTabView()
+    MainTabView(selectedTab: .constant(0))
         .environment(AuthManager())
 }

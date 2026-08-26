@@ -40,6 +40,7 @@
 		602AA0103018663F00841B7B /* PlowRWidgetsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PlowRWidgetsExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		602AA0123018663F00841B7B /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		602AA0143018663F00841B7B /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		60764F30303A02B500470FA3 /* PlowRWidgetsExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PlowRWidgetsExtension.entitlements; sourceTree = "<group>"; };
 		60E5946A3017F85100347251 /* PlowR.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PlowR.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -119,6 +120,7 @@
 		60E594613017F85100347251 = {
 			isa = PBXGroup;
 			children = (
+				60764F30303A02B500470FA3 /* PlowRWidgetsExtension.entitlements */,
 				60E5946C3017F85100347251 /* PlowR */,
 				602AA0163018663F00841B7B /* PlowRWidgets */,
 				602AA0113018663F00841B7B /* Frameworks */,
@@ -270,6 +272,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = PlowRWidgetsExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 7U83DJ2F97;
@@ -300,6 +303,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = PlowRWidgetsExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 7U83DJ2F97;

@@ -1,16 +1,56 @@
 import SwiftUI
 import SwiftData
+import MapKit
+import CoreLocation
 
 struct RouteDetailView: View {
     let route: PlowRoute
     @Query private var allClients: [Client]
+    @Query private var allServices: [ServiceItem]
 
     @State private var showingEditRoute = false
     @State private var isRouteActive = false
     @State private var showingOptimizeConfirm = false
+    @State private var isOptimizing = false
+
+    // MARK: - Derived
+
+    private var geocodedStops: [(index: Int, stop: RouteStop)] {
+        route.sortedStops.enumerated()
+            .filter { $0.element.latitude != 0 && $0.element.longitude != 0 }
+            .map { (index: $0.offset, stop: $0.element) }
+    }
+
+    private var mapCameraPosition: MapCameraPosition {
+        guard !geocodedStops.isEmpty else { return .automatic }
+        if geocodedStops.count == 1 {
+            let s = geocodedStops[0].stop
+            return .region(MKCoordinateRegion(
+                center: CLLocationCoordinate2D(latitude: s.latitude, longitude: s.longitude),
+                latitudinalMeters: 1200, longitudinalMeters: 1200
+            ))
+        }
+        let lats = geocodedStops.map(\.stop.latitude)
+        let lons = geocodedStops.map(\.stop.longitude)
+        let center = CLLocationCoordinate2D(
+            latitude: (lats.min()! + lats.max()!) / 2,
+            longitude: (lons.min()! + lons.max()!) / 2
+        )
+        let span = MKCoordinateSpan(
+            latitudeDelta: max((lats.max()! - lats.min()!) * 1.7, 0.006),
+            longitudeDelta: max((lons.max()! - lons.min()!) * 1.7, 0.006)
+        )
+        return .region(MKCoordinateRegion(center: center, span: span))
+    }
+
+    // MARK: - Body
 
     var body: some View {
         List {
+            if !geocodedStops.isEmpty {
+                mapSection
+            }
+
             if route.sortedStops.isEmpty {
                 ContentUnavailableView(
                     "No Stops",
@@ -20,52 +60,7 @@ struct RouteDetailView: View {
             } else {
                 Section(stopsSectionHeader) {
                     ForEach(Array(route.sortedStops.enumerated()), id: \.element.id) { index, stop in
-                        HStack(spacing: 12) {
-                            Text("\(index + 1)")
-                                .font(.caption)
-                                .fontWeight(.semibold)
-                                .foregroundStyle(.secondary)
-                                .frame(width: 24)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(stop.clientName)
-                                    .font(.headline)
-                                if !stop.clientAddress.isEmpty {
-                                    Text(stop.clientAddress)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                if let client = clientFor(stop), client.totalVisits > 0 {
-                                    HStack(spacing: 6) {
-                                        if let last = client.lastServiceDate {
-                                            Label(last.formatted(.dateTime.month(.abbreviated).day()), systemImage: "clock.arrow.circlepath")
-                                                .font(.caption2)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                        if client.averageServiceMinutes > 0 {
-                                            Text("· avg \(Int(client.averageServiceMinutes))m")
-                                                .font(.caption2)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                        if client.goalMinutes > 0 {
-                                            Text("· goal \(client.goalMinutes)m")
-                                                .font(.caption2)
-                                                .foregroundStyle(.blue)
-                                        }
-                                    }
-                                }
-                            }
-                            Spacer()
-                            if let client = clientFor(stop), client.totalVisits > 0 {
-                                Text("\(client.totalVisits)")
-                                    .font(.caption2.weight(.semibold))
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 3)
-                                    .background(Color.blue.opacity(0.8))
-                                    .clipShape(Capsule())
-                            }
-                        }
-                        .padding(.vertical, 2)
+                        stopRow(stop: stop, index: index)
                     }
                 }
             }
@@ -88,26 +83,40 @@ struct RouteDetailView: View {
             }
         }
         .confirmationDialog("Optimize Stop Order?", isPresented: $showingOptimizeConfirm, titleVisibility: .visible) {
-            Button("Optimize") { optimizeRoute() }
+            Button("Optimize (Driving Distances)") {
+                Task { await optimizeWithDrivingDistances() }
+            }
+            Button("Quick Optimize (Straight-Line)") { optimizeRoute() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Reorders stops by shortest travel distance using GPS coordinates. Stops without GPS will be placed last.")
+            Text("Reorders stops for the shortest route. 'Driving Distances' uses live map data for accuracy but takes a moment.")
         }
         .safeAreaInset(edge: .bottom) {
-            Button {
-                isRouteActive = true
-            } label: {
-                Text("Start Route")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(route.sortedStops.isEmpty ? Color.gray : Color.blue)
-                    .foregroundStyle(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-                    .padding(.horizontal)
-                    .padding(.vertical, 12)
+            VStack(spacing: 0) {
+                if isOptimizing {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                        Text("Calculating driving distances…")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 8)
+                }
+                Button {
+                    isRouteActive = true
+                } label: {
+                    Text("Start Route")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(route.sortedStops.isEmpty || isOptimizing ? Color.gray : Color.blue)
+                        .foregroundStyle(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .padding(.horizontal)
+                        .padding(.vertical, 12)
+                }
+                .disabled(route.sortedStops.isEmpty || isOptimizing)
             }
-            .disabled(route.sortedStops.isEmpty)
             .background(.ultraThinMaterial)
         }
         .sheet(isPresented: $showingEditRoute) {
@@ -116,6 +125,166 @@ struct RouteDetailView: View {
         .fullScreenCover(isPresented: $isRouteActive) {
             ActiveRouteView(route: route)
         }
+    }
+
+    // MARK: - Map Section
+
+    private var mapSection: some View {
+        Section {
+            Map(position: .constant(mapCameraPosition)) {
+                ForEach(geocodedStops, id: \.stop.id) { entry in
+                    Annotation("", coordinate: CLLocationCoordinate2D(
+                        latitude: entry.stop.latitude,
+                        longitude: entry.stop.longitude
+                    )) {
+                        stopPin(number: entry.index + 1, isDone: entry.stop.actualMinutes > 0)
+                    }
+                }
+            }
+            .frame(height: 210)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .allowsHitTesting(false)
+            .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 6, trailing: 16))
+        }
+    }
+
+    // MARK: - Stop Row
+
+    @ViewBuilder
+    private func stopRow(stop: RouteStop, index: Int) -> some View {
+        HStack(spacing: 12) {
+            stopBadge(number: index + 1, isDone: stop.actualMinutes > 0)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(stop.clientName)
+                    .font(.headline)
+                if !stop.clientAddress.isEmpty {
+                    Text(stop.clientAddress)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                if let client = clientFor(stop), client.totalVisits > 0 {
+                    HStack(spacing: 6) {
+                        if let last = client.lastServiceDate {
+                            Label(last.formatted(.dateTime.month(.abbreviated).day()),
+                                  systemImage: "clock.arrow.circlepath")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                        if client.averageServiceMinutes > 0 {
+                            Text("· avg \(Int(client.averageServiceMinutes))m")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                        if client.goalMinutes > 0 {
+                            Text("· goal \(client.goalMinutes)m")
+                                .font(.caption2)
+                                .foregroundStyle(.blue)
+                        }
+                    }
+                }
+                // Expected service icons
+                let icons = expectedServiceIcons(for: stop)
+                if !icons.isEmpty {
+                    HStack(spacing: 6) {
+                        ForEach(icons, id: \.self) { icon in
+                            Image(systemName: icon)
+                                .font(.caption2)
+                                .foregroundStyle(.blue.opacity(0.7))
+                        }
+                    }
+                }
+                // Notes / equipment badges
+                if !stop.stopNotes.isEmpty || !stop.equipmentNotes.isEmpty {
+                    HStack(spacing: 6) {
+                        if !stop.stopNotes.isEmpty {
+                            Label("Notes", systemImage: "note.text")
+                                .font(.caption2)
+                                .foregroundStyle(.orange)
+                        }
+                        if !stop.equipmentNotes.isEmpty {
+                            Label("Equipment", systemImage: "wrench.and.screwdriver")
+                                .font(.caption2)
+                                .foregroundStyle(.purple)
+                        }
+                    }
+                }
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 4) {
+                if stop.actualMinutes > 0 {
+                    Label("\(stop.actualMinutes)m", systemImage: "checkmark.circle.fill")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.green)
+                } else if let client = clientFor(stop), client.totalVisits > 0 {
+                    Text("\(client.totalVisits)")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(Color.blue.opacity(0.8))
+                        .clipShape(Capsule())
+                }
+                if stop.latitude == 0 {
+                    Image(systemName: "location.slash")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
+    // MARK: - Subviews
+
+    private func stopBadge(number: Int, isDone: Bool) -> some View {
+        ZStack {
+            Circle()
+                .fill(isDone ? Color.green : Color.blue)
+                .frame(width: 30, height: 30)
+                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+            Text("\(number)")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(.white)
+        }
+    }
+
+    private func stopPin(number: Int, isDone: Bool) -> some View {
+        ZStack {
+            Circle()
+                .fill(isDone ? Color.green : Color.blue)
+                .frame(width: 26, height: 26)
+                .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
+            Text("\(number)")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(.white)
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func expectedServiceIcons(for stop: RouteStop) -> [String] {
+        guard let client = clientFor(stop), !client.expectedServiceIDs.isEmpty else { return [] }
+        return client.expectedServiceIDs.compactMap { id in
+            allServices.first { $0.id.uuidString == id }.map { iconForService($0.name) }
+        }
+    }
+
+    private func iconForService(_ name: String) -> String {
+        let l = name.lowercased()
+        if l.contains("snow") || l.contains("plow")                          { return "snowflake" }
+        if l.contains("ice") || l.contains("salt")                           { return "thermometer.snowflake" }
+        if l.contains("lawn") || l.contains("mow")                           { return "leaf.fill" }
+        if l.contains("tree") || l.contains("landscap") ||
+           l.contains("mulch") || l.contains("plant")                        { return "tree.fill" }
+        if l.contains("walk") || l.contains("shovel") || l.contains("path")  { return "figure.walk" }
+        if l.contains("driv") || l.contains("clean") || l.contains("wash")   { return "sparkles" }
+        if l.contains("edge") || l.contains("trim")                          { return "scissors" }
+        if l.contains("haul") || l.contains("debris") || l.contains("remov") { return "trash.fill" }
+        if l.contains("fert") || l.contains("seed")                          { return "drop.fill" }
+        return "wrench.and.screwdriver.fill"
     }
 
     private func clientFor(_ stop: RouteStop) -> Client? {
@@ -142,8 +311,53 @@ struct RouteDetailView: View {
         return label
     }
 
-    // MARK: - Route Optimization (nearest-neighbor greedy)
+    // MARK: - Route Optimization
 
+    /// Async nearest-neighbor optimization using actual MKDirections driving times.
+    /// Falls back to haversine per segment if a request fails.
+    private func optimizeWithDrivingDistances() async {
+        var withGPS = route.sortedStops.filter { $0.latitude != 0 }
+        let withoutGPS = route.sortedStops.filter { $0.latitude == 0 }
+        guard withGPS.count >= 2 else { return }
+
+        isOptimizing = true
+        defer { isOptimizing = false }
+
+        var ordered: [RouteStop] = [withGPS.removeFirst()]
+
+        while !withGPS.isEmpty {
+            let last = ordered.last!
+            let lastCoord = CLLocationCoordinate2D(latitude: last.latitude, longitude: last.longitude)
+            var bestIdx = withGPS.startIndex
+            var bestScore = Double.infinity
+
+            for (idx, candidate) in withGPS.enumerated() {
+                let candCoord = CLLocationCoordinate2D(latitude: candidate.latitude, longitude: candidate.longitude)
+                let req = MKDirections.Request()
+                req.source = MKMapItem(placemark: MKPlacemark(coordinate: lastCoord))
+                req.destination = MKMapItem(placemark: MKPlacemark(coordinate: candCoord))
+                req.transportType = .automobile
+                let score: Double
+                if let resp = try? await MKDirections(request: req).calculate(),
+                   let time = resp.routes.first?.expectedTravelTime {
+                    score = time
+                } else {
+                    score = haversine(last, candidate) * 1_000_000
+                }
+                if score < bestScore {
+                    bestScore = score
+                    bestIdx = withGPS.index(withGPS.startIndex, offsetBy: idx)
+                }
+            }
+            ordered.append(withGPS.remove(at: bestIdx))
+        }
+
+        for (index, stop) in (ordered + withoutGPS).enumerated() {
+            stop.order = index
+        }
+    }
+
+    /// Fast offline nearest-neighbor using great-circle distance.
     private func optimizeRoute() {
         var withGPS = route.sortedStops.filter { $0.latitude != 0 }
         let withoutGPS = route.sortedStops.filter { $0.latitude == 0 }

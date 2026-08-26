@@ -19,6 +19,7 @@ final class ScheduledVisit {
     var proposalID: String = ""    // invoice generated from this visit
     var isAfterHours: Bool = false
     var afterHoursMultiplier: Double = 1.5
+    var externalCalendarID: String = ""  // EKEvent identifier for Calendar.app sync
 
     // Recurrence — all visits in a series share seriesID
     var isRecurring: Bool = false

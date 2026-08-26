@@ -32,6 +32,7 @@ final class Client {
     var isActive: Bool = true
     var lastMessageSentAt: Date? = nil
     var clientRespondedAt: Date? = nil
+    var expectedServiceIDs: [String] = []  // ServiceItem IDs this client typically needs
 
     var averageServiceMinutes: Double {
         guard totalVisits > 0 else { return 0 }

@@ -13,12 +13,12 @@ struct ClientHomeView: View {
                 VStack(spacing: 28) {
                     // Hero
                     VStack(spacing: 10) {
-                        Image(systemName: "snowflake")
+                        Image(systemName: "location.magnifyingglass")
                             .font(.system(size: 48))
                             .foregroundStyle(.blue)
-                        Text("Welcome to PlowR")
+                        Text("Find Local Services")
                             .font(.title.bold())
-                        Text("Find local service operators and send a property-specific request in minutes.")
+                        Text("Find nearby operators for snow removal, lawn care, landscaping, and more. Send a property-specific request in minutes.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)

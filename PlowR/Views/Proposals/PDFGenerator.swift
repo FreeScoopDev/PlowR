@@ -72,6 +72,7 @@ struct PDFGenerator {
         return renderer.pdfData { ctx in
             ctx.beginPage()
             var y: CGFloat = margin
+            let pageBottom = pageH - margin - 40
 
             // Top accent bar — professional framing at page edge
             accent.withAlphaComponent(0.9).setFill()
@@ -93,27 +94,62 @@ struct PDFGenerator {
             y += 24
 
             y = drawServiceTable(proposal: proposal, contentW: contentW,
-                                 margin: margin, y: y, accent: accent)
+                                 margin: margin, y: y, accent: accent,
+                                 ctx: ctx, profile: profile, pageW: pageW, pageH: pageH)
             y += 16
 
+            // Totals — break page if not enough room
+            if y + 100 > pageBottom {
+                drawFooter(profile: profile, pageW: pageW, pageH: pageH, margin: margin, contentW: contentW)
+                ctx.beginPage()
+                y = margin
+                accent.withAlphaComponent(0.9).setFill()
+                UIBezierPath(rect: CGRect(x: 0, y: 0, width: pageW, height: 5)).fill()
+                y += 10
+            }
             y = drawTotals(proposal: proposal, isInvoice: isInvoice,
                            contentW: contentW, margin: margin, y: y, accent: accent)
 
             if !proposal.notes.isEmpty {
                 y += 26
+                let noteLines = max(1, (proposal.notes.count / 85) + 1)
+                if y + CGFloat(noteLines) * 14 + 30 > pageBottom {
+                    drawFooter(profile: profile, pageW: pageW, pageH: pageH, margin: margin, contentW: contentW)
+                    ctx.beginPage()
+                    y = margin
+                    accent.withAlphaComponent(0.9).setFill()
+                    UIBezierPath(rect: CGRect(x: 0, y: 0, width: pageW, height: 5)).fill()
+                    y += 10
+                }
                 y = drawNotes(proposal: proposal, contentW: contentW, margin: margin, y: y)
             }
 
             if !proposal.disclaimer.isEmpty {
                 y += 18
-                drawDisclaimer(proposal: proposal, contentW: contentW, margin: margin, y: y)
                 let lines = max(1, (proposal.disclaimer.count / 88) + 1)
+                if y + CGFloat(lines) * 12 + 30 > pageBottom {
+                    drawFooter(profile: profile, pageW: pageW, pageH: pageH, margin: margin, contentW: contentW)
+                    ctx.beginPage()
+                    y = margin
+                    accent.withAlphaComponent(0.9).setFill()
+                    UIBezierPath(rect: CGRect(x: 0, y: 0, width: pageW, height: 5)).fill()
+                    y += 10
+                }
+                drawDisclaimer(proposal: proposal, contentW: contentW, margin: margin, y: y)
                 y += CGFloat(lines) * 12 + 14
             }
 
             let activeMethods = paymentMethods.filter { $0.isActive }
             if isInvoice && !activeMethods.isEmpty {
                 y += 22
+                if y + 120 > pageBottom {
+                    drawFooter(profile: profile, pageW: pageW, pageH: pageH, margin: margin, contentW: contentW)
+                    ctx.beginPage()
+                    y = margin
+                    accent.withAlphaComponent(0.9).setFill()
+                    UIBezierPath(rect: CGRect(x: 0, y: 0, width: pageW, height: 5)).fill()
+                    y += 10
+                }
                 drawPaymentSection(methods: activeMethods, contentW: contentW,
                                    margin: margin, y: y, accent: accent)
             }
@@ -419,9 +455,12 @@ struct PDFGenerator {
     @discardableResult
     private static func drawServiceTable(
         proposal: Proposal, contentW: CGFloat, margin: CGFloat,
-        y: CGFloat, accent: UIColor
+        y: CGFloat, accent: UIColor,
+        ctx: UIGraphicsPDFRendererContext, profile: BusinessProfile?,
+        pageW: CGFloat, pageH: CGFloat
     ) -> CGFloat {
         var curY = y
+        let pageBottom = pageH - margin - 40
         let c1 = contentW * 0.44
         let c2 = contentW * 0.22
         let c3 = contentW * 0.14
@@ -432,21 +471,8 @@ struct PDFGenerator {
                  font: labelFont(8.5), color: accent, kern: 2)
         curY += 16
 
-        // Column headers
-        let hFont = labelFont(8)
-        drawText("DESCRIPTION", x: margin,               y: curY, width: c1, font: hFont, color: inkMid, kern: 0.5)
-        drawText("ZONE",        x: margin + c1,           y: curY, width: c2, font: hFont, color: inkMid, kern: 0.5)
-        drawText("QTY",         x: margin + c1 + c2,      y: curY, width: c3, font: hFont, color: inkMid, kern: 0.5, alignment: .right)
-        drawText("AMOUNT",      x: margin + c1 + c2 + c3, y: curY, width: c4 - 4, font: hFont, color: inkMid, kern: 0.5, alignment: .right)
-        curY += 12
-
-        // Accent underline
-        accent.withAlphaComponent(0.65).setStroke()
-        let rl = UIBezierPath()
-        rl.move(to: CGPoint(x: margin, y: curY))
-        rl.addLine(to: CGPoint(x: margin + contentW, y: curY))
-        rl.lineWidth = 1.2; rl.stroke()
-        curY += 9
+        curY = drawServiceTableHeaders(contentW: contentW, margin: margin, y: curY,
+                                       accent: accent, c1: c1, c2: c2, c3: c3, c4: c4)
 
         let nameFont = bodyBoldFont(11)
         let dataFont = bodyFont(11)
@@ -455,7 +481,22 @@ struct PDFGenerator {
         for item in items {
             let hasNotes = !item.itemNotes.isEmpty
             let rowH: CGFloat = hasNotes ? 34 : 26
-            let rY   = curY + 7
+
+            if curY + rowH > pageBottom {
+                drawFooter(profile: profile, pageW: pageW, pageH: pageH, margin: margin, contentW: contentW)
+                ctx.beginPage()
+                curY = margin
+                accent.withAlphaComponent(0.9).setFill()
+                UIBezierPath(rect: CGRect(x: 0, y: 0, width: pageW, height: 5)).fill()
+                curY += 10
+                drawText("DESCRIPTION OF SERVICES (continued)", x: margin, y: curY, width: contentW,
+                         font: labelFont(8.5), color: accent, kern: 2)
+                curY += 16
+                curY = drawServiceTableHeaders(contentW: contentW, margin: margin, y: curY,
+                                               accent: accent, c1: c1, c2: c2, c3: c3, c4: c4)
+            }
+
+            let rY = curY + 7
             drawServiceIcon(name: iconForService(item.serviceName),
                             rect: CGRect(x: margin, y: rY, width: 11, height: 11),
                             color: accent.withAlphaComponent(0.45))
@@ -465,7 +506,12 @@ struct PDFGenerator {
                          font: noteFont, color: inkMid)
             }
             drawText(item.zoneLabel, x: margin + c1, y: rY, width: c2, font: dataFont, color: inkDark)
-            let qtyStr = item.unitType == "flat" ? "—" : "\(Int(item.quantity)) ft²"
+            let qtyStr: String
+            switch item.unitType {
+            case "flat":    qtyStr = "—"
+            case "perSqFt": qtyStr = "\(Int(item.quantity)) ft²"
+            default:        qtyStr = "\(Int(item.quantity))"
+            }
             drawText(qtyStr, x: margin + c1 + c2, y: rY, width: c3,
                      font: dataFont, color: inkMid, alignment: .right)
             drawText(String(format: "$%.2f", item.lineTotal),
@@ -475,6 +521,25 @@ struct PDFGenerator {
             drawHRule(x: margin, y: curY, width: contentW, weight: 0.5, color: ruleLight)
         }
         return curY
+    }
+
+    @discardableResult
+    private static func drawServiceTableHeaders(
+        contentW: CGFloat, margin: CGFloat, y: CGFloat, accent: UIColor,
+        c1: CGFloat, c2: CGFloat, c3: CGFloat, c4: CGFloat
+    ) -> CGFloat {
+        let hFont = labelFont(8)
+        drawText("DESCRIPTION", x: margin,               y: y, width: c1, font: hFont, color: inkMid, kern: 0.5)
+        drawText("ZONE",        x: margin + c1,           y: y, width: c2, font: hFont, color: inkMid, kern: 0.5)
+        drawText("QTY",         x: margin + c1 + c2,      y: y, width: c3, font: hFont, color: inkMid, kern: 0.5, alignment: .right)
+        drawText("AMOUNT",      x: margin + c1 + c2 + c3, y: y, width: c4 - 4, font: hFont, color: inkMid, kern: 0.5, alignment: .right)
+        let ruleY = y + 12
+        accent.withAlphaComponent(0.65).setStroke()
+        let rl = UIBezierPath()
+        rl.move(to: CGPoint(x: margin, y: ruleY))
+        rl.addLine(to: CGPoint(x: margin + contentW, y: ruleY))
+        rl.lineWidth = 1.2; rl.stroke()
+        return ruleY + 9
     }
 
     // MARK: - Totals

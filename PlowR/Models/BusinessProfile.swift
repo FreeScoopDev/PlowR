@@ -15,6 +15,7 @@ final class BusinessProfile {
     var accentColorHex: String = "1E3A8A"
     var colorPDFs: Bool = true
     var compactHeader: Bool = false   // smaller document title in PDF output
+    var customVisitReasons: [String] = []  // operator-defined reasons shown in Add Visit
 
     init(operatorID: String) {
         self.operatorID = operatorID

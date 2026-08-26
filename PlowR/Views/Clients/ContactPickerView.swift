@@ -2,40 +2,53 @@ import SwiftUI
 import Contacts
 import ContactsUI
 
-// CNContactPickerViewController requires no permission prompt — the system picker
-// shows a read-only UI, and only the user-selected contact is returned to the app.
+// CNContactPickerViewController must be presented modally (not embedded as a child VC).
+// Using updateUIViewController guarantees the container is in the hierarchy before we present.
 struct ContactPickerView: UIViewControllerRepresentable {
-    let onPick: (_ name: String, _ phone: String, _ address: String) -> Void
+    let onPick: (_ name: String, _ phone: String, _ email: String, _ address: String) -> Void
+    let onCancel: () -> Void
 
-    func makeCoordinator() -> Coordinator { Coordinator(onPick: onPick) }
+    func makeCoordinator() -> Coordinator { Coordinator(onPick: onPick, onCancel: onCancel) }
 
-    func makeUIViewController(context: Context) -> CNContactPickerViewController {
-        let picker = CNContactPickerViewController()
-        picker.delegate = context.coordinator
-        return picker
+    func makeUIViewController(context: Context) -> UIViewController {
+        let container = UIViewController()
+        container.view.backgroundColor = .clear
+        return container
     }
 
-    func updateUIViewController(_ vc: CNContactPickerViewController, context: Context) {}
+    func updateUIViewController(_ uiViewController: UIViewController, context: Context) {
+        // Only present once; guard prevents re-presenting while picker is open
+        guard uiViewController.presentedViewController == nil else { return }
+        let picker = CNContactPickerViewController()
+        picker.delegate = context.coordinator
+        uiViewController.present(picker, animated: true)
+    }
 
     final class Coordinator: NSObject, CNContactPickerDelegate {
-        let onPick: (String, String, String) -> Void
+        let onPick: (String, String, String, String) -> Void
+        let onCancel: () -> Void
 
-        init(onPick: @escaping (String, String, String) -> Void) {
+        init(onPick: @escaping (String, String, String, String) -> Void,
+             onCancel: @escaping () -> Void) {
             self.onPick = onPick
+            self.onCancel = onCancel
         }
 
         func contactPicker(_ picker: CNContactPickerViewController, didSelect contact: CNContact) {
-            let name = CNContactFormatter.string(from: contact, style: .fullName) ?? ""
+            let name  = CNContactFormatter.string(from: contact, style: .fullName) ?? ""
             let phone = contact.phoneNumbers.first?.value.stringValue ?? ""
+            let email = contact.emailAddresses.first?.value as String? ?? ""
             var address = ""
             if let postal = contact.postalAddresses.first?.value {
-                let parts = [postal.street, postal.city, postal.state, postal.postalCode]
+                address = [postal.street, postal.city, postal.state, postal.postalCode]
                     .filter { !$0.isEmpty }
-                address = parts.joined(separator: ", ")
+                    .joined(separator: ", ")
             }
-            onPick(name, phone, address)
+            DispatchQueue.main.async { self.onPick(name, phone, email, address) }
         }
 
-        func contactPickerDidCancel(_ picker: CNContactPickerViewController) {}
+        func contactPickerDidCancel(_ picker: CNContactPickerViewController) {
+            DispatchQueue.main.async { self.onCancel() }
+        }
     }
 }

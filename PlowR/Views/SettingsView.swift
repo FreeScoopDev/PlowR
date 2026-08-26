@@ -22,12 +22,6 @@ struct SettingsView: View {
                 }
             }
 
-            Section("Reports") {
-                NavigationLink(destination: ClientStatsView()) {
-                    Label("Season Summary", systemImage: "chart.bar.doc.horizontal")
-                }
-            }
-
             Section("Discover") {
                 Button {
                     showingFindService = true

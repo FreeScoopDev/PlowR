@@ -1,18 +1,11 @@
-//
-//  AppIntent.swift
-//  PlowRWidgets
-//
-//  Created by Joe Amanatidis on 7/28/26.
-//
-
 import WidgetKit
 import AppIntents
 
-struct ConfigurationAppIntent: WidgetConfigurationIntent {
-    static var title: LocalizedStringResource { "Configuration" }
-    static var description: IntentDescription { "This is an example widget." }
+struct CompleteStopControlIntent: AppIntent {
+    static var title: LocalizedStringResource = "Complete Current Stop"
+    static var openAppWhenRun: Bool = true
 
-    // An example configurable parameter.
-    @Parameter(title: "Favorite Emoji", default: "😃")
-    var favoriteEmoji: String
+    func perform() async throws -> some IntentResult {
+        .result()
+    }
 }

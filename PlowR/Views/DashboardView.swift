@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import CoreLocation
 
 struct DashboardView: View {
     @Environment(AuthManager.self) private var authManager
@@ -10,8 +11,12 @@ struct DashboardView: View {
     @Query(sort: \PlowRoute.createdAt, order: .reverse) private var allRoutes: [PlowRoute]
     @Query private var allProposals: [Proposal]
 
+    @State private var dashWeather: WeatherCondition?
+    @State private var showingICloudWarning = false
+
     @State private var showingSettings = false
     @State private var showingAddClient = false
+    @State private var showingContactScanner = false
     @State private var showingCreateRoute = false
     @State private var showingAddVisit = false
 
@@ -66,6 +71,7 @@ struct DashboardView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     profileCard
+                    if let w = dashWeather { dashWeatherStrip(w) }
                     todayCard
                     financeRow
                     routesCard
@@ -89,8 +95,77 @@ struct DashboardView: View {
         }
         .sheet(isPresented: $showingSettings) { NavigationStack { SettingsView() } }
         .sheet(isPresented: $showingAddClient)  { AddClientView() }
+        .sheet(isPresented: $showingContactScanner) { ContactScannerView() }
         .sheet(isPresented: $showingCreateRoute) { CreateRouteView() }
         .sheet(isPresented: $showingAddVisit)   { AddVisitView() }
+        .task {
+            NotificationService.shared.requestAuthorization()
+            NotificationService.shared.scheduleOverdueReminder(count: overdueCount)
+            await fetchDashboardWeather()
+            showingICloudWarning = !PlowRApp.isCloudKitAvailable
+        }
+        .alert("iCloud Sync Unavailable", isPresented: $showingICloudWarning) {
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("PlowR couldn't connect to iCloud. Your data is being saved locally on this device only. Sign in to iCloud in Settings to re-enable sync.")
+        }
+    }
+
+    // MARK: - Weather
+
+    @ViewBuilder
+    private func dashWeatherStrip(_ w: WeatherCondition) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: w.symbolName)
+            Text("\(Int(w.temperatureF))°F")
+                .fontWeight(.semibold)
+            Text("·")
+            Text(w.description)
+            Spacer()
+            Text("\(Int(w.windSpeedMph)) mph \(w.windDirectionLabel)")
+                .foregroundStyle(.white.opacity(0.75))
+        }
+        .font(.subheadline)
+        .foregroundStyle(.white)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 11)
+        .background(dashWeatherBackground(w))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .onTapGesture {
+            if let url = URL(string: "weather://"), UIApplication.shared.canOpenURL(url) {
+                UIApplication.shared.open(url)
+            }
+        }
+    }
+
+    private func dashWeatherBackground(_ w: WeatherCondition) -> Color {
+        let d = w.description
+        if d.contains("Snow") || d.contains("Blizzard") { return .blue }
+        if d.contains("Thunder")                        { return .purple }
+        if d.contains("Rain") || d.contains("Shower") || d.contains("Drizzle") { return .indigo }
+        if d.contains("Fog")                            { return Color(white: 0.4) }
+        if d.contains("Clear")                          { return .teal }
+        return Color(.systemGray)
+    }
+
+    private func fetchDashboardWeather() async {
+        let clManager = CLLocationManager()
+        let status = clManager.authorizationStatus
+        guard status == .authorizedAlways || status == .authorizedWhenInUse,
+              let loc = clManager.location else { return }
+        let lat = loc.coordinate.latitude
+        let lon = loc.coordinate.longitude
+        async let currentWeather = WeatherService.shared.fetch(latitude: lat, longitude: lon)
+        async let forecast = WeatherService.shared.fetchForecast(latitude: lat, longitude: lon)
+        dashWeather = try? await currentWeather
+        if let days = try? await forecast {
+            NotificationService.shared.scheduleWeatherAlert(for: days)
+        }
     }
 
     // MARK: - Profile Card
@@ -169,6 +244,20 @@ struct DashboardView: View {
     }
 
     private func visitRow(_ visit: ScheduledVisit) -> some View {
+        let client = allClients.first { $0.id.uuidString == visit.clientID }
+        return Group {
+            if let client {
+                NavigationLink { EditClientView(client: client) } label: {
+                    visitRowContent(visit)
+                }
+                .buttonStyle(.plain)
+            } else {
+                visitRowContent(visit)
+            }
+        }
+    }
+
+    private func visitRowContent(_ visit: ScheduledVisit) -> some View {
         HStack(spacing: 12) {
             Image(systemName: "calendar.circle.fill")
                 .font(.title3)
@@ -182,6 +271,7 @@ struct DashboardView: View {
             if visit.estimatedMinutes > 0 {
                 Text("\(visit.estimatedMinutes)m").font(.caption2).foregroundStyle(.tertiary)
             }
+            Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.tertiary)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
@@ -195,15 +285,32 @@ struct DashboardView: View {
                           badge: overdueCount > 0 ? "\(overdueCount) overdue" : nil,
                           badgeColor: .red)
             HStack(spacing: 10) {
-                financeTile(
-                    value: outstandingBalance.formatted(.currency(code: "USD").precision(.fractionLength(0))),
-                    label: "Outstanding",
-                    color: outstandingBalance > 0 ? .orange : .secondary
-                )
-                financeTile(value: "\(overdueCount)", label: "Overdue",
-                            color: overdueCount > 0 ? .red : .secondary)
-                financeTile(value: "\(draftCount)", label: "Drafts",
-                            color: draftCount > 0 ? .blue : .secondary)
+                NavigationLink {
+                    ProposalListView(initialFilter: .invoices)
+                } label: {
+                    financeTile(
+                        value: outstandingBalance.formatted(.currency(code: "USD").precision(.fractionLength(0))),
+                        label: "Outstanding",
+                        color: outstandingBalance > 0 ? .orange : .secondary
+                    )
+                }
+                .buttonStyle(.plain)
+
+                NavigationLink {
+                    ProposalListView(initialFilter: .overdue)
+                } label: {
+                    financeTile(value: "\(overdueCount)", label: "Overdue",
+                                color: overdueCount > 0 ? .red : .secondary)
+                }
+                .buttonStyle(.plain)
+
+                NavigationLink {
+                    ProposalListView(initialFilter: .draft)
+                } label: {
+                    financeTile(value: "\(draftCount)", label: "Drafts",
+                                color: draftCount > 0 ? .blue : .secondary)
+                }
+                .buttonStyle(.plain)
             }
         }
     }
@@ -281,32 +388,44 @@ struct DashboardView: View {
             DashCard {
                 ForEach(Array(upcomingVisits.enumerated()), id: \.element.id) { i, visit in
                     if i > 0 { Divider().padding(.leading, 56) }
-                    HStack(spacing: 12) {
-                        VStack(spacing: 0) {
-                            Text(visit.scheduledDate, format: .dateTime.weekday(.abbreviated))
-                                .font(.system(size: 10, weight: .semibold))
-                                .foregroundStyle(.secondary)
-                                .textCase(.uppercase)
-                            Text(visit.scheduledDate, format: .dateTime.day())
-                                .font(.title3.weight(.bold))
-                        }
-                        .frame(width: 36)
-
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(visit.clientName).font(.subheadline.weight(.medium)).lineLimit(1)
-                            Text(visit.scheduledDate, style: .time)
-                                .font(.caption).foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        if visit.isAfterHours {
-                            Image(systemName: "moon.fill").font(.caption2).foregroundStyle(.indigo)
-                        }
+                    let client = allClients.first { $0.id.uuidString == visit.clientID }
+                    let rowContent = upcomingVisitRow(visit)
+                    if let client {
+                        NavigationLink { EditClientView(client: client) } label: { rowContent }
+                            .buttonStyle(.plain)
+                    } else {
+                        rowContent
                     }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
                 }
             }
         }
+    }
+
+    private func upcomingVisitRow(_ visit: ScheduledVisit) -> some View {
+        HStack(spacing: 12) {
+            VStack(spacing: 0) {
+                Text(visit.scheduledDate, format: .dateTime.weekday(.abbreviated))
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+                Text(visit.scheduledDate, format: .dateTime.day())
+                    .font(.title3.weight(.bold))
+            }
+            .frame(width: 36)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(visit.clientName).font(.subheadline.weight(.medium)).lineLimit(1)
+                Text(visit.scheduledDate, style: .time)
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+            if visit.isAfterHours {
+                Image(systemName: "moon.fill").font(.caption2).foregroundStyle(.indigo)
+            }
+            Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.tertiary)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
     }
 
     // MARK: - Quick Actions
@@ -315,30 +434,50 @@ struct DashboardView: View {
         VStack(alignment: .leading, spacing: 8) {
             sectionHeader("Quick Actions", icon: "bolt.fill")
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                quickAction("New Client",      icon: "person.badge.plus",   color: .blue)   { showingAddClient = true }
+                Menu {
+                    Button { showingAddClient = true } label: {
+                        Label("Add Manually", systemImage: "person.badge.plus")
+                    }
+                    if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                        Button { showingContactScanner = true } label: {
+                            Label("Scan with Camera", systemImage: "camera.viewfinder")
+                        }
+                    }
+                } label: {
+                    quickActionLabel("New Client", icon: "person.badge.plus", color: .blue)
+                }
+                .buttonStyle(.plain)
                 quickAction("New Route",       icon: "map.badge.plus",      color: .green)  { showingCreateRoute = true }
                 quickAction("Schedule Visit",  icon: "calendar.badge.plus", color: .orange) { showingAddVisit = true }
+                NavigationLink { ClientStatsView() } label: {
+                    quickActionLabel("Season Report", icon: "chart.bar.doc.horizontal", color: .indigo)
+                }
+                .buttonStyle(.plain)
                 quickAction("Settings",        icon: "gearshape.fill",      color: .gray)   { showingSettings = true }
             }
         }
     }
 
+    private func quickActionLabel(_ title: String, icon: String, color: Color) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(color)
+                .frame(width: 22, alignment: .center)
+            Text(title)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.primary)
+            Spacer()
+        }
+        .padding(14)
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+    }
+
     private func quickAction(_ title: String, icon: String, color: Color,
                              action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: 10) {
-                Image(systemName: icon)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(color)
-                    .frame(width: 22, alignment: .center)
-                Text(title)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.primary)
-                Spacer()
-            }
-            .padding(14)
-            .background(Color(.secondarySystemGroupedBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 14))
+            quickActionLabel(title, icon: icon, color: color)
         }
         .buttonStyle(.plain)
     }

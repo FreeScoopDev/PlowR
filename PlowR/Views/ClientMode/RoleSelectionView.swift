@@ -7,7 +7,7 @@ struct RoleSelectionView: View {
         VStack(spacing: 0) {
             Spacer()
             VStack(spacing: 8) {
-                Image(systemName: "snowflake")
+                Image(systemName: "map.fill")
                     .font(.system(size: 56))
                     .foregroundStyle(.blue)
                 Text("PlowR")

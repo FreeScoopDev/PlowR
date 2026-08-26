@@ -39,6 +39,16 @@ struct StopServiceRecorderView: View {
             .sorted { $0.sortOrder < $1.sortOrder }
     }
 
+    // For per-sqft services, the meaningful price is rate × total client area.
+    // Drivers see and override the dollar total, not the per-sqft unit rate.
+    private func defaultPrice(for service: ServiceItem) -> Double {
+        if service.unitType == "perSqFt" {
+            let totalArea = client?.sortedZones.reduce(0.0) { $0 + $1.areaSquareFeet } ?? 0
+            if totalArea > 0 { return service.pricePerUnit * totalArea }
+        }
+        return service.pricePerUnit
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -67,10 +77,11 @@ struct StopServiceRecorderView: View {
                                 Toggle(isOn: Binding(
                                     get: { isOn },
                                     set: { on in
+                                        UIImpactFeedbackGenerator(style: on ? .medium : .light).impactOccurred()
                                         if on {
                                             selectedServiceIDs.insert(key)
                                             if servicePriceOverrides[key] == nil {
-                                                servicePriceOverrides[key] = String(format: "%.2f", service.pricePerUnit)
+                                                servicePriceOverrides[key] = String(format: "%.2f", defaultPrice(for: service))
                                             }
                                         } else {
                                             selectedServiceIDs.remove(key)
@@ -83,14 +94,16 @@ struct StopServiceRecorderView: View {
                                     HStack(spacing: 4) {
                                         Text("Price: $").font(.caption).foregroundStyle(.secondary)
                                         TextField("0.00", text: Binding(
-                                            get: { servicePriceOverrides[key] ?? String(format: "%.2f", service.pricePerUnit) },
+                                            get: { servicePriceOverrides[key] ?? String(format: "%.2f", defaultPrice(for: service)) },
                                             set: { servicePriceOverrides[key] = $0 }
                                         ))
                                         .keyboardType(.decimalPad)
                                         .font(.caption)
-                                        .frame(width: 64)
-                                        if service.unitType != "flat" {
-                                            Text("(base: \(String(format: "$%.3f/sqft", service.pricePerUnit)))")
+                                        .frame(width: 72)
+                                        if service.unitType == "perSqFt",
+                                           let area = client?.sortedZones.reduce(0.0, { $0 + $1.areaSquareFeet }),
+                                           area > 0 {
+                                            Text("(\(Int(area)) sqft)")
                                                 .font(.caption2).foregroundStyle(.tertiary)
                                         }
                                     }
@@ -122,6 +135,7 @@ struct StopServiceRecorderView: View {
                         }
                     }
                     Button {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
                         customItems.append(CustomLineItem())
                     } label: {
                         Label("Add Custom Item", systemImage: "plus")
@@ -135,6 +149,7 @@ struct StopServiceRecorderView: View {
             }
             .navigationTitle("Record Services")
             .navigationBarTitleDisplayMode(.inline)
+            .scrollDismissesKeyboard(.interactively)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Skip") { dismiss() }
@@ -343,6 +358,7 @@ struct StopServiceRecorderView: View {
             proposal.invoiceSentAt = Date()
         }
         modelContext.insert(proposal)
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
         dismiss()
     }
 }

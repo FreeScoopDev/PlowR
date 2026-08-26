@@ -15,7 +15,6 @@ struct ClientWorkOrder: Codable, Identifiable {
 @Observable
 final class ClientWorkOrderStore {
     private(set) var orders: [ClientWorkOrder] = []
-    private let storageKey = "clientWorkOrders"
 
     init() { load() }
 
@@ -34,8 +33,26 @@ final class ClientWorkOrderStore {
         save()
     }
 
+    // MARK: - Storage
+
+    private static var fileURL: URL {
+        let fm = FileManager.default
+        let support = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        try? fm.createDirectory(at: support, withIntermediateDirectories: true)
+        return support.appendingPathComponent("clientWorkOrders.json")
+    }
+
     private func load() {
-        guard let data = UserDefaults.standard.data(forKey: storageKey),
+        let url = Self.fileURL
+
+        // One-time migration from UserDefaults (unencrypted) to protected file
+        if !FileManager.default.fileExists(atPath: url.path),
+           let legacyData = UserDefaults.standard.data(forKey: "clientWorkOrders") {
+            try? legacyData.write(to: url, options: [.atomic, .completeFileProtection])
+            UserDefaults.standard.removeObject(forKey: "clientWorkOrders")
+        }
+
+        guard let data = try? Data(contentsOf: url),
               let decoded = try? JSONDecoder().decode([ClientWorkOrder].self, from: data)
         else { return }
         orders = decoded
@@ -43,6 +60,6 @@ final class ClientWorkOrderStore {
 
     private func save() {
         guard let data = try? JSONEncoder().encode(orders) else { return }
-        UserDefaults.standard.set(data, forKey: storageKey)
+        try? data.write(to: Self.fileURL, options: [.atomic, .completeFileProtection])
     }
 }

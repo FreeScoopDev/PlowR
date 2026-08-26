@@ -3,6 +3,7 @@ import SwiftUI
 struct ContentView: View {
     @Environment(AuthManager.self) private var authManager
     @AppStorage("userRole") private var userRole = ""
+    @State private var selectedTab = 0
 
     var body: some View {
         Group {
@@ -12,10 +13,16 @@ struct ContentView: View {
                 ClientHomeView()
             } else {
                 if authManager.isSignedIn {
-                    MainTabView()
+                    MainTabView(selectedTab: $selectedTab)
                 } else {
                     SignInView()
                 }
+            }
+        }
+        .onOpenURL { url in
+            guard url.scheme == "plowr" else { return }
+            if url.host == "activeRoute" {
+                selectedTab = 2
             }
         }
     }

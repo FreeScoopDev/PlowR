@@ -5,6 +5,7 @@ struct RouteListView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AuthManager.self) private var authManager
     @Query private var allRoutes: [PlowRoute]
+    @Query private var allClients: [Client]
     @State private var showingCreateRoute = false
     @State private var routeToDelete: PlowRoute?
 
@@ -31,6 +32,12 @@ struct RouteListView: View {
                             RouteRowView(route: route)
                         }
                         .contextMenu {
+                            Button {
+                                duplicateRoute(route)
+                            } label: {
+                                Label("Duplicate Route", systemImage: "doc.on.doc")
+                            }
+                            Divider()
                             Button(role: .destructive) {
                                 routeToDelete = route
                             } label: {
@@ -78,6 +85,29 @@ struct RouteListView: View {
             Button("Cancel", role: .cancel) { routeToDelete = nil }
         } message: {
             Text("This will permanently delete the route and all its stops.")
+        }
+    }
+
+    private func duplicateRoute(_ route: PlowRoute) {
+        let copy = PlowRoute(name: "\(route.name) (Copy)", operatorID: route.operatorID)
+        modelContext.insert(copy)
+        for (index, stop) in route.sortedStops.enumerated() {
+            if stop.isCustomStop {
+                let stopCopy = RouteStop(order: index, customName: stop.clientName,
+                                        customAddress: stop.clientAddress, customPhone: stop.clientPhone)
+                stopCopy.stopNotes = stop.stopNotes
+                stopCopy.equipmentNotes = stop.equipmentNotes
+                stopCopy.targetMinutes = stop.targetMinutes
+                stopCopy.route = copy
+                modelContext.insert(stopCopy)
+            } else if let client = allClients.first(where: { $0.id == stop.clientID }) {
+                let stopCopy = RouteStop(order: index, client: client)
+                stopCopy.stopNotes = stop.stopNotes
+                stopCopy.equipmentNotes = stop.equipmentNotes
+                stopCopy.targetMinutes = stop.targetMinutes
+                stopCopy.route = copy
+                modelContext.insert(stopCopy)
+            }
         }
     }
 }

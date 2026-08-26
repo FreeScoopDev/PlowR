@@ -15,13 +15,26 @@
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>PlowR uses your location in the background to automatically detect when you leave a stop and prompt you to notify the next client.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>PlowR uses your camera to capture before and after photos of service stops.</string>
+	<string>PlowR uses your camera to capture before and after photos of service stops, and to scan business cards when adding new clients.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
+	<key>NSCalendarsUsageDescription</key>
+	<string>PlowR adds your scheduled visits to Calendar so they appear alongside your other appointments.</string>
+	<key>NSCalendarsWriteOnlyAccessUsageDescription</key>
+	<string>PlowR adds your scheduled visits to Calendar so they appear alongside your other appointments.</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>comgooglemaps</string>
 		<string>waze</string>
+	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>plowr</string>
+			</array>
+		</dict>
 	</array>
 </dict>
 </plist>

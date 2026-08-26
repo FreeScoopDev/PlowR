@@ -89,10 +89,13 @@ struct AddClientView: View {
                 }
             }
             .sheet(isPresented: $showingContactPicker) {
-                ContactPickerView { importedName, importedPhone, importedAddress in
+                ContactPickerView { importedName, importedPhone, importedEmail, importedAddress in
                     name = importedName
                     phone = importedPhone
+                    email = importedEmail
                     address = importedAddress
+                    showingContactPicker = false
+                } onCancel: {
                     showingContactPicker = false
                 }
             }

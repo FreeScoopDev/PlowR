@@ -127,10 +127,12 @@ struct ScheduleView: View {
 
     private var calendarSection: some View {
         Section {
-            CalendarDotView(selectedDate: $selectedDate, visitDateStrings: visitDateStrings)
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-                .listRowInsets(EdgeInsets())
+            CalendarDotView(selectedDate: $selectedDate, visitDateStrings: visitDateStrings, onLongPress: {
+                showingAddVisit = true
+            })
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+            .listRowInsets(EdgeInsets())
         }
     }
 
@@ -408,9 +410,10 @@ struct ScheduleView: View {
 private struct CalendarDotView: UIViewRepresentable {
     @Binding var selectedDate: Date
     let visitDateStrings: Set<String>
+    var onLongPress: (() -> Void)? = nil
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(selectedDate: $selectedDate, visitDateStrings: visitDateStrings)
+        Coordinator(selectedDate: $selectedDate, visitDateStrings: visitDateStrings, onLongPress: onLongPress)
     }
 
     func makeUIView(context: Context) -> UICalendarView {
@@ -426,10 +429,18 @@ private struct CalendarDotView: UIViewRepresentable {
         let comps = Calendar.current.dateComponents([.year, .month, .day], from: selectedDate)
         sel.setSelected(comps, animated: false)
 
+        let longPress = UILongPressGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(Coordinator.handleLongPress(_:))
+        )
+        longPress.minimumPressDuration = 0.5
+        cal.addGestureRecognizer(longPress)
+
         return cal
     }
 
     func updateUIView(_ uiView: UICalendarView, context: Context) {
+        context.coordinator.onLongPress = onLongPress
         let old = context.coordinator.visitDateStrings
         let new = visitDateStrings
         if old != new {
@@ -464,10 +475,17 @@ private struct CalendarDotView: UIViewRepresentable {
     class Coordinator: NSObject, UICalendarViewDelegate, UICalendarSelectionSingleDateDelegate {
         var selectedDate: Binding<Date>
         var visitDateStrings: Set<String>
+        var onLongPress: (() -> Void)?
 
-        init(selectedDate: Binding<Date>, visitDateStrings: Set<String>) {
+        init(selectedDate: Binding<Date>, visitDateStrings: Set<String>, onLongPress: (() -> Void)? = nil) {
             self.selectedDate = selectedDate
             self.visitDateStrings = visitDateStrings
+            self.onLongPress = onLongPress
+        }
+
+        @objc func handleLongPress(_ gesture: UILongPressGestureRecognizer) {
+            guard gesture.state == .began else { return }
+            onLongPress?()
         }
 
         func calendarView(_ calendarView: UICalendarView,

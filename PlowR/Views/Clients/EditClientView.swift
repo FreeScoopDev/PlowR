@@ -16,6 +16,7 @@ struct EditClientView: View {
     @Query private var allProfiles: [BusinessProfile]
     @Query private var allPaymentMethods: [PaymentMethod]
     @Query(sort: \ScheduledVisit.scheduledDate) private var allVisits: [ScheduledVisit]
+    @Query private var allServiceItems: [ServiceItem]
 
     @State private var name: String
     @State private var phone: String
@@ -46,6 +47,7 @@ struct EditClientView: View {
     @State private var editingProposal: Proposal?
     @State private var notes: String
     @State private var isActive: Bool
+    @State private var expectedServiceIDs: Set<String>
     @State private var showingProposalBuilder = false
     @State private var showingInvoiceBuilder = false
     @State private var showingAddVisit = false
@@ -67,6 +69,7 @@ struct EditClientView: View {
         _tags = State(initialValue: client.tags)
         _notes = State(initialValue: client.notes)
         _isActive = State(initialValue: client.isActive)
+        _expectedServiceIDs = State(initialValue: Set(client.expectedServiceIDs))
     }
 
     // MARK: - Body
@@ -78,6 +81,7 @@ struct EditClientView: View {
             tagsSection
             notesSection
             billingSection
+            expectedServicesSection
             stopNotesSection
             serviceAddressSection
             historySection
@@ -162,14 +166,22 @@ struct EditClientView: View {
         Section {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
-                    actionTile(title: "Call", icon: "phone.fill", color: .green) {
-                        if let url = URL(string: "tel:\(phone.filter { $0.isNumber })"),
-                           !phone.isEmpty {
-                            openURL(url)
+                    Menu {
+                        if !phone.isEmpty {
+                            Button {
+                                if let url = URL(string: "tel:\(phone.filter { $0.isNumber })") { openURL(url) }
+                            } label: { Label("Call", systemImage: "phone.fill") }
+                            Button { showingMessageComposer = true } label: {
+                                Label("Message", systemImage: "message.fill")
+                            }
                         }
-                    }
-                    actionTile(title: "Message", icon: "message.fill", color: .blue) {
-                        showingMessageComposer = true
+                        if !email.isEmpty {
+                            Button {
+                                if let url = URL(string: "mailto:\(email)") { openURL(url) }
+                            } label: { Label("Email", systemImage: "envelope.fill") }
+                        }
+                    } label: {
+                        actionTileLabel(title: "Contact", icon: "phone.badge.waveform.fill", color: .blue)
                     }
                     actionTile(title: "Invoice", icon: "doc.badge.arrow.up", color: .orange) {
                         if let latest = clientDocuments.first(where: { $0.isInvoice && $0.invoicePaidAt == nil }) {
@@ -373,6 +385,64 @@ struct EditClientView: View {
         }
     }
 
+    // MARK: - Expected Services Section
+
+    private var clientServices: [ServiceItem] {
+        allServiceItems
+            .filter { $0.operatorID == authManager.userID && $0.isActive }
+            .sorted { $0.sortOrder < $1.sortOrder }
+    }
+
+    private var expectedServicesSection: some View {
+        Section {
+            if clientServices.isEmpty {
+                Text("No services in catalog yet.")
+                    .foregroundStyle(.secondary)
+                    .font(.subheadline)
+            } else {
+                NavigationLink {
+                    expectedServicePickerView
+                } label: {
+                    HStack {
+                        Text("Expected Services")
+                        Spacer()
+                        Text(expectedServiceIDs.isEmpty ? "None" : "\(expectedServiceIDs.count) selected")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        } header: {
+            Text("Default Services")
+        } footer: {
+            Text("Services this client typically needs — shown at a glance in route stops.")
+                .font(.caption)
+        }
+    }
+
+    private var expectedServicePickerView: some View {
+        List {
+            ForEach(clientServices) { service in
+                let isSelected = expectedServiceIDs.contains(service.id.uuidString)
+                Button {
+                    if isSelected { expectedServiceIDs.remove(service.id.uuidString) }
+                    else          { expectedServiceIDs.insert(service.id.uuidString) }
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                            .foregroundStyle(isSelected ? .blue : .secondary)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(service.name).foregroundStyle(.primary)
+                            Text(service.category.capitalized)
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle("Expected Services")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
     // MARK: - Billing Section
 
     private var billingSection: some View {
@@ -484,6 +554,12 @@ struct EditClientView: View {
                             : (diff > 0 ? "\(Int(diff))m over" : "\(Int(-diff))m under")
                         Text(label)
                             .foregroundStyle(abs(diff) < 2 ? .green : (diff > 0 ? .orange : .green))
+                    }
+                }
+                if totalRevenuePaid > 0 {
+                    LabeledContent("Revenue Collected") {
+                        Text(totalRevenuePaid, format: .currency(code: "USD"))
+                            .foregroundStyle(.green)
                     }
                 }
             }
@@ -690,6 +766,12 @@ struct EditClientView: View {
     private var outstandingBalance: Double {
         clientInvoices
             .filter { $0.invoicePaidAt == nil }
+            .reduce(0) { $0 + $1.total }
+    }
+
+    private var totalRevenuePaid: Double {
+        clientInvoices
+            .filter { $0.invoicePaidAt != nil }
             .reduce(0) { $0 + $1.total }
     }
 
@@ -912,6 +994,7 @@ struct EditClientView: View {
         client.tags = tags
         client.notes = notes
         client.isActive = isActive
+        client.expectedServiceIDs = Array(expectedServiceIDs)
 
         if let coord = geocodedCoordinate, address != originalAddress {
             client.address = address

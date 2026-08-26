@@ -31,6 +31,9 @@ struct PlowRApp: App {
         container = Self.makeContainer(schema: schema)
     }
 
+    // Readable by DashboardView to show a sync-unavailable warning banner.
+    static private(set) var isCloudKitAvailable = true
+
     private static func makeContainer(schema: Schema) -> ModelContainer {
         // 1. Try CloudKit-backed store
         let cloudConfig = ModelConfiguration(
@@ -38,25 +41,30 @@ struct PlowRApp: App {
             cloudKitDatabase: .private("iCloud.com.Scoops.PlowR")
         )
         if let c = try? ModelContainer(for: schema, configurations: [cloudConfig]) {
+            isCloudKitAvailable = true
             return c
         }
 
-        // 2. Fall back to local store
+        // 2. Fall back to local store (iCloud unavailable or signed out)
+        isCloudKitAvailable = false
         if let c = try? ModelContainer(for: schema) {
             return c
         }
 
-        // 3. Schema changed during development — clear stale store and start fresh
-        // Recovering from incompatible store — clear stale database and start fresh
+        // 3. Store is incompatible — archive it with a timestamp instead of deleting,
+        //    so data can be manually recovered if needed.
         let support = URL.applicationSupportDirectory
+        let stamp = Int(Date().timeIntervalSince1970)
         for file in ["default.store", "default.store-wal", "default.store-shm"] {
-            try? FileManager.default.removeItem(at: support.appending(path: file))
+            let src = support.appending(path: file)
+            let dst = support.appending(path: "\(file).\(stamp).bak")
+            try? FileManager.default.moveItem(at: src, to: dst)
         }
 
         do {
             return try ModelContainer(for: schema)
         } catch {
-            fatalError("Could not create ModelContainer after cleanup: \(error)")
+            fatalError("Could not create ModelContainer after archiving stale store: \(error)")
         }
     }
 

@@ -1,88 +1,260 @@
-//
-//  PlowRWidgets.swift
-//  PlowRWidgets
-//
-//  Created by Joe Amanatidis on 7/28/26.
-//
-
 import WidgetKit
 import SwiftUI
 
-struct Provider: AppIntentTimelineProvider {
-    func placeholder(in context: Context) -> SimpleEntry {
-        SimpleEntry(date: Date(), configuration: ConfigurationAppIntent())
-    }
+// MARK: - Shared Data (mirrors main app's TodayRouteWidgetData)
 
-    func snapshot(for configuration: ConfigurationAppIntent, in context: Context) async -> SimpleEntry {
-        SimpleEntry(date: Date(), configuration: configuration)
-    }
-    
-    func timeline(for configuration: ConfigurationAppIntent, in context: Context) async -> Timeline<SimpleEntry> {
-        var entries: [SimpleEntry] = []
+struct RouteWidgetData: Decodable {
+    var routeName: String = ""
+    var totalStops: Int = 0
+    var completedStops: Int = 0
+    var nextStopName: String = ""
+    var nextStopAddress: String = ""
+    var isActive: Bool = false
+    var lastUpdated: Date = .distantPast
 
-        // Generate a timeline consisting of five entries an hour apart, starting from the current date.
-        let currentDate = Date()
-        for hourOffset in 0 ..< 5 {
-            let entryDate = Calendar.current.date(byAdding: .hour, value: hourOffset, to: currentDate)!
-            let entry = SimpleEntry(date: entryDate, configuration: configuration)
-            entries.append(entry)
+    static func read() -> RouteWidgetData {
+        guard let raw = UserDefaults(suiteName: "group.com.Scoops.PlowR")?.data(forKey: "todayRoute"),
+              let decoded = try? JSONDecoder().decode(RouteWidgetData.self, from: raw) else {
+            return RouteWidgetData()
         }
-
-        return Timeline(entries: entries, policy: .atEnd)
+        return decoded
     }
 
-//    func relevances() async -> WidgetRelevances<ConfigurationAppIntent> {
-//        // Generate a list containing the contexts this widget is relevant in.
-//    }
+    static let placeholder = RouteWidgetData(
+        routeName: "Monday Route",
+        totalStops: 8, completedStops: 3,
+        nextStopName: "Johnson Residence",
+        nextStopAddress: "42 Oak Street",
+        isActive: true,
+        lastUpdated: Date()
+    )
+
+    var hasData: Bool { totalStops > 0 }
+    var isComplete: Bool { !isActive && completedStops == totalStops && totalStops > 0 }
+    var progress: Double {
+        totalStops > 0 ? Double(completedStops) / Double(totalStops) : 0
+    }
 }
 
-struct SimpleEntry: TimelineEntry {
+// MARK: - Timeline Entry
+
+struct RouteEntry: TimelineEntry {
     let date: Date
-    let configuration: ConfigurationAppIntent
+    let data: RouteWidgetData
 }
 
-struct PlowRWidgetsEntryView : View {
-    var entry: Provider.Entry
+// MARK: - Provider
+
+struct PlowRWidgetProvider: TimelineProvider {
+    func placeholder(in context: Context) -> RouteEntry {
+        RouteEntry(date: Date(), data: .placeholder)
+    }
+    func getSnapshot(in context: Context, completion: @escaping (RouteEntry) -> Void) {
+        completion(RouteEntry(date: Date(), data: .read()))
+    }
+    func getTimeline(in context: Context, completion: @escaping (Timeline<RouteEntry>) -> Void) {
+        let entry = RouteEntry(date: Date(), data: .read())
+        let refresh = Calendar.current.date(byAdding: .minute, value: 5, to: Date())!
+        completion(Timeline(entries: [entry], policy: .after(refresh)))
+    }
+}
+
+// MARK: - Widget Views
+
+struct PlowRWidgetEntryView: View {
+    var entry: RouteEntry
+    @Environment(\.widgetFamily) var family
 
     var body: some View {
-        VStack {
-            Text("Time:")
-            Text(entry.date, style: .time)
-
-            Text("Favorite Emoji:")
-            Text(entry.configuration.favoriteEmoji)
+        Group {
+            switch family {
+            case .systemMedium: mediumView
+            default:            smallView
+            }
         }
+        .widgetURL(URL(string: "plowr://activeRoute"))
+    }
+
+    // MARK: Small
+
+    private var smallView: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header
+            HStack(spacing: 5) {
+                Image(systemName: "truck.box.fill")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.blue)
+                Text("PlowR")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+
+            if entry.data.isActive {
+                Spacer()
+                Text(entry.data.routeName)
+                    .font(.subheadline.bold())
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Text("Stop \(entry.data.completedStops + 1) of \(entry.data.totalStops)")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 1)
+                ProgressView(value: entry.data.progress)
+                    .tint(.blue)
+                    .padding(.vertical, 5)
+                Text(entry.data.nextStopName)
+                    .font(.caption.weight(.medium))
+                    .lineLimit(1)
+            } else if entry.data.isComplete {
+                Spacer()
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.title2)
+                    .foregroundStyle(.green)
+                Text("Route Complete")
+                    .font(.subheadline.bold())
+                    .padding(.top, 4)
+                Text("\(entry.data.completedStops) stops done")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+            } else {
+                Spacer()
+                Image(systemName: "map")
+                    .font(.title2)
+                    .foregroundStyle(.secondary)
+                Text("No Active\nRoute")
+                    .font(.subheadline.weight(.medium))
+                    .multilineTextAlignment(.leading)
+                    .padding(.top, 4)
+                Spacer()
+            }
+        }
+        .padding(12)
+    }
+
+    // MARK: Medium
+
+    private var mediumView: some View {
+        HStack(spacing: 14) {
+            if entry.data.isActive {
+                // Left column — icon + numeric progress
+                VStack(spacing: 6) {
+                    Image(systemName: "truck.box.fill")
+                        .font(.system(size: 30, weight: .semibold))
+                        .foregroundStyle(.blue)
+                    Text("\(entry.data.completedStops)/\(entry.data.totalStops)")
+                        .font(.title3.bold())
+                        .foregroundStyle(.blue)
+                    Text("stops")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(width: 64)
+
+                Divider()
+
+                // Right column — route name, progress bar, next stop
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack {
+                        Text(entry.data.routeName)
+                            .font(.subheadline.bold())
+                            .lineLimit(1)
+                        Spacer()
+                        Label("Active", systemImage: "circle.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.green)
+                    }
+                    ProgressView(value: entry.data.progress)
+                        .tint(.blue)
+                    if !entry.data.nextStopName.isEmpty {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("NEXT STOP")
+                                .font(.system(size: 9, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                            Text(entry.data.nextStopName)
+                                .font(.subheadline.weight(.semibold))
+                                .lineLimit(1)
+                            if !entry.data.nextStopAddress.isEmpty {
+                                Text(entry.data.nextStopAddress)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                        }
+                    }
+                    Spacer(minLength: 0)
+                }
+
+            } else if entry.data.isComplete {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 40))
+                    .foregroundStyle(.green)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Route Complete")
+                        .font(.headline.bold())
+                    Text(entry.data.routeName)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Text("\(entry.data.completedStops) stops completed")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+
+            } else {
+                Image(systemName: "map.fill")
+                    .font(.system(size: 36))
+                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("PlowR")
+                        .font(.headline.bold())
+                    Text("No active route")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Text("Open the app to start a route")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+                Spacer()
+            }
+        }
+        .padding(14)
     }
 }
 
-struct PlowRWidgets: Widget {
-    let kind: String = "PlowRWidgets"
+// MARK: - Widget Definition
+
+struct PlowRTodayRouteWidget: Widget {
+    let kind: String = "PlowRTodayRoute"
 
     var body: some WidgetConfiguration {
-        AppIntentConfiguration(kind: kind, intent: ConfigurationAppIntent.self, provider: Provider()) { entry in
-            PlowRWidgetsEntryView(entry: entry)
+        StaticConfiguration(kind: kind, provider: PlowRWidgetProvider()) { entry in
+            PlowRWidgetEntryView(entry: entry)
                 .containerBackground(.fill.tertiary, for: .widget)
         }
+        .configurationDisplayName("Today's Route")
+        .description("See your active route progress and next stop at a glance.")
+        .supportedFamilies([.systemSmall, .systemMedium])
     }
 }
 
-extension ConfigurationAppIntent {
-    fileprivate static var smiley: ConfigurationAppIntent {
-        let intent = ConfigurationAppIntent()
-        intent.favoriteEmoji = "😀"
-        return intent
-    }
-    
-    fileprivate static var starEyes: ConfigurationAppIntent {
-        let intent = ConfigurationAppIntent()
-        intent.favoriteEmoji = "🤩"
-        return intent
-    }
-}
+// MARK: - Previews
 
-#Preview(as: .systemSmall) {
-    PlowRWidgets()
+#Preview("Small — Active", as: .systemSmall) {
+    PlowRTodayRouteWidget()
 } timeline: {
-    SimpleEntry(date: .now, configuration: .smiley)
-    SimpleEntry(date: .now, configuration: .starEyes)
+    RouteEntry(date: .now, data: .placeholder)
+}
+
+#Preview("Small — Idle", as: .systemSmall) {
+    PlowRTodayRouteWidget()
+} timeline: {
+    RouteEntry(date: .now, data: RouteWidgetData())
+}
+
+#Preview("Medium — Active", as: .systemMedium) {
+    PlowRTodayRouteWidget()
+} timeline: {
+    RouteEntry(date: .now, data: .placeholder)
 }

@@ -3,11 +3,13 @@ import SwiftData
 import MapKit
 import CoreLocation
 import ActivityKit
+import StoreKit
 
 struct ActiveRouteView: View {
     let route: PlowRoute
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.requestReview) private var requestReview
 
     @Query private var allClients: [Client]
 
@@ -26,6 +28,9 @@ struct ActiveRouteView: View {
     @State private var currentStopStartTime: Date? = nil
     @State private var showingServiceRecorder = false
     @State private var showingMassMessage = false
+    @State private var showingFirstStopPrompt = false
+
+    @AppStorage("completedRoutesCount") private var completedRoutesCount = 0
 
     // Map camera state
     @State private var mapCameraPosition: MapCameraPosition = .automatic
@@ -94,10 +99,18 @@ struct ActiveRouteView: View {
                 }
             }
         }
-        .onAppear { startRoute() }
+        .onAppear {
+            startRoute()
+            RouteSessionManager.shared.isRouteActive = true
+            RouteSessionManager.shared.onCompleteStop = { triggerNotifyPrompt() }
+            RouteSessionManager.shared.onNotifyNext = { showingNotifyPrompt = true }
+        }
         .onDisappear {
             locationManager.stopTracking()
             endLiveActivity()
+            RouteSessionManager.shared.isRouteActive = false
+            RouteSessionManager.shared.onCompleteStop = nil
+            RouteSessionManager.shared.onNotifyNext = nil
         }
         .task(id: currentStopIndex) {
             etaMinutes = nil
@@ -126,6 +139,16 @@ struct ActiveRouteView: View {
                   stop.id.uuidString == regionID else { return }
             locationManager.lastExitedRegionID = nil
             triggerNotifyPrompt()
+        }
+        .sheet(isPresented: $showingFirstStopPrompt) {
+            if let first = sortedStops.first {
+                NotifyPromptView(
+                    stop: first,
+                    locationManager: locationManager,
+                    onAdvance: {},
+                    promptTitle: "Notify First Client?"
+                )
+            }
         }
         .sheet(isPresented: $showingNotifyPrompt) {
             if let next = nextStop {
@@ -166,6 +189,16 @@ struct ActiveRouteView: View {
             case .denied, .restricted:
                 showingLocationDeniedAlert = true
             default: break
+            }
+        }
+        .onChange(of: showingRouteRecap) { _, showing in
+            guard showing, sortedStops.count >= 5 else { return }
+            completedRoutesCount += 1
+            if completedRoutesCount >= 2 {
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 1_500_000_000)
+                    requestReview()
+                }
             }
         }
         .alert("Location Access Required", isPresented: $showingLocationDeniedAlert) {
@@ -333,13 +366,20 @@ struct ActiveRouteView: View {
     }
 
     private var computedMapCamera: MapCameraPosition {
-        guard let stop = currentStop, stop.latitude != 0 else { return .automatic }
-        if let userLoc = locationManager.currentLocation {
+        let userLoc = locationManager.currentLocation
+
+        // If stop has no geocoded coordinates, center on driver instead
+        guard let stop = currentStop, stop.latitude != 0, stop.longitude != 0 else {
+            if let loc = userLoc {
+                return .camera(MapCamera(centerCoordinate: loc.coordinate, distance: 1000))
+            }
+            return .userLocation(fallback: .automatic)
+        }
+
+        if let userLoc {
             let stopLoc = CLLocation(latitude: stop.latitude, longitude: stop.longitude)
             let dist = userLoc.distance(from: stopLoc)
-            // Zoom tighter when close, wider when far; bias slightly toward driver
             let cameraDistance = max(250, min(dist * 1.6, 12_000))
-            // Weight center 60% toward driver, 40% toward stop
             let midLat = userLoc.coordinate.latitude * 0.6 + stop.latitude * 0.4
             let midLon = userLoc.coordinate.longitude * 0.6 + stop.longitude * 0.4
             return .camera(MapCamera(
@@ -475,6 +515,7 @@ struct ActiveRouteView: View {
 
             if isLastStop {
                 Button {
+                    hapticSuccess()
                     recordStopStats(for: currentStop)
                     showingRouteRecap = true
                 } label: {
@@ -622,9 +663,20 @@ struct ActiveRouteView: View {
         UIApplication.shared.open(url)
     }
 
+    // MARK: - Haptics
+
+    private func haptic(_ style: UIImpactFeedbackGenerator.FeedbackStyle = .medium) {
+        UIImpactFeedbackGenerator(style: style).impactOccurred()
+    }
+
+    private func hapticSuccess() {
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+    }
+
     // MARK: - Route Logic
 
     private func startRoute() {
+        hapticSuccess()
         currentStopStartTime = Date()
         startLiveActivity()
         switch locationManager.authorizationStatus {
@@ -638,6 +690,14 @@ struct ActiveRouteView: View {
         @unknown default:
             locationManager.requestPermission()
         }
+        // Prompt to notify the first client before driving to them
+        if let firstStop = sortedStops.first,
+           !firstStop.clientPhone.isEmpty,
+           !(allClients.first { $0.id == firstStop.clientID }?.skipNotificationPrompt ?? false) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                showingFirstStopPrompt = true
+            }
+        }
     }
 
     private func triggerNotifyPrompt() {
@@ -646,10 +706,12 @@ struct ActiveRouteView: View {
             advanceToNextStop()
             return
         }
+        haptic(.light)
         showingNotifyPrompt = true
     }
 
     private func advanceToNextStop() {
+        haptic()
         recordStopStats(for: currentStop)
         currentStopIndex += 1
         currentStopStartTime = Date()
@@ -687,6 +749,15 @@ struct ActiveRouteView: View {
             attributes: attributes,
             content: .init(state: state, staleDate: nil)
         )
+        WidgetDataStore.write(TodayRouteWidgetData(
+            routeName: route.name,
+            totalStops: sortedStops.count,
+            completedStops: 0,
+            nextStopName: currentStop?.clientName ?? "",
+            nextStopAddress: currentStop?.clientAddress ?? "",
+            isActive: true,
+            lastUpdated: Date()
+        ))
     }
 
     private func updateLiveActivity() {
@@ -699,6 +770,15 @@ struct ActiveRouteView: View {
             routeName: route.name
         )
         Task { await activity.update(.init(state: state, staleDate: nil)) }
+        WidgetDataStore.write(TodayRouteWidgetData(
+            routeName: route.name,
+            totalStops: sortedStops.count,
+            completedStops: currentStopIndex,
+            nextStopName: currentStop?.clientName ?? "",
+            nextStopAddress: currentStop?.clientAddress ?? "",
+            isActive: true,
+            lastUpdated: Date()
+        ))
     }
 
     private func endLiveActivity() {
@@ -712,5 +792,14 @@ struct ActiveRouteView: View {
         )
         Task { await activity.end(.init(state: state, staleDate: nil), dismissalPolicy: .after(.now + 30)) }
         liveActivity = nil
+        WidgetDataStore.write(TodayRouteWidgetData(
+            routeName: route.name,
+            totalStops: sortedStops.count,
+            completedStops: sortedStops.count,
+            nextStopName: "",
+            nextStopAddress: "",
+            isActive: false,
+            lastUpdated: Date()
+        ))
     }
 }

@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import MapKit
 
 struct RouteRecapView: View {
     let route: PlowRoute
@@ -18,10 +19,40 @@ struct RouteRecapView: View {
         stops.filter { $0.actualMinutes == 0 && $0.completedServiceIDs.isEmpty }
     }
 
+    private var geocodedStops: [RouteStop] {
+        stops.filter { $0.latitude != 0 && $0.longitude != 0 }
+    }
+
+    private var mapCameraPosition: MapCameraPosition {
+        guard !geocodedStops.isEmpty else { return .automatic }
+        if geocodedStops.count == 1 {
+            let s = geocodedStops[0]
+            return .region(MKCoordinateRegion(
+                center: CLLocationCoordinate2D(latitude: s.latitude, longitude: s.longitude),
+                latitudinalMeters: 1200, longitudinalMeters: 1200
+            ))
+        }
+        let lats = geocodedStops.map(\.latitude)
+        let lons = geocodedStops.map(\.longitude)
+        let center = CLLocationCoordinate2D(
+            latitude: (lats.min()! + lats.max()!) / 2,
+            longitude: (lons.min()! + lons.max()!) / 2
+        )
+        let span = MKCoordinateSpan(
+            latitudeDelta: max((lats.max()! - lats.min()!) * 1.7, 0.006),
+            longitudeDelta: max((lons.max()! - lons.min()!) * 1.7, 0.006)
+        )
+        return .region(MKCoordinateRegion(center: center, span: span))
+    }
+
     var body: some View {
         NavigationStack {
             List {
                 summarySection
+
+                if !geocodedStops.isEmpty {
+                    mapSection
+                }
 
                 if !completedStops.isEmpty {
                     Section("Completed Stops") {
@@ -98,6 +129,40 @@ struct RouteRecapView: View {
         VStack(spacing: 2) {
             Text(value).font(.title2.weight(.bold))
             Text(label).font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    // MARK: - Map Section
+
+    private var mapSection: some View {
+        Section {
+            Map(position: .constant(mapCameraPosition)) {
+                ForEach(geocodedStops, id: \.id) { stop in
+                    let isDone = stop.actualMinutes > 0 || !stop.completedServiceIDs.isEmpty
+                    Annotation("", coordinate: CLLocationCoordinate2D(
+                        latitude: stop.latitude,
+                        longitude: stop.longitude
+                    )) {
+                        recapPin(isDone: isDone)
+                    }
+                }
+            }
+            .frame(height: 200)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .allowsHitTesting(false)
+            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+        }
+    }
+
+    private func recapPin(isDone: Bool) -> some View {
+        ZStack {
+            Circle()
+                .fill(isDone ? Color.green : Color(.systemGray3))
+                .frame(width: 20, height: 20)
+                .shadow(color: .black.opacity(0.25), radius: 2, x: 0, y: 1)
+            Image(systemName: isDone ? "checkmark" : "minus")
+                .font(.system(size: 8, weight: .bold))
+                .foregroundStyle(.white)
         }
     }
 
