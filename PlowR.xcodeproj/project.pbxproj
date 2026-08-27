@@ -20,6 +20,13 @@
 			remoteGlobalIDString = 602AA00F3018663F00841B7B;
 			remoteInfo = PlowRWidgetsExtension;
 		};
+		606443C8303FCBBB004C8A82 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 60E594623017F85100347251 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 60E594693017F85100347251;
+			remoteInfo = PlowR;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -40,26 +47,27 @@
 		602AA0103018663F00841B7B /* PlowRWidgetsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PlowRWidgetsExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		602AA0123018663F00841B7B /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		602AA0143018663F00841B7B /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		606443C4303FCBBB004C8A82 /* PlowRTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PlowRTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		60764F30303A02B500470FA3 /* PlowRWidgetsExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PlowRWidgetsExtension.entitlements; sourceTree = "<group>"; };
 		60E5946A3017F85100347251 /* PlowR.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PlowR.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		602A9FE330183FA300841B7B = {
+		602A9FE330183FA300841B7B /* Exceptions for "PlowR" folder in "PlowR" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
 			);
 			target = 60E594693017F85100347251 /* PlowR */;
 		};
-		602AA02A3018664000841B7B = {
+		602AA02A3018664000841B7B /* Exceptions for "PlowRWidgets" folder in "PlowRWidgetsExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
 			);
 			target = 602AA00F3018663F00841B7B /* PlowRWidgetsExtension */;
 		};
-		602AA02D3018671D00841B7B = {
+		602AA02D3018671D00841B7B /* Exceptions for "PlowR" folder in "PlowRWidgetsExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Activity/RouteActivityAttributes.swift,
@@ -69,8 +77,28 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		602AA0163018663F00841B7B /* PlowRWidgets */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (602AA02A3018664000841B7B, ); path = PlowRWidgets; sourceTree = "<group>"; };
-		60E5946C3017F85100347251 /* PlowR */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (602A9FE330183FA300841B7B, 602AA02D3018671D00841B7B, ); path = PlowR; sourceTree = "<group>"; };
+		602AA0163018663F00841B7B /* PlowRWidgets */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				602AA02A3018664000841B7B /* Exceptions for "PlowRWidgets" folder in "PlowRWidgetsExtension" target */,
+			);
+			path = PlowRWidgets;
+			sourceTree = "<group>";
+		};
+		606443C5303FCBBB004C8A82 /* PlowRTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = PlowRTests;
+			sourceTree = "<group>";
+		};
+		60E5946C3017F85100347251 /* PlowR */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				602A9FE330183FA300841B7B /* Exceptions for "PlowR" folder in "PlowR" target */,
+				602AA02D3018671D00841B7B /* Exceptions for "PlowR" folder in "PlowRWidgetsExtension" target */,
+			);
+			path = PlowR;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -80,6 +108,13 @@
 			files = (
 				602AA0153018663F00841B7B /* SwiftUI.framework in Frameworks */,
 				602AA0133018663F00841B7B /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		606443C1303FCBBB004C8A82 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -108,6 +143,7 @@
 				60764F30303A02B500470FA3 /* PlowRWidgetsExtension.entitlements */,
 				60E5946C3017F85100347251 /* PlowR */,
 				602AA0163018663F00841B7B /* PlowRWidgets */,
+				606443C5303FCBBB004C8A82 /* PlowRTests */,
 				602AA0113018663F00841B7B /* Frameworks */,
 				60E5946B3017F85100347251 /* Products */,
 			);
@@ -118,6 +154,7 @@
 			children = (
 				60E5946A3017F85100347251 /* PlowR.app */,
 				602AA0103018663F00841B7B /* PlowRWidgetsExtension.appex */,
+				606443C4303FCBBB004C8A82 /* PlowRTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -146,6 +183,29 @@
 			productName = PlowRWidgetsExtension;
 			productReference = 602AA0103018663F00841B7B /* PlowRWidgetsExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
+		};
+		606443C3303FCBBB004C8A82 /* PlowRTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 606443CC303FCBBB004C8A82 /* Build configuration list for PBXNativeTarget "PlowRTests" */;
+			buildPhases = (
+				606443C0303FCBBB004C8A82 /* Sources */,
+				606443C1303FCBBB004C8A82 /* Frameworks */,
+				606443C2303FCBBB004C8A82 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				606443C9303FCBBB004C8A82 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				606443C5303FCBBB004C8A82 /* PlowRTests */,
+			);
+			name = PlowRTests;
+			packageProductDependencies = (
+			);
+			productName = PlowRTests;
+			productReference = 606443C4303FCBBB004C8A82 /* PlowRTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
 		};
 		60E594693017F85100347251 /* PlowR */ = {
 			isa = PBXNativeTarget;
@@ -185,6 +245,10 @@
 					602AA00F3018663F00841B7B = {
 						CreatedOnToolsVersion = 26.6;
 					};
+					606443C3303FCBBB004C8A82 = {
+						CreatedOnToolsVersion = 26.6;
+						TestTargetID = 60E594693017F85100347251;
+					};
 					60E594693017F85100347251 = {
 						CreatedOnToolsVersion = 26.6;
 					};
@@ -206,12 +270,20 @@
 			targets = (
 				60E594693017F85100347251 /* PlowR */,
 				602AA00F3018663F00841B7B /* PlowRWidgetsExtension */,
+				606443C3303FCBBB004C8A82 /* PlowRTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		602AA00E3018663F00841B7B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		606443C2303FCBBB004C8A82 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -252,6 +324,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		606443C0303FCBBB004C8A82 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		60E594663017F85100347251 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -266,6 +345,11 @@
 			isa = PBXTargetDependency;
 			target = 602AA00F3018663F00841B7B /* PlowRWidgetsExtension */;
 			targetProxy = 602AA0243018664000841B7B /* PBXContainerItemProxy */;
+		};
+		606443C9303FCBBB004C8A82 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 60E594693017F85100347251 /* PlowR */;
+			targetProxy = 606443C8303FCBBB004C8A82 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -327,6 +411,48 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Release;
+		};
+		606443CA303FCBBB004C8A82 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 7U83DJ2F97;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = Scoops.PlowRTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PlowR.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/PlowR";
+			};
+			name = Debug;
+		};
+		606443CB303FCBBB004C8A82 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 7U83DJ2F97;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = Scoops.PlowRTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PlowR.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/PlowR";
 			};
 			name = Release;
 		};
@@ -541,6 +667,15 @@
 			buildConfigurations = (
 				602AA0283018664000841B7B /* Debug */,
 				602AA0293018664000841B7B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		606443CC303FCBBB004C8A82 /* Build configuration list for PBXNativeTarget "PlowRTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				606443CA303FCBBB004C8A82 /* Debug */,
+				606443CB303FCBBB004C8A82 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
