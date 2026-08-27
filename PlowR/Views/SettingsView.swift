@@ -4,6 +4,7 @@ import SwiftData
 struct SettingsView: View {
     @Environment(AuthManager.self) private var authManager
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.openURL) private var openURL
 
     @State private var showingFindService = false
     @State private var sampleDataInserted = false
@@ -45,10 +46,18 @@ struct SettingsView: View {
                     }
                 }
                 .padding(.vertical, 4)
+
+                Button {
+                    if let url = URL(string: "mailto:support@getplowr.app?subject=PlowR%20Support") {
+                        openURL(url)
+                    }
+                } label: {
+                    Label("Contact Support", systemImage: "envelope")
+                }
             } header: {
                 Text("Data & Backup")
             } footer: {
-                Text("Need a manual export or have questions about your data? Contact support.")
+                Text("Need a manual export or have questions about your data?")
                     .font(.caption)
             }
 
