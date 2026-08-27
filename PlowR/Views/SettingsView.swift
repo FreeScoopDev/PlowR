@@ -83,7 +83,8 @@ struct SettingsView: View {
             }
 
             Section("Legal") {
-                Link("Privacy Policy", destination: URL(string: "https://freescoopdev.github.io/PlowR/privacy-policy.html")!)
+                Link("Privacy Policy", destination: URL(string: "https://getplowr.app/privacy-policy.html")!)
+                Link("Terms of Service", destination: URL(string: "https://getplowr.app/terms-of-service.html")!)
             }
 
             #if DEBUG
