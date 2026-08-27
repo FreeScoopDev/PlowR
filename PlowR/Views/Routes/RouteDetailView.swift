@@ -342,7 +342,7 @@ struct RouteDetailView: View {
                    let time = resp.routes.first?.expectedTravelTime {
                     score = time
                 } else {
-                    score = haversine(last, candidate) * 1_000_000
+                    score = haversineRadians(last, candidate) * 1_000_000
                 }
                 if score < bestScore {
                     bestScore = score
@@ -359,26 +359,15 @@ struct RouteDetailView: View {
 
     /// Fast offline nearest-neighbor using great-circle distance.
     private func optimizeRoute() {
-        var withGPS = route.sortedStops.filter { $0.latitude != 0 }
-        let withoutGPS = route.sortedStops.filter { $0.latitude == 0 }
-        guard withGPS.count >= 2 else { return }
-
-        var ordered: [RouteStop] = [withGPS.removeFirst()]
-        while !withGPS.isEmpty {
-            let last = ordered.last!
-            let nearestIdx = withGPS.indices.min { i, j in
-                haversine(last, withGPS[i]) < haversine(last, withGPS[j])
-            }!
-            ordered.append(withGPS.remove(at: nearestIdx))
-        }
-
-        let all = ordered + withoutGPS
-        for (index, stop) in all.enumerated() {
-            stop.order = index
+        let stops = route.sortedStops
+        let waypoints = stops.map { RouteOptimizer.Waypoint(latitude: $0.latitude, longitude: $0.longitude) }
+        let order = RouteOptimizer.nearestNeighborOrder(of: waypoints)
+        for (newOrder, origIdx) in order.enumerated() {
+            stops[origIdx].order = newOrder
         }
     }
 
-    private func haversine(_ a: RouteStop, _ b: RouteStop) -> Double {
+    private func haversineRadians(_ a: RouteStop, _ b: RouteStop) -> Double {
         let dLat = (b.latitude - a.latitude) * .pi / 180
         let dLon = (b.longitude - a.longitude) * .pi / 180
         let sinLat = sin(dLat / 2)

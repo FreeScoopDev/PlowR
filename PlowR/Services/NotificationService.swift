@@ -4,6 +4,23 @@ final class NotificationService {
     static let shared = NotificationService()
     private init() {}
 
+    private let adverseCodes: Set<Int> = [
+        61, 63, 65, 66, 67,         // rain / freezing rain
+        71, 73, 75, 77, 85, 86,     // snow / snow showers
+        80, 81, 82,                  // heavy showers
+        95, 96, 99                   // thunderstorms
+    ]
+
+    /// Returns the first forecast day in the next 2 days (excluding today) that has adverse conditions.
+    func adverseForecastDay(from forecasts: [DayForecast]) -> DayForecast? {
+        forecasts.dropFirst().prefix(2).first { adverseCodes.contains($0.weatherCode) }
+    }
+
+    /// Formats the overdue invoice notification body text.
+    static func overdueBody(count: Int) -> String {
+        "\(count) invoice\(count == 1 ? "" : "s") past due — follow up in PlowR."
+    }
+
     func requestAuthorization() {
         UNUserNotificationCenter.current().requestAuthorization(
             options: [.alert, .badge, .sound]
@@ -14,17 +31,10 @@ final class NotificationService {
     /// forecast in the next 2 days. Fires the evening before at 6 PM.
     /// Works for snow removal, lawn care, and any outdoor service industry.
     func scheduleWeatherAlert(for forecasts: [DayForecast]) {
-        let adverseCodes: Set<Int> = [
-            61, 63, 65, 66, 67,         // rain / freezing rain
-            71, 73, 75, 77, 85, 86,     // snow / snow showers
-            80, 81, 82,                  // heavy showers
-            95, 96, 99                   // thunderstorms
-        ]
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: ["weather_alert"])
 
-        guard let alertDay = forecasts.dropFirst().prefix(2)
-                .first(where: { adverseCodes.contains($0.weatherCode) }) else { return }
+        guard let alertDay = adverseForecastDay(from: forecasts) else { return }
 
         let content = UNMutableNotificationContent()
         content.title = "Weather Alert"
@@ -51,7 +61,7 @@ final class NotificationService {
 
         let content = UNMutableNotificationContent()
         content.title = "Overdue Invoices"
-        content.body = "\(count) invoice\(count == 1 ? "" : "s") past due — follow up in PlowR."
+        content.body = Self.overdueBody(count: count)
         content.sound = .default
 
         var components = DateComponents()
