@@ -10,6 +10,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Delete Account & Data** in Settings — permanently removes all local SwiftData records, the encrypted client work orders file, and Keychain credentials, then signs out; satisfies App Store Review Guideline 5.1.1(v) account deletion requirement
 - **Privacy policy page** (`docs/privacy-policy.html`) hosted at `freescoopdev.github.io/PlowR/privacy-policy.html` — covers all data use cases including Sign In with Apple, CloudKit sync, location/geofencing, camera/OCR, Open-Meteo, Open-Topo-Data, contacts picker, and calendar
 
+### Fixed
+- **CI has been red since 2026-08-27** because the host app died before the test runner could connect to it. `PlowRApp.makeContainer` built its `ModelContainer` with `cloudKitDatabase:` unconditionally, and the `try?` around it cannot catch a CloudKit failure: CoreData accepts the configuration, then sets CloudKit up asynchronously on `com.apple.coredata.cloudkit.queue` and **traps** rather than throwing. GitHub runners are signed out of iCloud and the workflow builds with `CODE_SIGNING_ALLOWED=NO`, so there is no iCloud entitlement at all — the app trapped a few seconds after launch, surfacing as "Test crashed with signal trap before establishing connection." CloudKit mirroring is now skipped when `XCTestConfigurationFilePath` is set, falling through to the existing local store. This is the same guard, for the same reason, as Wockett's `AppModelContainer`, where it was diagnosed first. Tests should not be syncing to a real iCloud database regardless. **Unverified locally — `xcodebuild` is not reachable from this environment, so the confirmation is CI going green, not reasoning.**
+
 ## [1.1.0] - 2026-08-22
 
 ### Added
