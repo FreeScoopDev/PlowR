@@ -34,15 +34,36 @@ struct PlowRApp: App {
     // Readable by DashboardView to show a sync-unavailable warning banner.
     static private(set) var isCloudKitAvailable = true
 
+    // True when the process is running under XCTest. Unit tests inject into the
+    // host app, so XCTestConfigurationFilePath is set in the environment.
+    //
+    // CloudKit mirroring is skipped in that case, and it is not optional. The
+    // `try?` below cannot protect against a CloudKit failure: CoreData accepts
+    // the configuration, then sets CloudKit up asynchronously on
+    // com.apple.coredata.cloudkit.queue and TRAPS rather than throwing. No
+    // `catch` can reach that. CI runners are signed out of iCloud and build with
+    // CODE_SIGNING_ALLOWED=NO, so they carry no iCloud entitlement at all — the
+    // host app dies a few seconds after launch, which surfaces as
+    // "Test crashed with signal trap before establishing connection."
+    //
+    // Tests have no business syncing to a real iCloud database regardless.
+    // Same guard, same reason, as Wockett's AppModelContainer.
+    static var isRunningUnderTests: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+            || NSClassFromString("XCTestCase") != nil
+    }
+
     private static func makeContainer(schema: Schema) -> ModelContainer {
-        // 1. Try CloudKit-backed store
-        let cloudConfig = ModelConfiguration(
-            schema: schema,
-            cloudKitDatabase: .private("iCloud.com.Scoops.PlowR")
-        )
-        if let c = try? ModelContainer(for: schema, configurations: [cloudConfig]) {
-            isCloudKitAvailable = true
-            return c
+        // 1. Try CloudKit-backed store (skipped under test — see above)
+        if !isRunningUnderTests {
+            let cloudConfig = ModelConfiguration(
+                schema: schema,
+                cloudKitDatabase: .private("iCloud.com.Scoops.PlowR")
+            )
+            if let c = try? ModelContainer(for: schema, configurations: [cloudConfig]) {
+                isCloudKitAvailable = true
+                return c
+            }
         }
 
         // 2. Fall back to local store (iCloud unavailable or signed out)
