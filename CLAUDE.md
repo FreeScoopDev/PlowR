@@ -87,19 +87,14 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   `.github/workflows/guards.yml` fails a PR that puts snow-only wording or a fixed
   snowflake icon on a shared screen (dashboard, active route, routes, Live
   Activity, intents, widgets, tab bar). Snow-only features go in their own files.
-- **Accent colour is adaptive navy**, defined once in `PlowRApp.swift` and
-  applied with `.tint()`. There is no `DesignSystem.swift` yet; if a second
-  shared token appears, that's the moment to create one rather than a third
-  literal.
-  copy for a generic action.
 - **Colours come from `PlowR/DesignSystem.swift`** (`PlowRColor`). The accent is
   adaptive navy (`PlowRColor.accent`, applied once with `.tint()` in
   `PlowRApp`); the fixed navy is `navyUIColor` (PDFs) and `navy` (SwiftUI,
   the client avatar), and `navyHex` is `BusinessProfile`'s default. The enum
   is `nonisolated` because SwiftData's generated code reads it off the main
-  actor. The file is compiled into the app
-  and the widget extension (membership exception in `project.pbxproj`). Add a
-  token the moment a value is needed in a second place, instead of copying it.
+  actor. The file is compiled into the app and the widget extension
+  (membership exception in `project.pbxproj`). Add a token the moment a value
+  is needed in a second place, instead of copying it.
   Status colours (`.red` overdue, `.orange` outstanding, `.purple` comped,
   `.green` done) are system colours on purpose.
 - **The widget reads only the app group `UserDefaults`.** Anything it needs to
