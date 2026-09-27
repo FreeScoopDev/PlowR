@@ -13,6 +13,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 - **CI has been red since 2026-08-27** because the host app died before the test runner could connect to it. `PlowRApp.makeContainer` built its `ModelContainer` with `cloudKitDatabase:` unconditionally, and the `try?` around it cannot catch a CloudKit failure: CoreData accepts the configuration, then sets CloudKit up asynchronously on `com.apple.coredata.cloudkit.queue` and **traps** rather than throwing. GitHub runners are signed out of iCloud and the workflow builds with `CODE_SIGNING_ALLOWED=NO`, so there is no iCloud entitlement at all — the app trapped a few seconds after launch, surfacing as "Test crashed with signal trap before establishing connection." CloudKit mirroring is now skipped when `XCTestConfigurationFilePath` is set, falling through to the existing local store. This is the same guard, for the same reason, as Wockett's `AppModelContainer`, where it was diagnosed first. Tests should not be syncing to a real iCloud database regardless. **Unverified locally — `xcodebuild` is not reachable from this environment, so the confirmation is CI going green, not reasoning.**
 
+### Internal
+- **The placeholder `example()` test is gone; a real one replaces it.** It asserted nothing and was counted as a passing test. `ModelContainerTests` now checks that a launch under test used the local store rather than CloudKit (`PlowRApp.isCloudKitAvailable` is false), pinning the CI fix above. Verified by breaking it on purpose: with the fallback no longer recording itself, the test fails. A second assertion, that the test run is detected at all, was tried and dropped. If detection breaks, the app traps on launch before any assertion runs, so that check could never fail on its own. The crash is already the red signal for that regression.
+
 ## [1.1.0] - 2026-08-22
 
 ### Added
