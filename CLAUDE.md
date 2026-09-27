@@ -111,9 +111,10 @@ folder needs updating, give Joe the command.
 4. Fix any red check. Give Joe the link; Joe clicks **Squash and merge**.
    Claude never merges, never pushes to `main`, never force-pushes.
 
-CI today is GitHub Actions (`Tests` workflow, `macos-26`, `iPhone 17`
-simulator); it is moving to Xcode Cloud. `docs/ci.md` has the workflow
-settings, their current status and the setup steps. GitHub Pages deploys
+CI is Xcode Cloud: `CI Tests` runs the `PlowR` scheme's tests on every PR to
+`main` and posts `PlowR | CI Tests | Test - iOS`. There is no GitHub Actions
+workflow any more. `docs/ci.md` has the workflow settings, their current
+status and the setup steps. GitHub Pages deploys
 `docs/` to getplowr.app on every push to `main`; `docs/_config.yml` keeps
 `ci.md` off the site.
 
