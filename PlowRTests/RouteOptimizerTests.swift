@@ -19,6 +19,21 @@ struct RouteOptimizerTests {
         #expect(order == [0, 2, 1])
     }
 
+    // Four stops, where "nearest to the previous stop" and "nearest to the
+    // start" give different orders. From A (lon 0): B (lon 1) is nearest; from
+    // B, D (lon 2) is nearer than C (lon -1.5). Measuring everything from A
+    // instead would pick C before D. The three-stop test above can't tell the
+    // two apart. Found by review: the loop's `current` stop was untested.
+    @Test func nearestNeighborOrder_measuresFromThePreviousStop() {
+        let waypoints = [
+            WP(latitude: 1, longitude: 0),     // 0 – start (A)
+            WP(latitude: 1, longitude: 1),     // 1 – B
+            WP(latitude: 1, longitude: -1.5),  // 2 – C
+            WP(latitude: 1, longitude: 2),     // 3 – D
+        ]
+        #expect(RouteOptimizer.nearestNeighborOrder(of: waypoints) == [0, 1, 3, 2])
+    }
+
     @Test func nearestNeighborOrder_emptyInput_returnsEmpty() {
         #expect(RouteOptimizer.nearestNeighborOrder(of: []).isEmpty)
     }

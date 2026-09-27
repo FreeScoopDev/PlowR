@@ -37,7 +37,7 @@ final class ClientWorkOrderStore {
 
     static var fileURL: URL {
         let fm = FileManager.default
-        let support = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let support = URL.applicationSupportDirectory
         try? fm.createDirectory(at: support, withIntermediateDirectories: true)
         return support.appendingPathComponent("clientWorkOrders.json")
     }

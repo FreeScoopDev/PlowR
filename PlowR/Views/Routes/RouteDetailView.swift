@@ -30,17 +30,11 @@ struct RouteDetailView: View {
                 latitudinalMeters: 1200, longitudinalMeters: 1200
             ))
         }
-        let lats = geocodedStops.map(\.stop.latitude)
-        let lons = geocodedStops.map(\.stop.longitude)
-        let center = CLLocationCoordinate2D(
-            latitude: (lats.min()! + lats.max()!) / 2,
-            longitude: (lons.min()! + lons.max()!) / 2
-        )
-        let span = MKCoordinateSpan(
-            latitudeDelta: max((lats.max()! - lats.min()!) * 1.7, 0.006),
-            longitudeDelta: max((lons.max()! - lons.min()!) * 1.7, 0.006)
-        )
-        return .region(MKCoordinateRegion(center: center, span: span))
+        guard let bounds = CoordinateBounds(latitudes: geocodedStops.map(\.stop.latitude),
+                                            longitudes: geocodedStops.map(\.stop.longitude)) else {
+            return .automatic
+        }
+        return .region(bounds.region())
     }
 
     // MARK: - Body
@@ -325,8 +319,7 @@ struct RouteDetailView: View {
 
         var ordered: [RouteStop] = [withGPS.removeFirst()]
 
-        while !withGPS.isEmpty {
-            let last = ordered.last!
+        while !withGPS.isEmpty, let last = ordered.last {
             let lastCoord = CLLocationCoordinate2D(latitude: last.latitude, longitude: last.longitude)
             var bestIdx = withGPS.startIndex
             var bestScore = Double.infinity
