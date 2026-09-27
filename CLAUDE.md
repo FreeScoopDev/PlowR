@@ -123,16 +123,17 @@ status and the setup steps. GitHub Pages deploys
 
 Run the tests locally before pushing:
 
-    xcodebuild test -project PlowR.xcodeproj -scheme PlowR \
-      -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' \
-      -resultBundlePath /tmp/plowr.xcresult CODE_SIGNING_ALLOWED=NO
+    scripts/test.sh              # full scheme, same as CI
+    scripts/test.sh --unit-only  # faster; NOT what CI runs
 
-The verdict is the exit code, the literal `** TEST SUCCEEDED **`, and the
-bundle's result together. Count tests from the bundle
-(`xcrun xcresulttool get test-results summary --path /tmp/plowr.xcresult`),
-never from the log. A piped `| tail` reports `tail`'s exit code, not
-xcodebuild's. `-only-testing:` with a Swift Testing function name can match
-nothing and still pass; filter to the suite and check the count.
+The script is a thin wrapper around Joe's shared toolkit
+(`~/.claude/toolkit/bin/test.sh`), configured by `.claude/app.json`. Its verdict
+needs the exit code, the literal `** TEST SUCCEEDED **` and the result bundle
+together, counts tests from the bundle, and treats a run of 0 tests as a
+failure, because `-only-testing:` with a Swift Testing function name can match
+nothing and still print TEST SUCCEEDED. Never pipe `xcodebuild` into `tail`
+when the exit code matters. CI does not use the script, so a clone without the
+toolkit still builds and passes CI.
 
 Tracking lives in Notion (the PlowR app page in Joe's workspace).
 
