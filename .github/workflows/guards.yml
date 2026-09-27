@@ -46,7 +46,7 @@ jobs:
           exit "$found"
 
   swiftlint:
-    name: SwiftLint (report only)
+    name: SwiftLint
     runs-on: ubuntu-latest
     timeout-minutes: 10
     # SwiftLint needs a Swift toolchain but not Xcode, so it runs on the 1x
@@ -58,11 +58,11 @@ jobs:
       - name: Check out repo
         uses: actions/checkout@v5
 
-      # REPORT ONLY while the 35 existing force-unwraps (2026-09-27) are fixed:
-      # the step can fail and the job still shows green. Read the annotations
-      # or the "Found N violations, M serious" line, not the tick. Once M is 0,
-      # remove continue-on-error and "(report only)" from the name, and this
-      # becomes a real gate.
+      # A real gate since 2026-09-27: any error-severity violation (force
+      # unwrap, force cast, try!) fails the job, and "SwiftLint" is a required
+      # check on main. It was report-only until the 35 existing force-unwraps
+      # were removed (#17). Warnings don't fail it. GitHub shows at most 10
+      # annotations per step; the log's "Found N violations, M serious" line
+      # has the full count.
       - name: SwiftLint
-        continue-on-error: true
         run: swiftlint lint --reporter github-actions-logging

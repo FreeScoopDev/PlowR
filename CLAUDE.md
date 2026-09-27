@@ -74,12 +74,12 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   deleting it** (`default.store.<timestamp>.bak` in Application Support) when
   the schema is incompatible. That is deliberate: a user's data survives a bad
   migration. Don't "simplify" it to a delete.
-- **SwiftLint is report-only until the force-unwraps are gone.** The
-  `SwiftLint (report only)` job in `guards.yml` shows green even when it finds
-  errors (`continue-on-error`). Read the log's `Done linting! Found N
-  violations, M serious` line, not the tick. The annotations stop at 10. There were 35 `force_unwrapping` errors on 2026-09-27.
-  At 0, remove `continue-on-error` so it gates. Never add a `swiftlint:disable`
-  to get there: remove the unwrap. Never run `scripts/lint.sh --fix` without
+- **SwiftLint gates merges.** The `SwiftLint` job in `guards.yml` fails on any
+  error-severity violation (force unwrap, force cast, `try!`) and is a required
+  check on `main`. It was report-only until the 35 force-unwraps were removed
+  (#17). The annotations stop at 10; the log's `Found N violations, M serious`
+  line has the full count. Never add a `swiftlint:disable` to get past it:
+  remove the unwrap. Never run `scripts/lint.sh --fix` without
   `scripts/test.sh` after it.
 - **Delete Account & Data** (Settings) is an App Review 5.1.1(v) requirement.
   It removes all SwiftData records, the encrypted work-orders file, and
@@ -129,13 +129,15 @@ folder needs updating, give Joe the command.
    Claude never merges, never pushes to `main`, never force-pushes.
 
 `main` is protected by a ruleset (since 2026-09-27): PR only, squash merge,
-and `PlowR | CI Tests | Test - iOS` plus `Service-language guard` must pass.
+and `PlowR | CI Tests | Test - iOS`, `Service-language guard` and `SwiftLint`
+must pass.
 A PR that Xcode Cloud never picked up (no `PlowR | CI Tests` status at all)
 can't merge. Re-fire it with `gh pr close <N> && gh pr reopen <N>`.
 
 CI is Xcode Cloud: `CI Tests` runs the `PlowR` scheme's tests on every PR to
-`main` and posts `PlowR | CI Tests | Test - iOS`. There is no GitHub Actions
-workflow any more. `docs/ci.md` has the workflow settings, their current
+`main` and posts `PlowR | CI Tests | Test - iOS`. GitHub Actions runs only
+the cheap Linux guards in `.github/workflows/guards.yml` (service-language
+guard, SwiftLint); nothing there builds the app. `docs/ci.md` has the workflow settings, their current
 status and the setup steps. GitHub Pages deploys
 `docs/` to getplowr.app on every push to `main`; `docs/_config.yml` keeps
 `ci.md` off the site.
