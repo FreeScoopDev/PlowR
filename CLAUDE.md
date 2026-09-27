@@ -85,12 +85,14 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   copy for a generic action.
 - **Colours come from `PlowR/DesignSystem.swift`** (`PlowRColor`). The accent is
   adaptive navy (`PlowRColor.accent`, applied once with `.tint()` in
-  `PlowRApp`); `PlowRColor.navy` is the fixed navy for PDFs and avatars, and
-  `navyHex` is `BusinessProfile`'s default. The file is compiled into the app
+  `PlowRApp`); the fixed navy is `navyUIColor` (PDFs) and `navy` (SwiftUI,
+  the client avatar), and `navyHex` is `BusinessProfile`'s default. The enum
+  is `nonisolated` because SwiftData's generated code reads it off the main
+  actor. The file is compiled into the app
   and the widget extension (membership exception in `project.pbxproj`). Add a
   token the moment a value is needed in a second place, instead of copying it.
-  Status colours (`.red` overdue, `.orange` outstanding, `.green` done) are
-  system colours on purpose.
+  Status colours (`.red` overdue, `.orange` outstanding, `.purple` comped,
+  `.green` done) are system colours on purpose.
 - **The widget reads only the app group `UserDefaults`.** Anything it needs to
   show has to be written by `WidgetDataStore` from the app side; the widget
   never touches SwiftData.

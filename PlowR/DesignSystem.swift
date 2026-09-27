@@ -14,7 +14,12 @@
 import SwiftUI
 import UIKit
 
-enum PlowRColor {
+// `nonisolated` because the app target defaults everything to @MainActor but
+// SwiftData's generated model code (BusinessProfile's default accentColorHex)
+// reads these off the main actor. Without it, that is a warning under strict
+// concurrency and an error in Swift 6 mode. It also gives the file the same
+// isolation in the widget, which has no default actor.
+nonisolated enum PlowRColor {
 
     /// Brand navy, light appearance, as the hex string stored in
     /// `BusinessProfile.accentColorHex`. Must describe the same colour as
@@ -29,9 +34,10 @@ enum PlowRColor {
     /// The app's tint: navy in light mode, a brighter blue in dark mode so it
     /// stays readable on dark backgrounds.
     static let accentUIColor = UIColor { traits in
-        traits.userInterfaceStyle == .dark
-            ? UIColor(red: 0.53, green: 0.70, blue: 1.00, alpha: 1)
-            : navyUIColor
+        traits.userInterfaceStyle == .dark ? accentDarkUIColor : navyUIColor
     }
     static let accent = Color(accentUIColor)
+
+    /// The accent's dark-mode colour: a brighter blue, readable on dark backgrounds.
+    static let accentDarkUIColor = UIColor(red: 0.53, green: 0.70, blue: 1.00, alpha: 1)
 }
