@@ -48,4 +48,3 @@ nonisolated struct CoordinateBounds: Equatable {
         )
     }
 }
-func brokenOnPurpose() -> Int { [1, 2].first! }  // BROKEN ON PURPOSE, reverted next commit
