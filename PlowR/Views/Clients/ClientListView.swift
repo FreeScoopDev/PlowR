@@ -353,7 +353,7 @@ struct ClientRowView: View {
         if isOverdue { return .red }
         if outstandingBalance > 0 { return .orange }
         if client.isComped { return .purple }
-        return Color(red: 0.118, green: 0.227, blue: 0.541)
+        return PlowRColor.navy
     }
 
     var body: some View {
