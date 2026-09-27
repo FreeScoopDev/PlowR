@@ -129,13 +129,23 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
 - **The widget reads only the app group `UserDefaults`.** Anything it needs to
   show has to be written by `WidgetDataStore` from the app side; the widget
   never touches SwiftData.
-- **`CHANGELOG.md` entry ships with the change**, in the same commit, explaining
-  *why*. Keep a Changelog format. `[Unreleased]` currently holds the 5.1.1
+- **The changelog entry ships with the change**, in the same commit, explaining
+  *why*. Since 2026-09-27 it goes in its own file in `changelog.d/`, not in
+  `CHANGELOG.md`. `changelog.d/README.md` has the format. The PR that cuts a
+  version gathers the files into `CHANGELOG.md`. Two open PRs that both edited
+  `[Unreleased]` conflicted every time (Wockett #90–#92), and a conflicted PR
+  cannot auto-merge. `[Unreleased]` in `CHANGELOG.md` still holds the 5.1.1
   compliance work that hasn't been cut to a version.
 
 ## Process
 
-**Joe merges; Claude does the git work.** Claude works only in its own
+**Claude does the git work; a change that passes the checks merges itself;
+Joe decides what ships.** Auto-merge since 2026-09-27, at Joe's request, as in
+Wockett. By the time Joe clicked Merge, the three required checks had already
+passed, and he was not reviewing code. `main` is not what users get: a build
+reaches them only through Joe's Release Flow build, TestFlight and Submit.
+
+Claude works only in its own
 worktree (`git worktree add ~/Desktop/Apps/PlowR-claude -b <branch>
 origin/main`), never in `~/Desktop/Apps/PlowR`: git there is read-only with
 `--no-optional-locks`, and no `switch`, `pull`, `merge` or `commit`. If Joe's
@@ -144,11 +154,19 @@ folder needs updating, give Joe the command.
 1. `git fetch`, then branch from `origin/main`, never a local `main`. One
    change per branch, prefixed `feat/`, `fix/`, `chore/`, `docs/` or `test/`.
    Never stack a PR on another branch.
-2. Make the change with its `CHANGELOG.md` line and run the tests.
+2. Make the change with its `changelog.d/` entry and run the tests.
 3. Merge `origin/main` in, push the branch, open the PR. The description says
    how each claim is known (see Verifying claims).
-4. Fix any red check. Give Joe the link; Joe clicks **Squash and merge**.
-   Claude never merges, never pushes to `main`, never force-pushes.
+4. Queue the merge with `gh pr merge <N> --auto --squash` and give Joe the
+   link. GitHub squash-merges once the required checks are green. A red
+   check or a conflict blocks it, and Claude fixes it (for a conflict: merge
+   `origin/main` in, run the tests, push). If Joe says "hold #N", run
+   `gh pr merge <N> --disable-auto`, and that PR waits for his Merge. The PR
+   that cuts a version is never auto-merged: merging it is Joe's decision to
+   ship. Claude never pushes to `main`, never force-pushes, and never merges
+   past a failing or missing check. Auto-merge is a repo setting (Settings →
+   General → Allow auto-merge, on since 2026-09-27); if `--auto` is refused,
+   check it first.
 
 `main` is protected by a ruleset (since 2026-09-27): PR only, squash merge,
 and `PlowR | CI Tests | Test - iOS`, `Service-language guard` and `SwiftLint`
