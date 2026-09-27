@@ -18,7 +18,7 @@ jobs:
 
     steps:
       - name: Check out repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # PlowR serves snow removal, lawn care and landscaping from the same
       # screens (since 1.1.0, which replaced snow-only icons and wording on
