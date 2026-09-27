@@ -72,6 +72,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Activity/RouteActivityAttributes.swift,
+				DesignSystem.swift,
 			);
 			target = 602AA00F3018663F00841B7B /* PlowRWidgetsExtension */;
 		};
