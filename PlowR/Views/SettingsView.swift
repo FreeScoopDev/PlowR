@@ -118,6 +118,8 @@ struct SettingsView: View {
     }
 
     private func deleteAccount() {
+        // An in-progress route: ends its Live Activity and removes its checkpoint.
+        ActiveRouteStore.shared.end()
         try? modelContext.delete(model: StopPhoto.self)
         try? modelContext.delete(model: RouteStop.self)
         try? modelContext.delete(model: PropertyZone.self)
@@ -130,6 +132,8 @@ struct SettingsView: View {
         try? modelContext.delete(model: Client.self)
         try? modelContext.delete(model: BusinessProfile.self)
         try? FileManager.default.removeItem(at: ClientWorkOrderStore.fileURL)
+        // The home-screen widget's copy of today's route (route and client names).
+        WidgetDataStore.clear()
         authManager.signOut()
     }
 

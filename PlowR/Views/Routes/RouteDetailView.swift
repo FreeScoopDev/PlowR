@@ -9,7 +9,6 @@ struct RouteDetailView: View {
     @Query private var allServices: [ServiceItem]
 
     @State private var showingEditRoute = false
-    @State private var isRouteActive = false
     @State private var showingOptimizeConfirm = false
     @State private var isOptimizing = false
 
@@ -97,7 +96,7 @@ struct RouteDetailView: View {
                     .padding(.vertical, 8)
                 }
                 Button {
-                    isRouteActive = true
+                    ActiveRouteStore.shared.start(route)
                 } label: {
                     Text("Start Route")
                         .font(.headline)
@@ -115,9 +114,6 @@ struct RouteDetailView: View {
         }
         .sheet(isPresented: $showingEditRoute) {
             EditRouteView(route: route)
-        }
-        .fullScreenCover(isPresented: $isRouteActive) {
-            ActiveRouteView(route: route)
         }
     }
 

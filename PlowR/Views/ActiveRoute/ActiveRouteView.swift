@@ -2,30 +2,29 @@ import SwiftUI
 import SwiftData
 import MapKit
 import CoreLocation
-import ActivityKit
 import StoreKit
 
+/// The in-progress route screen. It shows and drives `ActiveRouteStore`, which
+/// owns the route: this view can appear, disappear or be torn down with the app
+/// without starting, ending or losing the route.
 struct ActiveRouteView: View {
     let route: PlowRoute
-    @Environment(\.dismiss) private var dismiss
+    @Environment(ActiveRouteStore.self) private var store
     @Environment(\.modelContext) private var modelContext
     @Environment(\.requestReview) private var requestReview
 
     @Query private var allClients: [Client]
 
     @State private var locationManager = LocationManager()
-    @State private var currentStopIndex = 0
     @State private var showingNotifyPrompt = false
     @State private var showingEndConfirmation = false
     @State private var showingRouteRecap = false
     @State private var showingLocationDeniedAlert = false
-    @State private var liveActivity: Activity<PlowRRouteAttributes>?
 
     @State private var weather: WeatherCondition? = nil
     @State private var etaMinutes: Int? = nil
     @State private var showingNavPicker = false
     @State private var navStop: RouteStop? = nil
-    @State private var currentStopStartTime: Date? = nil
     @State private var showingServiceRecorder = false
     @State private var showingMassMessage = false
     @State private var showingFirstStopPrompt = false
@@ -37,19 +36,11 @@ struct ActiveRouteView: View {
     @State private var followDriver = true
     @State private var isSettingCamera = false
 
-    var sortedStops: [RouteStop] { route.sortedStops }
-
-    var currentStop: RouteStop? {
-        guard currentStopIndex < sortedStops.count else { return nil }
-        return sortedStops[currentStopIndex]
-    }
-
-    var nextStop: RouteStop? {
-        guard currentStopIndex + 1 < sortedStops.count else { return nil }
-        return sortedStops[currentStopIndex + 1]
-    }
-
-    var isLastStop: Bool { currentStopIndex >= sortedStops.count - 1 }
+    var sortedStops: [RouteStop] { store.sortedStops }
+    var currentStopIndex: Int { store.currentStopIndex }
+    var currentStop: RouteStop? { store.currentStop }
+    var nextStop: RouteStop? { store.nextStop }
+    var isLastStop: Bool { store.isLastStop }
 
     private var nextStopClient: Client? {
         guard let next = nextStop, !next.isCustomStop else { return nil }
@@ -100,14 +91,15 @@ struct ActiveRouteView: View {
             }
         }
         .onAppear {
-            startRoute()
+            beginTracking()
             RouteSessionManager.shared.isRouteActive = true
             RouteSessionManager.shared.onCompleteStop = { triggerNotifyPrompt() }
             RouteSessionManager.shared.onNotifyNext = { showingNotifyPrompt = true }
         }
         .onDisappear {
+            // Stops GPS for this screen only. The route itself carries on: only
+            // End Route (store.end()) finishes it.
             locationManager.stopTracking()
-            endLiveActivity()
             RouteSessionManager.shared.isRouteActive = false
             RouteSessionManager.shared.onCompleteStop = nil
             RouteSessionManager.shared.onNotifyNext = nil
@@ -175,10 +167,7 @@ struct ActiveRouteView: View {
                 route: route,
                 stops: sortedStops,
                 allClients: allClients,
-                onEndRoute: {
-                    endLiveActivity()
-                    dismiss()
-                }
+                onEndRoute: { store.end() }
             )
         }
         .onChange(of: locationManager.authorizationStatus) { _, status in
@@ -207,7 +196,7 @@ struct ActiveRouteView: View {
                     UIApplication.shared.open(url)
                 }
             }
-            Button("Cancel", role: .cancel) { dismiss() }
+            Button("End Route", role: .cancel) { store.end() }
         } message: {
             Text("PlowR needs location access to track your route. Enable it in Settings > Privacy > Location Services.")
         }
@@ -516,7 +505,7 @@ struct ActiveRouteView: View {
             if isLastStop {
                 Button {
                     hapticSuccess()
-                    recordStopStats(for: currentStop)
+                    store.completeCurrentStop()
                     showingRouteRecap = true
                 } label: {
                     Label("Complete Route", systemImage: "checkmark.circle.fill")
@@ -675,10 +664,10 @@ struct ActiveRouteView: View {
 
     // MARK: - Route Logic
 
-    private func startRoute() {
-        hapticSuccess()
-        currentStopStartTime = Date()
-        startLiveActivity()
+    /// Starts GPS and geofencing for the current stop. Runs every time the
+    /// screen appears, including after a relaunch restores the route; only a
+    /// freshly started route offers to notify its first client.
+    private func beginTracking() {
         switch locationManager.authorizationStatus {
         case .notDetermined:
             locationManager.requestPermission()
@@ -690,6 +679,9 @@ struct ActiveRouteView: View {
         @unknown default:
             locationManager.requestPermission()
         }
+        guard store.isFirstStopPromptPending else { return }
+        store.isFirstStopPromptPending = false
+        hapticSuccess()
         // Prompt to notify the first client before driving to them
         if let firstStop = sortedStops.first,
            !firstStop.clientPhone.isEmpty,
@@ -712,94 +704,8 @@ struct ActiveRouteView: View {
 
     private func advanceToNextStop() {
         haptic()
-        recordStopStats(for: currentStop)
-        currentStopIndex += 1
-        currentStopStartTime = Date()
+        store.completeCurrentStop()
         locationManager.clearAllGeofences()
         if let stop = currentStop { locationManager.startMonitoringStop(stop) }
-        updateLiveActivity()
-    }
-
-    private func recordStopStats(for stop: RouteStop?) {
-        guard let stop, !stop.isCustomStop,
-              let startTime = currentStopStartTime else { return }
-        let minutes = Date().timeIntervalSince(startTime) / 60.0
-        let clientID = stop.clientID
-        // Fetch all clients and match by UUID — avoids #Predicate conflict with SwiftData's internal id
-        if let client = try? modelContext.fetch(FetchDescriptor<Client>()).first(where: { $0.id == clientID }) {
-            client.totalVisits += 1
-            client.totalServiceMinutes += max(0, minutes)
-            client.lastServiceDate = Date()
-        }
-    }
-
-    // MARK: - Live Activity
-
-    private func startLiveActivity() {
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
-        let attributes = PlowRRouteAttributes(routeID: route.id.uuidString, routeName: route.name)
-        let state = PlowRRouteAttributes.ContentState(
-            currentStopName: currentStop?.clientName ?? "",
-            currentStopAddress: currentStop?.clientAddress ?? "",
-            currentStopNumber: 1,
-            totalStops: sortedStops.count,
-            routeName: route.name
-        )
-        liveActivity = try? Activity<PlowRRouteAttributes>.request(
-            attributes: attributes,
-            content: .init(state: state, staleDate: nil)
-        )
-        WidgetDataStore.write(TodayRouteWidgetData(
-            routeName: route.name,
-            totalStops: sortedStops.count,
-            completedStops: 0,
-            nextStopName: currentStop?.clientName ?? "",
-            nextStopAddress: currentStop?.clientAddress ?? "",
-            isActive: true,
-            lastUpdated: Date()
-        ))
-    }
-
-    private func updateLiveActivity() {
-        guard let activity = liveActivity else { return }
-        let state = PlowRRouteAttributes.ContentState(
-            currentStopName: currentStop?.clientName ?? "Done",
-            currentStopAddress: currentStop?.clientAddress ?? "",
-            currentStopNumber: currentStopIndex + 1,
-            totalStops: sortedStops.count,
-            routeName: route.name
-        )
-        Task { await activity.update(.init(state: state, staleDate: nil)) }
-        WidgetDataStore.write(TodayRouteWidgetData(
-            routeName: route.name,
-            totalStops: sortedStops.count,
-            completedStops: currentStopIndex,
-            nextStopName: currentStop?.clientName ?? "",
-            nextStopAddress: currentStop?.clientAddress ?? "",
-            isActive: true,
-            lastUpdated: Date()
-        ))
-    }
-
-    private func endLiveActivity() {
-        guard let activity = liveActivity else { return }
-        let state = PlowRRouteAttributes.ContentState(
-            currentStopName: "Route Complete",
-            currentStopAddress: "",
-            currentStopNumber: sortedStops.count,
-            totalStops: sortedStops.count,
-            routeName: route.name
-        )
-        Task { await activity.end(.init(state: state, staleDate: nil), dismissalPolicy: .after(.now + 30)) }
-        liveActivity = nil
-        WidgetDataStore.write(TodayRouteWidgetData(
-            routeName: route.name,
-            totalStops: sortedStops.count,
-            completedStops: sortedStops.count,
-            nextStopName: "",
-            nextStopAddress: "",
-            isActive: false,
-            lastUpdated: Date()
-        ))
     }
 }

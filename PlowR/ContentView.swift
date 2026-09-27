@@ -31,4 +31,5 @@ struct ContentView: View {
 #Preview {
     ContentView()
         .environment(AuthManager())
+        .environment(ActiveRouteStore.shared)
 }

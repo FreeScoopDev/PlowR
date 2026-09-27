@@ -22,6 +22,9 @@ struct PlowRApp: App {
             ScheduledVisit.self,
         ])
         container = Self.makeContainer(schema: schema)
+        // Before any view: a Siri or Control Center launch acts on the route
+        // without the UI, and a killed app should come back mid-route.
+        ActiveRouteStore.shared.configure(context: container.mainContext)
     }
 
     // Readable by DashboardView to show a sync-unavailable warning banner.
@@ -85,6 +88,7 @@ struct PlowRApp: App {
         WindowGroup {
             ContentView()
                 .environment(authManager)
+                .environment(ActiveRouteStore.shared)
                 .tint(PlowRColor.accent)
         }
         .modelContainer(container)

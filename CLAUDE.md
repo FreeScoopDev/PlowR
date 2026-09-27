@@ -41,8 +41,10 @@ currently has three.
 SwiftData with a CloudKit-backed `ModelContainer`, eleven `@Model` types
 registered in `PlowRApp.init`. `AuthManager` (Sign in with Apple, Keychain) is
 injected as an environment object. Services under `PlowR/Services/` own the
-platform work: `LocationManager` (geofencing per stop), `RouteSessionManager`
-(active route state, Live Activity via `RouteActivityAttributes`),
+platform work: `LocationManager` (geofencing per stop), `ActiveRouteStore`
+(the in-progress route: current stop, stop timer, checkpoint that survives a
+relaunch; Live Activity and widget via `SystemRouteSurfaces`),
+`RouteSessionManager` (Siri's bridge to the route screen, being retired),
 `NotificationService` (weather alerts, overdue invoices), `CalendarService`
 (EventKit — writes to a "PlowR" calendar), `WeatherService` (Open-Meteo),
 `ElevationService` (Open-Topo-Data), `RouteOptimizer` (nearest-neighbor over
@@ -84,6 +86,13 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   guarantee that no `!` exists. Never add a `swiftlint:disable` to get past it:
   remove the unwrap. Never run `scripts/lint.sh --fix` without
   `scripts/test.sh` after it.
+- **A route in progress lives in `ActiveRouteStore`, never in a view.** Only
+  `start(_:)` and `end()` begin and finish it; the route screen can disappear or
+  be killed without losing the stop. `MainTabView` shows the route screen
+  whenever `isActive`. A checkpoint (route ID, stop index, stop start time) is
+  saved in `UserDefaults` on every change and restored at launch in
+  `PlowRApp.init`, before any view, so intents launched in the background have
+  a route to act on.
 - **Delete Account & Data** (Settings) is an App Review 5.1.1(v) requirement.
   It removes all SwiftData records, the encrypted work-orders file, and
   Keychain credentials. Any new persistent store must be added to that path or
