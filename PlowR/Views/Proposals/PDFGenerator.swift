@@ -13,8 +13,8 @@ struct PDFGenerator {
     private static let ruleLight = UIColor(white: 0.84, alpha: 1)
     private static let ruleMid   = UIColor(white: 0.52, alpha: 1)
 
-    // Deep navy — matches BusinessProfile default 1E3A8A
-    private static let defaultAccent = UIColor(red: 0.118, green: 0.227, blue: 0.541, alpha: 1)
+    // Brand navy, the same colour as BusinessProfile's default accent
+    private static let defaultAccent = PlowRColor.navyUIColor
 
     // MARK: - Fonts
     // GillSans family for all headings/labels — clean, readable, strong character.

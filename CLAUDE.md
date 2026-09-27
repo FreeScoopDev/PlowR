@@ -83,10 +83,14 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
 - **Service language is industry-agnostic** (since 1.1.0): snow, lawn, and
   landscaping share the same screens. Don't reintroduce "plow" into user-facing
   copy for a generic action.
-- **Accent colour is adaptive navy**, defined once in `PlowRApp.swift` and
-  applied with `.tint()`. There is no `DesignSystem.swift` yet; if a second
-  shared token appears, that's the moment to create one rather than a third
-  literal.
+- **Colours come from `PlowR/DesignSystem.swift`** (`PlowRColor`). The accent is
+  adaptive navy (`PlowRColor.accent`, applied once with `.tint()` in
+  `PlowRApp`); `PlowRColor.navy` is the fixed navy for PDFs and avatars, and
+  `navyHex` is `BusinessProfile`'s default. The file is compiled into the app
+  and the widget extension (membership exception in `project.pbxproj`). Add a
+  token the moment a value is needed in a second place, instead of copying it.
+  Status colours (`.red` overdue, `.orange` outstanding, `.green` done) are
+  system colours on purpose.
 - **The widget reads only the app group `UserDefaults`.** Anything it needs to
   show has to be written by `WidgetDataStore` from the app side; the widget
   never touches SwiftData.
