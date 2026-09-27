@@ -112,8 +112,10 @@ folder needs updating, give Joe the command.
    Claude never merges, never pushes to `main`, never force-pushes.
 
 CI today is GitHub Actions (`Tests` workflow, `macos-26`, `iPhone 17`
-simulator); it is moving to Xcode Cloud. GitHub Pages deploys `docs/` to
-getplowr.app on every push to `main`.
+simulator); it is moving to Xcode Cloud. `docs/ci.md` has the workflow
+settings, their current status and the setup steps. GitHub Pages deploys
+`docs/` to getplowr.app on every push to `main`; `docs/_config.yml` keeps
+`ci.md` off the site.
 
 Run the tests locally before pushing:
 
