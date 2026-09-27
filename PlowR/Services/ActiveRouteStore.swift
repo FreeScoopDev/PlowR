@@ -136,7 +136,11 @@ final class ActiveRouteStore {
     func completeCurrentStop(expecting stopID: UUID) -> CompletionResult {
         validate()
         guard isActive else { return .noActiveRoute }
-        guard let stop = currentStop else { return .allStopsAlreadyDone }
+        guard let stop = currentStop else {
+            // Past the end. Either the caller's stop really was completed
+            // (a double tap), or it was the last stop and was deleted elsewhere.
+            return sortedStops.contains { $0.id == stopID } ? .allStopsAlreadyDone : .stopChanged
+        }
         guard stopID == stop.id else { return .stopChanged }
         recordVisit(for: stop)
         currentStopIndex += 1

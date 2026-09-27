@@ -20,10 +20,11 @@ final class FakeRouteSurfaces: RouteSurfaces {
 }
 
 extension ActiveRouteStore {
-    /// Completes whatever stop is current, as the screen would for the stop it shows.
+    /// Completes the stop the screen shows: the current one, or once every stop
+    /// is done, the last one (a repeated tap on Complete Route).
     @discardableResult
     func completeShownStop() -> CompletionResult {
-        completeCurrentStop(expecting: currentStopID ?? UUID())
+        completeCurrentStop(expecting: currentStopID ?? sortedStops.last?.id ?? UUID())
     }
 }
 
@@ -379,5 +380,30 @@ struct ActiveRouteStoreTests {
         #expect(surfaces.calls.last == "update")
         #expect(surfaces.last?.totalStops == 2)
         #expect(surfaces.last?.currentStopName == "Client 0")
+    }
+
+    // Review 4: the last stop deleted elsewhere while on screen used to read
+    // as "already done", so the screen showed a success recap and recorded nothing.
+    @Test func aDeletedLastStopIsReportedAsChanged() throws {
+        let h = try Harness(stopCount: 2)
+        let store = h.makeStore()
+        store.start(h.route)
+        store.completeShownStop()
+        let shown = try #require(store.currentStopID)          // the last stop, on screen
+        h.context.delete(h.route.sortedStops[1])
+        try h.context.save()
+        #expect(store.completeCurrentStop(expecting: shown) == .stopChanged)
+        #expect(h.clients[1].totalVisits == 0)
+    }
+
+    // A double tap on a stop that really was completed is still "already done".
+    @Test func aDoubleTapOnTheFinishedLastStopIsAlreadyDone() throws {
+        let h = try Harness(stopCount: 1)
+        let store = h.makeStore()
+        store.start(h.route)
+        let shown = try #require(store.currentStopID)
+        #expect(store.completeCurrentStop(expecting: shown) == .finishedLastStop)
+        #expect(store.completeCurrentStop(expecting: shown) == .allStopsAlreadyDone)
+        #expect(h.clients[0].totalVisits == 1)
     }
 }

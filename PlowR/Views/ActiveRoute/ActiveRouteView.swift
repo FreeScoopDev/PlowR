@@ -36,6 +36,9 @@ struct ActiveRouteView: View {
     /// swap the recipient while the sheet is up.
     @State private var promptNextStop: RouteStop?
     @State private var showingRouteChangedAlert = false
+    /// Set while the notify sheet is up; the alert shows once it closes
+    /// (iOS won't present an alert over a view that is presenting a sheet).
+    @State private var routeChangedAfterSheet = false
 
     @AppStorage("completedRoutesCount") private var completedRoutesCount = 0
 
@@ -150,7 +153,12 @@ struct ActiveRouteView: View {
                 )
             }
         }
-        .sheet(isPresented: $showingNotifyPrompt) {
+        .sheet(isPresented: $showingNotifyPrompt, onDismiss: {
+            if routeChangedAfterSheet {
+                routeChangedAfterSheet = false
+                showingRouteChangedAlert = true
+            }
+        }) {
             if let next = promptNextStop {
                 NotifyPromptView(stop: next, locationManager: locationManager, onAdvance: { advance(completing: promptStopID) })
             }
@@ -523,8 +531,10 @@ struct ActiveRouteView: View {
                         showingRouteRecap = true
                     case .stopChanged:
                         showingRouteChangedAlert = true
-                    case .advanced, .noActiveRoute:
-                        break   // a stop was added after this one; its card shows next
+                    case .advanced:
+                        didAdvance()   // a stop was added after this one elsewhere; it's next
+                    case .noActiveRoute:
+                        break
                     }
                 } label: {
                     Label("Complete Route", systemImage: "checkmark.circle.fill")
@@ -734,9 +744,14 @@ struct ActiveRouteView: View {
     private func advance(completing stopID: UUID?) {
         guard let stopID else { return }
         if store.completeCurrentStop(expecting: stopID) == .stopChanged {
-            showingRouteChangedAlert = true
+            if showingNotifyPrompt { routeChangedAfterSheet = true } else { showingRouteChangedAlert = true }
             return
         }
+        didAdvance()
+    }
+
+    /// After the store moved to the next stop: haptic, and geofence the new stop.
+    private func didAdvance() {
         haptic()
         locationManager.clearAllGeofences()
         if let stop = currentStop { locationManager.startMonitoringStop(stop) }
