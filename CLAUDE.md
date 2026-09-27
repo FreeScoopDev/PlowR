@@ -75,8 +75,8 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   migration. Don't "simplify" it to a delete.
 - **SwiftLint is report-only until the force-unwraps are gone.** The
   `SwiftLint (report only)` job in `guards.yml` shows green even when it finds
-  errors (`continue-on-error`). Read its annotations or the "M serious"
-  count, not the tick. There were 35 `force_unwrapping` errors on 2026-09-27.
+  errors (`continue-on-error`). Read the log's `Done linting! Found N
+  violations, M serious` line, not the tick. The annotations stop at 10. There were 35 `force_unwrapping` errors on 2026-09-27.
   At 0, remove `continue-on-error` so it gates. Never add a `swiftlint:disable`
   to get there: remove the unwrap. Never run `scripts/lint.sh --fix` without
   `scripts/test.sh` after it.
