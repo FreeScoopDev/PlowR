@@ -5,6 +5,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+Since 2026-09-27, new entries go in `changelog.d/` (see its README) and are gathered here when a version is cut. The entries below were written before that.
+
 ### Added
 - **Privacy Policy link** in Settings → Legal — satisfies App Store Review Guideline 5.1.1 requirement for an in-app privacy policy link
 - **Delete Account & Data** in Settings — permanently removes all local SwiftData records, the encrypted client work orders file, and Keychain credentials, then signs out; satisfies App Store Review Guideline 5.1.1(v) account deletion requirement
