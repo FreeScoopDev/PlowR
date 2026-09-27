@@ -66,7 +66,7 @@ struct PlowRApp: App {
         }
 
         // 2. Fall back to local store (iCloud unavailable or signed out)
-        isCloudKitAvailable = false
+        // BROKEN ON PURPOSE: checking that Xcode Cloud fails this PR
         if let c = try? ModelContainer(for: schema) {
             return c
         }
