@@ -4,9 +4,20 @@
   "scheme": "PlowR",
   "unitTestTarget": "PlowRTests",
   "uiTestTarget": null,
-  "xcodebuildExtraArgs": ["CODE_SIGNING_ALLOWED=NO"],
-  "lintExcluded": ["PlowRTests", "docs"],
+  "xcodebuildExtraArgs": [
+    "CODE_SIGNING_ALLOWED=NO"
+  ],
+  "lintExcluded": [
+    "PlowRTests",
+    "docs"
+  ],
   "versionSource": "project.pbxproj",
+  "github": "FreeScoopDev/PlowR",
+  "requiredChecks": [
+    "PlowR | CI Tests | Test - iOS",
+    "Service-language guard",
+    "SwiftLint"
+  ],
   "reviewFocus": [
     "Service language is industry-agnostic: snow, lawn and landscaping share screens, so no hardcoded 'plow' or 'snow' copy on a generic action.",
     "Route state must survive the app being killed and must not end because a view disappeared.",
