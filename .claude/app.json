@@ -1,0 +1,18 @@
+{
+  "app": "PlowR",
+  "project": "PlowR.xcodeproj",
+  "scheme": "PlowR",
+  "unitTestTarget": "PlowRTests",
+  "uiTestTarget": null,
+  "xcodebuildExtraArgs": ["CODE_SIGNING_ALLOWED=NO"],
+  "lintExcluded": ["PlowRTests", "docs"],
+  "versionSource": "project.pbxproj",
+  "reviewFocus": [
+    "Service language is industry-agnostic: snow, lawn and landscaping share screens, so no hardcoded 'plow' or 'snow' copy on a generic action.",
+    "Route state must survive the app being killed and must not end because a view disappeared.",
+    "The widget reads only app-group UserDefaults written by WidgetDataStore; it never touches SwiftData.",
+    "Any new persistent store is also removed by Delete Account & Data (App Review 5.1.1(v)).",
+    "Money is never computed in more than one place, and invoice numbers must not collide across devices.",
+    "Tests never touch real CloudKit (PlowRApp.isRunningUnderTests)."
+  ]
+}
