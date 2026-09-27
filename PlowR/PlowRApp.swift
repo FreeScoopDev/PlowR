@@ -47,7 +47,6 @@ struct PlowRApp: App {
     // "Test crashed with signal trap before establishing connection."
     //
     // Tests have no business syncing to a real iCloud database regardless.
-    // Same guard, same reason, as Wockett's AppModelContainer.
     static var isRunningUnderTests: Bool {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
             || NSClassFromString("XCTestCase") != nil
