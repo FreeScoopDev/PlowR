@@ -36,6 +36,9 @@ final class ActiveRouteStore {
         case finishedLastStop
         case noActiveRoute
         case allStopsAlreadyDone
+        /// The stop the caller meant is no longer the current one (it was
+        /// deleted or moved on another device). Nothing was recorded.
+        case stopChanged
     }
 
     private(set) var route: PlowRoute?
@@ -43,6 +46,9 @@ final class ActiveRouteStore {
     /// that iCloud sync may already have deleted.
     private var routeID: UUID?
     private var routeName = ""
+    /// The last progress shown on the Live Activity/widget, so ending a route
+    /// that was deleted elsewhere never has to read the deleted models.
+    private var lastProgress: RouteProgress?
     private(set) var currentStopIndex = 0
     /// Which stop is current, by identity. The index alone can't survive a
     /// reorder: after one, "the stop at the index" is a different client.
@@ -111,22 +117,29 @@ final class ActiveRouteStore {
         stopStartedAt = now()
         isFirstStopPromptPending = true
         saveCheckpoint()
+        lastProgress = progress
         surfaces.start(progress)
     }
 
     /// Records the current stop's visit on its client and moves to the next
     /// stop. On the last stop, moves past it: the route is then "all stops
     /// done" and waits for `end()`, so the recap can still be reviewed.
+    ///
+    /// Pass `expecting:` the stop the user was looking at. If sync has changed
+    /// the current stop since, nothing is recorded (`.stopChanged`), so a visit
+    /// can never be credited to a client who wasn't visited.
     @discardableResult
-    func completeCurrentStop() -> CompletionResult {
+    func completeCurrentStop(expecting stopID: UUID? = nil) -> CompletionResult {
         validate()
         guard isActive else { return .noActiveRoute }
         guard let stop = currentStop else { return .allStopsAlreadyDone }
+        if let stopID, stopID != stop.id { return .stopChanged }
         recordVisit(for: stop)
         currentStopIndex += 1
         currentStopID = currentStop?.id
         stopStartedAt = now()
         saveCheckpoint()
+        lastProgress = progress
         surfaces.update(progress)
         return currentStop == nil ? .finishedLastStop : .advanced(nextStopIndex: currentStopIndex)
     }
@@ -138,27 +151,36 @@ final class ActiveRouteStore {
         clearState()
     }
 
+    private enum Lookup {
+        case found(PlowRoute), missing, unknown
+        var isMissing: Bool { if case .missing = self { true } else { false } }
+    }
+
     /// Ends the route if it no longer exists (deleted here or synced away) and
     /// re-finds the current stop if the stops were reordered or removed.
+    /// Runs on every store save, on remote changes and when the app is active.
     func validate() {
         guard let route, let routeID else { return }
-        // Without a context the route can't be looked up; that is "unknown",
-        // not "deleted", so only the model's own flag counts then.
-        let gone = route.isDeleted || (context != nil && fetchRoute(id: routeID) == nil)
-        if gone {
-            surfaces.end(progress)
+        if route.isDeleted || lookup(routeID).isMissing {
+            // Never read the deleted models: end with what was last shown.
+            surfaces.end(lastProgress ?? progress)
             clearState()
             return
         }
-        let before = currentStopIndex
-        if let currentStopID, let index = sortedStops.firstIndex(where: { $0.id == currentStopID }) {
+        let beforeID = currentStopID
+        let beforeProgress = lastProgress
+        if let beforeID, let index = sortedStops.firstIndex(where: { $0.id == beforeID }) {
             currentStopIndex = index
         } else {
             currentStopIndex = min(currentStopIndex, sortedStops.count)
             currentStopID = currentStop?.id
         }
-        if currentStopIndex != before {
+        // A different client is now current: its timer starts now, not when
+        // the deleted stop's did.
+        if currentStopID != beforeID { stopStartedAt = now() }
+        if currentStopID != beforeID || progress != beforeProgress {
             saveCheckpoint()
+            lastProgress = progress
             surfaces.update(progress)
         }
     }
@@ -202,6 +224,7 @@ final class ActiveRouteStore {
         route = nil
         routeID = nil
         routeName = ""
+        lastProgress = nil
         currentStopIndex = 0
         currentStopID = nil
         stopStartedAt = nil
@@ -209,9 +232,14 @@ final class ActiveRouteStore {
         defaults.removeObject(forKey: Self.checkpointKey)
     }
 
-    private func fetchRoute(id: UUID) -> PlowRoute? {
+    /// found / missing / unknown. No context or a failed fetch is "unknown",
+    /// never "missing": only a route that is really gone may end a route.
+    private func lookup(_ id: UUID) -> Lookup {
+        guard let context else { return .unknown }
         // Match by UUID: a #Predicate on `id` clashes with SwiftData's own id.
-        try? context?.fetch(FetchDescriptor<PlowRoute>()).first { $0.id == id && !$0.isDeleted }
+        guard let routes = try? context.fetch(FetchDescriptor<PlowRoute>()) else { return .unknown }
+        if let route = routes.first(where: { $0.id == id && !$0.isDeleted }) { return .found(route) }
+        return .missing
     }
 
     private func saveCheckpoint() {
@@ -228,11 +256,23 @@ final class ActiveRouteStore {
             surfaces.clear()          // Nothing in progress: no Live Activity or "active" widget may linger.
             return
         }
-        guard let checkpoint = try? JSONDecoder().decode(Checkpoint.self, from: data),
-              let route = fetchRoute(id: checkpoint.routeID) else {
-            // Unreadable, or the route was deleted while the app was closed.
+        guard let checkpoint = try? JSONDecoder().decode(Checkpoint.self, from: data) else {
+            defaults.removeObject(forKey: Self.checkpointKey)      // unreadable
+            surfaces.clear()
+            return
+        }
+        let route: PlowRoute
+        switch lookup(checkpoint.routeID) {
+        case .found(let found):
+            route = found
+        case .missing:
+            // Deleted while the app was closed.
             defaults.removeObject(forKey: Self.checkpointKey)
             surfaces.clear()
+            return
+        case .unknown:
+            // Can't tell (store not readable yet): keep the checkpoint for the
+            // next launch and leave the Live Activity alone.
             return
         }
         self.route = route
@@ -250,6 +290,7 @@ final class ActiveRouteStore {
         currentStopID = currentStop?.id
         stopStartedAt = checkpoint.stopStartedAt
         isFirstStopPromptPending = false
+        lastProgress = progress
         surfaces.resume(progress)
         saveCheckpoint()
     }

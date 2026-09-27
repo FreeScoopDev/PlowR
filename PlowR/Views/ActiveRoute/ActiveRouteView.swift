@@ -28,6 +28,10 @@ struct ActiveRouteView: View {
     @State private var showingServiceRecorder = false
     @State private var showingMassMessage = false
     @State private var showingFirstStopPrompt = false
+    /// The stop that was current when the notify prompt opened. Advancing
+    /// completes that stop only; if sync has changed it meanwhile, nothing is
+    /// recorded (ActiveRouteStore.CompletionResult.stopChanged).
+    @State private var promptStopID: UUID?
 
     @AppStorage("completedRoutesCount") private var completedRoutesCount = 0
 
@@ -94,7 +98,7 @@ struct ActiveRouteView: View {
             beginTracking()
             RouteSessionManager.shared.isRouteActive = true
             RouteSessionManager.shared.onCompleteStop = { triggerNotifyPrompt() }
-            RouteSessionManager.shared.onNotifyNext = { showingNotifyPrompt = true }
+            RouteSessionManager.shared.onNotifyNext = { openNotifyPrompt() }
         }
         .onDisappear {
             // Stops GPS for this screen only. The route itself carries on: only
@@ -144,7 +148,7 @@ struct ActiveRouteView: View {
         }
         .sheet(isPresented: $showingNotifyPrompt) {
             if let next = nextStop {
-                NotifyPromptView(stop: next, locationManager: locationManager, onAdvance: advanceToNextStop)
+                NotifyPromptView(stop: next, locationManager: locationManager, onAdvance: { advance(completing: promptStopID) })
             }
         }
         .background(
@@ -505,7 +509,7 @@ struct ActiveRouteView: View {
             if isLastStop {
                 Button {
                     hapticSuccess()
-                    store.completeCurrentStop()
+                    store.completeCurrentStop(expecting: stop.id)
                     showingRouteRecap = true
                 } label: {
                     Label("Complete Route", systemImage: "checkmark.circle.fill")
@@ -697,16 +701,23 @@ struct ActiveRouteView: View {
         // can still call this then; it used to open an empty sheet).
         guard nextStop != nil, !showingNotifyPrompt else { return }
         if shouldSkipNextNotify {
-            advanceToNextStop()
+            advance(completing: currentStop?.id)
             return
         }
+        openNotifyPrompt()
+    }
+
+    /// Siri's "Notify next client" and the Complete button both land here.
+    private func openNotifyPrompt() {
+        guard nextStop != nil, !showingNotifyPrompt else { return }
+        promptStopID = currentStop?.id
         haptic(.light)
         showingNotifyPrompt = true
     }
 
-    private func advanceToNextStop() {
+    private func advance(completing stopID: UUID?) {
+        guard let stopID, store.completeCurrentStop(expecting: stopID) != .stopChanged else { return }
         haptic()
-        store.completeCurrentStop()
         locationManager.clearAllGeofences()
         if let stop = currentStop { locationManager.startMonitoringStop(stop) }
     }

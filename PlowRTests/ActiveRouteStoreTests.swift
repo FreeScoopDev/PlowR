@@ -29,7 +29,9 @@ struct ActiveRouteStoreTests {
         let context: ModelContext
         let defaults: UserDefaults
         var clock = Date(timeIntervalSince1970: 1_800_000_000)
-        let client: Client
+        /// One client per stop, so crediting the wrong client is detectable.
+        var clients: [Client] = []
+        var client: Client { clients[0] }
         let route: PlowRoute
 
         init(stopCount: Int = 3) throws {
@@ -39,16 +41,27 @@ struct ActiveRouteStoreTests {
             )
             context = container.mainContext
             defaults = try #require(UserDefaults(suiteName: "ActiveRouteStoreTests-\(UUID().uuidString)"))
-            client = Client(name: "Alder Co", phone: "", address: "1 Main St", operatorID: "op")
-            context.insert(client)
             route = PlowRoute(name: "Tuesday", operatorID: "op")
             context.insert(route)
+            for i in 0..<max(stopCount, 1) {
+                let client = Client(name: "Client \(i)", phone: "", address: "\(i) Main St", operatorID: "op")
+                context.insert(client)
+                clients.append(client)
+            }
             for i in 0..<stopCount {
-                let stop = RouteStop(order: i, client: client)
+                let stop = RouteStop(order: i, client: clients[i])
                 stop.route = route
                 context.insert(stop)
             }
             try context.save()
+        }
+
+        /// A store for "before the app was closed": not configured, so it doesn't
+        /// observe saves. A closed app can't react to changes; a configured
+        /// store here would quietly fix its own checkpoint and hide bugs (two
+        /// tests were contaminated that way, found in review).
+        func makeClosedAppStore() -> ActiveRouteStore {
+            ActiveRouteStore(defaults: defaults, surfaces: FakeRouteSurfaces(), now: { [unowned self] in clock })
         }
 
         /// A store as the app would build one at launch: same defaults and data.
@@ -113,7 +126,8 @@ struct ActiveRouteStoreTests {
         #expect(store.allStopsDone)
         #expect(store.isActive)
         #expect(store.completeCurrentStop() == .allStopsAlreadyDone)
-        #expect(h.client.totalVisits == 2)
+        #expect(h.clients[0].totalVisits == 1)
+        #expect(h.clients[1].totalVisits == 1)
     }
 
     @Test func nothingHappensWithoutAnActiveRoute() throws {
@@ -137,7 +151,7 @@ struct ActiveRouteStoreTests {
 
     @Test func aDeletedRouteIsNotRestored() throws {
         let h = try Harness()
-        h.makeStore().start(h.route)
+        h.makeClosedAppStore().start(h.route)
         h.context.delete(h.route)
         try h.context.save()
         let surfaces = FakeRouteSurfaces()
@@ -149,7 +163,7 @@ struct ActiveRouteStoreTests {
 
     @Test func aRestoredIndexNeverPointsPastTheStops() throws {
         let h = try Harness(stopCount: 3)
-        let store = h.makeStore()
+        let store = h.makeClosedAppStore()
         store.start(h.route)
         store.completeCurrentStop()
         store.completeCurrentStop()          // on stop 3 of 3
@@ -180,10 +194,7 @@ struct ActiveRouteStoreTests {
     // relaunch must stay on the same client, not the same position.
     @Test func aRelaunchFollowsTheStopNotThePosition() throws {
         let h = try Harness(stopCount: 3)
-        // Not configured, so it doesn't observe saves: a closed app can't
-        // notice the reorder and fix its own checkpoint. (A configured store
-        // here did exactly that, and hid a restore that ignored the stop ID.)
-        let store = ActiveRouteStore(defaults: h.defaults, surfaces: FakeRouteSurfaces(), now: { Date() })
+        let store = h.makeClosedAppStore()
         store.start(h.route)
         store.completeCurrentStop()
         let current = try #require(store.currentStop?.id)
@@ -216,8 +227,7 @@ struct ActiveRouteStoreTests {
         let store = h.makeStore(surfaces)
         store.start(h.route)
         h.context.delete(h.route)
-        try h.context.save()
-        store.validate()
+        try h.context.save()                          // the save observer re-checks; no manual validate()
         #expect(!store.isActive)
         #expect(surfaces.calls.last == "end")
         #expect(surfaces.last?.routeName == "Tuesday")
@@ -256,5 +266,37 @@ struct ActiveRouteStoreTests {
         #expect(LiveActivityCandidate.toAdopt(from: [
             .init(id: "ended", routeID: r, isRunning: false),
         ], routeID: r) == nil)
+    }
+
+    // Found in review: the current stop deleted on another device used to hand
+    // its timer, and the next Complete, to the following client.
+    @Test func aDeletedCurrentStopIsNeverCreditedToTheNextClient() throws {
+        let h = try Harness(stopCount: 3)
+        let store = h.makeStore()
+        store.start(h.route)
+        let shown = try #require(store.currentStop?.id)       // what the screen showed
+        h.clock += 30 * 60
+        h.context.delete(h.route.sortedStops[0])
+        try h.context.save()
+        #expect(store.completeCurrentStop(expecting: shown) == .stopChanged)
+        #expect(h.clients[1].totalVisits == 0)
+        #expect(store.currentStop?.id == h.route.sortedStops.first?.id)
+        #expect(store.stopStartedAt == h.clock)               // the new stop's timer starts now
+    }
+
+    // A change that keeps the index (the current stop deleted, the next moving
+    // into its place) must still refresh the Lock Screen and the checkpoint.
+    @Test func aDeletedCurrentStopRefreshesTheLiveActivity() throws {
+        let h = try Harness(stopCount: 3)
+        let surfaces = FakeRouteSurfaces()
+        let store = h.makeStore(surfaces)
+        store.start(h.route)
+        h.context.delete(h.route.sortedStops[0])
+        try h.context.save()
+        #expect(surfaces.calls.last == "update")
+        #expect(surfaces.last?.currentStopName == "Client 1")
+        #expect(surfaces.last?.totalStops == 2)
+        let relaunched = h.makeStore()
+        #expect(relaunched.currentStop?.clientName == "Client 1")
     }
 }
