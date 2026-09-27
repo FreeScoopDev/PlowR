@@ -52,12 +52,13 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
 
 ## Non-obvious things
 
-- **Version and build live in `project.pbxproj`**, project-level build settings.
-  There is no `Versions.xcconfig` yet. `MARKETING_VERSION` is
-  `1.1.0` on the app target. The `PlowRTests` target still carries a stale
-  `MARKETING_VERSION = 1.0`; harmless, but don't read the wrong one. Nothing
-  bumps the build number any more: the Archive-only `agvtool` Run Script that
-  rewrote `project.pbxproj` on every local archive was removed in #2.
+- **`Versions.xcconfig` owns the version numbers** for every target (app,
+  widget, tests). The project's Debug and Release configurations are based on
+  it and no target sets its own values, so bump `MARKETING_VERSION` there and
+  nowhere else. `CURRENT_PROJECT_VERSION` must stay defined (the generated
+  Info.plist reads it), but Xcode Cloud's Release Flow ignores it and numbers
+  builds itself; only a manual archive uses it. Nothing bumps it automatically
+  (the Archive-only `agvtool` script was removed in #2).
 - **`GENERATE_INFOPLIST_FILE = YES`** for the app, *and* there is a
   `PlowR/Info.plist` with hand-written keys (usage strings, `UIBackgroundModes`,
   `NSSupportsLiveActivities`, URL schemes). Both feed the built plist. Before
