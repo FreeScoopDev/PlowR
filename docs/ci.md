@@ -5,17 +5,19 @@ Written 2026-09-26. Correct it when it goes stale.
 Xcode Cloud is configured in App Store Connect and **cannot be expressed as a
 file in this repo**. Xcode Cloud has no workflow-as-code format. Without this
 document, the definition of what gates `main` lives in one web UI and nowhere
-else. It mirrors Wockett's `docs/ci.md`, and the lessons behind each setting
-are recorded there.
+else.
 
-This file is excluded from the getplowr.app site by `docs/_config.yml`. GitHub
-Pages publishes everything else in `docs/`.
+This repo is public, so this file holds settings only. It has no account IDs,
+no links into App Store Connect, and no internal channel or tool references
+beyond names that reveal nothing.
+It is also excluded from the getplowr.app website by `docs/_config.yml`,
+because GitHub Pages publishes everything else in `docs/`.
 
 ## Status
 
 | | |
 | --- | --- |
-| GitHub Actions `Tests` (`.github/workflows/tests.yml`) | **Live**, green since #1 (2026-09-26). macOS runner, bills at 10×. Deleted once `CI Tests` below posts a green status. |
+| GitHub Actions `Tests` (`.github/workflows/tests.yml`) | **Live**, green since #1 (2026-09-26). macOS runner. Deleted once `CI Tests` below posts a green status. |
 | Xcode Cloud `CI Tests` | **Not created yet.** Setup steps below. |
 | Xcode Cloud `Release Flow` | **Not created yet.** Setup steps below. |
 | Branch protection on `main` | None yet. Open decision. |
@@ -28,19 +30,19 @@ Two workflows, both on `https://github.com/FreeScoopDev/PlowR.git` /
 `PlowR.xcodeproj`, scheme `PlowR`.
 
 **The 25 compute hours a month belong to the developer membership, not to one
-app.** PlowR shares them with Wockett. Keep PR runs to the unit tests (plus a
-short UI smoke suite once one exists) and keep "one change per PR".
+app.** Keep PR runs to the unit tests (plus a short UI smoke suite once one
+exists) and keep one change per PR.
 
 ### `CI Tests` — the workflow that will gate `main`
 
 | | |
 | --- | --- |
-| Start condition | **Pull Request Changes**, source `Any Branches`, target `main`, starts if any file changes |
+| Start condition | **Pull Request Changes**, source `Any Branch`, target `main`, starts if any file changes |
 | Auto-cancel | On. A newer push to the same branch cancels the running build. |
 | Action | **Test - iOS**, scheme `PlowR`, **Required to Pass**, Test Option `Test (Use Scheme Setting)`, 1 destination: **iPhone 17** simulator, latest iOS |
-| Environment | Xcode **26.6 (17F113)**, macOS **Tahoe 26.5.1**, pinned, not `Latest Release`. Same pins as Wockett. |
+| Environment | Xcode **26.6 (17F113)**, macOS **Tahoe 26.5.1**, pinned, not `Latest Release` |
 | Clean | **Off**, so caches are restored and runs stay fast |
-| Notifies | Slack `#ci_tests`, all successes and failures |
+| Notifies | Slack `#plowr-ci`, all successes and failures |
 
 It posts the `PlowR | CI Tests | Test - iOS` check. "Use Scheme Setting" means
 **the `PlowR` scheme decides which test targets run.** Adding a target to the
@@ -55,38 +57,39 @@ scheme's Test action changes CI coverage with no edit here.
 | Environment | Xcode **26.6 (17F113)**, macOS **Tahoe 26.5.1**, pinned |
 | Clean | **On**. Slower, but a release build must not depend on a cache. |
 | Post-action | **TestFlight Internal Testing** to the internal tester group |
-| Notifies | Slack `#plowr_release_updates`, all successes and failures |
+| Notifies | Slack `#plowr-releases`, all successes and failures |
 
 **Why "TestFlight and App Store" and not "TestFlight (Internal Testing
-Only)":** Apple never accepts an internal-only build for App Store review.
-Wockett lost its whole 1.11 release to that setting. The check that matters: a
-Release Flow build must be offered under **Add Build** on an App Store version
-page.
+Only)":** Apple never accepts an internal-only build for App Store review or
+external testing. The check that matters: a Release Flow build must be offered
+under **Add Build** on an App Store version page.
 
-### Things Wockett learned the hard way
+**Why `main` only:** with `Any Branch`, a mis-click in the Start dialog can
+archive a feature branch straight to TestFlight.
 
-Details are in Wockett's `docs/ci.md`.
+### Xcode Cloud behaviour to know
 
 - **One build-number counter for the whole app.** Every `CI Tests` run uses up
   a number, just as an archive does. Never predict the next build number; read
   it off the finished archive. Xcode Cloud ignores `CURRENT_PROJECT_VERSION`.
-- **A run that fails within seconds is the environment pin, not the code.**
-  Apple retires old macOS images. The parent `PlowR | CI Tests` status fails
-  and no `… | Test - iOS` check-run ever appears. Fix: Manage Workflows →
-  Environment, on **both** workflows, pick the newest macOS offered, Rebuild.
+- **Pinned toolchains get retired.** Pinning makes a toolchain change a dated,
+  deliberate edit instead of a silent one. The cost: Apple periodically
+  removes old macOS images. When that happens, the parent `PlowR | CI Tests`
+  status fails within seconds and no `… | Test - iOS` check-run ever appears,
+  because nothing compiled. Fix: Manage Workflows → Environment, on **both**
+  workflows, pick the newest macOS offered, Rebuild.
 - **Sometimes Xcode Cloud never hears about a PR.** No status appears, not
   even `pending`. Re-fire with `gh pr close <N> && gh pr reopen <N>`. First
   check that the PR's base is `main`: a PR stacked on another branch gets no
-  run by design.
+  run, by design.
 - **Tests must never touch real CloudKit.** `PlowRApp.isRunningUnderTests`
   skips CloudKit mirroring. Without it the host app traps a few seconds after
   launch ("Test crashed with signal trap before establishing connection").
 
 ## Setting it up (one time, Joe)
 
-Written from Apple's documentation and Wockett's setup, not yet walked
-through for PlowR. If a screen doesn't match a step, stop and tell Claude
-what you see.
+Written from Apple's documentation, not yet walked through for PlowR. If a
+screen doesn't match a step, stop and tell Claude what you see.
 
 **Before you start**
 
@@ -97,9 +100,7 @@ what you see.
 2. Open https://appstoreconnect.apple.com → **Apps**. Check that **PlowR**
    is listed. If it isn't, stop and tell Claude. Xcode Cloud needs the app
    record first.
-3. In Slack, create a channel **#plowr_release_updates**. `#ci_tests` is
-   shared with Wockett, and the PR check messages will say which app they
-   are for.
+3. In Slack, create two channels, **#plowr-ci** and **#plowr-releases**.
 
 **Create `CI Tests` (in Xcode — Apple requires the first workflow to be made there)**
 
@@ -119,12 +120,11 @@ what you see.
 10. **Actions**: delete the default Archive action. Add **Test**: platform
     iOS, scheme `PlowR`, Test Option **Use Scheme Setting**, destination
     **iPhone 17** / Latest iOS. Tick **Required to pass**.
-11. **Post-Actions**: add **Notify → Slack** → `#ci_tests` → Success and
-    Failure. If Slack isn't connected for PlowR yet, Xcode asks you to
-    authorize it; accept for Slack only.
+11. **Post-Actions**: add **Notify → Slack** → `#plowr-ci` → Success and
+    Failure. If Xcode asks you to authorize Slack, accept for Slack only.
 12. Click **Save**, then **Next**. Xcode asks to **Grant Access** to GitHub.
-    Click it. On GitHub, make sure the Xcode Cloud app's repository list
-    includes **FreeScoopDev/PlowR**, not only Wockett. Save.
+    Click it. On GitHub, set the Xcode Cloud app's repository access so it
+    includes **FreeScoopDev/PlowR**. Save.
 13. Back in Xcode, click **Complete**. Don't start a build by hand. Tell
     Claude, who opens a small PR to trigger the first run.
 
@@ -136,11 +136,10 @@ what you see.
 16. Start Conditions: remove any defaults. Add **Manual Start**, restricted
     to branch **`main`**.
 17. Actions: add **Archive**, platform iOS, scheme `PlowR`, Distribution
-    Preparation **TestFlight and App Store**. Double-check this one. The
-    internal-only option cost Wockett a release.
+    Preparation **TestFlight and App Store**. Double-check this one; see
+    "Why" above.
 18. Post-Actions: add **TestFlight Internal Testing** → your internal tester
-    group. Add **Notify → Slack** → `#plowr_release_updates` → Success and
-    Failure.
+    group. Add **Notify → Slack** → `#plowr-releases` → Success and Failure.
 19. Click **Save**. Don't press Start. Release Flow is first used in a
     release, whenever the first PlowR release is decided.
 

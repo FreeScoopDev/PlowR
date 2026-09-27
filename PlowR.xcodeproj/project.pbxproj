@@ -215,7 +215,6 @@
 				60E594673017F85100347251 /* Frameworks */,
 				60E594683017F85100347251 /* Resources */,
 				602AA02B3018664000841B7B /* Embed Foundation Extensions */,
-				F8E14DB091FB7A22D0ABFD08 /* ShellScript */,
 			);
 			buildRules = (
 			);
@@ -298,23 +297,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
-
-/* Begin PBXShellScriptBuildPhase section */
-		F8E14DB091FB7A22D0ABFD08 /* ShellScript */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 1;
-			shellPath = /bin/sh;
-			shellScript = "#!/bin/sh\n# Auto-increment build number on Archive, and stamp it into the built Info.plist directly.\nset -e\ncd \"$PROJECT_DIR\"\n/usr/bin/xcrun agvtool next-version -all > /dev/null\nNEW_BUILD=$(/usr/bin/xcrun agvtool what-version -terse)\nINFOPLIST=\"$TARGET_BUILD_DIR/$INFOPLIST_PATH\"\nif [ -f \"$INFOPLIST\" ]; then\n  /usr/libexec/PlistBuddy -c \"Set :CFBundleVersion $NEW_BUILD\" \"$INFOPLIST\"\nfi\necho \"Build number set to $NEW_BUILD\"\n";
-			showEnvVarsInLog = 0;
-		};
-/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		602AA00C3018663F00841B7B /* Sources */ = {
