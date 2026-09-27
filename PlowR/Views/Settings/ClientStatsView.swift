@@ -74,10 +74,9 @@ struct ClientStatsView: View {
             map[key] = bucket
         }
 
-        return map.keys.sorted(by: >).prefix(12).compactMap { key in
+        return map.sorted { $0.key > $1.key }.prefix(12).compactMap { key, vals in
             guard let date = Self.monthKeyFormatter.date(from: key) else { return nil }
             let label = date.formatted(.dateTime.month(.abbreviated).year())
-            let vals = map[key]!
             return MonthBucket(id: key, label: label, revenue: vals.rev, outstanding: vals.out)
         }
     }

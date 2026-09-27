@@ -32,17 +32,11 @@ struct RouteRecapView: View {
                 latitudinalMeters: 1200, longitudinalMeters: 1200
             ))
         }
-        let lats = geocodedStops.map(\.latitude)
-        let lons = geocodedStops.map(\.longitude)
-        let center = CLLocationCoordinate2D(
-            latitude: (lats.min()! + lats.max()!) / 2,
-            longitude: (lons.min()! + lons.max()!) / 2
-        )
-        let span = MKCoordinateSpan(
-            latitudeDelta: max((lats.max()! - lats.min()!) * 1.7, 0.006),
-            longitudeDelta: max((lons.max()! - lons.min()!) * 1.7, 0.006)
-        )
-        return .region(MKCoordinateRegion(center: center, span: span))
+        guard let bounds = CoordinateBounds(latitudes: geocodedStops.map(\.latitude),
+                                            longitudes: geocodedStops.map(\.longitude)) else {
+            return .automatic
+        }
+        return .region(bounds.region())
     }
 
     var body: some View {
