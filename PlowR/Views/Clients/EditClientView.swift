@@ -942,23 +942,15 @@ struct EditClientView: View {
     }
 
     private func regionForZones(_ zones: [PropertyZone]) -> MKCoordinateRegion {
-        let coords = zones.flatMap { $0.coordinates }
-        let lats = coords.map(\.latitude)
-        let lons = coords.map(\.longitude)
-        guard let minLat = lats.min(), let maxLat = lats.max(),
-              let minLon = lons.min(), let maxLon = lons.max() else {
+        // Zones sit on one property, so this frames much tighter than the route
+        // maps: 3.5× the zones' box, never narrower than 0.0005°.
+        guard let bounds = CoordinateBounds(zones.flatMap { $0.coordinates }) else {
             return MKCoordinateRegion(
                 center: CLLocationCoordinate2D(latitude: client.latitude, longitude: client.longitude),
                 span: MKCoordinateSpan(latitudeDelta: 0.002, longitudeDelta: 0.002)
             )
         }
-        return MKCoordinateRegion(
-            center: CLLocationCoordinate2D(latitude: (minLat + maxLat) / 2, longitude: (minLon + maxLon) / 2),
-            span: MKCoordinateSpan(
-                latitudeDelta: max(0.0005, (maxLat - minLat) * 3.5),
-                longitudeDelta: max(0.0005, (maxLon - minLon) * 3.5)
-            )
-        )
+        return bounds.region(padding: 3.5, minimumDelta: 0.0005)
     }
 
     // MARK: - Look Around

@@ -322,14 +322,12 @@ struct PDFGenerator {
         guard let bounds = CoordinateBounds(allCoords) else { return }
 
         let rawMinLat = bounds.minLatitude
-        let rawMaxLat = bounds.maxLatitude
         let rawMinLon = bounds.minLongitude
-        let rawMaxLon = bounds.maxLongitude
-        let latSpan   = rawMaxLat - rawMinLat
-        let lonSpan   = rawMaxLon - rawMinLon
+        let latSpan   = bounds.latitudeSpan
+        let lonSpan   = bounds.longitudeSpan
         guard latSpan > 0, lonSpan > 0 else { return }
 
-        let cosLat  = CGFloat(cos((rawMinLat + rawMaxLat) / 2 * .pi / 180))
+        let cosLat  = CGFloat(cos(bounds.center.latitude * .pi / 180))
         let adjLon  = CGFloat(lonSpan) * cosLat
         let fitSize = radius * 2 * 0.78
         let scale   = min(fitSize / adjLon, fitSize / CGFloat(latSpan))
