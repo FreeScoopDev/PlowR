@@ -41,8 +41,10 @@ currently has three.
 SwiftData with a CloudKit-backed `ModelContainer`, eleven `@Model` types
 registered in `PlowRApp.init`. `AuthManager` (Sign in with Apple, Keychain) is
 injected as an environment object. Services under `PlowR/Services/` own the
-platform work: `LocationManager` (geofencing per stop), `RouteSessionManager`
-(active route state, Live Activity via `RouteActivityAttributes`),
+platform work: `LocationManager` (geofencing per stop), `ActiveRouteStore`
+(the in-progress route: current stop, stop timer, checkpoint that survives a
+relaunch; Live Activity and widget via `SystemRouteSurfaces`),
+`RouteSessionManager` (Siri's bridge to the route screen, being retired),
 `NotificationService` (weather alerts, overdue invoices), `CalendarService`
 (EventKit — writes to a "PlowR" calendar), `WeatherService` (Open-Meteo),
 `ElevationService` (Open-Topo-Data), `RouteOptimizer` (nearest-neighbor over
@@ -84,9 +86,26 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   guarantee that no `!` exists. Never add a `swiftlint:disable` to get past it:
   remove the unwrap. Never run `scripts/lint.sh --fix` without
   `scripts/test.sh` after it.
+- **A route in progress lives in `ActiveRouteStore`, never in a view.** Only
+  `start(_:)` and `end()` begin and finish it; the route screen can disappear or
+  be killed without losing the stop. `MainTabView` shows the route screen
+  whenever `isActive`. A checkpoint (route ID, current stop's ID and index, stop
+  start time) is saved in `UserDefaults` on every change and restored at launch
+  in `PlowRApp.init`, before any view. The current stop is tracked by ID, not
+  position, because iCloud can reorder or delete stops (or the whole route)
+  from another device; `validate()` runs on every store save, on remote
+  changes and when the app becomes active, and ends a route that no longer
+  exists. UI completions pass the stop that was on screen
+  (`completeCurrentStop(expecting:)`); if sync changed it, nothing is recorded
+  (`.stopChanged`), so a visit is never credited to the wrong client. Tests of
+  "after a relaunch" must build the before-store with `makeClosedAppStore()`:
+  a configured store observes saves and fixes its own checkpoint, which hid
+  two bugs. Siri still reaches the route only through `RouteSessionManager`,
+  i.e. only while the route screen is up (bug #3, next).
 - **Delete Account & Data** (Settings) is an App Review 5.1.1(v) requirement.
-  It removes all SwiftData records, the encrypted work-orders file, and
-  Keychain credentials. Any new persistent store must be added to that path or
+  It removes all SwiftData records, the encrypted work-orders file, the route
+  checkpoint and Live Activities (`ActiveRouteStore.eraseAll()`), the widget's
+  saved route, and Keychain credentials. Any new persistent store must be added to that path or
   the deletion is incomplete and review can fail on it.
 
 ## Conventions

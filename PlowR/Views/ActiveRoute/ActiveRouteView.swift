@@ -2,33 +2,43 @@ import SwiftUI
 import SwiftData
 import MapKit
 import CoreLocation
-import ActivityKit
 import StoreKit
 
+/// The in-progress route screen. It shows and drives `ActiveRouteStore`, which
+/// owns the route: this view can appear, disappear or be torn down with the app
+/// without starting, ending or losing the route.
 struct ActiveRouteView: View {
     let route: PlowRoute
-    @Environment(\.dismiss) private var dismiss
+    @Environment(ActiveRouteStore.self) private var store
     @Environment(\.modelContext) private var modelContext
     @Environment(\.requestReview) private var requestReview
 
     @Query private var allClients: [Client]
 
     @State private var locationManager = LocationManager()
-    @State private var currentStopIndex = 0
     @State private var showingNotifyPrompt = false
     @State private var showingEndConfirmation = false
     @State private var showingRouteRecap = false
     @State private var showingLocationDeniedAlert = false
-    @State private var liveActivity: Activity<PlowRRouteAttributes>?
 
     @State private var weather: WeatherCondition? = nil
     @State private var etaMinutes: Int? = nil
     @State private var showingNavPicker = false
     @State private var navStop: RouteStop? = nil
-    @State private var currentStopStartTime: Date? = nil
     @State private var showingServiceRecorder = false
     @State private var showingMassMessage = false
     @State private var showingFirstStopPrompt = false
+    /// The stop that was current when the notify prompt opened. Advancing
+    /// completes that stop only; if sync has changed it meanwhile, nothing is
+    /// recorded (ActiveRouteStore.CompletionResult.stopChanged).
+    @State private var promptStopID: UUID?
+    /// The client the notify prompt opened for, pinned so a sync change can't
+    /// swap the recipient while the sheet is up.
+    @State private var promptNextStop: RouteStop?
+    @State private var showingRouteChangedAlert = false
+    /// Set while the notify sheet is up; the alert shows once it closes
+    /// (iOS won't present an alert over a view that is presenting a sheet).
+    @State private var routeChangedAfterSheet = false
 
     @AppStorage("completedRoutesCount") private var completedRoutesCount = 0
 
@@ -37,19 +47,11 @@ struct ActiveRouteView: View {
     @State private var followDriver = true
     @State private var isSettingCamera = false
 
-    var sortedStops: [RouteStop] { route.sortedStops }
-
-    var currentStop: RouteStop? {
-        guard currentStopIndex < sortedStops.count else { return nil }
-        return sortedStops[currentStopIndex]
-    }
-
-    var nextStop: RouteStop? {
-        guard currentStopIndex + 1 < sortedStops.count else { return nil }
-        return sortedStops[currentStopIndex + 1]
-    }
-
-    var isLastStop: Bool { currentStopIndex >= sortedStops.count - 1 }
+    var sortedStops: [RouteStop] { store.sortedStops }
+    var currentStopIndex: Int { store.currentStopIndex }
+    var currentStop: RouteStop? { store.currentStop }
+    var nextStop: RouteStop? { store.nextStop }
+    var isLastStop: Bool { store.isLastStop }
 
     private var nextStopClient: Client? {
         guard let next = nextStop, !next.isCustomStop else { return nil }
@@ -100,14 +102,15 @@ struct ActiveRouteView: View {
             }
         }
         .onAppear {
-            startRoute()
+            beginTracking()
             RouteSessionManager.shared.isRouteActive = true
             RouteSessionManager.shared.onCompleteStop = { triggerNotifyPrompt() }
-            RouteSessionManager.shared.onNotifyNext = { showingNotifyPrompt = true }
+            RouteSessionManager.shared.onNotifyNext = { openNotifyPrompt() }
         }
         .onDisappear {
+            // Stops GPS for this screen only. The route itself carries on: only
+            // End Route (store.end()) finishes it.
             locationManager.stopTracking()
-            endLiveActivity()
             RouteSessionManager.shared.isRouteActive = false
             RouteSessionManager.shared.onCompleteStop = nil
             RouteSessionManager.shared.onNotifyNext = nil
@@ -150,9 +153,14 @@ struct ActiveRouteView: View {
                 )
             }
         }
-        .sheet(isPresented: $showingNotifyPrompt) {
-            if let next = nextStop {
-                NotifyPromptView(stop: next, locationManager: locationManager, onAdvance: advanceToNextStop)
+        .sheet(isPresented: $showingNotifyPrompt, onDismiss: {
+            if routeChangedAfterSheet {
+                routeChangedAfterSheet = false
+                showingRouteChangedAlert = true
+            }
+        }) {
+            if let next = promptNextStop {
+                NotifyPromptView(stop: next, locationManager: locationManager, onAdvance: { advance(completing: promptStopID) })
             }
         }
         .background(
@@ -175,10 +183,7 @@ struct ActiveRouteView: View {
                 route: route,
                 stops: sortedStops,
                 allClients: allClients,
-                onEndRoute: {
-                    endLiveActivity()
-                    dismiss()
-                }
+                onEndRoute: { store.end() }
             )
         }
         .onChange(of: locationManager.authorizationStatus) { _, status in
@@ -201,13 +206,18 @@ struct ActiveRouteView: View {
                 }
             }
         }
+        .alert("Route Changed", isPresented: $showingRouteChangedAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("This route was changed on another device, so that stop wasn't marked complete. Check the current stop and try again.")
+        }
         .alert("Location Access Required", isPresented: $showingLocationDeniedAlert) {
             Button("Open Settings") {
                 if let url = URL(string: UIApplication.openSettingsURLString) {
                     UIApplication.shared.open(url)
                 }
             }
-            Button("Cancel", role: .cancel) { dismiss() }
+            Button("End Route", role: .cancel) { store.end() }
         } message: {
             Text("PlowR needs location access to track your route. Enable it in Settings > Privacy > Location Services.")
         }
@@ -515,9 +525,17 @@ struct ActiveRouteView: View {
 
             if isLastStop {
                 Button {
-                    hapticSuccess()
-                    recordStopStats(for: currentStop)
-                    showingRouteRecap = true
+                    switch store.completeCurrentStop(expecting: stop.id) {
+                    case .finishedLastStop, .allStopsAlreadyDone:
+                        hapticSuccess()
+                        showingRouteRecap = true
+                    case .stopChanged:
+                        showingRouteChangedAlert = true
+                    case .advanced:
+                        didAdvance()   // a stop was added after this one elsewhere; it's next
+                    case .noActiveRoute:
+                        break
+                    }
                 } label: {
                     Label("Complete Route", systemImage: "checkmark.circle.fill")
                         .font(.headline)
@@ -675,10 +693,10 @@ struct ActiveRouteView: View {
 
     // MARK: - Route Logic
 
-    private func startRoute() {
-        hapticSuccess()
-        currentStopStartTime = Date()
-        startLiveActivity()
+    /// Starts GPS and geofencing for the current stop. Runs every time the
+    /// screen appears, including after a relaunch restores the route; only a
+    /// freshly started route offers to notify its first client.
+    private func beginTracking() {
         switch locationManager.authorizationStatus {
         case .notDetermined:
             locationManager.requestPermission()
@@ -690,6 +708,9 @@ struct ActiveRouteView: View {
         @unknown default:
             locationManager.requestPermission()
         }
+        guard store.isFirstStopPromptPending else { return }
+        store.isFirstStopPromptPending = false
+        hapticSuccess()
         // Prompt to notify the first client before driving to them
         if let firstStop = sortedStops.first,
            !firstStop.clientPhone.isEmpty,
@@ -701,105 +722,38 @@ struct ActiveRouteView: View {
     }
 
     private func triggerNotifyPrompt() {
-        guard !isLastStop, !showingNotifyPrompt else { return }
+        // Nothing to notify on the last stop or once every stop is done (Siri
+        // can still call this then; it used to open an empty sheet).
+        guard nextStop != nil, !showingNotifyPrompt else { return }
         if shouldSkipNextNotify {
-            advanceToNextStop()
+            advance(completing: currentStop?.id)
             return
         }
+        openNotifyPrompt()
+    }
+
+    /// Siri's "Notify next client" and the Complete button both land here.
+    private func openNotifyPrompt() {
+        guard let next = nextStop, !showingNotifyPrompt else { return }
+        promptStopID = currentStop?.id
+        promptNextStop = next
         haptic(.light)
         showingNotifyPrompt = true
     }
 
-    private func advanceToNextStop() {
+    private func advance(completing stopID: UUID?) {
+        guard let stopID else { return }
+        if store.completeCurrentStop(expecting: stopID) == .stopChanged {
+            if showingNotifyPrompt { routeChangedAfterSheet = true } else { showingRouteChangedAlert = true }
+            return
+        }
+        didAdvance()
+    }
+
+    /// After the store moved to the next stop: haptic, and geofence the new stop.
+    private func didAdvance() {
         haptic()
-        recordStopStats(for: currentStop)
-        currentStopIndex += 1
-        currentStopStartTime = Date()
         locationManager.clearAllGeofences()
         if let stop = currentStop { locationManager.startMonitoringStop(stop) }
-        updateLiveActivity()
-    }
-
-    private func recordStopStats(for stop: RouteStop?) {
-        guard let stop, !stop.isCustomStop,
-              let startTime = currentStopStartTime else { return }
-        let minutes = Date().timeIntervalSince(startTime) / 60.0
-        let clientID = stop.clientID
-        // Fetch all clients and match by UUID — avoids #Predicate conflict with SwiftData's internal id
-        if let client = try? modelContext.fetch(FetchDescriptor<Client>()).first(where: { $0.id == clientID }) {
-            client.totalVisits += 1
-            client.totalServiceMinutes += max(0, minutes)
-            client.lastServiceDate = Date()
-        }
-    }
-
-    // MARK: - Live Activity
-
-    private func startLiveActivity() {
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
-        let attributes = PlowRRouteAttributes(routeID: route.id.uuidString, routeName: route.name)
-        let state = PlowRRouteAttributes.ContentState(
-            currentStopName: currentStop?.clientName ?? "",
-            currentStopAddress: currentStop?.clientAddress ?? "",
-            currentStopNumber: 1,
-            totalStops: sortedStops.count,
-            routeName: route.name
-        )
-        liveActivity = try? Activity<PlowRRouteAttributes>.request(
-            attributes: attributes,
-            content: .init(state: state, staleDate: nil)
-        )
-        WidgetDataStore.write(TodayRouteWidgetData(
-            routeName: route.name,
-            totalStops: sortedStops.count,
-            completedStops: 0,
-            nextStopName: currentStop?.clientName ?? "",
-            nextStopAddress: currentStop?.clientAddress ?? "",
-            isActive: true,
-            lastUpdated: Date()
-        ))
-    }
-
-    private func updateLiveActivity() {
-        guard let activity = liveActivity else { return }
-        let state = PlowRRouteAttributes.ContentState(
-            currentStopName: currentStop?.clientName ?? "Done",
-            currentStopAddress: currentStop?.clientAddress ?? "",
-            currentStopNumber: currentStopIndex + 1,
-            totalStops: sortedStops.count,
-            routeName: route.name
-        )
-        Task { await activity.update(.init(state: state, staleDate: nil)) }
-        WidgetDataStore.write(TodayRouteWidgetData(
-            routeName: route.name,
-            totalStops: sortedStops.count,
-            completedStops: currentStopIndex,
-            nextStopName: currentStop?.clientName ?? "",
-            nextStopAddress: currentStop?.clientAddress ?? "",
-            isActive: true,
-            lastUpdated: Date()
-        ))
-    }
-
-    private func endLiveActivity() {
-        guard let activity = liveActivity else { return }
-        let state = PlowRRouteAttributes.ContentState(
-            currentStopName: "Route Complete",
-            currentStopAddress: "",
-            currentStopNumber: sortedStops.count,
-            totalStops: sortedStops.count,
-            routeName: route.name
-        )
-        Task { await activity.end(.init(state: state, staleDate: nil), dismissalPolicy: .after(.now + 30)) }
-        liveActivity = nil
-        WidgetDataStore.write(TodayRouteWidgetData(
-            routeName: route.name,
-            totalStops: sortedStops.count,
-            completedStops: sortedStops.count,
-            nextStopName: "",
-            nextStopAddress: "",
-            isActive: false,
-            lastUpdated: Date()
-        ))
     }
 }

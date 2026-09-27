@@ -3,6 +3,7 @@ import SwiftData
 
 struct MainTabView: View {
     @Environment(AuthManager.self) private var authManager
+    @Environment(ActiveRouteStore.self) private var activeRoute
     @Query private var allProposals: [Proposal]
     @Binding var selectedTab: Int
 
@@ -36,10 +37,19 @@ struct MainTabView: View {
                 .tabItem { Label("Schedule", systemImage: "calendar") }
                 .tag(4)
         }
+        // The route screen is shown from here, the app's root, whenever a route
+        // is in progress, so a route restored after a relaunch comes straight
+        // back. Only ActiveRouteStore.end() closes it; the setter is a no-op.
+        .fullScreenCover(isPresented: Binding(get: { activeRoute.isActive }, set: { _ in })) {
+            if let route = activeRoute.route {
+                ActiveRouteView(route: route)
+            }
+        }
     }
 }
 
 #Preview {
     MainTabView(selectedTab: .constant(0))
         .environment(AuthManager())
+        .environment(ActiveRouteStore.shared)
 }

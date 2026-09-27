@@ -5,11 +5,11 @@ import CoreLocation
 
 struct RouteDetailView: View {
     let route: PlowRoute
+    @Environment(ActiveRouteStore.self) private var activeRoute
     @Query private var allClients: [Client]
     @Query private var allServices: [ServiceItem]
 
     @State private var showingEditRoute = false
-    @State private var isRouteActive = false
     @State private var showingOptimizeConfirm = false
     @State private var isOptimizing = false
 
@@ -97,7 +97,7 @@ struct RouteDetailView: View {
                     .padding(.vertical, 8)
                 }
                 Button {
-                    isRouteActive = true
+                    activeRoute.start(route)
                 } label: {
                     Text("Start Route")
                         .font(.headline)
@@ -115,9 +115,6 @@ struct RouteDetailView: View {
         }
         .sheet(isPresented: $showingEditRoute) {
             EditRouteView(route: route)
-        }
-        .fullScreenCover(isPresented: $isRouteActive) {
-            ActiveRouteView(route: route)
         }
     }
 
