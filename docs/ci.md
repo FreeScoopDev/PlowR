@@ -17,7 +17,7 @@ because GitHub Pages publishes everything else in `docs/`.
 
 | | |
 | --- | --- |
-| GitHub Actions `Tests` (`.github/workflows/tests.yml`) | **Live**, green since #1 (2026-09-26). macOS runner. Deleted once `CI Tests` below posts a green status. |
+| GitHub Actions `Tests` (`.github/workflows/tests.yml`) | **Removed 2026-09-27.** It ran the same tests on a macOS runner and was replaced by `CI Tests` below. |
 | Xcode Cloud `CI Tests` | **Not created yet.** Setup steps below. |
 | Xcode Cloud `Release Flow` | **Not created yet.** Setup steps below. |
 | Branch protection on `main` | None yet. Open decision. |
@@ -145,6 +145,7 @@ screen doesn't match a step, stop and tell Claude what you see.
 
 **What Claude does after**
 
-- Watches the first `CI Tests` run. Once `PlowR | CI Tests | Test - iOS`
-  posts green on a PR, it opens a PR deleting `.github/workflows/tests.yml`
-  and updates the Status table above.
+- Watched the first `CI Tests` run (PR #7, green). Proved it gates by
+  opening a throwaway PR that broke the app on purpose (#8): `Test - iOS`
+  reported 1 test failure and `CI Tests` failed. Then removed
+  `.github/workflows/tests.yml`.
