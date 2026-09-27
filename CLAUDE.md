@@ -78,7 +78,10 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   error-severity violation (force unwrap, force cast, `try!`) and is a required
   check on `main`. It was report-only until the 35 force-unwraps were removed
   (#17). The annotations stop at 10; the log's `Found N violations, M serious`
-  line has the full count. Never add a `swiftlint:disable` to get past it:
+  line has the full count. **Blind spot:** `force_unwrapping` does not flag a
+  force-unwrapped initializer call such as `URL(string: "…")!` (verified
+  2026-09-27; `SettingsView` has two, on literal URLs), so the gate isn't a
+  guarantee that no `!` exists. Never add a `swiftlint:disable` to get past it:
   remove the unwrap. Never run `scripts/lint.sh --fix` without
   `scripts/test.sh` after it.
 - **Delete Account & Data** (Settings) is an App Review 5.1.1(v) requirement.
