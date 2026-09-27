@@ -20,7 +20,7 @@ because GitHub Pages publishes everything else in `docs/`.
 | GitHub Actions `Tests` (`.github/workflows/tests.yml`) | **Removed 2026-09-27.** It ran the same tests on a macOS runner and was replaced by `CI Tests` below. |
 | Xcode Cloud `CI Tests` | **Created 2026-09-26** (steps 1–13). Green on its first run (#7); failed a deliberate break (#8) as it should. The only test check on PRs. |
 | Xcode Cloud `Release Flow` | **Created 2026-09-26** (steps 14–19). Never started yet. First used for PlowR's first Release Flow build. |
-| Branch protection on `main` | None yet. Open decision. |
+| Branch protection on `main` | **Active since 2026-09-27.** Ruleset "Protect main": no deletion, no force-push, changes only through a PR (squash merge, 0 approvals), required checks `PlowR \| CI Tests \| Test - iOS` and `Service-language guard`. No bypass list. `SwiftLint (report only)` is not required yet. Check with `gh api repos/FreeScoopDev/PlowR/rules/branches/main`, not the settings page. |
 
 Update this table as each row changes.
 

@@ -128,6 +128,11 @@ folder needs updating, give Joe the command.
 4. Fix any red check. Give Joe the link; Joe clicks **Squash and merge**.
    Claude never merges, never pushes to `main`, never force-pushes.
 
+`main` is protected by a ruleset (since 2026-09-27): PR only, squash merge,
+and `PlowR | CI Tests | Test - iOS` plus `Service-language guard` must pass.
+A PR that Xcode Cloud never picked up (no `PlowR | CI Tests` status at all)
+can't merge. Re-fire it with `gh pr close <N> && gh pr reopen <N>`.
+
 CI is Xcode Cloud: `CI Tests` runs the `PlowR` scheme's tests on every PR to
 `main` and posts `PlowR | CI Tests | Test - iOS`. There is no GitHub Actions
 workflow any more. `docs/ci.md` has the workflow settings, their current
