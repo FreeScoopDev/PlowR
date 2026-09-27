@@ -803,4 +803,3 @@ struct ActiveRouteView: View {
         ))
     }
 }
-// BROKEN ON PURPOSE (reverted in the next commit): Text("Start Plowing")
