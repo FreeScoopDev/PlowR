@@ -1,0 +1,46 @@
+# Cheap, fast repo guards that need no Apple toolchain. They run on
+# ubuntu-latest (1x billing). Building and testing the app is Xcode Cloud's job
+# (docs/ci.md).
+
+name: Guards
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  service-language-guard:
+    name: Service-language guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      # PlowR serves snow removal, lawn care and landscaping from the same
+      # screens (since 1.1.0, which replaced snow-only icons and wording on
+      # them). This fails the build if snow-specific copy or a fixed snowflake
+      # icon reappears on a screen every industry shares.
+      #
+      # Only the shared screens are checked. Snow-specific places are fine:
+      # the service catalog ("Snow Plowing"), weather, and icons chosen from a
+      # service's own category. Put new snow-only features in their own files.
+      - name: Service-language guard
+        run: |
+          SHARED="PlowR/Views/DashboardView.swift PlowR/Views/MainTabView.swift PlowR/Views/ActiveRoute PlowR/Views/Routes PlowR/Activity PlowR/Intents PlowRWidgets"
+          ICON='(systemName|systemImage): *"(cloud\.)?snow(flake)?(\.fill)?"'
+          COPY='"(Start|Begin|End|Finish|Next|Resume|Complete) (Plow|Snow)|"Plow(ing|ed)? (Route|Stop|Job|Complete|History|Day|Done)|"Snow (Route|Stop|Job|Day|Done)|"(Plowed|Plowing)[" !.]'
+          found=0
+          if grep -rnE "$ICON" $SHARED --include='*.swift'; then
+            echo "::error::Fixed snowflake icon on a shared screen. Choose the icon from the service's category instead."
+            found=1
+          fi
+          if grep -rnE "$COPY" $SHARED --include='*.swift'; then
+            echo "::error::Snow-specific wording on a shared screen. Use industry-neutral copy (stop, route, service)."
+            found=1
+          fi
+          [ "$found" -eq 0 ] && echo "Service-language guard passed."
+          exit "$found"

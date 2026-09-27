@@ -82,7 +82,10 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
 
 - **Service language is industry-agnostic** (since 1.1.0): snow, lawn, and
   landscaping share the same screens. Don't reintroduce "plow" into user-facing
-  copy for a generic action.
+  copy for a generic action. The `Service-language guard` job in
+  `.github/workflows/guards.yml` fails a PR that puts snow-only wording or a fixed
+  snowflake icon on a shared screen (dashboard, active route, routes, Live
+  Activity, intents, widgets, tab bar). Snow-only features go in their own files.
 - **Accent colour is adaptive navy**, defined once in `PlowRApp.swift` and
   applied with `.tint()`. There is no `DesignSystem.swift` yet; if a second
   shared token appears, that's the moment to create one rather than a third
