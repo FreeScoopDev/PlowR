@@ -1,10 +1,13 @@
 # PlowR — project memory
 
 Read this first. It exists so each session doesn't re-derive the same facts.
-Written 2026-09-10 from the repo as it stood then. Correct it when it goes
-stale — a wrong note is worse than none. Wockett's `~/Desktop/PoCSquat/CLAUDE.md`
-is the older sibling; the "Verifying claims" and "Working with Joe" sections
-there apply here verbatim and aren't repeated.
+Written 2026-09-10, refreshed 2026-09-26. Correct it when it goes stale — a
+wrong note is worse than none.
+
+**This repo is public.** Nothing goes into a commit, a PR description or this
+file that shouldn't be on the open internet: no credentials, no account or
+team IDs beyond what ships in the app, no Notion/Slack/Claude links, and no
+references to other projects. PlowR stands on its own.
 
 ## What this is
 
@@ -16,7 +19,8 @@ and asks for the reasoning, not just the command.
 | Thing | Name |
 | --- | --- |
 | GitHub repo | `FreeScoopDev/PlowR` |
-| Local folder | `~/Desktop/PlowR` |
+| Joe's folder | `~/Desktop/Apps/PlowR` (read-only for Claude, see Process) |
+| Claude's worktree | `~/Desktop/Apps/PlowR-claude` |
 | App target / scheme | `PlowR` |
 | Widget + Live Activity + Control Center | `PlowRWidgets` (scheme `PlowRWidgetsExtension`) |
 | Unit tests | `PlowRTests` (Swift Testing, `@Test`, not XCTest) |
@@ -48,23 +52,23 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
 
 ## Non-obvious things
 
-- **Version and build live in `project.pbxproj`**, project-level build settings —
-  PlowR has *not* adopted Wockett's `Versions.xcconfig`. `MARKETING_VERSION` is
+- **Version and build live in `project.pbxproj`**, project-level build settings.
+  There is no `Versions.xcconfig` yet. `MARKETING_VERSION` is
   `1.1.0` on the app target. The `PlowRTests` target still carries a stale
-  `MARKETING_VERSION = 1.0`; harmless, but don't read the wrong one.
+  `MARKETING_VERSION = 1.0`; harmless, but don't read the wrong one. Nothing
+  bumps the build number any more: the Archive-only `agvtool` Run Script that
+  rewrote `project.pbxproj` on every local archive was removed in #2.
 - **`GENERATE_INFOPLIST_FILE = YES`** for the app, *and* there is a
   `PlowR/Info.plist` with hand-written keys (usage strings, `UIBackgroundModes`,
   `NSSupportsLiveActivities`, URL schemes). Both feed the built plist. Before
   saying a key is missing, check both — and preferably the built artifact.
-- **CI is red and has been since at least 2026-08-27.** `.github/workflows/tests.yml`
-  runs `xcodebuild test` on `macos-26`; the host app dies with "Test crashed
-  with signal trap before establishing connection." That is the signature of
-  the CloudKit trap Wockett hit: `ModelContainer(for:configurations:)` with a
+- **Tests must never touch real CloudKit.** A `ModelContainer` with a
   `cloudKitDatabase:` config returns fine under `try?`, then CoreData sets
-  CloudKit up asynchronously and traps when there is no iCloud account (every
-  CI runner). `PlowRApp.makeContainer` has no test-mode skip. Not yet confirmed
-  on PlowR — confirm by adding the skip and watching CI go green, not by
-  reasoning about it further.
+  CloudKit up asynchronously and *traps* when there is no iCloud account —
+  every CI runner. No `catch` can reach it. `PlowRApp.isRunningUnderTests`
+  skips CloudKit mirroring; without it the host app dies with "Test crashed
+  with signal trap before establishing connection." That kept CI red from
+  2026-08-27 until #1 (2026-09-26).
 - **The `ModelContainer` fallback chain archives the store rather than
   deleting it** (`default.store.<timestamp>.bak` in Application Support) when
   the schema is incompatible. That is deliberate: a user's data survives a bad
@@ -73,9 +77,6 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   It removes all SwiftData records, the encrypted work-orders file, and
   Keychain credentials. Any new persistent store must be added to that path or
   the deletion is incomplete and review can fail on it.
-- **`PlowRTests/PlowRTests.swift` contains a placeholder `example()` test.**
-  It passes and guards nothing. Either give it a real assertion or delete it;
-  don't count it as coverage.
 
 ## Conventions
 
@@ -95,19 +96,59 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
 
 ## Process
 
-`main` on GitHub; PRs and CI on GitHub Actions (`Tests` workflow, `macos-26`,
-`iPhone 17` simulator). GitHub Pages deploys `docs/` on every push to `main` —
-that workflow is separate from `Tests` and passing.
+**Joe merges; Claude does the git work.** Claude works only in its own
+worktree (`git worktree add ~/Desktop/Apps/PlowR-claude -b <branch>
+origin/main`), never in `~/Desktop/Apps/PlowR`: git there is read-only with
+`--no-optional-locks`, and no `switch`, `pull`, `merge` or `commit`. If Joe's
+folder needs updating, give Joe the command.
+
+1. `git fetch`, then branch from `origin/main`, never a local `main`. One
+   change per branch, prefixed `feat/`, `fix/`, `chore/`, `docs/` or `test/`.
+   Never stack a PR on another branch.
+2. Make the change with its `CHANGELOG.md` line and run the tests.
+3. Merge `origin/main` in, push the branch, open the PR. The description says
+   how each claim is known (see Verifying claims).
+4. Fix any red check. Give Joe the link; Joe clicks **Squash and merge**.
+   Claude never merges, never pushes to `main`, never force-pushes.
+
+CI today is GitHub Actions (`Tests` workflow, `macos-26`, `iPhone 17`
+simulator); it is moving to Xcode Cloud. GitHub Pages deploys `docs/` to
+getplowr.app on every push to `main`.
 
 Run the tests locally before pushing:
 
     xcodebuild test -project PlowR.xcodeproj -scheme PlowR \
       -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' \
-      CODE_SIGNING_ALLOWED=NO
+      -resultBundlePath /tmp/plowr.xcresult CODE_SIGNING_ALLOWED=NO
 
-Check for the literal `** TEST SUCCEEDED **`; a piped `| tail` reports `tail`'s
-exit code, not xcodebuild's.
+The verdict is the exit code, the literal `** TEST SUCCEEDED **`, and the
+bundle's result together. Count tests from the bundle
+(`xcrun xcresulttool get test-results summary --path /tmp/plowr.xcresult`),
+never from the log. A piped `| tail` reports `tail`'s exit code, not
+xcodebuild's. `-only-testing:` with a Swift Testing function name can match
+nothing and still pass; filter to the suite and check the count.
 
-He pushes; Claude never pushes. Read-only git with `--no-optional-locks` unless
-asked to commit. Tracking lives in Notion, "Scoops Dev Command Center" — the
-PlowR app page is `3c832dff-f55d-8115-bd62-e51380e7cfe4`.
+Tracking lives in Notion (the PlowR app page in Joe's workspace).
+
+## Verifying claims
+
+State how each claim is known. They are not equivalent:
+
+| Level | Worth |
+| --- | --- |
+| Read the source | A hypothesis. Say so. |
+| Inspected the built artifact or live state | Real, for what ships or what is |
+| Ran it | Real, for behaviour |
+| Broke it on purpose and watched it fail | The only proof a guard guards anything |
+
+An assertion that cannot fail is worse than none, because it is counted as
+coverage. Before claiming a test guards something, break the thing and watch
+it go red. Before reporting a finding, try to disprove it.
+
+## Working with Joe
+
+- Give the reasoning alongside the instruction.
+- Anything Joe has to do is numbered steps: where to click, what to type,
+  what Joe should see, and what to do if it doesn't appear.
+- If a risk can be removed on Claude's side, remove it rather than handing
+  Joe a rule to remember.

@@ -15,6 +15,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Internal
 - **Product → Archive no longer edits the project.** The PlowR target had an Archive-only Run Script that ran `agvtool next-version -all` in the project folder, so every local archive rewrote `CURRENT_PROJECT_VERSION` in the tracked `project.pbxproj` (1 → 2 on all four build configurations, observed on a test archive of `main` on 2026-09-26) and left a diff nobody had typed. Wockett removed the same mechanism on 2026-09-15 after it was twice mistaken for a hand edit. Xcode Cloud, which PlowR is moving to, numbers builds itself and ignores the file's value, so the script had no job left. An archive of this branch leaves every tracked file unchanged and takes its build number from `CURRENT_PROJECT_VERSION` as written.
+- **CLAUDE.md refreshed and made self-contained.** It gave the old `~/Desktop/PlowR` folder (now `~/Desktop/Apps/PlowR`), still said CI was red and the placeholder test existed, and told sessions to follow process rules kept in another project's file. It now carries its own process (Claude works in its own worktree and opens PRs, and Joe merges), its own verification rules, and a rule for a public repo: no credentials, internal IDs or references to other projects in commits, PRs or this file. The Notion page ID it held was removed on the same grounds.
 
 ## [1.1.0] - 2026-08-22
 
