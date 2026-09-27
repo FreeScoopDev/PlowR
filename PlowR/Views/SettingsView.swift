@@ -3,6 +3,7 @@ import SwiftData
 
 struct SettingsView: View {
     @Environment(AuthManager.self) private var authManager
+    @Environment(ActiveRouteStore.self) private var activeRoute
     @Environment(\.modelContext) private var modelContext
     @Environment(\.openURL) private var openURL
 
@@ -118,8 +119,9 @@ struct SettingsView: View {
     }
 
     private func deleteAccount() {
-        // An in-progress route: ends its Live Activity and removes its checkpoint.
-        ActiveRouteStore.shared.end()
+        // Any route: ends it and removes its checkpoint, Live Activities and the
+        // widget's saved route, whether or not one is in progress.
+        activeRoute.eraseAll()
         try? modelContext.delete(model: StopPhoto.self)
         try? modelContext.delete(model: RouteStop.self)
         try? modelContext.delete(model: PropertyZone.self)
@@ -132,7 +134,8 @@ struct SettingsView: View {
         try? modelContext.delete(model: Client.self)
         try? modelContext.delete(model: BusinessProfile.self)
         try? FileManager.default.removeItem(at: ClientWorkOrderStore.fileURL)
-        // The home-screen widget's copy of today's route (route and client names).
+        // The home-screen widget's copy of today's route (route and client names),
+        // including a finished route's summary, which eraseAll() leaves alone.
         WidgetDataStore.clear()
         authManager.signOut()
     }
@@ -161,4 +164,5 @@ struct SettingsView: View {
 #Preview {
     SettingsView()
         .environment(AuthManager())
+        .environment(ActiveRouteStore.shared)
 }

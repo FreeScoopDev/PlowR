@@ -144,5 +144,6 @@ struct RouteRowView: View {
 #Preview {
     RouteListView()
         .environment(AuthManager())
+        .environment(ActiveRouteStore.shared)
         .modelContainer(for: [PlowRoute.self, RouteStop.self, Client.self], inMemory: true)
 }

@@ -1,3 +1,4 @@
+import CoreData
 import Foundation
 import SwiftData
 
@@ -21,6 +22,10 @@ final class ActiveRouteStore {
     struct Checkpoint: Codable, Equatable {
         var routeID: UUID
         var currentStopIndex: Int
+        /// The current stop itself, so a reorder or a removed earlier stop
+        /// (e.g. from another device) can't move the route to a different
+        /// client. nil once every stop is done.
+        var currentStopID: UUID?
         var stopStartedAt: Date
     }
 
@@ -34,7 +39,14 @@ final class ActiveRouteStore {
     }
 
     private(set) var route: PlowRoute?
+    /// Copied at start/restore so ending a route never has to read a model
+    /// that iCloud sync may already have deleted.
+    private var routeID: UUID?
+    private var routeName = ""
     private(set) var currentStopIndex = 0
+    /// Which stop is current, by identity. The index alone can't survive a
+    /// reorder: after one, "the stop at the index" is a different client.
+    private var currentStopID: UUID?
     private(set) var stopStartedAt: Date?
 
     /// True from `start(_:)` until the screen has offered to notify the first
@@ -78,13 +90,24 @@ final class ActiveRouteStore {
     func configure(context: ModelContext) {
         self.context = context
         restore()
+        // A route (or its stops) can be deleted or reordered on another device
+        // while this one is mid-route. Re-check whenever the store changes;
+        // the app also calls validate() when it becomes active.
+        for name in [ModelContext.didSave, Notification.Name.NSPersistentStoreRemoteChange] {
+            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.validate() }
+            }
+        }
     }
 
     /// Begins `route` at its first stop. Replaces any route already active.
     func start(_ route: PlowRoute) {
         if isActive { end() }
         self.route = route
+        routeID = route.id
+        routeName = route.name
         currentStopIndex = 0
+        currentStopID = currentStop?.id
         stopStartedAt = now()
         isFirstStopPromptPending = true
         saveCheckpoint()
@@ -96,10 +119,12 @@ final class ActiveRouteStore {
     /// done" and waits for `end()`, so the recap can still be reviewed.
     @discardableResult
     func completeCurrentStop() -> CompletionResult {
+        validate()
         guard isActive else { return .noActiveRoute }
         guard let stop = currentStop else { return .allStopsAlreadyDone }
         recordVisit(for: stop)
         currentStopIndex += 1
+        currentStopID = currentStop?.id
         stopStartedAt = now()
         saveCheckpoint()
         surfaces.update(progress)
@@ -110,19 +135,48 @@ final class ActiveRouteStore {
     func end() {
         guard isActive else { return }
         surfaces.end(progress)
-        route = nil
-        currentStopIndex = 0
-        stopStartedAt = nil
-        isFirstStopPromptPending = false
+        clearState()
+    }
+
+    /// Ends the route if it no longer exists (deleted here or synced away) and
+    /// re-finds the current stop if the stops were reordered or removed.
+    func validate() {
+        guard let route, let routeID else { return }
+        // Without a context the route can't be looked up; that is "unknown",
+        // not "deleted", so only the model's own flag counts then.
+        let gone = route.isDeleted || (context != nil && fetchRoute(id: routeID) == nil)
+        if gone {
+            surfaces.end(progress)
+            clearState()
+            return
+        }
+        let before = currentStopIndex
+        if let currentStopID, let index = sortedStops.firstIndex(where: { $0.id == currentStopID }) {
+            currentStopIndex = index
+        } else {
+            currentStopIndex = min(currentStopIndex, sortedStops.count)
+            currentStopID = currentStop?.id
+        }
+        if currentStopIndex != before {
+            saveCheckpoint()
+            surfaces.update(progress)
+        }
+    }
+
+    /// For Delete Account & Data: ends any route and removes every trace of it
+    /// (checkpoint, Live Activities, the widget's saved route), active or not.
+    func eraseAll() {
+        end()
         defaults.removeObject(forKey: Self.checkpointKey)
+        surfaces.clear()
     }
 
     // MARK: - Progress for the Live Activity and widget
 
     var progress: RouteProgress {
         RouteProgress(
-            routeID: route?.id ?? UUID(),
-            routeName: route?.name ?? "",
+            routeID: routeID ?? UUID(),
+            routeName: routeName,
             currentStopName: currentStop?.clientName ?? (allStopsDone ? "All stops complete" : ""),
             currentStopAddress: currentStop?.clientAddress ?? "",
             currentStopNumber: min(currentStopIndex + 1, sortedStops.count),
@@ -144,35 +198,60 @@ final class ActiveRouteStore {
         client.lastServiceDate = now()
     }
 
+    private func clearState() {
+        route = nil
+        routeID = nil
+        routeName = ""
+        currentStopIndex = 0
+        currentStopID = nil
+        stopStartedAt = nil
+        isFirstStopPromptPending = false
+        defaults.removeObject(forKey: Self.checkpointKey)
+    }
+
+    private func fetchRoute(id: UUID) -> PlowRoute? {
+        // Match by UUID: a #Predicate on `id` clashes with SwiftData's own id.
+        try? context?.fetch(FetchDescriptor<PlowRoute>()).first { $0.id == id && !$0.isDeleted }
+    }
+
     private func saveCheckpoint() {
-        guard let route, let stopStartedAt else { return }
-        let checkpoint = Checkpoint(routeID: route.id, currentStopIndex: currentStopIndex, stopStartedAt: stopStartedAt)
+        guard let routeID, let stopStartedAt else { return }
+        let checkpoint = Checkpoint(routeID: routeID, currentStopIndex: currentStopIndex,
+                                    currentStopID: currentStopID, stopStartedAt: stopStartedAt)
         if let data = try? JSONEncoder().encode(checkpoint) {
             defaults.set(data, forKey: Self.checkpointKey)
         }
     }
 
     private func restore() {
-        guard let data = defaults.data(forKey: Self.checkpointKey),
-              let checkpoint = try? JSONDecoder().decode(Checkpoint.self, from: data) else {
-            surfaces.endStray(keeping: nil)
+        guard let data = defaults.data(forKey: Self.checkpointKey) else {
+            surfaces.clear()          // Nothing in progress: no Live Activity or "active" widget may linger.
             return
         }
-        let routeID = checkpoint.routeID
-        guard let context,
-              let route = try? context.fetch(FetchDescriptor<PlowRoute>()).first(where: { $0.id == routeID }) else {
-            // The route was deleted (or synced away) while it was active.
+        guard let checkpoint = try? JSONDecoder().decode(Checkpoint.self, from: data),
+              let route = fetchRoute(id: checkpoint.routeID) else {
+            // Unreadable, or the route was deleted while the app was closed.
             defaults.removeObject(forKey: Self.checkpointKey)
-            surfaces.endStray(keeping: nil)
+            surfaces.clear()
             return
         }
         self.route = route
-        // Stops can be removed while the app is closed; never point past the end.
-        currentStopIndex = min(max(0, checkpoint.currentStopIndex), route.sortedStops.count)
+        routeID = route.id
+        routeName = route.name
+        let stops = route.sortedStops
+        if let id = checkpoint.currentStopID, let index = stops.firstIndex(where: { $0.id == id }) {
+            currentStopIndex = index
+        } else if checkpoint.currentStopID == nil, checkpoint.currentStopIndex >= stops.count {
+            currentStopIndex = stops.count              // every stop was already done
+        } else {
+            // The saved stop is gone; stay at the same position, never past the end.
+            currentStopIndex = min(max(0, checkpoint.currentStopIndex), stops.count)
+        }
+        currentStopID = currentStop?.id
         stopStartedAt = checkpoint.stopStartedAt
         isFirstStopPromptPending = false
-        surfaces.endStray(keeping: routeID)
         surfaces.resume(progress)
+        saveCheckpoint()
     }
 }
 
@@ -192,9 +271,11 @@ struct RouteProgress: Equatable {
 protocol RouteSurfaces {
     func start(_ progress: RouteProgress)
     func update(_ progress: RouteProgress)
-    /// Re-attaches to the Live Activity after a relaunch, starting one if it's gone.
+    /// After a relaunch: adopts this route's still-running Live Activity (one
+    /// only), ends every other route Live Activity, and starts one if none is left.
     func resume(_ progress: RouteProgress)
     func end(_ progress: RouteProgress)
-    /// Ends any route Live Activity that doesn't belong to `routeID` (nil: all of them).
-    func endStray(keeping routeID: UUID?)
+    /// No route is active: ends every route Live Activity and clears a widget
+    /// still showing a route as active.
+    func clear()
 }

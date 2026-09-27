@@ -16,7 +16,7 @@ final class FakeRouteSurfaces: RouteSurfaces {
     func update(_ p: RouteProgress) { calls.append("update"); last = p }
     func resume(_ p: RouteProgress) { calls.append("resume"); last = p }
     func end(_ p: RouteProgress) { calls.append("end"); last = p }
-    func endStray(keeping routeID: UUID?) { calls.append(routeID == nil ? "endStray(all)" : "endStray(others)") }
+    func clear() { calls.append("clear") }
 }
 
 @MainActor
@@ -88,7 +88,7 @@ struct ActiveRouteStoreTests {
         #expect(relaunched.currentStopIndex == 1)
         #expect(relaunched.stopStartedAt == stopStarted)
         #expect(!relaunched.isFirstStopPromptPending)
-        #expect(surfaces.calls == ["endStray(others)", "resume"])
+        #expect(surfaces.calls == ["resume"])
     }
 
     @Test func completingAStopRecordsTheVisitAndAdvances() throws {
@@ -144,7 +144,7 @@ struct ActiveRouteStoreTests {
         let relaunched = h.makeStore(surfaces)
         #expect(!relaunched.isActive)
         #expect(h.defaults.data(forKey: ActiveRouteStore.checkpointKey) == nil)
-        #expect(surfaces.calls == ["endStray(all)"])
+        #expect(surfaces.calls == ["clear"])
     }
 
     @Test func aRestoredIndexNeverPointsPastTheStops() throws {
@@ -160,9 +160,13 @@ struct ActiveRouteStoreTests {
         #expect(relaunched.allStopsDone)
     }
 
+    // The custom stop carries the client's ID on purpose: without it, the
+    // visit would go nowhere even if the isCustomStop guard were removed, and
+    // the test could never fail (found in review).
     @Test func customStopsDoNotCountAsClientVisits() throws {
         let h = try Harness(stopCount: 0)
         let custom = RouteStop(order: 0, customName: "Salt depot")
+        custom.clientID = h.client.id
         custom.route = h.route
         h.context.insert(custom)
         try h.context.save()
@@ -170,5 +174,87 @@ struct ActiveRouteStoreTests {
         store.start(h.route)
         #expect(store.completeCurrentStop() == .finishedLastStop)
         #expect(h.client.totalVisits == 0)
+    }
+
+    // Another device reorders the route while this one is closed: the
+    // relaunch must stay on the same client, not the same position.
+    @Test func aRelaunchFollowsTheStopNotThePosition() throws {
+        let h = try Harness(stopCount: 3)
+        // Not configured, so it doesn't observe saves: a closed app can't
+        // notice the reorder and fix its own checkpoint. (A configured store
+        // here did exactly that, and hid a restore that ignored the stop ID.)
+        let store = ActiveRouteStore(defaults: h.defaults, surfaces: FakeRouteSurfaces(), now: { Date() })
+        store.start(h.route)
+        store.completeCurrentStop()
+        let current = try #require(store.currentStop?.id)
+        let stops = h.route.sortedStops
+        stops[1].order = 0; stops[0].order = 1        // swap stops 1 and 2
+        try h.context.save()
+        let relaunched = h.makeStore()
+        #expect(relaunched.currentStop?.id == current)
+        #expect(relaunched.currentStopIndex == 0)
+    }
+
+    // The same while the app is open: the store re-checks when data changes.
+    @Test func aReorderWhileActiveKeepsTheCurrentStop() throws {
+        let h = try Harness(stopCount: 3)
+        let store = h.makeStore()
+        store.start(h.route)
+        store.completeCurrentStop()
+        let current = try #require(store.currentStop?.id)
+        let stops = h.route.sortedStops
+        stops[1].order = 0; stops[0].order = 1
+        store.validate()
+        #expect(store.currentStop?.id == current)
+    }
+
+    // Deleted on another device mid-route: the store must let go, not keep
+    // driving a deleted model.
+    @Test func aRouteDeletedWhileActiveEndsIt() throws {
+        let h = try Harness()
+        let surfaces = FakeRouteSurfaces()
+        let store = h.makeStore(surfaces)
+        store.start(h.route)
+        h.context.delete(h.route)
+        try h.context.save()
+        store.validate()
+        #expect(!store.isActive)
+        #expect(surfaces.calls.last == "end")
+        #expect(surfaces.last?.routeName == "Tuesday")
+        #expect(h.defaults.data(forKey: ActiveRouteStore.checkpointKey) == nil)
+    }
+
+    @Test func anUnreadableCheckpointIsRemoved() throws {
+        let h = try Harness()
+        h.defaults.set(Data("not json".utf8), forKey: ActiveRouteStore.checkpointKey)
+        let surfaces = FakeRouteSurfaces()
+        let store = h.makeStore(surfaces)
+        #expect(!store.isActive)
+        #expect(h.defaults.data(forKey: ActiveRouteStore.checkpointKey) == nil)
+        #expect(surfaces.calls == ["clear"])
+    }
+
+    // Delete Account & Data must remove the checkpoint whether or not this
+    // process has the route active.
+    @Test func eraseAllRemovesACheckpointEvenWithNoActiveRoute() throws {
+        let h = try Harness()
+        h.makeStore().start(h.route)
+        let other = ActiveRouteStore(defaults: h.defaults, surfaces: FakeRouteSurfaces(), now: { Date() })
+        #expect(!other.isActive)                      // never configured
+        other.eraseAll()
+        #expect(h.defaults.data(forKey: ActiveRouteStore.checkpointKey) == nil)
+    }
+
+    // Which Live Activity a relaunch adopts: only a running one for this route.
+    @Test func onlyARunningActivityForThisRouteIsAdopted() {
+        let r = "route-1"
+        #expect(LiveActivityCandidate.toAdopt(from: [
+            .init(id: "ended", routeID: r, isRunning: false),
+            .init(id: "other", routeID: "route-2", isRunning: true),
+            .init(id: "live", routeID: r, isRunning: true),
+        ], routeID: r) == "live")
+        #expect(LiveActivityCandidate.toAdopt(from: [
+            .init(id: "ended", routeID: r, isRunning: false),
+        ], routeID: r) == nil)
     }
 }

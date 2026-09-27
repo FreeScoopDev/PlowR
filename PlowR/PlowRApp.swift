@@ -5,6 +5,7 @@ import UIKit
 @main
 struct PlowRApp: App {
     @State private var authManager = AuthManager()
+    @Environment(\.scenePhase) private var scenePhase
     let container: ModelContainer
 
     init() {
@@ -92,5 +93,9 @@ struct PlowRApp: App {
                 .tint(PlowRColor.accent)
         }
         .modelContainer(container)
+        .onChange(of: scenePhase) { _, phase in
+            // iCloud may have deleted or reordered the route while the app was away.
+            if phase == .active { ActiveRouteStore.shared.validate() }
+        }
     }
 }

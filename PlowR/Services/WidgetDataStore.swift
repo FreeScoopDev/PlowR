@@ -24,6 +24,11 @@ enum WidgetDataStore {
         WidgetCenter.shared.reloadTimelines(ofKind: "PlowRTodayRoute")
     }
 
+    static func read() -> TodayRouteWidgetData? {
+        guard let data = UserDefaults(suiteName: suiteName)?.data(forKey: key) else { return nil }
+        return try? JSONDecoder().decode(TodayRouteWidgetData.self, from: data)
+    }
+
     static func clear() {
         UserDefaults(suiteName: suiteName)?.removeObject(forKey: key)
         WidgetCenter.shared.reloadTimelines(ofKind: "PlowRTodayRoute")

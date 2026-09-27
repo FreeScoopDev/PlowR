@@ -89,13 +89,18 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
 - **A route in progress lives in `ActiveRouteStore`, never in a view.** Only
   `start(_:)` and `end()` begin and finish it; the route screen can disappear or
   be killed without losing the stop. `MainTabView` shows the route screen
-  whenever `isActive`. A checkpoint (route ID, stop index, stop start time) is
-  saved in `UserDefaults` on every change and restored at launch in
-  `PlowRApp.init`, before any view, so intents launched in the background have
-  a route to act on.
+  whenever `isActive`. A checkpoint (route ID, current stop's ID and index, stop
+  start time) is saved in `UserDefaults` on every change and restored at launch
+  in `PlowRApp.init`, before any view. The current stop is tracked by ID, not
+  position, because iCloud can reorder or delete stops (or the whole route)
+  from another device; `validate()` runs on every store save, on remote
+  changes and when the app becomes active, and ends a route that no longer
+  exists. Siri still reaches the route only through `RouteSessionManager`,
+  i.e. only while the route screen is up (bug #3, next).
 - **Delete Account & Data** (Settings) is an App Review 5.1.1(v) requirement.
-  It removes all SwiftData records, the encrypted work-orders file, and
-  Keychain credentials. Any new persistent store must be added to that path or
+  It removes all SwiftData records, the encrypted work-orders file, the route
+  checkpoint and Live Activities (`ActiveRouteStore.eraseAll()`), the widget's
+  saved route, and Keychain credentials. Any new persistent store must be added to that path or
   the deletion is incomplete and review can fail on it.
 
 ## Conventions

@@ -693,7 +693,9 @@ struct ActiveRouteView: View {
     }
 
     private func triggerNotifyPrompt() {
-        guard !isLastStop, !showingNotifyPrompt else { return }
+        // Nothing to notify on the last stop or once every stop is done (Siri
+        // can still call this then; it used to open an empty sheet).
+        guard nextStop != nil, !showingNotifyPrompt else { return }
         if shouldSkipNextNotify {
             advanceToNextStop()
             return

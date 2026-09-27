@@ -5,6 +5,7 @@ import CoreLocation
 
 struct RouteDetailView: View {
     let route: PlowRoute
+    @Environment(ActiveRouteStore.self) private var activeRoute
     @Query private var allClients: [Client]
     @Query private var allServices: [ServiceItem]
 
@@ -96,7 +97,7 @@ struct RouteDetailView: View {
                     .padding(.vertical, 8)
                 }
                 Button {
-                    ActiveRouteStore.shared.start(route)
+                    activeRoute.start(route)
                 } label: {
                     Text("Start Route")
                         .font(.headline)
