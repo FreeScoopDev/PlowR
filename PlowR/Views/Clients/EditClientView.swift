@@ -577,7 +577,7 @@ struct EditClientView: View {
 
             if let sent = client.lastMessageSentAt {
                 let responded = client.clientRespondedAt
-                let awaitingResponse = responded == nil || responded! < sent
+                let awaitingResponse = responded.map { $0 < sent } ?? true
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(awaitingResponse ? "Awaiting Response" : "Client Responded")

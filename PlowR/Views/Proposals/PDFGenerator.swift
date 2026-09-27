@@ -198,7 +198,7 @@ struct PDFGenerator {
             logo.draw(in: CGRect(x: margin, y: leftY, width: lW, height: lH))
             logoOffset = lW + 12
         }
-        let name = profile?.companyName.isEmpty == false ? profile!.companyName : "Service Provider"
+        let name = profile.flatMap { $0.companyName.isEmpty ? nil : $0.companyName } ?? "Service Provider"
         drawText(name, x: margin + logoOffset, y: leftY, width: leftW - logoOffset,
                  font: headingFont(14), color: ink, singleLine: true)
         leftY += 18
@@ -319,12 +319,12 @@ struct PDFGenerator {
         accent: UIColor, colorPDFs: Bool
     ) {
         let allCoords = zones.flatMap { $0.coordinates }
-        guard !allCoords.isEmpty else { return }
+        guard let bounds = CoordinateBounds(allCoords) else { return }
 
-        let rawMinLat = allCoords.map(\.latitude).min()!
-        let rawMaxLat = allCoords.map(\.latitude).max()!
-        let rawMinLon = allCoords.map(\.longitude).min()!
-        let rawMaxLon = allCoords.map(\.longitude).max()!
+        let rawMinLat = bounds.minLatitude
+        let rawMaxLat = bounds.maxLatitude
+        let rawMinLon = bounds.minLongitude
+        let rawMaxLon = bounds.maxLongitude
         let latSpan   = rawMaxLat - rawMinLat
         let lonSpan   = rawMaxLon - rawMinLon
         guard latSpan > 0, lonSpan > 0 else { return }
@@ -662,7 +662,7 @@ struct PDFGenerator {
     ) {
         let footerY = pageH - margin - 14
         drawHRule(x: margin, y: footerY - 10, width: contentW, weight: 0.5, color: ruleLight)
-        let biz = profile?.companyName.isEmpty == false ? "\(profile!.companyName)  ·  " : ""
+        let biz = profile.flatMap { $0.companyName.isEmpty ? nil : "\($0.companyName)  ·  " } ?? ""
         drawText("\(biz)Prepared with PlowR", x: margin, y: footerY, width: contentW,
                  font: bodyFont(8), color: inkLight, alignment: .center)
     }
@@ -806,9 +806,8 @@ struct PDFGenerator {
             map[key] = bucket
         }
 
-        return map.keys.sorted(by: >).prefix(12).compactMap { key in
+        return map.sorted { $0.key > $1.key }.prefix(12).compactMap { key, vals in
             guard let date = keyFmt.date(from: key) else { return nil }
-            let vals = map[key]!
             return SeasonMonthBucket(label: lblFmt.string(from: date),
                                      revenue: vals.rev, outstanding: vals.out)
         }
@@ -839,7 +838,7 @@ struct PDFGenerator {
             logo.draw(in: CGRect(x: margin, y: leftY, width: lW, height: lH))
             logoOffset = lW + 12
         }
-        let name = profile?.companyName.isEmpty == false ? profile!.companyName : "Service Provider"
+        let name = profile.flatMap { $0.companyName.isEmpty ? nil : $0.companyName } ?? "Service Provider"
         drawText(name, x: margin + logoOffset, y: leftY, width: leftW - logoOffset,
                  font: headingFont(15), color: ink, singleLine: true)
         leftY += 20

@@ -32,8 +32,9 @@ actor ElevationService {
             guard let minE = elevations.min(), let maxE = elevations.max(), maxE > minE else { return 0 }
 
             // Calculate horizontal distance between first and last sample
-            let start = CLLocation(latitude: samples.first!.latitude, longitude: samples.first!.longitude)
-            let end = CLLocation(latitude: samples.last!.latitude, longitude: samples.last!.longitude)
+            guard let first = samples.first, let last = samples.last else { return 0 }
+            let start = CLLocation(latitude: first.latitude, longitude: first.longitude)
+            let end = CLLocation(latitude: last.latitude, longitude: last.longitude)
             let distance = start.distance(from: end)
             guard distance > 0 else { return 0 }
 

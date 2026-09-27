@@ -54,7 +54,7 @@ struct PlowRWidgetProvider: TimelineProvider {
     }
     func getTimeline(in context: Context, completion: @escaping (Timeline<RouteEntry>) -> Void) {
         let entry = RouteEntry(date: Date(), data: .read())
-        let refresh = Calendar.current.date(byAdding: .minute, value: 5, to: Date())!
+        let refresh = Date().addingTimeInterval(5 * 60)
         completion(Timeline(entries: [entry], policy: .after(refresh)))
     }
 }

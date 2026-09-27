@@ -21,13 +21,13 @@ enum RouteOptimizer {
             return withGPS.map(\.origIdx) + withoutGPS
         }
 
-        var ordered: [(origIdx: Int, wp: Waypoint)] = [withGPS.removeFirst()]
-        while !withGPS.isEmpty {
-            let last = ordered.last!.wp
-            let nearestIdx = withGPS.indices.min { i, j in
-                haversineKm(last, withGPS[i].wp) < haversineKm(last, withGPS[j].wp)
-            }!
-            ordered.append(withGPS.remove(at: nearestIdx))
+        var current = withGPS.removeFirst()
+        var ordered: [(origIdx: Int, wp: Waypoint)] = [current]
+        while let nearestIdx = withGPS.indices.min(by: { i, j in
+            haversineKm(current.wp, withGPS[i].wp) < haversineKm(current.wp, withGPS[j].wp)
+        }) {
+            current = withGPS.remove(at: nearestIdx)
+            ordered.append(current)
         }
 
         return ordered.map(\.origIdx) + withoutGPS
