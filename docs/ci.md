@@ -18,8 +18,8 @@ because GitHub Pages publishes everything else in `docs/`.
 | | |
 | --- | --- |
 | GitHub Actions `Tests` (`.github/workflows/tests.yml`) | **Removed 2026-09-27.** It ran the same tests on a macOS runner and was replaced by `CI Tests` below. |
-| Xcode Cloud `CI Tests` | **Not created yet.** Setup steps below. |
-| Xcode Cloud `Release Flow` | **Not created yet.** Setup steps below. |
+| Xcode Cloud `CI Tests` | **Created 2026-09-26** (steps 1–13). Green on its first run (#7); failed a deliberate break (#8) as it should. The only test check on PRs. |
+| Xcode Cloud `Release Flow` | **Created 2026-09-26** (steps 14–19). Never started yet. First used for PlowR's first Release Flow build. |
 | Branch protection on `main` | None yet. Open decision. |
 
 Update this table as each row changes.
