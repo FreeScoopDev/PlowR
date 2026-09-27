@@ -73,6 +73,13 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   deleting it** (`default.store.<timestamp>.bak` in Application Support) when
   the schema is incompatible. That is deliberate: a user's data survives a bad
   migration. Don't "simplify" it to a delete.
+- **SwiftLint is report-only until the force-unwraps are gone.** The
+  `SwiftLint (report only)` job in `guards.yml` shows green even when it finds
+  errors (`continue-on-error`). Read its annotations or the "M serious"
+  count, not the tick. There were 35 `force_unwrapping` errors on 2026-09-27.
+  At 0, remove `continue-on-error` so it gates. Never add a `swiftlint:disable`
+  to get there: remove the unwrap. Never run `scripts/lint.sh --fix` without
+  `scripts/test.sh` after it.
 - **Delete Account & Data** (Settings) is an App Review 5.1.1(v) requirement.
   It removes all SwiftData records, the encrypted work-orders file, and
   Keychain credentials. Any new persistent store must be added to that path or
@@ -125,6 +132,7 @@ Run the tests locally before pushing:
 
     scripts/test.sh              # full scheme, same as CI
     scripts/test.sh --unit-only  # faster; NOT what CI runs
+    scripts/lint.sh              # SwiftLint with the exclusions proved in effect
 
 The script is a thin wrapper around Joe's shared toolkit
 (`~/.claude/toolkit/bin/test.sh`), configured by `.claude/app.json`. Its verdict

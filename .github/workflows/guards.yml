@@ -44,3 +44,25 @@ jobs:
           fi
           [ "$found" -eq 0 ] && echo "Service-language guard passed."
           exit "$found"
+
+  swiftlint:
+    name: SwiftLint (report only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # SwiftLint needs a Swift toolchain but not Xcode, so it runs on the 1x
+    # Linux runner. Pinned to the version on Joe's Mac (`swiftlint version`)
+    # so scripts/lint.sh and this job judge the same rules; bump both together.
+    container: ghcr.io/realm/swiftlint:0.65.1
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v5
+
+      # REPORT ONLY while the 35 existing force-unwraps (2026-09-27) are fixed:
+      # the step can fail and the job still shows green. Read the annotations
+      # or the "Found N violations, M serious" line, not the tick. Once M is 0,
+      # remove continue-on-error and "(report only)" from the name, and this
+      # becomes a real gate.
+      - name: SwiftLint
+        continue-on-error: true
+        run: swiftlint lint --reporter github-actions-logging
