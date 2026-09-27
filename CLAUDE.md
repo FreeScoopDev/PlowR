@@ -52,12 +52,13 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
 
 ## Non-obvious things
 
-- **Version and build live in `project.pbxproj`**, project-level build settings.
-  There is no `Versions.xcconfig` yet. `MARKETING_VERSION` is
-  `1.1.0` on the app target. The `PlowRTests` target still carries a stale
-  `MARKETING_VERSION = 1.0`; harmless, but don't read the wrong one. Nothing
-  bumps the build number any more: the Archive-only `agvtool` Run Script that
-  rewrote `project.pbxproj` on every local archive was removed in #2.
+- **`Versions.xcconfig` owns the version numbers** for every target (app,
+  widget, tests). The project's Debug and Release configurations are based on
+  it and no target sets its own values, so bump `MARKETING_VERSION` there and
+  nowhere else. `CURRENT_PROJECT_VERSION` must stay defined (the generated
+  Info.plist reads it), but Xcode Cloud's Release Flow ignores it and numbers
+  builds itself; only a manual archive uses it. Nothing bumps it automatically
+  (the Archive-only `agvtool` script was removed in #2).
 - **`GENERATE_INFOPLIST_FILE = YES`** for the app, *and* there is a
   `PlowR/Info.plist` with hand-written keys (usage strings, `UIBackgroundModes`,
   `NSSupportsLiveActivities`, URL schemes). Both feed the built plist. Before
@@ -82,6 +83,14 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
 
 - **Service language is industry-agnostic** (since 1.1.0): snow, lawn, and
   landscaping share the same screens. Don't reintroduce "plow" into user-facing
+  copy for a generic action. The `Service-language guard` job in
+  `.github/workflows/guards.yml` fails a PR that puts snow-only wording or a fixed
+  snowflake icon on a shared screen (dashboard, active route, routes, Live
+  Activity, intents, widgets, tab bar). Snow-only features go in their own files.
+- **Accent colour is adaptive navy**, defined once in `PlowRApp.swift` and
+  applied with `.tint()`. There is no `DesignSystem.swift` yet; if a second
+  shared token appears, that's the moment to create one rather than a third
+  literal.
   copy for a generic action.
 - **Colours come from `PlowR/DesignSystem.swift`** (`PlowRColor`). The accent is
   adaptive navy (`PlowRColor.accent`, applied once with `.tint()` in

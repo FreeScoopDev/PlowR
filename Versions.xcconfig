@@ -1,0 +1,20 @@
+// Version numbers for every PlowR target (app, widget, tests). The project's
+// Debug and Release configurations are based on this file, and no target sets
+// its own values, so bump them here and nowhere else.
+//
+// MARKETING_VERSION is the user-facing version ("1.1.0" in the App Store).
+//
+// CURRENT_PROJECT_VERSION is the build number. It must stay defined: the
+// generated Info.plist resolves CFBundleVersion from it.
+//
+// Who owns the build number:
+//   - Xcode Cloud Release Flow (docs/ci.md) IGNORES this value and
+//     auto-increments one counter shared by every Xcode Cloud workflow. Its
+//     number is the one that ships; read it off the finished build.
+//   - A manual Xcode archive uses THIS value verbatim. That should be rare.
+//     If App Store Connect refuses it as already used, raise it above the
+//     latest build there.
+//   - Nothing bumps it automatically (the Archive-only agvtool script that
+//     did was removed in #2).
+MARKETING_VERSION = 1.1.0
+CURRENT_PROJECT_VERSION = 1
