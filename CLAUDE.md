@@ -139,48 +139,31 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
 
 ## Process
 
-**Claude does the git work; a change that passes the checks merges itself;
-Joe decides what ships.** Auto-merge since 2026-09-27, at Joe's request, as in
-Wockett. By the time Joe clicked Merge, the three required checks had already
-passed, and he was not reviewing code. `main` is not what users get: a build
-reaches them only through Joe's Release Flow build, TestFlight and Submit.
+@~/.claude/toolkit/PROCESS.md
 
-Claude works only in its own
-worktree (`git worktree add ~/Desktop/Apps/PlowR-claude -b <branch>
-origin/main`), never in `~/Desktop/Apps/PlowR`: git there is read-only with
-`--no-optional-locks`, and no `switch`, `pull`, `merge` or `commit`. If Joe's
-folder needs updating, give Joe the command.
+The process is shared by every app and lives in the toolkit
+(`FreeScoopDev/app-toolkit`, checked out at `~/.claude/toolkit`): every
+change, auto-merge, `changelog.d/`, the release PR and Joe's release steps,
+git rules, verifying claims and working with Joe. **If you cannot see its
+"Every change: no Joe step" section, the import did not load: read
+`~/.claude/toolkit/PROCESS.md` now, before any git work.** Change the process
+there, not here.
 
-1. `git fetch`, then branch from `origin/main`, never a local `main`. One
-   change per branch, prefixed `feat/`, `fix/`, `chore/`, `docs/` or `test/`.
-   Never stack a PR on another branch.
-2. Make the change with its `changelog.d/` entry and run the tests.
-3. Merge `origin/main` in, push the branch, open the PR. The description says
-   how each claim is known (see Verifying claims).
-4. Queue the merge with `gh pr merge <N> --auto --squash` and give Joe the
-   link. GitHub squash-merges once the required checks are green. A red
-   check or a conflict blocks it, and Claude fixes it (for a conflict: merge
-   `origin/main` in, run the tests, push). If Joe says "hold #N", run
-   `gh pr merge <N> --disable-auto`, and that PR waits for his Merge. The PR
-   that cuts a version is never auto-merged: merging it is Joe's decision to
-   ship. Claude never pushes to `main`, never force-pushes, and never merges
-   past a failing or missing check. Auto-merge is a repo setting (Settings →
-   General → Allow auto-merge, on since 2026-09-27); if `--auto` is refused,
-   check it first.
+PlowR's specifics:
 
-`main` is protected by a ruleset (since 2026-09-27): PR only, squash merge,
-and `PlowR | CI Tests | Test - iOS`, `Service-language guard` and `SwiftLint`
-must pass.
-A PR that Xcode Cloud never picked up (no `PlowR | CI Tests` status at all)
-can't merge. Re-fire it with `gh pr close <N> && gh pr reopen <N>`.
-
-CI is Xcode Cloud: `CI Tests` runs the `PlowR` scheme's tests on every PR to
-`main` and posts `PlowR | CI Tests | Test - iOS`. GitHub Actions runs only
-the cheap Linux guards in `.github/workflows/guards.yml` (service-language
-guard, SwiftLint); nothing there builds the app. `docs/ci.md` has the workflow settings, their current
-status and the setup steps. GitHub Pages deploys
-`docs/` to getplowr.app on every push to `main`; `docs/_config.yml` keeps
-`ci.md` off the site.
+- **Worktrees**: Claude's is `~/Desktop/Apps/PlowR-claude`; Joe's folder is
+  `~/Desktop/Apps/PlowR`.
+- **Required checks** on `main` (`.claude/app.json` → `requiredChecks`, ruleset
+  since 2026-09-27): `PlowR | CI Tests | Test - iOS`, `Service-language guard`,
+  `SwiftLint`. `~/.claude/toolkit/bin/repo-check.sh .` confirms GitHub still
+  matches.
+- **CI** is Xcode Cloud: `CI Tests` runs the `PlowR` scheme's tests on every PR
+  to `main`. GitHub Actions runs only the Linux guards in
+  `.github/workflows/guards.yml`; nothing there builds the app. `docs/ci.md`
+  has the workflow settings and setup steps.
+- **GitHub Pages** deploys `docs/` to getplowr.app on every push to `main`;
+  `docs/_config.yml` keeps `ci.md` off the site.
+- **Tracking** lives in Notion (the PlowR app page in Joe's workspace).
 
 Run the tests locally before pushing:
 
@@ -188,36 +171,6 @@ Run the tests locally before pushing:
     scripts/test.sh --unit-only  # faster; NOT what CI runs
     scripts/lint.sh              # SwiftLint with the exclusions proved in effect
 
-The script is a thin wrapper around Joe's shared toolkit
-(`~/.claude/toolkit/bin/test.sh`), configured by `.claude/app.json`. Its verdict
-needs the exit code, the literal `** TEST SUCCEEDED **` and the result bundle
-together, counts tests from the bundle, and treats a run of 0 tests as a
-failure, because `-only-testing:` with a Swift Testing function name can match
-nothing and still print TEST SUCCEEDED. Never pipe `xcodebuild` into `tail`
-when the exit code matters. CI does not use the script, so a clone without the
-toolkit still builds and passes CI.
-
-Tracking lives in Notion (the PlowR app page in Joe's workspace).
-
-## Verifying claims
-
-State how each claim is known. They are not equivalent:
-
-| Level | Worth |
-| --- | --- |
-| Read the source | A hypothesis. Say so. |
-| Inspected the built artifact or live state | Real, for what ships or what is |
-| Ran it | Real, for behaviour |
-| Broke it on purpose and watched it fail | The only proof a guard guards anything |
-
-An assertion that cannot fail is worse than none, because it is counted as
-coverage. Before claiming a test guards something, break the thing and watch
-it go red. Before reporting a finding, try to disprove it.
-
-## Working with Joe
-
-- Give the reasoning alongside the instruction.
-- Anything Joe has to do is numbered steps: where to click, what to type,
-  what Joe should see, and what to do if it doesn't appear.
-- If a risk can be removed on Claude's side, remove it rather than handing
-  Joe a rule to remember.
+These are thin wrappers around the toolkit's `bin/`, configured by
+`.claude/app.json`. CI does not use them, so a clone without the toolkit still
+builds and passes CI.
