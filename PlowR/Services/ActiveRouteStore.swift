@@ -52,7 +52,7 @@ final class ActiveRouteStore {
     private(set) var currentStopIndex = 0
     /// Which stop is current, by identity. The index alone can't survive a
     /// reorder: after one, "the stop at the index" is a different client.
-    private var currentStopID: UUID?
+    private(set) var currentStopID: UUID?
     private(set) var stopStartedAt: Date?
 
     /// True from `start(_:)` until the screen has offered to notify the first
@@ -63,14 +63,17 @@ final class ActiveRouteStore {
     private let defaults: UserDefaults
     private let surfaces: RouteSurfaces
     private let now: () -> Date
+    private let fetchRoutes: (ModelContext) throws -> [PlowRoute]
     static let checkpointKey = "activeRouteCheckpoint"
 
     init(defaults: UserDefaults = .standard,
          surfaces: RouteSurfaces = SystemRouteSurfaces(),
-         now: @escaping () -> Date = Date.init) {
+         now: @escaping () -> Date = Date.init,
+         fetchRoutes: @escaping (ModelContext) throws -> [PlowRoute] = { try $0.fetch(FetchDescriptor<PlowRoute>()) }) {
         self.defaults = defaults
         self.surfaces = surfaces
         self.now = now
+        self.fetchRoutes = fetchRoutes
     }
 
     // MARK: - Derived
@@ -125,15 +128,16 @@ final class ActiveRouteStore {
     /// stop. On the last stop, moves past it: the route is then "all stops
     /// done" and waits for `end()`, so the recap can still be reviewed.
     ///
-    /// Pass `expecting:` the stop the user was looking at. If sync has changed
-    /// the current stop since, nothing is recorded (`.stopChanged`), so a visit
-    /// can never be credited to a client who wasn't visited.
+    /// `expecting:` is the stop the caller means (the one on screen, or
+    /// `currentStopID` for Siri) and is required, so no caller can skip it. If
+    /// sync has changed the current stop since, nothing is recorded
+    /// (`.stopChanged`): a visit is never credited to a client who wasn't visited.
     @discardableResult
-    func completeCurrentStop(expecting stopID: UUID? = nil) -> CompletionResult {
+    func completeCurrentStop(expecting stopID: UUID) -> CompletionResult {
         validate()
         guard isActive else { return .noActiveRoute }
         guard let stop = currentStop else { return .allStopsAlreadyDone }
-        if let stopID, stopID != stop.id { return .stopChanged }
+        guard stopID == stop.id else { return .stopChanged }
         recordVisit(for: stop)
         currentStopIndex += 1
         currentStopID = currentStop?.id
@@ -160,29 +164,43 @@ final class ActiveRouteStore {
     /// re-finds the current stop if the stops were reordered or removed.
     /// Runs on every store save, on remote changes and when the app is active.
     func validate() {
-        guard let route, let routeID else { return }
+        guard let route, let routeID else {
+            // A launch that couldn't read the store left the route unrestored;
+            // try again now (this runs on saves and whenever the app is active).
+            if context != nil, defaults.data(forKey: Self.checkpointKey) != nil { restore() }
+            return
+        }
         if route.isDeleted || lookup(routeID).isMissing {
             // Never read the deleted models: end with what was last shown.
             surfaces.end(lastProgress ?? progress)
             clearState()
             return
         }
-        let beforeID = currentStopID
         let beforeProgress = lastProgress
-        if let beforeID, let index = sortedStops.firstIndex(where: { $0.id == beforeID }) {
-            currentStopIndex = index
-        } else {
-            currentStopIndex = min(currentStopIndex, sortedStops.count)
-            currentStopID = currentStop?.id
-        }
-        // A different client is now current: its timer starts now, not when
-        // the deleted stop's did.
-        if currentStopID != beforeID { stopStartedAt = now() }
-        if currentStopID != beforeID || progress != beforeProgress {
+        let stopChanged = reconcile(stopID: currentStopID, index: currentStopIndex)
+        if stopChanged { stopStartedAt = now() }
+        if stopChanged || progress != beforeProgress {
             saveCheckpoint()
             lastProgress = progress
             surfaces.update(progress)
         }
+    }
+
+    /// The one rule for "where are we now", shared by `validate()` and
+    /// `restore()` so the two can't drift apart (they did once: a relaunch
+    /// handed a deleted stop's timer to the next client). Finds the stop by
+    /// identity; if it's gone, stays at the same position, never past the end.
+    /// Returns true if a different stop (or none) is now current, in which case
+    /// the caller must start a fresh timer.
+    private func reconcile(stopID: UUID?, index: Int) -> Bool {
+        let stops = sortedStops
+        if let stopID, let found = stops.firstIndex(where: { $0.id == stopID }) {
+            currentStopIndex = found
+        } else {
+            currentStopIndex = min(max(0, index), stops.count)
+        }
+        currentStopID = currentStop?.id
+        return currentStopID != stopID
     }
 
     /// For Delete Account & Data: ends any route and removes every trace of it
@@ -237,7 +255,7 @@ final class ActiveRouteStore {
     private func lookup(_ id: UUID) -> Lookup {
         guard let context else { return .unknown }
         // Match by UUID: a #Predicate on `id` clashes with SwiftData's own id.
-        guard let routes = try? context.fetch(FetchDescriptor<PlowRoute>()) else { return .unknown }
+        guard let routes = try? fetchRoutes(context) else { return .unknown }
         if let route = routes.first(where: { $0.id == id && !$0.isDeleted }) { return .found(route) }
         return .missing
     }
@@ -271,24 +289,16 @@ final class ActiveRouteStore {
             surfaces.clear()
             return
         case .unknown:
-            // Can't tell (store not readable yet): keep the checkpoint for the
-            // next launch and leave the Live Activity alone.
+            // Can't tell (store not readable yet). Keep the checkpoint;
+            // validate() retries on the next save or return to the app.
             return
         }
         self.route = route
         routeID = route.id
         routeName = route.name
-        let stops = route.sortedStops
-        if let id = checkpoint.currentStopID, let index = stops.firstIndex(where: { $0.id == id }) {
-            currentStopIndex = index
-        } else if checkpoint.currentStopID == nil, checkpoint.currentStopIndex >= stops.count {
-            currentStopIndex = stops.count              // every stop was already done
-        } else {
-            // The saved stop is gone; stay at the same position, never past the end.
-            currentStopIndex = min(max(0, checkpoint.currentStopIndex), stops.count)
-        }
-        currentStopID = currentStop?.id
-        stopStartedAt = checkpoint.stopStartedAt
+        let stopChanged = reconcile(stopID: checkpoint.currentStopID, index: checkpoint.currentStopIndex)
+        // The saved timer belongs to the saved stop only.
+        stopStartedAt = stopChanged ? now() : checkpoint.stopStartedAt
         isFirstStopPromptPending = false
         lastProgress = progress
         surfaces.resume(progress)

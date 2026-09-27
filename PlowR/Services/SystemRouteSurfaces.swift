@@ -9,6 +9,10 @@ final class SystemRouteSurfaces: RouteSurfaces {
 
     func start(_ progress: RouteProgress) {
         writeWidget(progress, isActive: true)
+        // One route Live Activity at a time: end any left from an earlier route.
+        for stray in Activity<PlowRRouteAttributes>.activities {
+            Task { await stray.end(nil, dismissalPolicy: .immediate) }
+        }
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         activity = try? Activity<PlowRRouteAttributes>.request(
             attributes: PlowRRouteAttributes(routeID: progress.routeID.uuidString, routeName: progress.routeName),

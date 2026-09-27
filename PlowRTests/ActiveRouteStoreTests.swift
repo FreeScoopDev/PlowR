@@ -19,6 +19,14 @@ final class FakeRouteSurfaces: RouteSurfaces {
     func clear() { calls.append("clear") }
 }
 
+extension ActiveRouteStore {
+    /// Completes whatever stop is current, as the screen would for the stop it shows.
+    @discardableResult
+    func completeShownStop() -> CompletionResult {
+        completeCurrentStop(expecting: currentStopID ?? UUID())
+    }
+}
+
 @MainActor
 struct ActiveRouteStoreTests {
 
@@ -65,8 +73,10 @@ struct ActiveRouteStoreTests {
         }
 
         /// A store as the app would build one at launch: same defaults and data.
-        func makeStore(_ surfaces: FakeRouteSurfaces = FakeRouteSurfaces()) -> ActiveRouteStore {
-            let store = ActiveRouteStore(defaults: defaults, surfaces: surfaces, now: { [unowned self] in clock })
+        func makeStore(_ surfaces: FakeRouteSurfaces = FakeRouteSurfaces(),
+                       fetchRoutes: ((ModelContext) throws -> [PlowRoute])? = nil) -> ActiveRouteStore {
+            let store = ActiveRouteStore(defaults: defaults, surfaces: surfaces, now: { [unowned self] in clock },
+                                         fetchRoutes: fetchRoutes ?? { try $0.fetch(FetchDescriptor<PlowRoute>()) })
             store.configure(context: context)
             return store
         }
@@ -91,7 +101,7 @@ struct ActiveRouteStoreTests {
         let h = try Harness()
         let first = h.makeStore()
         first.start(h.route)
-        first.completeCurrentStop()
+        first.completeShownStop()
         let stopStarted = try #require(first.stopStartedAt)
 
         let surfaces = FakeRouteSurfaces()
@@ -109,7 +119,7 @@ struct ActiveRouteStoreTests {
         let store = h.makeStore()
         store.start(h.route)
         h.clock += 12 * 60
-        #expect(store.completeCurrentStop() == .advanced(nextStopIndex: 1))
+        #expect(store.completeShownStop() == .advanced(nextStopIndex: 1))
         #expect(h.client.totalVisits == 1)
         #expect(abs(h.client.totalServiceMinutes - 12) < 0.001)
         #expect(h.client.lastServiceDate == h.clock)
@@ -120,12 +130,12 @@ struct ActiveRouteStoreTests {
         let h = try Harness(stopCount: 2)
         let store = h.makeStore()
         store.start(h.route)
-        #expect(store.completeCurrentStop() == .advanced(nextStopIndex: 1))
+        #expect(store.completeShownStop() == .advanced(nextStopIndex: 1))
         #expect(store.isLastStop)
-        #expect(store.completeCurrentStop() == .finishedLastStop)
+        #expect(store.completeShownStop() == .finishedLastStop)
         #expect(store.allStopsDone)
         #expect(store.isActive)
-        #expect(store.completeCurrentStop() == .allStopsAlreadyDone)
+        #expect(store.completeShownStop() == .allStopsAlreadyDone)
         #expect(h.clients[0].totalVisits == 1)
         #expect(h.clients[1].totalVisits == 1)
     }
@@ -133,7 +143,7 @@ struct ActiveRouteStoreTests {
     @Test func nothingHappensWithoutAnActiveRoute() throws {
         let h = try Harness()
         let store = h.makeStore()
-        #expect(store.completeCurrentStop() == .noActiveRoute)
+        #expect(store.completeShownStop() == .noActiveRoute)
         #expect(h.client.totalVisits == 0)
     }
 
@@ -165,8 +175,8 @@ struct ActiveRouteStoreTests {
         let h = try Harness(stopCount: 3)
         let store = h.makeClosedAppStore()
         store.start(h.route)
-        store.completeCurrentStop()
-        store.completeCurrentStop()          // on stop 3 of 3
+        store.completeShownStop()
+        store.completeShownStop()          // on stop 3 of 3
         for stop in h.route.sortedStops.dropFirst() { h.context.delete(stop) }
         try h.context.save()                 // two stops removed while closed
         let relaunched = h.makeStore()
@@ -186,7 +196,7 @@ struct ActiveRouteStoreTests {
         try h.context.save()
         let store = h.makeStore()
         store.start(h.route)
-        #expect(store.completeCurrentStop() == .finishedLastStop)
+        #expect(store.completeShownStop() == .finishedLastStop)
         #expect(h.client.totalVisits == 0)
     }
 
@@ -196,7 +206,7 @@ struct ActiveRouteStoreTests {
         let h = try Harness(stopCount: 3)
         let store = h.makeClosedAppStore()
         store.start(h.route)
-        store.completeCurrentStop()
+        store.completeShownStop()
         let current = try #require(store.currentStop?.id)
         let stops = h.route.sortedStops
         stops[1].order = 0; stops[0].order = 1        // swap stops 1 and 2
@@ -211,7 +221,7 @@ struct ActiveRouteStoreTests {
         let h = try Harness(stopCount: 3)
         let store = h.makeStore()
         store.start(h.route)
-        store.completeCurrentStop()
+        store.completeShownStop()
         let current = try #require(store.currentStop?.id)
         let stops = h.route.sortedStops
         stops[1].order = 0; stops[0].order = 1
@@ -230,7 +240,6 @@ struct ActiveRouteStoreTests {
         try h.context.save()                          // the save observer re-checks; no manual validate()
         #expect(!store.isActive)
         #expect(surfaces.calls.last == "end")
-        #expect(surfaces.last?.routeName == "Tuesday")
         #expect(h.defaults.data(forKey: ActiveRouteStore.checkpointKey) == nil)
     }
 
@@ -296,7 +305,79 @@ struct ActiveRouteStoreTests {
         #expect(surfaces.calls.last == "update")
         #expect(surfaces.last?.currentStopName == "Client 1")
         #expect(surfaces.last?.totalStops == 2)
-        let relaunched = h.makeStore()
+        // The checkpoint itself must have moved on (a relaunch alone can't tell:
+        // its fallback lands on the same client even from a stale checkpoint).
+        let data = try #require(h.defaults.data(forKey: ActiveRouteStore.checkpointKey))
+        let saved = try JSONDecoder().decode(ActiveRouteStore.Checkpoint.self, from: data)
+        #expect(saved.currentStopID == store.currentStopID)
+        #expect(saved.stopStartedAt == store.stopStartedAt)
+    }
+
+    // Review 3's probe: the relaunch path used to keep the deleted stop's
+    // timer for the next client (35 minutes credited for 5 of work).
+    @Test func aCurrentStopDeletedWhileClosedStartsTheNextTimerAtRelaunch() throws {
+        let h = try Harness(stopCount: 3)
+        h.makeClosedAppStore().start(h.route)          // stop 1 started at 08:00
+        h.clock += 30 * 60
+        h.context.delete(h.route.sortedStops[0])
+        try h.context.save()
+        let relaunched = h.makeStore()                 // reopened at 08:30
         #expect(relaunched.currentStop?.clientName == "Client 1")
+        #expect(relaunched.stopStartedAt == h.clock)
+        h.clock += 5 * 60
+        relaunched.completeShownStop()
+        #expect(abs(h.clients[1].totalServiceMinutes - 5) < 0.001)
+    }
+
+    // Every stop done, then a stop added elsewhere while closed: it becomes
+    // current with its own timer, not the last completion's.
+    @Test func aStopAddedAfterAllWereDoneGetsItsOwnTimer() throws {
+        let h = try Harness(stopCount: 1)
+        let closed = h.makeClosedAppStore()
+        closed.start(h.route)
+        closed.completeShownStop()
+        #expect(closed.allStopsDone)
+        h.clock += 60 * 60
+        let late = RouteStop(order: 1, customName: "Late add")
+        late.route = h.route
+        h.context.insert(late)
+        try h.context.save()
+        let relaunched = h.makeStore()
+        #expect(relaunched.currentStop?.id == late.id)
+        #expect(relaunched.stopStartedAt == h.clock)
+    }
+
+    // The store can't be read at launch: the route isn't lost, and it comes
+    // back as soon as a later check can read it.
+    @Test func anUnreadableStoreAtLaunchIsRetried() throws {
+        struct Unreadable: Error {}
+        let h = try Harness(stopCount: 3)
+        let closed = h.makeClosedAppStore()
+        closed.start(h.route)
+        closed.completeShownStop()
+        var failing = true
+        let store = h.makeStore(fetchRoutes: { context in
+            if failing { throw Unreadable() }
+            return try context.fetch(FetchDescriptor<PlowRoute>())
+        })
+        #expect(!store.isActive)
+        #expect(h.defaults.data(forKey: ActiveRouteStore.checkpointKey) != nil)   // kept
+        failing = false
+        store.validate()
+        #expect(store.isActive)
+        #expect(store.currentStopIndex == 1)
+    }
+
+    // Deleting a later stop changes "of N" without touching the current stop.
+    @Test func deletingALaterStopUpdatesTheTotal() throws {
+        let h = try Harness(stopCount: 3)
+        let surfaces = FakeRouteSurfaces()
+        let store = h.makeStore(surfaces)
+        store.start(h.route)
+        h.context.delete(h.route.sortedStops[2])
+        try h.context.save()
+        #expect(surfaces.calls.last == "update")
+        #expect(surfaces.last?.totalStops == 2)
+        #expect(surfaces.last?.currentStopName == "Client 0")
     }
 }

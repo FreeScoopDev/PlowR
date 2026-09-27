@@ -32,6 +32,10 @@ struct ActiveRouteView: View {
     /// completes that stop only; if sync has changed it meanwhile, nothing is
     /// recorded (ActiveRouteStore.CompletionResult.stopChanged).
     @State private var promptStopID: UUID?
+    /// The client the notify prompt opened for, pinned so a sync change can't
+    /// swap the recipient while the sheet is up.
+    @State private var promptNextStop: RouteStop?
+    @State private var showingRouteChangedAlert = false
 
     @AppStorage("completedRoutesCount") private var completedRoutesCount = 0
 
@@ -147,7 +151,7 @@ struct ActiveRouteView: View {
             }
         }
         .sheet(isPresented: $showingNotifyPrompt) {
-            if let next = nextStop {
+            if let next = promptNextStop {
                 NotifyPromptView(stop: next, locationManager: locationManager, onAdvance: { advance(completing: promptStopID) })
             }
         }
@@ -193,6 +197,11 @@ struct ActiveRouteView: View {
                     requestReview()
                 }
             }
+        }
+        .alert("Route Changed", isPresented: $showingRouteChangedAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("This route was changed on another device, so that stop wasn't marked complete. Check the current stop and try again.")
         }
         .alert("Location Access Required", isPresented: $showingLocationDeniedAlert) {
             Button("Open Settings") {
@@ -508,9 +517,15 @@ struct ActiveRouteView: View {
 
             if isLastStop {
                 Button {
-                    hapticSuccess()
-                    store.completeCurrentStop(expecting: stop.id)
-                    showingRouteRecap = true
+                    switch store.completeCurrentStop(expecting: stop.id) {
+                    case .finishedLastStop, .allStopsAlreadyDone:
+                        hapticSuccess()
+                        showingRouteRecap = true
+                    case .stopChanged:
+                        showingRouteChangedAlert = true
+                    case .advanced, .noActiveRoute:
+                        break   // a stop was added after this one; its card shows next
+                    }
                 } label: {
                     Label("Complete Route", systemImage: "checkmark.circle.fill")
                         .font(.headline)
@@ -709,14 +724,19 @@ struct ActiveRouteView: View {
 
     /// Siri's "Notify next client" and the Complete button both land here.
     private func openNotifyPrompt() {
-        guard nextStop != nil, !showingNotifyPrompt else { return }
+        guard let next = nextStop, !showingNotifyPrompt else { return }
         promptStopID = currentStop?.id
+        promptNextStop = next
         haptic(.light)
         showingNotifyPrompt = true
     }
 
     private func advance(completing stopID: UUID?) {
-        guard let stopID, store.completeCurrentStop(expecting: stopID) != .stopChanged else { return }
+        guard let stopID else { return }
+        if store.completeCurrentStop(expecting: stopID) == .stopChanged {
+            showingRouteChangedAlert = true
+            return
+        }
         haptic()
         locationManager.clearAllGeofences()
         if let stop = currentStop { locationManager.startMonitoringStop(stop) }
