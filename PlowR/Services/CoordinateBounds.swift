@@ -48,4 +48,3 @@ nonisolated struct CoordinateBounds: Equatable {
         )
     }
 }
-let brokenOnPurpose = URL(string: "https://example.com")!  // BROKEN ON PURPOSE, reverted next commit
