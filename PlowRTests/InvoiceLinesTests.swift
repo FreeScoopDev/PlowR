@@ -14,50 +14,79 @@ struct InvoiceLinesTests {
 
     private typealias Zone = InvoiceLines.Zone
 
-    private func lines(_ zones: [Zone], rate: Double = 0.08, unitType: String = "perSqFt",
-                       price: Double? = nil) -> [InvoiceLines.Line] {
-        let whole = InvoiceLines.propertyPrice(unitType: unitType, pricePerUnit: rate, zones: zones)
-        return InvoiceLines.lines(serviceName: "Mowing", unitType: unitType, pricePerUnit: rate,
-                                  zones: zones, price: price ?? whole)
+    private let twoEqualZones = [Zone(label: "Driveway", areaSquareFeet: 1_000),
+                                 Zone(label: "Walkway", areaSquareFeet: 1_000)]
+
+    /// As Record Services saves: from the price field's text (nil if never shown).
+    private func recorded(_ zones: [Zone], rate: Double = 0.08, unitType: String = "perSqFt",
+                          typed: String?) -> [InvoiceLines.Line] {
+        InvoiceLines.lines(serviceName: "Mowing", unitType: unitType, pricePerUnit: rate,
+                           zones: zones, typedPrice: typed)
+    }
+
+    private func priced(_ zones: [Zone], price: Double) -> [InvoiceLines.Line] {
+        InvoiceLines.lines(serviceName: "Mowing", unitType: "perSqFt", pricePerUnit: 0.08,
+                           zones: zones, price: price)
     }
 
     private func total(_ lines: [InvoiceLines.Line]) -> Double {
         lines.reduce(0) { $0 + $1.lineTotal }
     }
 
-    @Test func propertyPriceIsRateTimesTotalArea() {
+    @Test func propertyPriceIsRateTimesTotalAreaToTheCent() {
         let zones = [Zone(label: "Front", areaSquareFeet: 1_000), Zone(label: "Back", areaSquareFeet: 500)]
-        #expect(abs(InvoiceLines.propertyPrice(unitType: "perSqFt", pricePerUnit: 0.08, zones: zones) - 120) < 1e-9)
+        #expect(InvoiceLines.propertyPrice(unitType: "perSqFt", pricePerUnit: 0.08, zones: zones) == 120)
         #expect(InvoiceLines.propertyPrice(unitType: "flat", pricePerUnit: 45, zones: zones) == 45)
         #expect(InvoiceLines.propertyPrice(unitType: "perSqFt", pricePerUnit: 0.08, zones: []) == 0.08)
     }
 
     // The overcharge: 2 × 1,000 sq ft at $0.08 is $160 in total, not $160 per zone.
     @Test func twoZonesShareThePropertyPriceInsteadOfEachChargingIt() {
-        let result = lines([Zone(label: "Driveway", areaSquareFeet: 1_000),
-                            Zone(label: "Walkway", areaSquareFeet: 1_000)])
+        let result = recorded(twoEqualZones, typed: nil)
         #expect(result.map(\.lineTotal) == [80, 80])
         #expect(result.map(\.zoneLabel) == ["Driveway", "Walkway"])
-        #expect(abs(total(result) - 160) < 1e-9)
+        #expect(total(result) == 160)
+    }
+
+    // The field shows the price with two decimals. Billing must land on the same
+    // cent. $0.015 × 2,511 sq ft is 37.665: shown as 37.66 but billed 37.67 when
+    // the two sides rounded differently (a stop reopened from the recap, where
+    // the field shows the default without being typed in).
+    @Test func thePriceShownIsThePriceBilled() {
+        let zones = [Zone(label: "Front", areaSquareFeet: 1_255.5), Zone(label: "Back", areaSquareFeet: 1_255.5)]
+        let shown = String(format: "%.2f",
+                           InvoiceLines.propertyPrice(unitType: "perSqFt", pricePerUnit: 0.015, zones: zones))
+        let untouched = recorded(zones, rate: 0.015, typed: nil)
+        let retyped = recorded(zones, rate: 0.015, typed: shown)
+        #expect(String(format: "%.2f", total(untouched)) == shown)
+        #expect(String(format: "%.2f", total(retyped)) == shown)
+    }
+
+    // An untouched, cleared or unreadable field bills the whole-property default,
+    // never the per-square-foot rate: 2 × $0.04 was the old fallback's bill.
+    @Test func anEmptyOrUnreadablePriceBillsTheDefault() {
+        for typed in [nil, "", "   ", "abc", "12..5", "nan", "inf", "-inf", "1e20"] as [String?] {
+            #expect(recorded(twoEqualZones, typed: typed).map(\.lineTotal) == [80, 80], "typed: \(typed ?? "nil")")
+        }
     }
 
     @Test func aTypedPriceIsSplitInProportionToArea() {
-        let result = lines([Zone(label: "Front", areaSquareFeet: 1_000),
-                            Zone(label: "Back", areaSquareFeet: 500)], price: 90)
-        #expect(result.map(\.lineTotal) == [60, 30])
+        let uneven = [Zone(label: "Front", areaSquareFeet: 1_000), Zone(label: "Back", areaSquareFeet: 500)]
+        #expect(recorded(uneven, typed: "90").map(\.lineTotal) == [60, 30])
+        #expect(recorded(uneven, typed: " 90.004 ").map(\.lineTotal) == [60, 30])
     }
 
     // What the PDF prints, row by row, must add up to what it prints as the total.
     @Test func sharesAlwaysAddUpToThePriceToTheCent() {
-        let thirds = lines([Zone(label: "A", areaSquareFeet: 1),
-                            Zone(label: "B", areaSquareFeet: 1),
-                            Zone(label: "C", areaSquareFeet: 1)], price: 100)
+        let thirds = priced([Zone(label: "A", areaSquareFeet: 1),
+                             Zone(label: "B", areaSquareFeet: 1),
+                             Zone(label: "C", areaSquareFeet: 1)], price: 100)
         #expect(thirds.map(\.lineTotal) == [33.34, 33.33, 33.33])
-        #expect(abs(total(thirds) - 100) < 1e-9)
+        #expect(total(thirds) == 100)
 
-        let uneven = lines([Zone(label: "A", areaSquareFeet: 1_234.5),
-                            Zone(label: "B", areaSquareFeet: 87.25),
-                            Zone(label: "C", areaSquareFeet: 402)], price: 137.99)
+        let uneven = priced([Zone(label: "A", areaSquareFeet: 1_234.5),
+                             Zone(label: "B", areaSquareFeet: 87.25),
+                             Zone(label: "C", areaSquareFeet: 402)], price: 137.99)
         #expect(abs(total(uneven) - 137.99) < 1e-9)
         for line in uneven {
             let exact = 137.99 * line.quantity / (1_234.5 + 87.25 + 402)
@@ -65,34 +94,44 @@ struct InvoiceLinesTests {
         }
     }
 
+    // Double(_:) accepts "inf", "nan" and 1e20; converting those to whole cents
+    // would stop the app on Save Invoice.
+    @Test func absurdAmountsNeverCrash() {
+        #expect(InvoiceLines.split(.infinity, byWeights: [1, 1]) == [0, 0])
+        #expect(InvoiceLines.split(.nan, byWeights: [1]) == [0])
+        #expect(InvoiceLines.split(1e17, byWeights: [1]) == [0])
+        #expect(InvoiceLines.cents(-.infinity) == 0)
+        #expect(total(priced(twoEqualZones, price: 1e300)) == 0)
+    }
+
     @Test func oneZoneIsBilledTheWholePrice() {
-        let result = lines([Zone(label: "Lot", areaSquareFeet: 1_234.5)])
+        let result = recorded([Zone(label: "Lot", areaSquareFeet: 1_234.5)], typed: nil)
         #expect(result.count == 1)
         #expect(result.first?.lineTotal == 98.76)
         #expect(result.first?.quantity == 1_234.5)
     }
 
     @Test func leftAloneTheCatalogRateStandsAndChangedItBecomesTheNewRate() {
-        let zones = [Zone(label: "Front", areaSquareFeet: 1_000), Zone(label: "Back", areaSquareFeet: 1_000)]
-        #expect(lines(zones).allSatisfy { $0.unitPrice == 0.08 })
-        #expect(lines(zones, price: 200).allSatisfy { abs($0.unitPrice - 0.1) < 1e-12 })
+        #expect(recorded(twoEqualZones, typed: nil).allSatisfy { $0.unitPrice == 0.08 })
+        #expect(recorded(twoEqualZones, typed: "160.00").allSatisfy { $0.unitPrice == 0.08 })
+        #expect(recorded(twoEqualZones, typed: "200").allSatisfy { abs($0.unitPrice - 0.1) < 1e-12 })
     }
 
     @Test func aFlatServiceIsOneLineAtItsPrice() {
-        let result = lines([Zone(label: "Front", areaSquareFeet: 1_000)], rate: 45, unitType: "flat", price: 50)
+        let result = recorded([Zone(label: "Front", areaSquareFeet: 1_000)], rate: 45, unitType: "flat", typed: "50")
         #expect(result.count == 1)
         #expect(result.first?.lineTotal == 50)
         #expect(result.first?.unitType == "flat")
         #expect(result.first?.zoneLabel == "All Zones")
     }
 
-    // No mapped area: nothing to split by, so the typed price is billed once.
+    // No mapped area: nothing to split by, so the price is billed once.
     @Test func withoutMappedAreaAPerSquareFootServiceIsOneLine() {
-        let unmapped = lines([], price: 75)
+        let unmapped = recorded([], typed: "75")
         #expect(unmapped.map(\.lineTotal) == [75])
         #expect(unmapped.first?.zoneLabel == "Property")
 
-        let emptyZones = lines([Zone(label: "Sketch", areaSquareFeet: 0)], price: 75)
+        let emptyZones = recorded([Zone(label: "Sketch", areaSquareFeet: 0)], typed: "75")
         #expect(emptyZones.map(\.lineTotal) == [75])
         #expect(emptyZones.first?.zoneLabel == "All Zones")
     }
@@ -124,6 +163,20 @@ struct InvoiceLineAmountTests {
         #expect(merged.last?.quantity == 1_300)
     }
 
+    // A group sits where its first line did. The input is deliberately out of
+    // order, so "first line", "last line" and "as given" all give different answers.
+    @Test func aGroupTakesItsFirstLinesPlace() {
+        let merged = ProposalLineItem.grouped([
+            item("B", total: 1, sortOrder: 1),
+            item("A", total: 1, sortOrder: 0),
+            item("C", total: 1, sortOrder: 4),
+            item("A", total: 1, sortOrder: 3),
+            item("B", total: 1, sortOrder: 2),
+        ])
+        #expect(merged.map(\.serviceName) == ["A", "B", "C"])
+        #expect(merged.map(\.sortOrder) == [0, 1, 4])
+    }
+
     @Test func aLineWithNoTwinIsLeftAsItIs() {
         let only = item("Mulching", total: 212.4, unitType: "perSqFt", quantity: 1_770, sortOrder: 0)
         let merged = ProposalLineItem.grouped([only])
@@ -136,7 +189,7 @@ struct InvoiceLineAmountTests {
     @Test func copiesKeepEachLinesAmount() throws {
         let container = try ModelContainer(
             for: Proposal.self, ProposalLineItem.self, Client.self,
-            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         )
         let context = container.mainContext
         let client = Client(name: "Pat", phone: "", address: "1 Main St", operatorID: "op")

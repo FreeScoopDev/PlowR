@@ -102,7 +102,7 @@ struct StopServiceRecorderView: View {
                                         .font(.caption)
                                         .frame(width: 72)
                                         if service.unitType == "perSqFt",
-                                           let area = client?.sortedZones.reduce(0.0, { $0 + $1.areaSquareFeet }),
+                                           case let area = InvoiceLines.totalArea(pricingZones),
                                            area > 0 {
                                             Text("(\(Int(area)) sqft)")
                                                 .font(.caption2).foregroundStyle(.tertiary)
@@ -310,11 +310,10 @@ struct StopServiceRecorderView: View {
         for service in myServices where selectedServiceIDs.contains(service.id.uuidString) {
             let key = service.id.uuidString
             // The whole-property figure the driver saw, or typed over. An empty
-            // or unreadable field means it was left alone.
-            let price = Double(servicePriceOverrides[key] ?? "") ?? defaultPrice(for: service)
+            // or unreadable field means it was left alone (see InvoiceLines).
             let lines = InvoiceLines.lines(serviceName: service.name, unitType: service.unitType,
                                            pricePerUnit: service.pricePerUnit,
-                                           zones: pricingZones, price: price)
+                                           zones: pricingZones, typedPrice: servicePriceOverrides[key])
             for line in lines {
                 let item = ProposalLineItem(
                     serviceName: line.serviceName,

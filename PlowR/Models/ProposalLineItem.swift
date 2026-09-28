@@ -46,15 +46,13 @@ final class ProposalLineItem {
             let sameUnit = group.allSatisfy { $0.unitType == first.unitType }
             let unitType = sameUnit ? first.unitType : "flat"
             let unitPrice = unitType == "perSqFt" && quantity > 0 ? total / quantity : total
-            let notes = group.map(\.itemNotes).filter { !$0.isEmpty }
             let merged = ProposalLineItem(
                 serviceName: name,
                 zoneLabel: "All Zones",
                 quantity: unitType == "flat" ? 1 : quantity,
                 unitType: unitType,
                 unitPrice: unitPrice,
-                sortOrder: first.sortOrder,
-                itemNotes: notes.joined(separator: "; ")
+                sortOrder: first.sortOrder
             )
             merged.lineTotal = total
             return merged
