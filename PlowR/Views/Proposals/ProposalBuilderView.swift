@@ -443,10 +443,9 @@ struct ProposalBuilderView: View {
     private func saveProposal(_ proposal: Proposal) {
         // Numbered when built, so the preview shows it. If another invoice has
         // taken that number since (synced from another device), take the next.
-        if proposal.isInvoice,
-           InvoiceNumbering.usedNumbers(operatorID: proposal.operatorID, in: modelContext)
-               .contains(proposal.invoiceNumber) {
-            proposal.invoiceNumber = InvoiceNumbering.next(operatorID: proposal.operatorID, in: modelContext)
+        if proposal.isInvoice {
+            proposal.invoiceNumber = InvoiceNumbering.confirmed(proposal.invoiceNumber,
+                                                                operatorID: proposal.operatorID, in: modelContext)
         }
         proposal.visitID = linkedVisitID
         // Insert items first so the cascade inverse relationship doesn't double-insert them
