@@ -11,9 +11,10 @@ import Foundation
 /// to the next week at midnight, and skipped the week's other days when repeating
 /// every 2 or more weeks.
 ///
-/// Every date is counted from the series' first visit, which fixes its time of
-/// day and day of month: a series doesn't slide to 3 AM after a daylight-saving
-/// change, or from the 31st to the 28th after February.
+/// A new series is counted from its first visit, which fixes its time of day and
+/// day of month: it doesn't slide to 3 AM after a daylight-saving change, or
+/// from the 31st to the 28th after February. A series that runs out is continued
+/// from its latest visits instead (see `continuationDate`).
 ///
 /// Weeks run Sunday to Saturday, as in the weekday picker, whatever the device's
 /// locale; weekdays are numbered 1 (Sunday) to 7 (Saturday).
@@ -53,24 +54,43 @@ nonisolated struct RecurrenceRule: Equatable {
         return dates
     }
 
-    /// The first occurrence after `latest`, counting from the series' first
-    /// visit on `start`; nil past the end date.
-    func firstOccurrence(after latest: Date, seriesStart start: Date, calendar: Calendar) -> Date? {
-        stream(from: start, calendar: calendar).first { $0 > latest }
-    }
-
     /// When a series should get another visit, after the one on `completed` is
-    /// completed: only when nothing after it is still scheduled, and then on the
-    /// first occurrence after the series' latest visit, whatever that visit's
-    /// state. So a series created up front isn't given a duplicate, a skipped
-    /// last visit doesn't end the series, and a visit already in the series,
-    /// skipped or not, is never created again.
+    /// completed: only when nothing after it is still scheduled, and then one
+    /// step after the series' latest visit, whatever that visit's state. So a
+    /// series created up front isn't given a duplicate, a skipped last visit
+    /// doesn't end the series, and a visit already in the series, skipped or
+    /// not, is never created again.
+    ///
+    /// It steps from the latest visits, not the first, because they say what
+    /// the series is now: "This & All Future" changes the time of later visits
+    /// only, and "This Visit Only" can move the first. The time of day comes
+    /// from the latest visit not on a day the clocks changed (where 2:30 AM
+    /// became 3:00), and a monthly series keeps the day of month most of its
+    /// visits fall on, so February's 28th doesn't pull a 31st series along.
     func continuationDate(afterCompleting completed: Date, series: [SeriesVisit],
                           calendar: Calendar) -> Date? {
         guard !series.contains(where: { $0.isScheduled && $0.date > completed }) else { return nil }
-        let dates = series.map(\.date) + [completed]
-        guard let start = dates.min(), let latest = dates.max() else { return nil }
-        return firstOccurrence(after: latest, seriesStart: start, calendar: calendar)
+        let dates = (series.map(\.date) + [completed]).sorted()
+        guard let latest = dates.last else { return nil }
+        let timeSource = dates.last { !isClockChangeDay($0, calendar: calendar) } ?? latest
+        let step = max(1, interval)
+        let day: Date?
+        switch type {
+        case .daily:    day = calendar.date(byAdding: .day, value: step, to: latest)
+        case .biweekly: day = calendar.date(byAdding: .day, value: 14, to: latest)
+        case .weekly where weekdays.isEmpty:
+            day = calendar.date(byAdding: .day, value: 7 * step, to: latest)
+        case .weekly:
+            day = nextWeekday(after: latest, days: weekdays.filter { (1...7).contains($0) }.sorted(),
+                              everyWeeks: step, timeFrom: timeSource, calendar: calendar)
+        case .monthly:
+            day = monthStep(after: latest, months: step,
+                            dayOfMonth: usualDayOfMonth(dates, calendar: calendar), calendar: calendar)
+        }
+        guard let next = day.flatMap({ atTimeOfDay(of: timeSource, on: $0, calendar: calendar) }),
+              calendar.startOfDay(for: next) > calendar.startOfDay(for: latest),
+              isOnOrBeforeEnd(next, calendar: calendar) else { return nil }
+        return next
     }
 
     // MARK: - Private
@@ -128,6 +148,29 @@ nonisolated struct RecurrenceRule: Equatable {
             target = sunday.flatMap { calendar.date(byAdding: .day, value: 7 * step + (first - 1), to: $0) }
         }
         return target.flatMap { atTimeOfDay(of: source, on: $0, calendar: calendar) }
+    }
+
+    /// A day the clocks changed on: not 24 hours long.
+    private func isClockChangeDay(_ date: Date, calendar: Calendar) -> Bool {
+        guard let day = calendar.dateInterval(of: .day, for: date) else { return false }
+        return day.duration != 86_400
+    }
+
+    /// The day of month most of `dates` fall on; on a tie, the earliest one's.
+    private func usualDayOfMonth(_ dates: [Date], calendar: Calendar) -> Int {
+        let days = dates.map { calendar.component(.day, from: $0) }
+        var counts: [Int: Int] = [:]
+        for d in days { counts[d, default: 0] += 1 }
+        let most = counts.values.max() ?? 0
+        return days.first { counts[$0] == most } ?? days.first ?? 1
+    }
+
+    /// `months` months after `date`'s month, on `dayOfMonth` or the month's last day if shorter.
+    private func monthStep(after date: Date, months: Int, dayOfMonth: Int, calendar: Calendar) -> Date? {
+        guard let monthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: date)),
+              let target = calendar.date(byAdding: .month, value: months, to: monthStart),
+              let length = calendar.range(of: .day, in: .month, for: target)?.count else { return nil }
+        return calendar.date(byAdding: .day, value: min(dayOfMonth, length) - 1, to: target)
     }
 
     private func atTimeOfDay(of source: Date, on day: Date, calendar: Calendar) -> Date? {

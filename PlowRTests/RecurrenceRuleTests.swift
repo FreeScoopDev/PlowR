@@ -87,7 +87,8 @@ struct RecurrenceRuleTests {
         let rule = RecurrenceRule(type: .weekly, endDate: date(2026, 10, 19, 0, 0))
         #expect(rule.occurrences(from: date(2026, 10, 5), calendar: calendar) ==
                 [date(2026, 10, 5), date(2026, 10, 12), date(2026, 10, 19)])
-        #expect(rule.firstOccurrence(after: date(2026, 10, 19), seriesStart: date(2026, 10, 5), calendar: calendar) == nil)
+        let done = [date(2026, 10, 5), date(2026, 10, 12)].map { RecurrenceRule.SeriesVisit(date: $0, isScheduled: false) }
+        #expect(rule.continuationDate(afterCompleting: date(2026, 10, 19), series: done, calendar: calendar) == nil)
     }
 
     // US clocks go back on 1 Nov 2026: the visit stays at 9:00 local time.
@@ -145,6 +146,36 @@ struct RecurrenceRuleTests {
         #expect(rule.continuationDate(afterCompleting: date(2027, 2, 28),
                                       series: [Visit(date: date(2027, 1, 31), isScheduled: false)],
                                       calendar: calendar) == date(2027, 3, 31))
+    }
+
+    // "This & All Future" moved a daily series from 9:00 to 7:00 from its tenth
+    // visit on. Counting from the first visit would add a 9:00 visit on the same
+    // day as the 7:00 one just completed.
+    @Test func aTimeChangeForAllFutureVisitsIsKept() {
+        let rule = RecurrenceRule(type: .daily)
+        var series = (0..<52).map { k -> Visit in
+            let day = calendar.date(byAdding: .day, value: k, to: date(2026, 10, 1))!
+            return Visit(date: calendar.date(bySettingHour: k < 9 ? 9 : 7, minute: 0, second: 0, of: day)!,
+                         isScheduled: false)
+        }
+        let last = series.removeLast()
+        #expect(last.date == date(2026, 11, 21, 7))
+        #expect(rule.continuationDate(afterCompleting: last.date, series: series, calendar: calendar) ==
+                date(2026, 11, 22, 7))
+    }
+
+    // "This Visit Only" moved the first Monday visit to a Tuesday at 10:00: the
+    // series stays on Mondays at 9:00.
+    @Test func aMovedFirstVisitDoesNotMoveTheSeries() {
+        let rule = RecurrenceRule(type: .weekly)
+        var series = (0..<52).map { k in
+            Visit(date: calendar.date(byAdding: .day, value: 7 * k, to: date(2026, 10, 5))!, isScheduled: false)
+        }
+        series[0].date = date(2026, 10, 6, 10)
+        let last = series.removeLast()
+        #expect(last.date == date(2027, 9, 27))
+        #expect(rule.continuationDate(afterCompleting: last.date, series: series, calendar: calendar) ==
+                date(2027, 10, 4))
     }
 
     // ...and its time of day, even from a visit that landed at 3:00 on the jump day.
@@ -215,6 +246,16 @@ struct ScheduledVisitSeriesTests {
         #expect(completed.continuation(among: [completed, otherSeries], calendar: calendar) != nil)
         let sameSeries = repeatingVisit(on: at(10, 12))
         #expect(completed.continuation(among: [completed, sameSeries], calendar: calendar) == nil)
+    }
+
+    // A later visit in the series that was skipped (or cancelled) isn't "still to
+    // do": it must not stop the series continuing.
+    @Test func aSkippedLaterVisitDoesNotStopTheSeries() {
+        let completed = repeatingVisit(on: at(10, 8))
+        let skipped = repeatingVisit(on: at(10, 12))
+        skipped.status = .skipped
+        let next = completed.continuation(among: [completed, skipped], calendar: calendar)
+        #expect(next?.scheduledDate == at(10, 15))       // the chosen Thursday after the skipped Monday
     }
 
     @Test func aOneOffVisitIsNeverContinued() {
