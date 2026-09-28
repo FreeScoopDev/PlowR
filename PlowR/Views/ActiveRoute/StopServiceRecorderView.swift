@@ -10,7 +10,6 @@ struct StopServiceRecorderView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Query private var allServices: [ServiceItem]
-    @Query private var allProposals: [Proposal]
 
     @State private var selectedServiceIDs: Set<String>
     @State private var notes: String
@@ -295,12 +294,8 @@ struct StopServiceRecorderView: View {
 
         guard let client else { dismiss(); return }
 
-        let existingCount = allProposals.filter {
-            !$0.invoiceNumber.isEmpty && $0.operatorID == operatorID
-        }.count
-
         let proposal = Proposal(operatorID: operatorID, client: client)
-        proposal.invoiceNumber = String(format: "INV-%04d", existingCount + 1)
+        proposal.invoiceNumber = InvoiceNumbering.next(operatorID: operatorID, in: modelContext)
         proposal.invoiceDueDate = Date().addingTimeInterval(30 * 86400)
         if !notes.isEmpty { proposal.notes = notes }
 
