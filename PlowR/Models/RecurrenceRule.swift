@@ -63,23 +63,33 @@ nonisolated struct RecurrenceRule: Equatable {
     ///
     /// It steps from the latest visits, not the first, because they say what
     /// the series is now: "This & All Future" changes the time of later visits
-    /// only, and "This Visit Only" can move the first. The time of day comes
-    /// from the latest visit not on a day the clocks changed (where 2:30 AM
-    /// became 3:00), and a monthly series keeps the day of month most of its
-    /// visits fall on, so February's 28th doesn't pull a 31st series along.
+    /// only, and "This Visit Only" can move the first. A one-off move of the
+    /// last visit shouldn't move the series either, so:
+    /// - the time of day is the one most of the latest three visits share
+    ///   (ignoring days the clocks changed, where 2:30 AM became 3:00), and
+    ///   the latest visit's on a three-way split;
+    /// - a weekly or two-weekly series stays on the weekday most of its visits
+    ///   fall on;
+    /// - a monthly series keeps the day of month most of its visits fall on, so
+    ///   February's 28th doesn't pull a 31st series along.
+    ///
+    /// The steps mirror `stream(from:)`, which creates a series; change both together.
     func continuationDate(afterCompleting completed: Date, series: [SeriesVisit],
                           calendar: Calendar) -> Date? {
         guard !series.contains(where: { $0.isScheduled && $0.date > completed }) else { return nil }
         let dates = (series.map(\.date) + [completed]).sorted()
         guard let latest = dates.last else { return nil }
-        let timeSource = dates.last { !isClockChangeDay($0, calendar: calendar) } ?? latest
+        let timeSource = usualTimeOfDay(dates, calendar: calendar) ?? latest
         let step = max(1, interval)
         let day: Date?
         switch type {
         case .daily:    day = calendar.date(byAdding: .day, value: step, to: latest)
-        case .biweekly: day = calendar.date(byAdding: .day, value: 14, to: latest)
+        case .biweekly:
+            day = onUsualWeekday(calendar.date(byAdding: .day, value: 14, to: latest), of: dates,
+                                 after: latest, calendar: calendar)
         case .weekly where weekdays.isEmpty:
-            day = calendar.date(byAdding: .day, value: 7 * step, to: latest)
+            day = onUsualWeekday(calendar.date(byAdding: .day, value: 7 * step, to: latest), of: dates,
+                                 after: latest, calendar: calendar)
         case .weekly:
             day = nextWeekday(after: latest, days: weekdays.filter { (1...7).contains($0) }.sorted(),
                               everyWeeks: step, timeFrom: timeSource, calendar: calendar)
@@ -97,7 +107,8 @@ nonisolated struct RecurrenceRule: Equatable {
 
     /// Every occurrence from `start` on, lazily, ending at the end date. Fixed
     /// steps are counted from `start` (k × step); weekday rules walk the chosen
-    /// days, taking the time of day from `start`.
+    /// days, taking the time of day from `start`. The steps mirror
+    /// `continuationDate`, which extends a series; change both together.
     private func stream(from start: Date, calendar: Calendar) -> AnySequence<Date> {
         let step = max(1, interval)
         let days = weekdays.filter { (1...7).contains($0) }.sorted()
@@ -154,6 +165,44 @@ nonisolated struct RecurrenceRule: Equatable {
     private func isClockChangeDay(_ date: Date, calendar: Calendar) -> Bool {
         guard let day = calendar.dateInterval(of: .day, for: date) else { return false }
         return day.duration != 86_400
+    }
+
+    /// The time of day most of the latest three visits share, not counting days
+    /// the clocks changed, as a date carrying it; the latest's on a three-way split.
+    private func usualTimeOfDay(_ dates: [Date], calendar: Calendar) -> Date? {
+        let recent = Array(dates.filter { !isClockChangeDay($0, calendar: calendar) }.suffix(3))
+        guard let latest = recent.last else { return nil }
+        func clock(_ d: Date) -> [Int] {
+            let c = calendar.dateComponents([.hour, .minute, .second], from: d)
+            return [c.hour ?? 0, c.minute ?? 0, c.second ?? 0]
+        }
+        var counts: [[Int]: Int] = [:]
+        for d in recent { counts[clock(d), default: 0] += 1 }
+        let most = counts.values.max() ?? 0
+        guard most > 1 else { return latest }
+        return recent.last { counts[clock($0)] == most } ?? latest
+    }
+
+    /// `date` moved within its week (at most three days either way) to the
+    /// weekday most of the series' visits fall on, and never onto or before
+    /// `latest`'s day. A series' weekday only changes by one-off moves (editing
+    /// all future visits changes their time, not their day).
+    private func onUsualWeekday(_ date: Date?, of dates: [Date], after latest: Date,
+                                calendar: Calendar) -> Date? {
+        guard let date else { return nil }
+        let days = dates.map { calendar.component(.weekday, from: $0) }
+        var counts: [Int: Int] = [:]
+        for d in days { counts[d, default: 0] += 1 }
+        let most = counts.values.max() ?? 0
+        guard let usual = days.last(where: { counts[$0] == most }) else { return date }
+        var shift = usual - calendar.component(.weekday, from: date)
+        if shift > 3 { shift -= 7 } else if shift < -3 { shift += 7 }
+        guard var moved = calendar.date(byAdding: .day, value: shift, to: date) else { return date }
+        if calendar.startOfDay(for: moved) <= calendar.startOfDay(for: latest),
+           let later = calendar.date(byAdding: .day, value: 7, to: moved) {
+            moved = later
+        }
+        return moved
     }
 
     /// The day of month most of `dates` fall on; on a tie, the earliest one's.

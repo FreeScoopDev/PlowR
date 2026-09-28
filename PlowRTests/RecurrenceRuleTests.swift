@@ -178,6 +178,28 @@ struct RecurrenceRuleTests {
                 date(2027, 10, 4))
     }
 
+    // The last Monday visit of a batch was done on Tuesday at 14:00 (rained out):
+    // the series carries on on Mondays at 9:00.
+    @Test func aOneOffMoveOfTheLastVisitDoesNotMoveTheSeries() {
+        let rule = RecurrenceRule(type: .weekly)
+        var series = (0..<52).map { k in
+            Visit(date: calendar.date(byAdding: .day, value: 7 * k, to: date(2026, 10, 5))!, isScheduled: false)
+        }
+        var last = series.removeLast()
+        last.date = date(2027, 9, 28, 14)
+        #expect(rule.continuationDate(afterCompleting: last.date, series: series, calendar: calendar) ==
+                date(2027, 10, 4))
+    }
+
+    // A new time the last two visits already have is the series' time now.
+    @Test func aNewTimeOnTheLastVisitsCarriesOn() {
+        let rule = RecurrenceRule(type: .daily)
+        let series = [date(2026, 10, 1, 9), date(2026, 10, 2, 9), date(2026, 10, 3, 7)]
+            .map { Visit(date: $0, isScheduled: false) }
+        #expect(rule.continuationDate(afterCompleting: date(2026, 10, 4, 7), series: series, calendar: calendar) ==
+                date(2026, 10, 5, 7))
+    }
+
     // ...and its time of day, even from a visit that landed at 3:00 on the jump day.
     @Test func aContinuedWeekdaySeriesKeepsItsTime() {
         let rule = RecurrenceRule(type: .weekly, weekdays: [1, 4])
