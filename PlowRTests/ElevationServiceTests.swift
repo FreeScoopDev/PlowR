@@ -28,9 +28,11 @@ struct ElevationServiceTests {
         func setStatus(_ code: Int) { status = code }
         func setReply(_ r: Reply) { reply = r }
 
-        func answer(_ url: URL) throws -> (Data, URLResponse) {
+        /// `sentAt`: when the service sent it, read before hopping to this actor,
+        /// so a slow hop can't make two requests look closer than they were.
+        func answer(_ url: URL, sentAt: ContinuousClock.Instant = .now) throws -> (Data, URLResponse) {
             requests.append(url)
-            times.append(ContinuousClock.now)
+            times.append(sentAt)
             let ok = HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil)!
             if reply == .notJSON { return (Data("<html>busy</html>".utf8), ok) }
             let value = URLComponents(url: url, resolvingAgainstBaseURL: false)?
@@ -56,6 +58,18 @@ struct ElevationServiceTests {
 
     private func service(_ api: FakeAPI) -> ElevationService {
         ElevationService(fetch: { try await api.answer($0) }, pause: .zero)
+    }
+
+    /// A service that waits `pause` between requests, as the app does, timing
+    /// each request as it's sent. `oversleep` makes every wait end that late.
+    private func throttled(_ api: FakeAPI, pause: Duration = .milliseconds(150),
+                           oversleep: Duration = .zero) -> ElevationService {
+        ElevationService(fetch: { url in
+                             let sent = ContinuousClock.now
+                             return try await api.answer(url, sentAt: sent)
+                         },
+                         pause: pause,
+                         sleep: { deadline in try await ContinuousClock().sleep(until: deadline.advanced(by: oversleep)) })
     }
 
     /// Three corners running about 100 m north from (43, -72).
@@ -115,7 +129,7 @@ struct ElevationServiceTests {
     // lookups that follow each other (Next, Back, Next).
     @Test func requestsAreSpacedOutWithinAndAcrossLookups() async {
         let api = FakeAPI { _, _ in 5 }
-        let service = ElevationService(fetch: { try await api.answer($0) }, pause: .milliseconds(150))
+        let service = throttled(api)
         _ = await service.fetchGrades(for: Array(repeating: flatZone, count: 34))   // two requests
         _ = await service.fetchGrade(for: flatZone)                                 // and a third
         let times = await api.times
@@ -123,6 +137,47 @@ struct ElevationServiceTests {
         for gap in gaps(times) {
             #expect(gap >= 0.1, "requests \(gap) s apart")
         }
+    }
+
+    // A wait that ends late used to let the next request go at once: the gap
+    // was measured from when a request was booked, not when it went. It failed
+    // on a busy CI machine (requests 0.4 ms apart). Here every wait ends 300 ms late.
+    @Test func aLateWakeDoesNotLetTheNextRequestGoAtOnce() async {
+        let api = FakeAPI { _, _ in 5 }
+        let service = throttled(api, oversleep: .milliseconds(300))
+        _ = await service.fetchGrades(for: Array(repeating: flatZone, count: 34))   // the second one wakes late
+        _ = await service.fetchGrade(for: flatZone)                                 // a third, right after
+        let times = await api.times
+        #expect(times.count == 3)
+        for gap in gaps(times) {
+            #expect(gap >= 0.1, "requests \(gap) s apart")
+        }
+    }
+
+    // Lookups started together still go one at a time.
+    @Test func lookupsStartedTogetherAreSpacedOut() async {
+        let api = FakeAPI { _, _ in 5 }
+        let service = throttled(api)
+        async let a = service.fetchGrade(for: flatZone)
+        async let b = service.fetchGrade(for: flatZone)
+        async let c = service.fetchGrade(for: flatZone)
+        _ = await (a, b, c)
+        let times = await api.times.sorted()
+        #expect(times.count == 3)
+        for gap in gaps(times) {
+            #expect(gap >= 0.1, "requests \(gap) s apart")
+        }
+    }
+
+    // Cancelled while waiting its turn (the zone screen closed): nothing is
+    // sent. The old wait ignored the cancellation and sent it anyway.
+    @Test func aCancelledWaitSendsNothing() async {
+        let api = FakeAPI { _, _ in 5 }
+        let service = ElevationService(fetch: { try await api.answer($0) }, pause: .seconds(10),
+                                       sleep: { _ in throw CancellationError() })
+        #expect(await service.fetchGrade(for: flatZone) != nil)    // the first goes at once
+        #expect(await service.fetchGrade(for: flatZone) == nil)    // this one would wait
+        #expect(await api.requests.count == 1)
     }
 
     // The instance the app uses, not just the constant: a default of .zero in
