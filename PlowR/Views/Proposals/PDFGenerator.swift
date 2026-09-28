@@ -512,7 +512,7 @@ struct PDFGenerator {
             }
             drawText(qtyStr, x: margin + c1 + c2, y: rY, width: c3,
                      font: dataFont, color: inkMid, alignment: .right)
-            drawText(String(format: "$%.2f", item.lineTotal),
+            drawText(String(format: "$%.2f", InvoiceLines.roundedToCent(item.lineTotal)),
                      x: margin + c1 + c2 + c3, y: rY, width: c4 - 4,
                      font: nameFont, color: ink, alignment: .right)
             curY += rowH
@@ -558,11 +558,11 @@ struct PDFGenerator {
             curY += 17
         }
         if proposal.discountAmount > 0 {
-            subtotalRow("Discount", value: proposal.discountAmount, lX: lX, lW: lW, vX: vX, vW: vW, y: curY, negate: true)
+            subtotalRow("Discount", value: proposal.appliedDiscount, lX: lX, lW: lW, vX: vX, vW: vW, y: curY, negate: true)
             curY += 17
         }
         if proposal.taxRate > 0 {
-            subtotalRow(String(format: "Tax (%.1f%%)", proposal.taxRate),
+            subtotalRow("Tax (\(Proposal.percentText(proposal.taxRate))%)",
                         value: proposal.taxAmount, lX: lX, lW: lW, vX: vX, vW: vW, y: curY)
             curY += 17
         }

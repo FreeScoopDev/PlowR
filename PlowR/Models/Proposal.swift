@@ -26,20 +26,29 @@ final class Proposal {
 
     @Relationship(deleteRule: .cascade, inverse: \ProposalLineItem.proposal) var lineItems: [ProposalLineItem]?
 
+    /// The sum of the lines as billed: each to the cent, as the PDF prints
+    /// them, so the printed rows add up to the printed sub-total.
     var subtotal: Double {
-        (lineItems ?? []).reduce(0) { $0 + $1.lineTotal }
+        InvoiceLines.roundedToCent((lineItems ?? []).reduce(0) { $0 + InvoiceLines.roundedToCent($1.lineTotal) })
     }
 
     var discountedTotal: Double {
-        max(0, subtotal - discountAmount)
+        Self.totals(subtotal: subtotal, discount: discountAmount, taxRate: taxRate).discounted
     }
 
     var taxAmount: Double {
-        taxRate > 0 ? discountedTotal * taxRate / 100 : 0
+        Self.totals(subtotal: subtotal, discount: discountAmount, taxRate: taxRate).tax
     }
 
     var total: Double {
-        discountedTotal + taxAmount
+        Self.totals(subtotal: subtotal, discount: discountAmount, taxRate: taxRate).total
+    }
+
+    /// The discount actually taken off: never more than the subtotal. The PDF
+    /// printed the discount as entered, so its rows didn't add up when a
+    /// discount exceeded the subtotal.
+    var appliedDiscount: Double {
+        subtotal - discountedTotal
     }
 
     var sortedLineItems: [ProposalLineItem] {
@@ -110,5 +119,59 @@ enum InvoiceStatus: String {
         case .paid:     return .green
         case .overdue:  return .red
         }
+    }
+}
+
+// MARK: - Totals, tax rate text, reminders
+
+extension Proposal {
+
+    /// A document's totals from its parts. The one formula, used by the saved
+    /// document, the PDF, and every screen that shows a total before saving:
+    /// the discount comes off the subtotal (never below zero), then tax is
+    /// charged on what's left, rounded to the cent. The builder's estimate used
+    /// to leave out tax and custom lines, and the Edit screen took the discount
+    /// off a second time.
+    nonisolated static func totals(subtotal: Double, discount: Double,
+                                   taxRate: Double) -> (subtotal: Double, discounted: Double, tax: Double, total: Double) {
+        let sub = InvoiceLines.roundedToCent(subtotal)
+        let discounted = InvoiceLines.roundedToCent(max(0, sub - max(0, discount)))
+        let rate = taxRate.isFinite ? max(0, taxRate) : 0
+        let tax = rate > 0 ? InvoiceLines.roundedToCent(discounted * rate / 100) : 0
+        return (sub, discounted, tax, InvoiceLines.roundedToCent(discounted + tax))
+    }
+
+    /// A tax rate as the Edit screen shows it and the PDF prints it, without
+    /// trailing zeros (8.875, 8.5, 8). It was shown with one decimal, so opening
+    /// Edit and tapping Done saved 8.875% as 8.9%. Rates are saved to three
+    /// decimals, but an older one can hold four (7.0625), so up to four are
+    /// shown: the label always states the rate charged.
+    nonisolated static func percentText(_ rate: Double) -> String {
+        var text = String(format: "%.4f", rate)
+        while text.hasSuffix("0") { text.removeLast() }
+        if text.hasSuffix(".") { text.removeLast() }
+        return text
+    }
+
+    /// A typed tax rate: a number from 0 to 100, kept to three decimals so the
+    /// rate charged, the Edit field and the PDF label always agree; otherwise 0.
+    nonisolated static func taxRate(typed text: String) -> Double {
+        guard let rate = Double(text.trimmingCharacters(in: .whitespaces)),
+              rate.isFinite, (0...100).contains(rate) else { return 0 }
+        return (rate * 1000).rounded() / 1000
+    }
+
+    /// A payment reminder to text the client. The amount is to the cent; it was
+    /// rounded to whole dollars, so a $149.50 invoice was texted as $150. It was
+    /// also written out separately on two screens.
+    func reminderMessage(locale: Locale = .current) -> String {
+        let amount = total.formatted(.currency(code: "USD").locale(locale))
+        let statusWord = invoiceStatus == .overdue ? "overdue" : "outstanding"
+        var message = "Hi \(clientName), just a friendly reminder that invoice \(invoiceNumber) for \(amount) is \(statusWord)."
+        if let due = invoiceDueDate {
+            message += " Due: \(due.formatted(.dateTime.month(.abbreviated).day().year().locale(locale)))."
+        }
+        message += " Please reach out if you have any questions — thank you!"
+        return message
     }
 }

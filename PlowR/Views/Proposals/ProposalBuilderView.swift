@@ -141,7 +141,7 @@ struct ProposalBuilderView: View {
                     DisclosureGroup {
                         ForEach(Array(zones.enumerated()), id: \.element.id) { index, zone in
                             let key = selectionKey(service: service, zoneIndex: index)
-                            let defaultAmt = zone.areaSquareFeet * service.pricePerUnit * afterHoursMultiplier
+                            let defaultAmt = draft.defaultAmount(serviceID: service.id.uuidString, zoneIndex: index) ?? 0
                             VStack(alignment: .leading, spacing: 0) {
                                 Toggle(isOn: Binding(
                                     get: { selections.contains(key) },
@@ -171,7 +171,7 @@ struct ProposalBuilderView: View {
                     }
                 } else {
                     let key = selectionKey(service: service, zoneIndex: -1)
-                    let defaultAmt = service.pricePerUnit * afterHoursMultiplier
+                    let defaultAmt = draft.defaultAmount(serviceID: service.id.uuidString, zoneIndex: -1) ?? 0
                     VStack(alignment: .leading, spacing: 0) {
                         Toggle(isOn: Binding(
                             get: { selections.contains(key) },
@@ -325,34 +325,31 @@ struct ProposalBuilderView: View {
         String(format: "$%.2f", calculateTotal())
     }
 
-    private func calculateTotal() -> Double {
-        var total = 0.0
-        for key in selections {
-            if let override = Double(amounts[key] ?? "") {
-                total += override
-            } else {
-                let parts = key.split(separator: "|")
-                guard parts.count == 2,
-                      let service = myServices.first(where: { $0.id.uuidString == String(parts[0]) }),
-                      let zoneIndex = Int(parts[1]) else { continue }
-                if zoneIndex >= 0 && zoneIndex < zones.count {
-                    total += zones[zoneIndex].areaSquareFeet * service.pricePerUnit
-                } else {
-                    total += service.pricePerUnit
-                }
-            }
-        }
-        let discount = Double(discountAmount) ?? 0
-        return max(0, total - discount)
+    /// Everything chosen on this screen, priced the one way both the estimate
+    /// and the saved document use (see DocumentDraft).
+    private var draft: DocumentDraft {
+        DocumentDraft(
+            services: myServices.map { .init(id: $0.id.uuidString, name: $0.name,
+                                             unitType: $0.unitType, pricePerUnit: $0.pricePerUnit) },
+            zones: zones.map { .init(label: $0.label, areaSquareFeet: $0.areaSquareFeet) },
+            afterHoursMultiplier: afterHoursMultiplier,
+            selections: selections,
+            amounts: amounts,
+            lineNotes: lineNotes,
+            customLines: customItems.map { .init(name: $0.name, amount: $0.amount, notes: $0.notes) },
+            discount: discountAmount,
+            taxRate: taxRateString
+        )
     }
+
+    /// The estimate is the total of the document Save would make.
+    private func calculateTotal() -> Double { draft.total }
 
     // MARK: - Build
 
     private func buildProposalObject() -> Proposal {
         let proposal = Proposal(operatorID: authManager.userID, client: client)
         proposal.notes = notes
-        proposal.discountAmount = Double(discountAmount) ?? 0
-        proposal.taxRate = Double(taxRateString) ?? 0
         proposal.disclaimer = disclaimer
         if isInvoiceMode {
             proposal.invoiceNumber = InvoiceNumbering.next(operatorID: authManager.userID, in: modelContext)
@@ -361,63 +358,8 @@ struct ProposalBuilderView: View {
             proposal.validUntil = validUntil
         }
 
-        var lineItems: [ProposalLineItem] = []
-        var sortIndex = 0
-
-        for key in selections.sorted() {
-            let parts = key.split(separator: "|")
-            guard parts.count == 2,
-                  let service = myServices.first(where: { $0.id.uuidString == String(parts[0]) }),
-                  let zoneIndex = Int(parts[1]) else { continue }
-
-            let amountOverride = Double(amounts[key] ?? "")
-            let note = lineNotes[key] ?? ""
-
-            if zoneIndex >= 0 && zoneIndex < zones.count {
-                let zone = zones[zoneIndex]
-                let item = ProposalLineItem(
-                    serviceName: service.name,
-                    zoneLabel: zone.label,
-                    quantity: zone.areaSquareFeet,
-                    unitType: service.unitType,
-                    unitPrice: service.pricePerUnit,
-                    sortOrder: sortIndex,
-                    itemNotes: note
-                )
-                if let override = amountOverride { item.lineTotal = override }
-                lineItems.append(item)
-            } else {
-                let item = ProposalLineItem(
-                    serviceName: service.name,
-                    zoneLabel: "Property",
-                    quantity: 1,
-                    unitType: "flat",
-                    unitPrice: service.pricePerUnit,
-                    sortOrder: sortIndex,
-                    itemNotes: note
-                )
-                if let override = amountOverride { item.lineTotal = override }
-                lineItems.append(item)
-            }
-            sortIndex += 1
-        }
-
-        for (i, custom) in customItems.enumerated() {
-            guard !custom.name.isEmpty, let amount = Double(custom.amount), amount > 0 else { continue }
-            let item = ProposalLineItem(
-                serviceName: custom.name,
-                zoneLabel: "",
-                quantity: 1,
-                unitType: "flat",
-                unitPrice: amount,
-                sortOrder: sortIndex + i,
-                itemNotes: custom.notes
-            )
-            lineItems.append(item)
-        }
-
-        if grouped { lineItems = ProposalLineItem.grouped(lineItems) }
-        proposal.lineItems = lineItems
+        // Priced by the same draft that gives the estimate, so the two agree.
+        draft.apply(to: proposal, grouped: grouped)
         return proposal
     }
 
