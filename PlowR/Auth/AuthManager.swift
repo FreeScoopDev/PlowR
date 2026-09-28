@@ -9,6 +9,9 @@ final class AuthManager {
     var operatorName: String = ""
     /// A check is waiting on Apple: the launch check and a return to the app can overlap.
     @ObservationIgnored private var isChecking = false
+    /// Bumped by every sign-in and sign-out, so a slow check that answers
+    /// afterwards can't undo what the user just did.
+    @ObservationIgnored private var generation = 0
 
     init() {
         checkExistingCredentials()
@@ -24,17 +27,21 @@ final class AuthManager {
         guard let savedUserID = Self.keychainLoad(key: "appleUserID") else { return }
 
         isChecking = true
+        let started = generation
         let provider = ASAuthorizationAppleIDProvider()
         provider.getCredentialState(forUserID: savedUserID) { [weak self] state, error in
             let keep = Self.keepsSession(state: state, error: error)
             DispatchQueue.main.async {
-                self?.isChecking = false
+                guard let self else { return }
+                self.isChecking = false
+                // Signed in or out by hand while Apple was answering: that stands.
+                guard self.generation == started else { return }
                 if keep {
-                    self?.isSignedIn = true
-                    self?.userID = savedUserID
-                    self?.operatorName = UserDefaults.standard.string(forKey: "operatorName") ?? ""
+                    self.isSignedIn = true
+                    self.userID = savedUserID
+                    self.operatorName = UserDefaults.standard.string(forKey: "operatorName") ?? ""
                 } else {
-                    self?.isSignedIn = false
+                    self.isSignedIn = false
                     Self.keychainDelete(key: "appleUserID")
                 }
             }
@@ -61,6 +68,7 @@ final class AuthManager {
     }
 
     func signIn(userID: String, fullName: PersonNameComponents?, email: String?) {
+        generation += 1
         self.userID = userID
         self.isSignedIn = true
         Self.keychainSave(userID, key: "appleUserID")
@@ -76,6 +84,7 @@ final class AuthManager {
     }
 
     func signOut() {
+        generation += 1
         isSignedIn = false
         userID = ""
         operatorName = ""
