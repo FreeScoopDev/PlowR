@@ -39,14 +39,15 @@ struct StopServiceRecorderView: View {
             .sorted { $0.sortOrder < $1.sortOrder }
     }
 
+    private var pricingZones: [InvoiceLines.Zone] {
+        client?.sortedZones.map { InvoiceLines.Zone(label: $0.label, areaSquareFeet: $0.areaSquareFeet) } ?? []
+    }
+
     // For per-sqft services, the meaningful price is rate × total client area.
     // Drivers see and override the dollar total, not the per-sqft unit rate.
     private func defaultPrice(for service: ServiceItem) -> Double {
-        if service.unitType == "perSqFt" {
-            let totalArea = client?.sortedZones.reduce(0.0) { $0 + $1.areaSquareFeet } ?? 0
-            if totalArea > 0 { return service.pricePerUnit * totalArea }
-        }
-        return service.pricePerUnit
+        InvoiceLines.propertyPrice(unitType: service.unitType, pricePerUnit: service.pricePerUnit,
+                                   zones: pricingZones)
     }
 
     var body: some View {
@@ -101,7 +102,7 @@ struct StopServiceRecorderView: View {
                                         .font(.caption)
                                         .frame(width: 72)
                                         if service.unitType == "perSqFt",
-                                           let area = client?.sortedZones.reduce(0.0, { $0 + $1.areaSquareFeet }),
+                                           case let area = InvoiceLines.totalArea(pricingZones),
                                            area > 0 {
                                             Text("(\(Int(area)) sqft)")
                                                 .font(.caption2).foregroundStyle(.tertiary)
@@ -305,35 +306,24 @@ struct StopServiceRecorderView: View {
 
         var lineItems: [ProposalLineItem] = []
         var sortIndex = 0
-        let zones = client.sortedZones
 
         for service in myServices where selectedServiceIDs.contains(service.id.uuidString) {
             let key = service.id.uuidString
-            let overridePrice = Double(servicePriceOverrides[key] ?? "") ?? service.pricePerUnit
-            if !zones.isEmpty && service.unitType == "perSqFt" {
-                for zone in zones {
-                    let item = ProposalLineItem(
-                        serviceName: service.name,
-                        zoneLabel: zone.label,
-                        quantity: zone.areaSquareFeet,
-                        unitType: service.unitType,
-                        unitPrice: service.pricePerUnit,
-                        sortOrder: sortIndex
-                    )
-                    // Apply flat override when operator adjusted the price
-                    if overridePrice != service.pricePerUnit { item.lineTotal = overridePrice }
-                    lineItems.append(item)
-                    sortIndex += 1
-                }
-            } else {
+            // The whole-property figure the driver saw, or typed over. An empty
+            // or unreadable field means it was left alone (see InvoiceLines).
+            let lines = InvoiceLines.lines(serviceName: service.name, unitType: service.unitType,
+                                           pricePerUnit: service.pricePerUnit,
+                                           zones: pricingZones, typedPrice: servicePriceOverrides[key])
+            for line in lines {
                 let item = ProposalLineItem(
-                    serviceName: service.name,
-                    zoneLabel: zones.isEmpty ? "Property" : "All Zones",
-                    quantity: 1,
-                    unitType: "flat",
-                    unitPrice: overridePrice,
+                    serviceName: line.serviceName,
+                    zoneLabel: line.zoneLabel,
+                    quantity: line.quantity,
+                    unitType: line.unitType,
+                    unitPrice: line.unitPrice,
                     sortOrder: sortIndex
                 )
+                item.lineTotal = line.lineTotal
                 lineItems.append(item)
                 sortIndex += 1
             }

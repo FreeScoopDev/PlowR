@@ -48,9 +48,13 @@ final class Proposal {
 
     var isInvoice: Bool { !invoiceNumber.isEmpty }
 
+    /// Copies for a revision or a duplicate. Each copy keeps the original's
+    /// amount: a line's total can differ from quantity × unit price (a typed
+    /// amount, an edit, a zone's share of a whole-property price), and letting
+    /// the initializer recompute it silently repriced the copy.
     func makeLineItemCopies() -> [ProposalLineItem] {
         (lineItems ?? []).map { item in
-            ProposalLineItem(
+            let copy = ProposalLineItem(
                 serviceName: item.serviceName,
                 zoneLabel: item.zoneLabel,
                 quantity: item.quantity,
@@ -59,6 +63,8 @@ final class Proposal {
                 sortOrder: item.sortOrder,
                 itemNotes: item.itemNotes
             )
+            copy.lineTotal = item.lineTotal
+            return copy
         }
     }
 

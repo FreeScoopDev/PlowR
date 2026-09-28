@@ -419,7 +419,7 @@ struct ProposalBuilderView: View {
             lineItems.append(item)
         }
 
-        if grouped { lineItems = groupLineItems(lineItems) }
+        if grouped { lineItems = ProposalLineItem.grouped(lineItems) }
         proposal.lineItems = lineItems
         return proposal
     }
@@ -441,26 +441,6 @@ struct ProposalBuilderView: View {
         let proposal = buildProposalObject()
         saveProposal(proposal)
         dismiss()
-    }
-
-    private func groupLineItems(_ items: [ProposalLineItem]) -> [ProposalLineItem] {
-        var grouped: [String: ProposalLineItem] = [:]
-        for item in items {
-            if let existing = grouped[item.serviceName] {
-                let merged = ProposalLineItem(
-                    serviceName: item.serviceName,
-                    zoneLabel: "All Zones",
-                    quantity: existing.quantity + item.quantity,
-                    unitType: item.unitType,
-                    unitPrice: item.unitPrice,
-                    sortOrder: existing.sortOrder
-                )
-                grouped[item.serviceName] = merged
-            } else {
-                grouped[item.serviceName] = item
-            }
-        }
-        return grouped.values.sorted { $0.sortOrder < $1.sortOrder }
     }
 
     private func saveProposal(_ proposal: Proposal) {
