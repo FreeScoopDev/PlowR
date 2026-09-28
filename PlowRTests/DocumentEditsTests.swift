@@ -47,6 +47,7 @@ struct DocumentEditsTests {
         _ = container
         let before = doc.total
         let untouched = edits(for: doc)
+        #expect(untouched.taxRateText == "7.0625")                   // shown as charged
         #expect(untouched.total(of: doc) == before)
         untouched.apply(to: doc)
         #expect(doc.discountAmount == 5.125)

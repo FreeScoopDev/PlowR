@@ -49,6 +49,8 @@ struct DocumentTotalsTests {
         // Four decimals typed: kept to three, so the rate charged and printed agree.
         #expect(Proposal.taxRate(typed: "7.0625") == 7.063)
         #expect(Proposal.percentText(Proposal.taxRate(typed: "7.0625")) == "7.063")
+        // A rate saved with four decimals before that prints as it's charged.
+        #expect(Proposal.percentText(7.0625) == "7.0625")
     }
 
     @Test func aTypedTaxRateIsANumberFromZeroToAHundred() {

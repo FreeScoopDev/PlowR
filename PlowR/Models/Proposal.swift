@@ -141,11 +141,13 @@ extension Proposal {
         return (sub, discounted, tax, InvoiceLines.roundedToCent(discounted + tax))
     }
 
-    /// A tax rate as the Edit screen shows it and the PDF prints it: up to three
-    /// decimals, without trailing zeros (8.875, 8.5, 8). It was shown with one
-    /// decimal, so opening Edit and tapping Done saved 8.875% as 8.9%.
+    /// A tax rate as the Edit screen shows it and the PDF prints it, without
+    /// trailing zeros (8.875, 8.5, 8). It was shown with one decimal, so opening
+    /// Edit and tapping Done saved 8.875% as 8.9%. Rates are saved to three
+    /// decimals, but an older one can hold four (7.0625), so up to four are
+    /// shown: the label always states the rate charged.
     nonisolated static func percentText(_ rate: Double) -> String {
-        var text = String(format: "%.3f", rate)
+        var text = String(format: "%.4f", rate)
         while text.hasSuffix("0") { text.removeLast() }
         if text.hasSuffix(".") { text.removeLast() }
         return text
