@@ -26,8 +26,10 @@ final class Proposal {
 
     @Relationship(deleteRule: .cascade, inverse: \ProposalLineItem.proposal) var lineItems: [ProposalLineItem]?
 
+    /// The sum of the lines as billed: each to the cent, as the PDF prints
+    /// them, so the printed rows add up to the printed sub-total.
     var subtotal: Double {
-        (lineItems ?? []).reduce(0) { $0 + $1.lineTotal }
+        InvoiceLines.roundedToCent((lineItems ?? []).reduce(0) { $0 + InvoiceLines.roundedToCent($1.lineTotal) })
     }
 
     var discountedTotal: Double {
@@ -46,7 +48,7 @@ final class Proposal {
     /// printed the discount as entered, so its rows didn't add up when a
     /// discount exceeded the subtotal.
     var appliedDiscount: Double {
-        InvoiceLines.roundedToCent(subtotal) - discountedTotal
+        subtotal - discountedTotal
     }
 
     var sortedLineItems: [ProposalLineItem] {
@@ -131,11 +133,12 @@ extension Proposal {
     /// to leave out tax and custom lines, and the Edit screen took the discount
     /// off a second time.
     nonisolated static func totals(subtotal: Double, discount: Double,
-                                   taxRate: Double) -> (discounted: Double, tax: Double, total: Double) {
-        let discounted = InvoiceLines.roundedToCent(max(0, subtotal - max(0, discount)))
+                                   taxRate: Double) -> (subtotal: Double, discounted: Double, tax: Double, total: Double) {
+        let sub = InvoiceLines.roundedToCent(subtotal)
+        let discounted = InvoiceLines.roundedToCent(max(0, sub - max(0, discount)))
         let rate = taxRate.isFinite ? max(0, taxRate) : 0
         let tax = rate > 0 ? InvoiceLines.roundedToCent(discounted * rate / 100) : 0
-        return (discounted, tax, discounted + tax)
+        return (sub, discounted, tax, InvoiceLines.roundedToCent(discounted + tax))
     }
 
     /// A tax rate as the Edit screen shows it and the PDF prints it: up to three
@@ -148,11 +151,12 @@ extension Proposal {
         return text
     }
 
-    /// A typed tax rate: a number from 0 to 100, otherwise 0.
+    /// A typed tax rate: a number from 0 to 100, kept to three decimals so the
+    /// rate charged, the Edit field and the PDF label always agree; otherwise 0.
     nonisolated static func taxRate(typed text: String) -> Double {
         guard let rate = Double(text.trimmingCharacters(in: .whitespaces)),
               rate.isFinite, (0...100).contains(rate) else { return 0 }
-        return rate
+        return (rate * 1000).rounded() / 1000
     }
 
     /// A payment reminder to text the client. The amount is to the cent; it was

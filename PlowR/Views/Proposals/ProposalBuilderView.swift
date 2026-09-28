@@ -141,7 +141,7 @@ struct ProposalBuilderView: View {
                     DisclosureGroup {
                         ForEach(Array(zones.enumerated()), id: \.element.id) { index, zone in
                             let key = selectionKey(service: service, zoneIndex: index)
-                            let defaultAmt = zone.areaSquareFeet * service.pricePerUnit * afterHoursMultiplier
+                            let defaultAmt = draft.defaultAmount(serviceID: service.id.uuidString, zoneIndex: index) ?? 0
                             VStack(alignment: .leading, spacing: 0) {
                                 Toggle(isOn: Binding(
                                     get: { selections.contains(key) },
@@ -171,7 +171,7 @@ struct ProposalBuilderView: View {
                     }
                 } else {
                     let key = selectionKey(service: service, zoneIndex: -1)
-                    let defaultAmt = service.pricePerUnit * afterHoursMultiplier
+                    let defaultAmt = draft.defaultAmount(serviceID: service.id.uuidString, zoneIndex: -1) ?? 0
                     VStack(alignment: .leading, spacing: 0) {
                         Toggle(isOn: Binding(
                             get: { selections.contains(key) },
@@ -325,48 +325,34 @@ struct ProposalBuilderView: View {
         String(format: "$%.2f", calculateTotal())
     }
 
-    /// The estimate is the saved document's total: every line as it will be
-    /// saved, custom lines included, then the discount and tax. It used to leave
-    /// out tax and custom lines, and priced a cleared field without the
-    /// after-hours multiplier.
-    private func calculateTotal() -> Double {
-        let subtotal = selections.compactMap(lineAmount(for:)).reduce(0, +)
-            + customItems.compactMap(customAmount).reduce(0, +)
-        return Proposal.totals(subtotal: subtotal, discount: pendingDiscount, taxRate: pendingTaxRate).total
+    /// Everything chosen on this screen, priced the one way both the estimate
+    /// and the saved document use (see DocumentDraft).
+    private var draft: DocumentDraft {
+        DocumentDraft(
+            services: myServices.map { .init(id: $0.id.uuidString, name: $0.name,
+                                             unitType: $0.unitType, pricePerUnit: $0.pricePerUnit) },
+            zones: zones.map { .init(label: $0.label, areaSquareFeet: $0.areaSquareFeet) },
+            afterHoursMultiplier: afterHoursMultiplier,
+            selections: selections,
+            amounts: amounts,
+            lineNotes: lineNotes,
+            customLines: customItems.map { .init(name: $0.name, amount: $0.amount, notes: $0.notes) },
+            discount: discountAmount,
+            taxRate: taxRateString
+        )
     }
 
-    /// A selected line's amount: what's typed in its field, or, if the field is
-    /// empty or unreadable, the default shown beside it (after-hours multiplier
-    /// included). The estimate and the saved line both use it.
-    private func lineAmount(for key: String) -> Double? {
-        let parts = key.split(separator: "|")
-        guard parts.count == 2,
-              let service = myServices.first(where: { $0.id.uuidString == String(parts[0]) }),
-              let zoneIndex = Int(parts[1]) else { return nil }
-        let base = zones.indices.contains(zoneIndex)
-            ? zones[zoneIndex].areaSquareFeet * service.pricePerUnit
-            : service.pricePerUnit
-        return InvoiceLines.price(typed: amounts[key],
-                                  default: InvoiceLines.roundedToCent(base * afterHoursMultiplier))
-    }
-
-    /// A custom line's amount, if it has a name and a positive amount.
-    private func customAmount(_ item: CustomLineItem) -> Double? {
-        guard !item.name.isEmpty else { return nil }
-        let amount = InvoiceLines.price(typed: item.amount, default: 0)
-        return amount > 0 ? amount : nil
-    }
-
-    private var pendingDiscount: Double { max(0, InvoiceLines.price(typed: discountAmount, default: 0)) }
-    private var pendingTaxRate: Double { Proposal.taxRate(typed: taxRateString) }
+    /// The estimate is the total of the document Save would make.
+    private func calculateTotal() -> Double { draft.total }
 
     // MARK: - Build
 
     private func buildProposalObject() -> Proposal {
         let proposal = Proposal(operatorID: authManager.userID, client: client)
         proposal.notes = notes
-        proposal.discountAmount = pendingDiscount
-        proposal.taxRate = pendingTaxRate
+        let draft = self.draft
+        proposal.discountAmount = draft.discountAmount
+        proposal.taxRate = draft.taxRatePercent
         proposal.disclaimer = disclaimer
         if isInvoiceMode {
             proposal.invoiceNumber = InvoiceNumbering.next(operatorID: authManager.userID, in: modelContext)
@@ -375,61 +361,7 @@ struct ProposalBuilderView: View {
             proposal.validUntil = validUntil
         }
 
-        var lineItems: [ProposalLineItem] = []
-        var sortIndex = 0
-
-        for key in selections.sorted() {
-            let parts = key.split(separator: "|")
-            guard parts.count == 2,
-                  let service = myServices.first(where: { $0.id.uuidString == String(parts[0]) }),
-                  let zoneIndex = Int(parts[1]) else { continue }
-
-            let amount = lineAmount(for: key)
-            let note = lineNotes[key] ?? ""
-
-            if zoneIndex >= 0 && zoneIndex < zones.count {
-                let zone = zones[zoneIndex]
-                let item = ProposalLineItem(
-                    serviceName: service.name,
-                    zoneLabel: zone.label,
-                    quantity: zone.areaSquareFeet,
-                    unitType: service.unitType,
-                    unitPrice: service.pricePerUnit,
-                    sortOrder: sortIndex,
-                    itemNotes: note
-                )
-                if let amount { item.lineTotal = amount }
-                lineItems.append(item)
-            } else {
-                let item = ProposalLineItem(
-                    serviceName: service.name,
-                    zoneLabel: "Property",
-                    quantity: 1,
-                    unitType: "flat",
-                    unitPrice: service.pricePerUnit,
-                    sortOrder: sortIndex,
-                    itemNotes: note
-                )
-                if let amount { item.lineTotal = amount }
-                lineItems.append(item)
-            }
-            sortIndex += 1
-        }
-
-        for (i, custom) in customItems.enumerated() {
-            guard let amount = customAmount(custom) else { continue }
-            let item = ProposalLineItem(
-                serviceName: custom.name,
-                zoneLabel: "",
-                quantity: 1,
-                unitType: "flat",
-                unitPrice: amount,
-                sortOrder: sortIndex + i,
-                itemNotes: custom.notes
-            )
-            lineItems.append(item)
-        }
-
+        var lineItems = draft.makeLineItems()
         if grouped { lineItems = ProposalLineItem.grouped(lineItems) }
         proposal.lineItems = lineItems
         return proposal

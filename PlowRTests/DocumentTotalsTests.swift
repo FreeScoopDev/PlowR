@@ -19,6 +19,16 @@ struct DocumentTotalsTests {
         #expect(t.total == 97.99)
     }
 
+    // A line typed as 10.125: printf prints 10.12, whole-cent rounding bills 10.13.
+    // Rounding the sub-total once, first, keeps the printed rows adding up.
+    @Test func aSubCentSubtotalIsRoundedOnceSoTheRowsAddUp() {
+        let t = Proposal.totals(subtotal: 10.125, discount: 0, taxRate: 8)
+        #expect(t.subtotal == 10.13)
+        // Compared in whole cents: adding Doubles leaves floating-point dust.
+        #expect(InvoiceLines.cents(t.subtotal) + InvoiceLines.cents(t.tax) == InvoiceLines.cents(t.total))
+        #expect(String(format: "%.2f", t.subtotal) == "10.13")
+    }
+
     @Test func aDiscountLargerThanTheWorkLeavesNothingToPay() {
         let t = Proposal.totals(subtotal: 40, discount: 50, taxRate: 6)
         #expect(t.discounted == 0 && t.tax == 0 && t.total == 0)
@@ -36,6 +46,9 @@ struct DocumentTotalsTests {
         }
         #expect(Proposal.percentText(8.875) == "8.875")
         #expect(Proposal.percentText(8) == "8")
+        // Four decimals typed: kept to three, so the rate charged and printed agree.
+        #expect(Proposal.taxRate(typed: "7.0625") == 7.063)
+        #expect(Proposal.percentText(Proposal.taxRate(typed: "7.0625")) == "7.063")
     }
 
     @Test func aTypedTaxRateIsANumberFromZeroToAHundred() {
@@ -74,8 +87,20 @@ struct DocumentTotalsStoreTests {
     @Test func aSavedDocumentUsesTheSameFormula() throws {
         let (doc, container) = try document(lines: [60, 40], discount: 10, taxRate: 8.875)
         _ = container
-        #expect(doc.total == Proposal.totals(subtotal: 100, discount: 10, taxRate: 8.875).total)
         #expect(doc.total == 97.99)
+        #expect(doc.taxAmount == 7.99)
+    }
+
+    // The PDF's rows, as printed, add up to its printed total, even for a line
+    // typed with fractions of a cent.
+    @Test func thePrintedRowsAddUpForASubCentLine() throws {
+        let (doc, container) = try document(lines: [10.125], discount: 1, taxRate: 8)
+        _ = container
+        let printedLine = InvoiceLines.roundedToCent(doc.sortedLineItems[0].lineTotal)
+        #expect(printedLine == doc.subtotal)
+        let c = InvoiceLines.cents
+        #expect(c(doc.subtotal) - c(doc.appliedDiscount) + c(doc.taxAmount) == c(doc.total))
+        #expect(doc.total == 9.86)
     }
 
     // The PDF printed the discount as entered, so its rows didn't add up.
@@ -84,6 +109,14 @@ struct DocumentTotalsStoreTests {
         _ = container
         #expect(doc.appliedDiscount == 40)
         #expect(doc.subtotal - doc.appliedDiscount == doc.discountedTotal)
+    }
+
+    // Two lines of 10.125 print as 10.13 each: the sub-total is their sum, 20.26,
+    // not the rounded raw sum, 20.25.
+    @Test func theSubtotalIsTheSumOfTheLinesAsPrinted() throws {
+        let (doc, container) = try document(lines: [10.125, 10.125])
+        _ = container
+        #expect(doc.subtotal == 20.26)
     }
 
     // A $149.50 invoice was texted to the client as $150.

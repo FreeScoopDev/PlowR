@@ -24,7 +24,7 @@ struct ProposalEditView: View {
     }
 
     private func applyEdits() {
-        proposal.invoiceDueDate = dueDate
+        if proposal.isInvoice { proposal.invoiceDueDate = dueDate }
         proposal.discountAmount = pendingDiscount
         proposal.taxRate = pendingTaxRate
     }
@@ -43,6 +43,9 @@ struct ProposalEditView: View {
             }
             .navigationTitle(proposal.invoiceNumber)
             .navigationBarTitleDisplayMode(.inline)
+            // Line amounts save as they're typed; a swipe down must keep the
+            // discount and tax typed here too, not just Done.
+            .onDisappear { applyEdits() }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
@@ -82,7 +85,10 @@ struct ProposalEditView: View {
                     Spacer()
                     HStack(spacing: 2) {
                         Text("$").foregroundStyle(.secondary).font(.subheadline)
-                        TextField("0.00", value: $item.lineTotal, format: .number.precision(.fractionLength(2)))
+                        // Kept to the cent, as it will be billed and printed.
+                        TextField("0.00", value: Binding(get: { item.lineTotal },
+                                                         set: { item.lineTotal = InvoiceLines.roundedToCent($0) }),
+                                  format: .number.precision(.fractionLength(2)))
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
                             .frame(width: 72)

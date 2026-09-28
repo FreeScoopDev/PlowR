@@ -512,7 +512,7 @@ struct PDFGenerator {
             }
             drawText(qtyStr, x: margin + c1 + c2, y: rY, width: c3,
                      font: dataFont, color: inkMid, alignment: .right)
-            drawText(String(format: "$%.2f", item.lineTotal),
+            drawText(String(format: "$%.2f", InvoiceLines.roundedToCent(item.lineTotal)),
                      x: margin + c1 + c2 + c3, y: rY, width: c4 - 4,
                      font: nameFont, color: ink, alignment: .right)
             curY += rowH
