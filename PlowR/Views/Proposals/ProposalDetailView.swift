@@ -37,16 +37,7 @@ struct ProposalDetailView: View {
         proposal.isInvoice ? proposal.invoiceNumber : "Proposal"
     }
 
-    private var reminderMessage: String {
-        let amount = proposal.total.formatted(.currency(code: "USD").precision(.fractionLength(0)))
-        let statusWord = proposal.invoiceStatus == .overdue ? "overdue" : "outstanding"
-        var msg = "Hi \(proposal.clientName), just a friendly reminder that invoice \(proposal.invoiceNumber) for \(amount) is \(statusWord)."
-        if let due = proposal.invoiceDueDate {
-            msg += " Due: \(due.formatted(.dateTime.month(.abbreviated).day().year()))."
-        }
-        msg += " Please reach out if you have any questions — thank you!"
-        return msg
-    }
+    private var reminderMessage: String { proposal.reminderMessage() }
 
 
     // MARK: - Body
