@@ -8,7 +8,6 @@ struct ProposalDetailView: View {
     @Query private var allProfiles: [BusinessProfile]
     @Query private var allPaymentMethods: [PaymentMethod]
     @Query private var allClients: [Client]
-    @Query private var allProposals: [Proposal]
 
     @State private var pdfData: Data? = nil
     @State private var shareURL: URL? = nil
@@ -203,8 +202,7 @@ struct ProposalDetailView: View {
     // MARK: - Actions
 
     private func convertToInvoice() {
-        let count = allProposals.filter { $0.isInvoice && $0.operatorID == proposal.operatorID }.count
-        proposal.invoiceNumber = String(format: "INV-%04d", count + 1)
+        proposal.invoiceNumber = InvoiceNumbering.next(operatorID: proposal.operatorID, in: modelContext)
         proposal.invoiceDueDate = Date().addingTimeInterval(30 * 86400)
         generatePDF()
     }
@@ -225,9 +223,9 @@ struct ProposalDetailView: View {
 
     private func createRevision() {
         guard let client = proposalClient else { return }
-        let revisionCount = allProposals.filter { $0.revisionOf == proposal.invoiceNumber }.count
         let revision = Proposal(operatorID: proposal.operatorID, client: client)
-        revision.invoiceNumber = "\(proposal.invoiceNumber)-R\(revisionCount + 1)"
+        revision.invoiceNumber = InvoiceNumbering.nextRevision(of: proposal.invoiceNumber,
+                                                               operatorID: proposal.operatorID, in: modelContext)
         revision.revisionOf = proposal.invoiceNumber
         revision.discountAmount = proposal.discountAmount
         revision.taxRate = proposal.taxRate

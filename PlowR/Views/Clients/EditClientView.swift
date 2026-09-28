@@ -156,7 +156,9 @@ struct EditClientView: View {
             Button("Cancel", role: .cancel) { revisePaidDoc = nil }
         } message: {
             if let doc = revisePaidDoc {
-                Text("'\(doc.invoiceNumber)' is marked paid. 'Save as Revision Copy' creates \(doc.invoiceNumber)-R1 as a new draft. 'Overwrite' resets it to Draft so you can resend.")
+                let copyNumber = InvoiceNumbering.nextRevision(of: doc.invoiceNumber,
+                                                               operatorID: doc.operatorID, in: modelContext)
+                Text("'\(doc.invoiceNumber)' is marked paid. 'Save as Revision Copy' creates \(copyNumber) as a new draft. 'Overwrite' resets it to Draft so you can resend.")
             }
         }
     }
@@ -900,9 +902,9 @@ struct EditClientView: View {
     }
 
     private func createRevision(of original: Proposal) {
-        let revisionCount = clientDocuments.filter { $0.revisionOf == original.invoiceNumber }.count
         let revision = Proposal(operatorID: original.operatorID, client: client)
-        revision.invoiceNumber = "\(original.invoiceNumber)-R\(revisionCount + 1)"
+        revision.invoiceNumber = InvoiceNumbering.nextRevision(of: original.invoiceNumber,
+                                                               operatorID: original.operatorID, in: modelContext)
         revision.revisionOf = original.invoiceNumber
         revision.discountAmount = original.discountAmount
         revision.taxRate = original.taxRate

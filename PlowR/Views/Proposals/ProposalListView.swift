@@ -251,8 +251,7 @@ struct ProposalListView: View {
     // MARK: - Actions
 
     private func convertToInvoice(_ proposal: Proposal) {
-        let count = allProposals.filter { $0.isInvoice && $0.operatorID == authManager.userID }.count
-        proposal.invoiceNumber = String(format: "INV-%04d", count + 1)
+        proposal.invoiceNumber = InvoiceNumbering.next(operatorID: proposal.operatorID, in: modelContext)
         proposal.invoiceDueDate = Date().addingTimeInterval(30 * 86400)
     }
 
