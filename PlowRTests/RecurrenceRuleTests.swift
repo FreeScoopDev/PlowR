@@ -191,6 +191,30 @@ struct RecurrenceRuleTests {
                 date(2027, 10, 4))
     }
 
+    // The last Monday moved 4 or 5 days later (or 4 earlier): the next visit is
+    // still the following Monday, and a two-weekly series keeps its fortnight.
+    @Test func aLongerMoveOfTheLastVisitKeepsTheWeekAndFortnight() {
+        func mondays(from start: Date, count: Int, every days: Int) -> [Visit] {
+            (0..<count).map { k in
+                Visit(date: calendar.date(byAdding: .day, value: days * k, to: start)!, isScheduled: false)
+            }
+        }
+        let weekly = RecurrenceRule(type: .weekly)
+        var series = mondays(from: date(2026, 9, 7), count: 14, every: 7)        // … Mon 30 Nov, Mon 7 Dec
+        _ = series.removeLast()
+        for moved in [date(2026, 12, 11), date(2026, 12, 12)] {                  // Fri, Sat
+            #expect(weekly.continuationDate(afterCompleting: moved, series: series, calendar: calendar) ==
+                    date(2026, 12, 14), "\(moved)")
+        }
+        let twoWeekly = RecurrenceRule(type: .biweekly)
+        var fortnights = mondays(from: date(2026, 11, 30), count: 6, every: 14)  // … Mon 25 Jan, Mon 8 Feb
+        _ = fortnights.removeLast()
+        for moved in [date(2027, 2, 12), date(2027, 2, 4)] {                     // Fri after, Thu before
+            #expect(twoWeekly.continuationDate(afterCompleting: moved, series: fortnights, calendar: calendar) ==
+                    date(2027, 2, 22), "\(moved)")
+        }
+    }
+
     // A new time the last two visits already have is the series' time now.
     @Test func aNewTimeOnTheLastVisitsCarriesOn() {
         let rule = RecurrenceRule(type: .daily)

@@ -85,11 +85,9 @@ nonisolated struct RecurrenceRule: Equatable {
         switch type {
         case .daily:    day = calendar.date(byAdding: .day, value: step, to: latest)
         case .biweekly:
-            day = onUsualWeekday(calendar.date(byAdding: .day, value: 14, to: latest), of: dates,
-                                 after: latest, calendar: calendar)
+            day = nextOnUsualWeekday(after: latest, dates: dates, stepDays: 14, calendar: calendar)
         case .weekly where weekdays.isEmpty:
-            day = onUsualWeekday(calendar.date(byAdding: .day, value: 7 * step, to: latest), of: dates,
-                                 after: latest, calendar: calendar)
+            day = nextOnUsualWeekday(after: latest, dates: dates, stepDays: 7 * step, calendar: calendar)
         case .weekly:
             day = nextWeekday(after: latest, days: weekdays.filter { (1...7).contains($0) }.sorted(),
                               everyWeeks: step, timeFrom: timeSource, calendar: calendar)
@@ -172,9 +170,10 @@ nonisolated struct RecurrenceRule: Equatable {
     private func usualTimeOfDay(_ dates: [Date], calendar: Calendar) -> Date? {
         let recent = Array(dates.filter { !isClockChangeDay($0, calendar: calendar) }.suffix(3))
         guard let latest = recent.last else { return nil }
+        // Hour and minute only: an edited visit keeps the time picker's seconds.
         func clock(_ d: Date) -> [Int] {
-            let c = calendar.dateComponents([.hour, .minute, .second], from: d)
-            return [c.hour ?? 0, c.minute ?? 0, c.second ?? 0]
+            let c = calendar.dateComponents([.hour, .minute], from: d)
+            return [c.hour ?? 0, c.minute ?? 0]
         }
         var counts: [[Int]: Int] = [:]
         for d in recent { counts[clock(d), default: 0] += 1 }
@@ -183,26 +182,30 @@ nonisolated struct RecurrenceRule: Equatable {
         return recent.last { counts[clock($0)] == most } ?? latest
     }
 
-    /// `date` moved within its week (at most three days either way) to the
-    /// weekday most of the series' visits fall on, and never onto or before
-    /// `latest`'s day. A series' weekday only changes by one-off moves (editing
-    /// all future visits changes their time, not their day).
-    private func onUsualWeekday(_ date: Date?, of dates: [Date], after latest: Date,
-                                calendar: Calendar) -> Date? {
-        guard let date else { return nil }
+    /// The next date after `latest` for a weekly or two-weekly series without
+    /// chosen weekdays. It steps from the latest visit on the weekday most of
+    /// the series' visits fall on, counting each visit after that one as an
+    /// occurrence already used: they're that visit's successors, moved. So a
+    /// one-off move of the last visit, by any number of days either way, keeps
+    /// the weekday and, for two-weekly, the fortnight. (Editing all future
+    /// visits changes their time, not their day, so a weekday only changes by
+    /// one-off moves.) `dates` is sorted.
+    private func nextOnUsualWeekday(after latest: Date, dates: [Date], stepDays: Int,
+                                    calendar: Calendar) -> Date? {
         let days = dates.map { calendar.component(.weekday, from: $0) }
         var counts: [Int: Int] = [:]
         for d in days { counts[d, default: 0] += 1 }
         let most = counts.values.max() ?? 0
-        guard let usual = days.last(where: { counts[$0] == most }) else { return date }
-        var shift = usual - calendar.component(.weekday, from: date)
-        if shift > 3 { shift -= 7 } else if shift < -3 { shift += 7 }
-        guard var moved = calendar.date(byAdding: .day, value: shift, to: date) else { return date }
-        if calendar.startOfDay(for: moved) <= calendar.startOfDay(for: latest),
-           let later = calendar.date(byAdding: .day, value: 7, to: moved) {
-            moved = later
+        guard let usual = days.last(where: { counts[$0] == most }),
+              let anchorIndex = days.lastIndex(of: usual) else {
+            return calendar.date(byAdding: .day, value: stepDays, to: latest)
         }
-        return moved
+        let used = dates.count - 1 - anchorIndex
+        var next = calendar.date(byAdding: .day, value: stepDays * (used + 1), to: dates[anchorIndex])
+        while let candidate = next, calendar.startOfDay(for: candidate) <= calendar.startOfDay(for: latest) {
+            next = calendar.date(byAdding: .day, value: stepDays, to: candidate)
+        }
+        return next
     }
 
     /// The day of month most of `dates` fall on; on a tie, the earliest one's.
