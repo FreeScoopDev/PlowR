@@ -11,6 +11,10 @@ import Foundation
 /// to the next week at midnight, and skipped the week's other days when repeating
 /// every 2 or more weeks.
 ///
+/// Every date is counted from the series' first visit, which fixes its time of
+/// day and day of month: a series doesn't slide to 3 AM after a daylight-saving
+/// change, or from the 31st to the 28th after February.
+///
 /// Weeks run Sunday to Saturday, as in the weekday picker, whatever the device's
 /// locale; weekdays are numbered 1 (Sunday) to 7 (Saturday).
 ///
@@ -29,64 +33,88 @@ nonisolated struct RecurrenceRule: Equatable {
     /// ...and none further ahead than this.
     static let upFrontHorizon = DateComponents(year: 2)
 
-    /// The next occurrence after `date`, at the same time of day, or nil past the end date.
-    func next(after date: Date, calendar: Calendar) -> Date? {
-        let step = max(1, interval)
-        let candidate: Date?
-        switch type {
-        case .daily:
-            candidate = calendar.date(byAdding: .day, value: step, to: date)
-        case .monthly:
-            candidate = calendar.date(byAdding: .month, value: step, to: date)
-        case .biweekly:
-            candidate = calendar.date(byAdding: .day, value: 14, to: date)
-        case .weekly where weekdays.isEmpty:
-            candidate = calendar.date(byAdding: .day, value: 7 * step, to: date)
-        case .weekly:
-            candidate = nextWeekday(after: date, everyWeeks: step, calendar: calendar)
-        }
-        guard let candidate, isOnOrBeforeEnd(candidate, calendar: calendar) else { return nil }
-        return candidate
+    /// A visit already in a series, as far as continuing the series goes.
+    struct SeriesVisit: Equatable {
+        var date: Date
+        /// Still to do (not completed, skipped or cancelled).
+        var isScheduled: Bool
     }
 
     /// `start` and the occurrences after it, up to `limit` dates and not past
-    /// `horizon`. Fixed steps are counted from `start` rather than from the
-    /// previous date, so a series starting on the 31st isn't pulled to the 28th
-    /// for good after February.
+    /// `horizon`.
     func occurrences(from start: Date, limit: Int = upFrontLimit, horizon: Date? = nil,
                      calendar: Calendar) -> [Date] {
-        var dates = [start]
-        let step = max(1, interval)
-        while dates.count < limit {
-            let k = dates.count
-            let candidate: Date?
-            switch type {
-            case .daily:    candidate = calendar.date(byAdding: .day, value: step * k, to: start)
-            case .monthly:  candidate = calendar.date(byAdding: .month, value: step * k, to: start)
-            case .biweekly: candidate = calendar.date(byAdding: .day, value: 14 * k, to: start)
-            case .weekly where weekdays.isEmpty:
-                candidate = calendar.date(byAdding: .day, value: 7 * step * k, to: start)
-            case .weekly:
-                candidate = dates.last.flatMap { nextWeekday(after: $0, everyWeeks: step, calendar: calendar) }
-            }
-            guard let next = candidate, isOnOrBeforeEnd(next, calendar: calendar) else { break }
-            if let horizon, next > horizon { break }
-            dates.append(next)
+        var dates: [Date] = []
+        for date in stream(from: start, calendar: calendar) {
+            if let horizon, date > horizon { break }
+            dates.append(date)
+            if dates.count >= limit { break }
         }
         return dates
     }
 
-    /// Whether completing a visit should add the series' next one: only when the
-    /// series has nothing scheduled after it (it has run out). A series created
-    /// up front already has its next visit, and one the user deleted stays deleted.
-    static func shouldAddNext(afterCompleting date: Date, seriesDates: [Date]) -> Bool {
-        !seriesDates.contains { $0 > date }
+    /// The first occurrence after `latest`, counting from the series' first
+    /// visit on `start`; nil past the end date.
+    func firstOccurrence(after latest: Date, seriesStart start: Date, calendar: Calendar) -> Date? {
+        stream(from: start, calendar: calendar).first { $0 > latest }
+    }
+
+    /// When a series should get another visit, after the one on `completed` is
+    /// completed: only when nothing after it is still scheduled, and then on the
+    /// first occurrence after the series' latest visit, whatever that visit's
+    /// state. So a series created up front isn't given a duplicate, a skipped
+    /// last visit doesn't end the series, and a visit already in the series,
+    /// skipped or not, is never created again.
+    func continuationDate(afterCompleting completed: Date, series: [SeriesVisit],
+                          calendar: Calendar) -> Date? {
+        guard !series.contains(where: { $0.isScheduled && $0.date > completed }) else { return nil }
+        let dates = series.map(\.date) + [completed]
+        guard let start = dates.min(), let latest = dates.max() else { return nil }
+        return firstOccurrence(after: latest, seriesStart: start, calendar: calendar)
     }
 
     // MARK: - Private
 
-    private func nextWeekday(after date: Date, everyWeeks step: Int, calendar: Calendar) -> Date? {
+    /// Every occurrence from `start` on, lazily, ending at the end date. Fixed
+    /// steps are counted from `start` (k × step); weekday rules walk the chosen
+    /// days, taking the time of day from `start`.
+    private func stream(from start: Date, calendar: Calendar) -> AnySequence<Date> {
+        let step = max(1, interval)
         let days = weekdays.filter { (1...7).contains($0) }.sorted()
+        return AnySequence { () -> AnyIterator<Date> in
+            var k = 0
+            var previous: Date?
+            var produced = 0
+            return AnyIterator {
+                // A safety stop: no series needs more than this many look-aheads.
+                guard produced < 20_000 else { return nil }
+                let candidate: Date?
+                if k == 0 {
+                    candidate = start
+                } else {
+                    switch type {
+                    case .daily:    candidate = calendar.date(byAdding: .day, value: step * k, to: start)
+                    case .monthly:  candidate = calendar.date(byAdding: .month, value: step * k, to: start)
+                    case .biweekly: candidate = calendar.date(byAdding: .day, value: 14 * k, to: start)
+                    case .weekly where days.isEmpty:
+                        candidate = calendar.date(byAdding: .day, value: 7 * step * k, to: start)
+                    case .weekly:
+                        candidate = previous.flatMap {
+                            nextWeekday(after: $0, days: days, everyWeeks: step, timeFrom: start, calendar: calendar)
+                        }
+                    }
+                }
+                k += 1
+                guard let date = candidate, isOnOrBeforeEnd(date, calendar: calendar) else { return nil }
+                previous = date
+                produced += 1
+                return date
+            }
+        }
+    }
+
+    private func nextWeekday(after date: Date, days: [Int], everyWeeks step: Int, timeFrom source: Date,
+                             calendar: Calendar) -> Date? {
         guard let first = days.first else { return nil }
         let weekday = calendar.component(.weekday, from: date)
         let dayStart = calendar.startOfDay(for: date)
@@ -99,7 +127,7 @@ nonisolated struct RecurrenceRule: Equatable {
             let sunday = calendar.date(byAdding: .day, value: -(weekday - 1), to: dayStart)
             target = sunday.flatMap { calendar.date(byAdding: .day, value: 7 * step + (first - 1), to: $0) }
         }
-        return target.flatMap { atTimeOfDay(of: date, on: $0, calendar: calendar) }
+        return target.flatMap { atTimeOfDay(of: source, on: $0, calendar: calendar) }
     }
 
     private func atTimeOfDay(of source: Date, on day: Date, calendar: Calendar) -> Date? {
