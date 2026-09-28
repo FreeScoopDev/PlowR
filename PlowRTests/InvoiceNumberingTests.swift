@@ -45,7 +45,11 @@ struct InvoiceNumberingTests {
         #expect(fallback == "INV-20260921-141320")
         #expect(InvoiceNumbering.sequence(of: fallback) == nil)       // it doesn't disturb the sequence
         #expect(InvoiceNumbering.next(after: ["INV-0003", fallback]) == "INV-0004")
-        #expect(InvoiceNumbering.nextRevision(of: "INV-0003", used: nil, now: now) == "INV-0003-R20260921-141320")
+        // A revision made then is still one level deep and still holds its invoice's number.
+        let revision = InvoiceNumbering.nextRevision(of: "INV-0003", used: nil, now: now)
+        #expect(revision == "INV-0003-R20260921141320")
+        #expect(InvoiceNumbering.base(of: revision) == "INV-0003")
+        #expect(InvoiceNumbering.next(after: [revision]) == "INV-0004")
     }
 
     // A number picked for a preview is kept at save unless something took it meanwhile.

@@ -60,10 +60,11 @@ nonisolated enum InvoiceNumbering {
     /// The next revision of the invoice `number` belongs to: one past the
     /// highest revision of its base in `used`. Revising "INV-0042" or
     /// "INV-0042-R1" when -R1 and -R3 exist gives "INV-0042-R4". If `used`
-    /// couldn't be read (nil), a timestamp suffix that can't collide.
+    /// couldn't be read (nil), a digits-only timestamp suffix that can't collide
+    /// and still reads as a revision of the same invoice ("-R20260921141320").
     static func nextRevision(of number: String, used: [String]?, now: Date = Date()) -> String {
         let marker = base(of: number) + "-R"
-        guard let used else { return marker + timestamp(now) }
+        guard let used else { return marker + timestamp(now, separator: "") }
         let highest = used.compactMap { candidate -> Int? in
             guard candidate.hasPrefix(marker) else { return nil }
             let digits = candidate.dropFirst(marker.count)
@@ -73,11 +74,12 @@ nonisolated enum InvoiceNumbering {
         return "\(marker)\(highest + 1)"
     }
 
-    private static func timestamp(_ date: Date) -> String {
+    private static func timestamp(_ date: Date, separator: String = "-") -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.timeZone = TimeZone(identifier: "UTC")
-        formatter.dateFormat = "yyyyMMdd-HHmmss"
+        // ('' in a date format is a literal apostrophe, so an empty separator is left out.)
+        formatter.dateFormat = "yyyyMMdd" + (separator.isEmpty ? "" : "'\(separator)'") + "HHmmss"
         return formatter.string(from: date)
     }
 
