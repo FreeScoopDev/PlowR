@@ -73,8 +73,10 @@ struct AccountEraser {
         for model in models {
             attempt("\(model) records") { try deleteAll(model) }
         }
-        // Saved now, not left to autosave, so a failure is seen and the
-        // deletions are ready to sync before the app can be closed.
+        // `delete(model:)` is documented to take effect at the next save. On
+        // iOS 26 the records are already gone before this (a test that drops
+        // the save stays green), so it is kept for the documented behaviour,
+        // and so a failed save is reported rather than left to autosave.
         attempt("saving the deletions") { try context.save() }
         attempt("work orders") { try removeIfPresent(workOrdersFile) }
         for file in files(in: temporaryDirectory, where: { $0.pathExtension == "pdf" }) {
