@@ -79,13 +79,19 @@ struct AccountEraser {
         // and so a failed save is reported rather than left to autosave.
         attempt("saving the deletions") { try context.save() }
         attempt("work orders") { try removeIfPresent(workOrdersFile) }
-        for file in files(in: temporaryDirectory, where: { $0.pathExtension == "pdf" }) {
-            attempt("shared PDF \(file.lastPathComponent)") { try removeIfPresent(file) }
+        attempt("shared PDFs") {
+            for file in try files(in: temporaryDirectory, where: { $0.pathExtension == "pdf" }) {
+                attempt("shared PDF \(file.lastPathComponent)") { try removeIfPresent(file) }
+            }
         }
         for folder in archiveFolders {
-            let archives = files(in: folder) { $0.lastPathComponent.hasPrefix("default.store") && $0.pathExtension == "bak" }
-            for file in archives {
-                attempt("database archive \(file.lastPathComponent)") { try removeIfPresent(file) }
+            attempt("database archives in \(folder.lastPathComponent)") {
+                let archives = try files(in: folder) {
+                    $0.lastPathComponent.hasPrefix("default.store") && $0.pathExtension == "bak"
+                }
+                for file in archives {
+                    attempt("database archive \(file.lastPathComponent)") { try removeIfPresent(file) }
+                }
             }
         }
         notifications.removeAllPendingNotificationRequests()
@@ -98,12 +104,40 @@ struct AccountEraser {
         return failures
     }
 
+    /// Erases everything, then signs out only if nothing failed, so what's
+    /// left can be retried while still signed in.
+    func eraseAll(thenSignOut signOut: () -> Void) -> [Failure] {
+        let failures = eraseAll()
+        if failures.isEmpty { signOut() }
+        return failures
+    }
+
+    /// The folders the database and its `.bak` archives can be in: the store's
+    /// own (the app-group container on a signed build) and Application Support,
+    /// where the archive step has been putting them.
+    static func archiveFolders(for container: ModelContainer) -> [URL] {
+        var folders = [URL.applicationSupportDirectory]
+        for configuration in container.configurations where configuration.url.path != "/dev/null" {
+            let folder = configuration.url.deletingLastPathComponent()
+            if !folders.contains(where: { $0.standardizedFileURL.path == folder.standardizedFileURL.path }) {
+                folders.append(folder)
+            }
+        }
+        return folders
+    }
+
     private func deleteAll<T: PersistentModel>(_ model: T.Type) throws {
         try context.delete(model: model)
     }
 
-    private func files(in folder: URL, where keep: (URL) -> Bool) -> [URL] {
-        ((try? fileManager.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) ?? []).filter(keep)
+    /// The files in `folder` that `keep` accepts. No folder means no files;
+    /// a folder that can't be read is an error, not "nothing there".
+    private func files(in folder: URL, where keep: (URL) -> Bool) throws -> [URL] {
+        do {
+            return try fileManager.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil).filter(keep)
+        } catch CocoaError.fileReadNoSuchFile {
+            return []
+        }
     }
 
     private func removeIfPresent(_ url: URL) throws {

@@ -132,21 +132,11 @@ struct SettingsView: View {
     private func deleteAccount() {
         // Everything on this device: records, preferences, files, notifications,
         // geofences, the route in progress and the widget (see AccountEraser).
-        let eraser = AccountEraser(context: modelContext, archiveFolders: storeFolders, routeStore: activeRoute)
-        deleteFailures = eraser.eraseAll()
+        let eraser = AccountEraser(context: modelContext,
+                                   archiveFolders: AccountEraser.archiveFolders(for: modelContext.container),
+                                   routeStore: activeRoute)
         // Signed out only once everything is gone, so what's left can be retried.
-        if deleteFailures.isEmpty { authManager.signOut() }
-    }
-
-    /// The folders the database and its `.bak` archives can be in: the store's
-    /// own (the app-group container on a signed build) and Application Support.
-    private var storeFolders: [URL] {
-        var folders = [URL.applicationSupportDirectory]
-        for configuration in modelContext.container.configurations {
-            let folder = configuration.url.deletingLastPathComponent()
-            if !folders.contains(folder) { folders.append(folder) }
-        }
-        return folders
+        deleteFailures = eraser.eraseAll(thenSignOut: authManager.signOut)
     }
 
     #if DEBUG

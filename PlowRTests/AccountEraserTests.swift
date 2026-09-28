@@ -179,6 +179,65 @@ struct AccountEraserTests {
         #expect(account.widgetCleared)
     }
 
+    // Photos are kept as files beside the database (external storage), which an
+    // in-memory store never writes. An on-disk store checks those go too.
+    @Test func photoFilesBesideTheDatabaseAreDeleted() throws {
+        let account = try Account()
+        defer { account.removeFiles() }
+        let schema = Schema(PlowRApp.models)
+        let disk = try ModelContainer(for: schema, configurations: ModelConfiguration(
+            schema: schema, url: account.storeFolder.appending(path: "photos.store"), cloudKitDatabase: .none))
+        disk.mainContext.insert(StopPhoto(operatorID: "op", clientID: "c", routeID: "r", isBefore: true,
+                                          imageData: Data(repeating: 7, count: 1_000_000)))
+        try disk.mainContext.save()
+        let external = account.storeFolder.appending(path: ".photos_SUPPORT/_EXTERNAL_DATA")
+        let before = (try? FileManager.default.contentsOfDirectory(atPath: external.path)) ?? []
+        #expect(!before.isEmpty, "the photo wasn't stored as a file, so this test checks nothing")
+        var eraser = account.eraser()
+        eraser.context = disk.mainContext
+        #expect(eraser.eraseAll().isEmpty)
+        let after = (try? FileManager.default.contentsOfDirectory(atPath: external.path)) ?? []
+        #expect(after.isEmpty, "photo files left: \(after)")
+    }
+
+    @Test func signedOutOnlyWhenEverythingIsGone() throws {
+        let account = try Account()
+        defer { account.removeFiles() }
+        var signedOut = false
+        #expect(account.eraser().eraseAll(thenSignOut: { signedOut = true }).isEmpty)
+        #expect(signedOut)
+    }
+
+    // On a signed build the database is in the app-group container, not in
+    // Application Support, so its own folder is swept for archives too.
+    @Test func archivesAreSweptBesideTheLiveDatabase() throws {
+        let account = try Account()
+        defer { account.removeFiles() }
+        let schema = Schema(PlowRApp.models)
+        let disk = try ModelContainer(for: schema, configurations: ModelConfiguration(
+            schema: schema, url: account.storeFolder.appending(path: "live.store"), cloudKitDatabase: .none))
+        let paths = AccountEraser.archiveFolders(for: disk).map(\.standardizedFileURL.path)
+        #expect(paths.contains(account.storeFolder.standardizedFileURL.path))
+        #expect(paths.contains(URL.applicationSupportDirectory.standardizedFileURL.path))
+        // An in-memory store has no folder to sweep.
+        #expect(AccountEraser.archiveFolders(for: account.container).count == 1)
+    }
+
+    // A folder that exists but can't be read is a failure, not "nothing there":
+    // its PDFs would otherwise stay behind while the user is signed out.
+    @Test func anUnreadableFolderIsReportedNotSkipped() throws {
+        let account = try Account()
+        try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: account.tmp.path)
+        defer {
+            try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: account.tmp.path)
+            account.removeFiles()
+        }
+        var signedOut = false
+        let failures = account.eraser().eraseAll(thenSignOut: { signedOut = true })
+        #expect(failures.map(\.step) == ["shared PDFs"])
+        #expect(!signedOut)
+    }
+
     // A step that fails is reported and the others still run. Preferences are
     // kept, so the app stays on Settings to say what's left and to retry.
     @Test func aFailedStepIsReportedAndTheRestStillRun() throws {
@@ -194,10 +253,15 @@ struct AccountEraserTests {
         }
         var eraser = account.eraser()
         eraser.workOrdersFile = stuck
-        let failures = eraser.eraseAll()
+        var signedOut = false
+        let failures = eraser.eraseAll(thenSignOut: { signedOut = true })
         #expect(failures.map(\.step) == ["work orders"])
+        #expect(!signedOut)
         #expect(!account.exists(account.tmp.appending(path: "INV-0001.pdf")))
         #expect(try count(Client.self, in: account.context) == 0)
+        #expect(account.notifications.pending.isEmpty)
+        #expect(account.regions.monitoredRegions.isEmpty)
+        #expect(account.widgetCleared)
         #expect(account.defaults.object(forKey: "userRole") != nil)
     }
 }
