@@ -51,48 +51,44 @@ final class ScheduledVisit {
         self.seriesID = UUID().uuidString
     }
 
-    // Generate the next occurrence date based on recurrence settings
-    func nextOccurrence(after date: Date) -> Date? {
-        guard isRecurring else { return nil }
-
-        if recurrenceType == .weekly && !recurrenceWeekdays.isEmpty {
-            return nextWeekdayOccurrence(after: date)
-        }
-
-        var components = DateComponents()
-        switch recurrenceType {
-        case .daily:    components.day = recurrenceInterval
-        case .weekly:   components.weekOfYear = recurrenceInterval
-        case .biweekly: components.weekOfYear = 2
-        case .monthly:  components.month = recurrenceInterval
-        }
-        let next = Calendar.current.date(byAdding: components, to: date) ?? date
-        if let end = recurrenceEndDate, next > end { return nil }
-        return next
+    /// This series' repeat rule (see RecurrenceRule, the one rule for repeats).
+    var recurrenceRule: RecurrenceRule {
+        RecurrenceRule(type: recurrenceType, interval: recurrenceInterval,
+                       weekdays: Set(recurrenceWeekdays), endDate: recurrenceEndDate)
     }
 
-    // For weekly recurrence with specific weekdays: find the next matching day.
-    // If a later weekday exists in the same week (interval == 1), use it.
-    // Otherwise advance N weeks from the current week's Sunday and use the first weekday.
-    private func nextWeekdayOccurrence(after date: Date) -> Date? {
-        let cal = Calendar.current
-        let sorted = recurrenceWeekdays.sorted()
-        let currentWeekday = cal.component(.weekday, from: date)
+    /// The visit to add to this visit's series once it's completed, if the
+    /// series needs one (see RecurrenceRule.continuationDate), ready to insert.
+    /// `visits` can be any visits; only this series' are considered.
+    func continuation(among visits: [ScheduledVisit], calendar: Calendar = .current) -> ScheduledVisit? {
+        guard isRecurring else { return nil }
+        let series = visits
+            .filter { $0.seriesID == seriesID && $0.id != id }
+            .map { RecurrenceRule.SeriesVisit(date: $0.scheduledDate, isScheduled: $0.status == .scheduled) }
+        guard let date = recurrenceRule.continuationDate(afterCompleting: scheduledDate, series: series,
+                                                         calendar: calendar) else { return nil }
+        return makeContinuation(on: date)
+    }
 
-        if recurrenceInterval == 1, let nextWD = sorted.first(where: { $0 > currentWeekday }) {
-            let candidate = cal.date(byAdding: .day, value: nextWD - currentWeekday, to: date)
-            if let end = recurrenceEndDate, let c = candidate, c > end { return nil }
-            return candidate
-        }
-
-        guard let weekStart = cal.dateInterval(of: .weekOfYear, for: date)?.start,
-              let targetStart = cal.date(byAdding: .weekOfYear, value: recurrenceInterval, to: weekStart),
-              let firstWD = sorted.first else { return nil }
-
-        // Calendar weekday 1 = Sunday = offset 0 from week start
-        let candidate = cal.date(byAdding: .day, value: firstWD - 1, to: targetStart)
-        if let end = recurrenceEndDate, let c = candidate, c > end { return nil }
-        return candidate
+    /// A visit continuing this series on `date`, with everything a visit in the
+    /// series carries. (Visits added on completion used to lose their reason
+    /// and expected services.)
+    func makeContinuation(on date: Date) -> ScheduledVisit {
+        let next = ScheduledVisit(operatorID: operatorID, clientID: clientID, clientName: clientName,
+                                  clientAddress: clientAddress, scheduledDate: date)
+        next.estimatedMinutes = estimatedMinutes
+        next.notes = notes
+        next.visitReason = visitReason
+        next.expectedServiceIDs = expectedServiceIDs
+        next.isRecurring = isRecurring
+        next.recurrenceType = recurrenceType
+        next.recurrenceInterval = recurrenceInterval
+        next.recurrenceWeekdays = recurrenceWeekdays
+        next.recurrenceEndDate = recurrenceEndDate
+        next.seriesID = seriesID
+        next.isAfterHours = isAfterHours
+        next.afterHoursMultiplier = afterHoursMultiplier
+        return next
     }
 }
 
@@ -121,7 +117,7 @@ enum VisitStatus: String, CaseIterable {
     }
 }
 
-enum RecurrenceType: String, CaseIterable {
+nonisolated enum RecurrenceType: String, CaseIterable {
     case daily    = "Daily"
     case weekly   = "Weekly"
     case biweekly = "Every 2 Weeks"

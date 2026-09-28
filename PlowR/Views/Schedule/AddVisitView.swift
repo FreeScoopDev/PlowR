@@ -420,19 +420,6 @@ struct AddVisitView: View {
         .padding(.vertical, 4)
     }
 
-    // MARK: - Recurrence Helpers
-
-    private func nextRecurrenceDate(after date: Date) -> Date? {
-        var components = DateComponents()
-        switch recurrenceType {
-        case .daily:    components.day = recurrenceInterval
-        case .weekly:   components.weekOfYear = recurrenceInterval
-        case .biweekly: components.weekOfYear = 2
-        case .monthly:  components.month = recurrenceInterval
-        }
-        return Calendar.current.date(byAdding: components, to: date)
-    }
-
     // MARK: - Save
 
     private func save() {
@@ -441,21 +428,9 @@ struct AddVisitView: View {
 
 
         let seriesID = UUID().uuidString
-        var dates: [Date] = [scheduledDate]
-
-        if isRecurring {
-            var cursor = scheduledDate
-            for _ in 0..<51 {
-                guard let next = nextRecurrenceDate(after: cursor) else { break }
-                if hasEndDate && next > recurrenceEndDate { break }
-                dates.append(next)
-                cursor = next
-            }
-        }
-
         client.isActive = true
 
-        for date in dates {
+        func makeVisit(on date: Date) -> ScheduledVisit {
             let visit = ScheduledVisit(
                 operatorID: authManager.userID,
                 clientID: client.id.uuidString,
@@ -470,11 +445,25 @@ struct AddVisitView: View {
             visit.isRecurring = isRecurring
             visit.recurrenceType = recurrenceType
             visit.recurrenceInterval = recurrenceInterval
-            visit.recurrenceWeekdays = Array(recurrenceWeekdays)
+            visit.recurrenceWeekdays = recurrenceType == .weekly ? Array(recurrenceWeekdays).sorted() : []
             visit.recurrenceEndDate = hasEndDate ? recurrenceEndDate : nil
             visit.seriesID = seriesID
             visit.isAfterHours = isAfterHours
             visit.afterHoursMultiplier = afterHoursMultiplier
+            return visit
+        }
+
+        // The series' dates come from the first visit's own rule: the same one
+        // that continues the series when a visit is completed.
+        let first = makeVisit(on: scheduledDate)
+        var dates = [scheduledDate]
+        if first.isRecurring {
+            let horizon = Calendar.current.date(byAdding: RecurrenceRule.upFrontHorizon, to: scheduledDate)
+            dates = first.recurrenceRule.occurrences(from: scheduledDate, horizon: horizon, calendar: .current)
+        }
+
+        for (index, date) in dates.enumerated() {
+            let visit = index == 0 ? first : makeVisit(on: date)
             modelContext.insert(visit)
             let capturedVisit = visit
             Task {
