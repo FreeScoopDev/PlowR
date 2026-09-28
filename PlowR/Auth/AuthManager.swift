@@ -22,19 +22,29 @@ final class AuthManager {
         guard let savedUserID = Self.keychainLoad(key: "appleUserID") else { return }
 
         let provider = ASAuthorizationAppleIDProvider()
-        provider.getCredentialState(forUserID: savedUserID) { [weak self] state, _ in
+        provider.getCredentialState(forUserID: savedUserID) { [weak self] state, error in
+            let keep = Self.keepsSession(state: state, error: error)
             DispatchQueue.main.async {
-                switch state {
-                case .authorized:
+                if keep {
                     self?.isSignedIn = true
                     self?.userID = savedUserID
                     self?.operatorName = UserDefaults.standard.string(forKey: "operatorName") ?? ""
-                default:
+                } else {
                     self?.isSignedIn = false
                     Self.keychainDelete(key: "appleUserID")
                 }
             }
         }
+    }
+
+    /// Whether a saved sign-in survives the check at launch. Only an answer
+    /// from Apple ends it: revoked, not found or transferred. An error, such
+    /// as no signal on a job site, keeps it. Signing out on an error deleted
+    /// the saved ID and locked the user out of their routes until they had
+    /// signal to sign in again.
+    nonisolated static func keepsSession(state: ASAuthorizationAppleIDProvider.CredentialState, error: Error?) -> Bool {
+        guard error == nil else { return true }
+        return state == .authorized
     }
 
     func signIn(userID: String, fullName: PersonNameComponents?, email: String?) {
