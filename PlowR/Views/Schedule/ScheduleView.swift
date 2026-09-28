@@ -384,13 +384,8 @@ struct ScheduleView: View {
 
         // A series is created up front, so its next visit usually exists already;
         // adding another duplicated it on every completion. Only a series with
-        // nothing scheduled after this visit gets one more.
-        guard visit.isRecurring else { return }
-        let seriesDates = allVisits
-            .filter { $0.seriesID == visit.seriesID && $0.id != visit.id }
-            .map(\.scheduledDate)
-        if RecurrenceRule.shouldAddNext(afterCompleting: visit.scheduledDate, seriesDates: seriesDates),
-           let next = visit.makeNextOccurrence() {
+        // nothing still scheduled after this visit gets one more.
+        if let next = visit.continuation(among: allVisits) {
             modelContext.insert(next)
         }
     }

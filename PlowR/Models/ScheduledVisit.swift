@@ -57,18 +57,23 @@ final class ScheduledVisit {
                        weekdays: Set(recurrenceWeekdays), endDate: recurrenceEndDate)
     }
 
-    /// When the series' next visit after `date` is, or nil if it doesn't repeat
-    /// or has ended.
-    func nextOccurrence(after date: Date, calendar: Calendar = .current) -> Date? {
+    /// The visit to add to this visit's series once it's completed, if the
+    /// series needs one (see RecurrenceRule.continuationDate), ready to insert.
+    /// `visits` can be any visits; only this series' are considered.
+    func continuation(among visits: [ScheduledVisit], calendar: Calendar = .current) -> ScheduledVisit? {
         guard isRecurring else { return nil }
-        return recurrenceRule.next(after: date, calendar: calendar)
+        let series = visits
+            .filter { $0.seriesID == seriesID && $0.id != id }
+            .map { RecurrenceRule.SeriesVisit(date: $0.scheduledDate, isScheduled: $0.status == .scheduled) }
+        guard let date = recurrenceRule.continuationDate(afterCompleting: scheduledDate, series: series,
+                                                         calendar: calendar) else { return nil }
+        return makeContinuation(on: date)
     }
 
-    /// The series' next visit after this one, with everything a visit in the
-    /// series carries, ready to insert; nil if it doesn't repeat or has ended.
-    /// (Visits added on completion used to lose their reason and expected services.)
-    func makeNextOccurrence(calendar: Calendar = .current) -> ScheduledVisit? {
-        guard let date = nextOccurrence(after: scheduledDate, calendar: calendar) else { return nil }
+    /// A visit continuing this series on `date`, with everything a visit in the
+    /// series carries. (Visits added on completion used to lose their reason
+    /// and expected services.)
+    func makeContinuation(on date: Date) -> ScheduledVisit {
         let next = ScheduledVisit(operatorID: operatorID, clientID: clientID, clientName: clientName,
                                   clientAddress: clientAddress, scheduledDate: date)
         next.estimatedMinutes = estimatedMinutes

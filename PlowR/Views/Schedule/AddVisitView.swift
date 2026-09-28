@@ -428,20 +428,9 @@ struct AddVisitView: View {
 
 
         let seriesID = UUID().uuidString
-        var dates: [Date] = [scheduledDate]
-
-        if isRecurring {
-            // The same rule that continues the series when a visit is completed.
-            let rule = RecurrenceRule(type: recurrenceType, interval: recurrenceInterval,
-                                      weekdays: recurrenceType == .weekly ? recurrenceWeekdays : [],
-                                      endDate: hasEndDate ? recurrenceEndDate : nil)
-            let horizon = Calendar.current.date(byAdding: RecurrenceRule.upFrontHorizon, to: scheduledDate)
-            dates = rule.occurrences(from: scheduledDate, horizon: horizon, calendar: .current)
-        }
-
         client.isActive = true
 
-        for date in dates {
+        func makeVisit(on date: Date) -> ScheduledVisit {
             let visit = ScheduledVisit(
                 operatorID: authManager.userID,
                 clientID: client.id.uuidString,
@@ -461,6 +450,20 @@ struct AddVisitView: View {
             visit.seriesID = seriesID
             visit.isAfterHours = isAfterHours
             visit.afterHoursMultiplier = afterHoursMultiplier
+            return visit
+        }
+
+        // The series' dates come from the first visit's own rule: the same one
+        // that continues the series when a visit is completed.
+        let first = makeVisit(on: scheduledDate)
+        var dates = [scheduledDate]
+        if first.isRecurring {
+            let horizon = Calendar.current.date(byAdding: RecurrenceRule.upFrontHorizon, to: scheduledDate)
+            dates = first.recurrenceRule.occurrences(from: scheduledDate, horizon: horizon, calendar: .current)
+        }
+
+        for (index, date) in dates.enumerated() {
+            let visit = index == 0 ? first : makeVisit(on: date)
             modelContext.insert(visit)
             let capturedVisit = visit
             Task {

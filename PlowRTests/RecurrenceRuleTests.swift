@@ -25,6 +25,11 @@ struct RecurrenceRuleTests {
         calendar.date(from: DateComponents(year: y, month: m, day: d, hour: h, minute: min))!
     }
 
+    private func time(_ d: Date) -> String {
+        let c = calendar.dateComponents([.hour, .minute], from: d)
+        return String(format: "%02d:%02d", c.hour ?? -1, c.minute ?? -1)
+    }
+
     private let monThu: Set<Int> = [2, 5]      // 1 = Sunday
 
     // Weekly on Mon and Thu, first visit on a Wednesday (7 Oct 2026). The old
@@ -35,11 +40,12 @@ struct RecurrenceRuleTests {
                 [date(2026, 10, 7), date(2026, 10, 8), date(2026, 10, 12), date(2026, 10, 15), date(2026, 10, 19)])
     }
 
-    // Thursday 9:00 → Monday 9:00. The old rule gave Monday 00:00, which then
+    // Thursday 9:30 → Monday 9:30. The old rule gave Monday 00:00, which then
     // showed as overdue all day.
     @Test func wrappingToNextWeekKeepsTheTimeOfDay() {
         let rule = RecurrenceRule(type: .weekly, weekdays: monThu)
-        #expect(rule.next(after: date(2026, 10, 8, 9, 30), calendar: calendar) == date(2026, 10, 12, 9, 30))
+        #expect(rule.occurrences(from: date(2026, 10, 8, 9, 30), limit: 2, calendar: calendar) ==
+                [date(2026, 10, 8, 9, 30), date(2026, 10, 12, 9, 30)])
     }
 
     // Every 2 weeks on Mon and Thu from a Monday: the old rule jumped straight to
@@ -81,55 +87,139 @@ struct RecurrenceRuleTests {
         let rule = RecurrenceRule(type: .weekly, endDate: date(2026, 10, 19, 0, 0))
         #expect(rule.occurrences(from: date(2026, 10, 5), calendar: calendar) ==
                 [date(2026, 10, 5), date(2026, 10, 12), date(2026, 10, 19)])
-        #expect(rule.next(after: date(2026, 10, 19), calendar: calendar) == nil)
+        #expect(rule.firstOccurrence(after: date(2026, 10, 19), seriesStart: date(2026, 10, 5), calendar: calendar) == nil)
     }
 
     // US clocks go back on 1 Nov 2026: the visit stays at 9:00 local time.
     @Test func daylightSavingKeepsTheClockTime() {
         let rule = RecurrenceRule(type: .weekly)
-        let next = rule.next(after: date(2026, 10, 26), calendar: calendar)
-        #expect(next == date(2026, 11, 2))
-        #expect(next.map { calendar.component(.hour, from: $0) } == 9)
+        #expect(rule.occurrences(from: date(2026, 10, 26), limit: 2, calendar: calendar) ==
+                [date(2026, 10, 26), date(2026, 11, 2)])
     }
 
-    // Completing a visit adds the series' next one only if nothing is scheduled
-    // after it. A series made up front already has it; adding it again was the
-    // duplicate on every completion.
-    @Test func completingAddsAVisitOnlyWhenTheSeriesHasRunOut() {
-        let today = date(2026, 10, 5)
-        #expect(!RecurrenceRule.shouldAddNext(afterCompleting: today, seriesDates: [date(2026, 10, 12)]))
-        #expect(RecurrenceRule.shouldAddNext(afterCompleting: today, seriesDates: []))
-        #expect(RecurrenceRule.shouldAddNext(afterCompleting: today, seriesDates: [date(2026, 9, 28)]))
+    // Sun and Wed at 2:30 AM. 2:30 doesn't exist on 14 Mar 2027 (clocks jump to
+    // 3:00); every later visit must be back at 2:30, not stuck at 3:00.
+    @Test func weekdaySeriesKeepTheirTimeAfterADaylightSavingJump() {
+        let rule = RecurrenceRule(type: .weekly, weekdays: [1, 4])
+        let dates = rule.occurrences(from: date(2027, 3, 3, 2, 30), limit: 8, calendar: calendar)
+        #expect(dates.count == 8)
+        let transitionDay = calendar.startOfDay(for: date(2027, 3, 14, 12))
+        for d in dates where calendar.startOfDay(for: d) != transitionDay {
+            #expect(time(d) == "02:30", "\(d)")
+        }
+    }
+
+    // MARK: - Continuing a series after a visit is completed
+
+    private typealias Visit = RecurrenceRule.SeriesVisit
+
+    // A series made up front already has its next visit: adding one again was
+    // the duplicate on every completion.
+    @Test func aSeriesWithVisitsStillScheduledGetsNothingNew() {
+        let rule = RecurrenceRule(type: .weekly)
+        #expect(rule.continuationDate(afterCompleting: date(2026, 10, 5),
+                                      series: [Visit(date: date(2026, 10, 12), isScheduled: true)],
+                                      calendar: calendar) == nil)
+    }
+
+    @Test func aSeriesThatHasRunOutGetsItsNextVisit() {
+        let rule = RecurrenceRule(type: .weekly)
+        let done = [Visit(date: date(2026, 10, 5), isScheduled: false), Visit(date: date(2026, 10, 12), isScheduled: false)]
+        #expect(rule.continuationDate(afterCompleting: date(2026, 10, 19), series: done, calendar: calendar) ==
+                date(2026, 10, 26))
+    }
+
+    // Skipping the last visit and completing the one before must neither end the
+    // series nor re-create the skipped date.
+    @Test func aSkippedLastVisitDoesNotEndOrRepeatTheSeries() {
+        let rule = RecurrenceRule(type: .weekly)
+        let series = [Visit(date: date(2026, 10, 5), isScheduled: false),
+                      Visit(date: date(2026, 10, 19), isScheduled: false)]     // skipped
+        #expect(rule.continuationDate(afterCompleting: date(2026, 10, 12), series: series, calendar: calendar) ==
+                date(2026, 10, 26))
+    }
+
+    // Continuing a series counts from its first visit: the 31st stays the 31st.
+    @Test func aContinuedMonthlySeriesKeepsItsDayOfMonth() {
+        let rule = RecurrenceRule(type: .monthly)
+        #expect(rule.continuationDate(afterCompleting: date(2027, 2, 28),
+                                      series: [Visit(date: date(2027, 1, 31), isScheduled: false)],
+                                      calendar: calendar) == date(2027, 3, 31))
+    }
+
+    // ...and its time of day, even from a visit that landed at 3:00 on the jump day.
+    @Test func aContinuedWeekdaySeriesKeepsItsTime() {
+        let rule = RecurrenceRule(type: .weekly, weekdays: [1, 4])
+        let earlier = [date(2027, 3, 3, 2, 30), date(2027, 3, 7, 2, 30), date(2027, 3, 10, 2, 30)]
+            .map { Visit(date: $0, isScheduled: false) }
+        let next = rule.continuationDate(afterCompleting: date(2027, 3, 14, 3, 0), series: earlier, calendar: calendar)
+        #expect(next == date(2027, 3, 17, 2, 30))
     }
 }
 
-/// A visit added to continue a series carries everything the series has.
+/// Continuing a real series: which visits count, and what the new one carries.
 @MainActor
 struct ScheduledVisitSeriesTests {
 
-    @Test func theNextVisitCarriesTheSeriesDetails() throws {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "America/New_York")!
-        let start = try #require(calendar.date(from: DateComponents(year: 2026, month: 10, day: 8, hour: 7)))
+    private let calendar: Calendar = {
+        var c = Calendar(identifier: .gregorian)
+        c.timeZone = TimeZone(identifier: "America/New_York")!
+        return c
+    }()
+
+    private func at(_ m: Int, _ d: Int, _ h: Int = 7) -> Date {
+        calendar.date(from: DateComponents(year: 2026, month: m, day: d, hour: h))!
+    }
+
+    private func repeatingVisit(on date: Date, series: String = "series-a") -> ScheduledVisit {
         let visit = ScheduledVisit(operatorID: "op", clientID: "c1", clientName: "Pat",
-                                   clientAddress: "1 Main St", scheduledDate: start)
+                                   clientAddress: "1 Main St", scheduledDate: date)
         visit.isRecurring = true
         visit.recurrenceType = .weekly
+        visit.recurrenceInterval = 2
         visit.recurrenceWeekdays = [2, 5]
+        visit.recurrenceEndDate = at(12, 31)
+        visit.notes = "Gate code 1234"
         visit.visitReason = "Routine Visit"
         visit.expectedServiceIDs = ["svc-1", "svc-2"]
         visit.estimatedMinutes = 45
         visit.isAfterHours = true
         visit.afterHoursMultiplier = 1.75
+        visit.seriesID = series
+        return visit
+    }
 
-        let next = try #require(visit.makeNextOccurrence(calendar: calendar))
-        #expect(next.scheduledDate == calendar.date(from: DateComponents(year: 2026, month: 10, day: 12, hour: 7)))
-        #expect(next.seriesID == visit.seriesID)
+    @Test func theNextVisitCarriesEverythingTheSeriesHas() throws {
+        let completed = repeatingVisit(on: at(10, 8))              // Thursday
+        completed.status = .completed
+        let next = try #require(completed.continuation(among: [completed], calendar: calendar))
+        #expect(next.scheduledDate == at(10, 19))                  // Monday two weeks on
+        #expect(next.status == .scheduled)
+        #expect(next.seriesID == "series-a")
+        #expect(next.isRecurring)
+        #expect(next.recurrenceType == .weekly)
+        #expect(next.recurrenceInterval == 2)
+        #expect(next.recurrenceWeekdays == [2, 5])
+        #expect(next.recurrenceEndDate == at(12, 31))
+        #expect(next.notes == "Gate code 1234")
         #expect(next.visitReason == "Routine Visit")
         #expect(next.expectedServiceIDs == ["svc-1", "svc-2"])
         #expect(next.estimatedMinutes == 45)
         #expect(next.isAfterHours && next.afterHoursMultiplier == 1.75)
-        #expect(next.recurrenceWeekdays == [2, 5])
-        #expect(next.status == .scheduled)
+    }
+
+    // Another series' visit for the same client doesn't stop this one continuing.
+    @Test func onlyThisSeriesVisitsCount() {
+        let completed = repeatingVisit(on: at(10, 8))
+        let otherSeries = repeatingVisit(on: at(10, 30), series: "series-b")      // same client, still scheduled
+        #expect(completed.continuation(among: [completed, otherSeries], calendar: calendar) != nil)
+        let sameSeries = repeatingVisit(on: at(10, 12))
+        #expect(completed.continuation(among: [completed, sameSeries], calendar: calendar) == nil)
+    }
+
+    @Test func aOneOffVisitIsNeverContinued() {
+        let visit = repeatingVisit(on: at(10, 8))
+        visit.isRecurring = false
+        #expect(visit.continuation(among: [visit], calendar: calendar) == nil)
     }
 }
