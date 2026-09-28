@@ -17,15 +17,22 @@ struct ElevationServiceTests {
 
     /// Records requests and answers each location with an elevation from `height`.
     private actor FakeAPI {
+        enum Reply { case normal, oneResultShort, notJSON }
         var requests: [URL] = []
+        var times: [ContinuousClock.Instant] = []
         var status = 200
+        var reply = Reply.normal
         let height: @Sendable (Double, Double) -> Double?
         init(height: @escaping @Sendable (Double, Double) -> Double?) { self.height = height }
 
         func setStatus(_ code: Int) { status = code }
+        func setReply(_ r: Reply) { reply = r }
 
         func answer(_ url: URL) throws -> (Data, URLResponse) {
             requests.append(url)
+            times.append(ContinuousClock.now)
+            let ok = HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil)!
+            if reply == .notJSON { return (Data("<html>busy</html>".utf8), ok) }
             let value = URLComponents(url: url, resolvingAgainstBaseURL: false)?
                 .queryItems?.first { $0.name == "locations" }?.value ?? ""
             let results: [[String: Any]] = value.split(separator: "|").map { pair in
@@ -33,8 +40,17 @@ struct ElevationServiceTests {
                 let elevation: Any = height(parts[0], parts[1]).map { $0 as Any } ?? NSNull()
                 return ["elevation": elevation]
             }
-            let body = try JSONSerialization.data(withJSONObject: ["results": results, "status": "OK"])
-            return (body, HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil)!)
+            let sent = reply == .oneResultShort ? Array(results.dropLast()) : results
+            let body = try JSONSerialization.data(withJSONObject: ["results": sent, "status": "OK"])
+            return (body, ok)
+        }
+    }
+
+    /// Seconds between consecutive requests.
+    private func gaps(_ times: [ContinuousClock.Instant]) -> [Double] {
+        zip(times, times.dropFirst()).map { a, b in
+            let d = b - a
+            return Double(d.components.seconds) + Double(d.components.attoseconds) / 1e18
         }
     }
 
@@ -56,7 +72,8 @@ struct ElevationServiceTests {
         #expect(url.path == "/v1/srtm30m")
         let locations = URLComponents(url: url, resolvingAgainstBaseURL: false)?
             .queryItems?.first { $0.name == "locations" }?.value
-        #expect(locations == "43.5,-72.25|43.6,-72.35")
+        // Five decimals, about a metre: the 30 m dataset gains nothing from more.
+        #expect(locations == "43.50000,-72.25000|43.60000,-72.35000")
     }
 
     // Every zone of a property in one request, each zone's grade from its own points.
@@ -92,6 +109,33 @@ struct ElevationServiceTests {
         let api = FakeAPI { lat, _ in lat == 43.00045 ? nil : (lat >= 43.0009 ? 10 : 0) }
         let grade = await service(api).fetchGrade(for: slopeZone)
         #expect(grade.map { abs($0 - 10) < 0.5 } == true)
+    }
+
+    // One request a second: between the batches of one lookup, and between
+    // lookups that follow each other (Next, Back, Next).
+    @Test func requestsAreSpacedOutWithinAndAcrossLookups() async {
+        let api = FakeAPI { _, _ in 5 }
+        let service = ElevationService(fetch: { try await api.answer($0) }, pause: .milliseconds(150))
+        _ = await service.fetchGrades(for: Array(repeating: flatZone, count: 34))   // two requests
+        _ = await service.fetchGrade(for: flatZone)                                 // and a third
+        let times = await api.times
+        #expect(times.count == 3)
+        for gap in gaps(times) {
+            #expect(gap >= 0.1, "requests \(gap) s apart")
+        }
+    }
+
+    @Test func theAppWaitsAtLeastASecondBetweenRequests() {
+        #expect(ElevationService.defaultPause >= .seconds(1))
+    }
+
+    // A short or garbled reply can't be matched to the points sent: unknown, not a crash.
+    @Test func aReplyThatDoesNotMatchIsUnknown() async {
+        let api = FakeAPI { _, _ in 5 }
+        await api.setReply(.oneResultShort)
+        #expect(await service(api).fetchGrades(for: [slopeZone, flatZone]) == [nil, nil])
+        await api.setReply(.notJSON)
+        #expect(await service(api).fetchGrades(for: [slopeZone, flatZone]) == [nil, nil])
     }
 
     // A failed lookup is "unknown" (nil), never "flat", so a zone keeps the grade it had.

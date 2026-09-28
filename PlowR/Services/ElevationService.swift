@@ -8,25 +8,29 @@ import CoreLocation
 /// failed silently and every zone read as flat.
 ///
 /// The public API allows 100 locations per request and one request per second,
-/// so all of a property's zones go in one request (three sample points each)
-/// rather than one request per zone.
+/// so all of a property's zones go in one request (three sample points each),
+/// and every request waits its turn, across calls as well as within one.
 actor ElevationService {
     static let shared = ElevationService()
-
-    typealias Fetch = @Sendable (URL) async throws -> (Data, URLResponse)
-    private let fetch: Fetch
-    private let pause: Duration
-
-    /// `fetch` and `pause` exist for tests; the app uses the defaults.
-    init(fetch: @escaping Fetch = { try await URLSession.shared.data(from: $0) },
-         pause: Duration = .seconds(1.1)) {
-        self.fetch = fetch
-        self.pause = pause
-    }
 
     nonisolated static let host = "api.opentopodata.org"
     nonisolated static let maxLocationsPerRequest = 100
     nonisolated static let samplesPerZone = 3
+    /// A little over the API's one request per second.
+    nonisolated static let defaultPause: Duration = .seconds(1.1)
+
+    typealias Fetch = @Sendable (URL) async throws -> (Data, URLResponse)
+    private let fetch: Fetch
+    private let pause: Duration
+    /// When the latest request went, or is booked to go.
+    private var lastRequest: ContinuousClock.Instant?
+
+    /// `fetch` and `pause` exist for tests; the app uses the defaults.
+    init(fetch: @escaping Fetch = { try await URLSession.shared.data(from: $0) },
+         pause: Duration = ElevationService.defaultPause) {
+        self.fetch = fetch
+        self.pause = pause
+    }
 
     private nonisolated struct Response: Decodable {
         let results: [Result]
@@ -46,7 +50,6 @@ actor ElevationService {
         var start = 0
         while start < zones.count {
             let end = min(start + zonesPerRequest, zones.count)
-            if start > 0 { try? await Task.sleep(for: pause) }   // one request per second
             let batch = Array(samples[start..<end])
             if let elevations = await elevations(for: batch.flatMap { $0 }) {
                 var offset = 0
@@ -68,12 +71,24 @@ actor ElevationService {
 
     private func elevations(for points: [CLLocationCoordinate2D]) async -> [Double?]? {
         guard !points.isEmpty else { return [] }
-        guard let url = Self.requestURL(for: points),
-              let (data, response) = try? await fetch(url),
+        guard let url = Self.requestURL(for: points) else { return nil }
+        await waitForTurn()
+        guard let (data, response) = try? await fetch(url),
               (response as? HTTPURLResponse)?.statusCode == 200,
               let decoded = try? JSONDecoder().decode(Response.self, from: data),
               decoded.results.count == points.count else { return nil }
         return decoded.results.map(\.elevation)
+    }
+
+    /// Books the next free slot, at least `pause` after the previous request,
+    /// and waits for it. The slot is booked before waiting, so a call that
+    /// arrives meanwhile queues behind it instead of going at the same moment.
+    private func waitForTurn() async {
+        let clock = ContinuousClock()
+        let now = clock.now
+        let slot = lastRequest.map { max(now, $0.advanced(by: pause)) } ?? now
+        lastRequest = slot
+        if slot > now { try? await clock.sleep(until: slot) }
     }
 
     // MARK: - Pure parts, tested
@@ -84,6 +99,8 @@ actor ElevationService {
         return [0, coordinates.count / 2, coordinates.count - 1].map { coordinates[$0] }
     }
 
+    /// Coordinates go out rounded to five decimals, about a metre: the 30 m
+    /// dataset gains nothing from more.
     nonisolated static func requestURL(for points: [CLLocationCoordinate2D]) -> URL? {
         var components = URLComponents()
         components.scheme = "https"
@@ -91,7 +108,7 @@ actor ElevationService {
         components.path = "/v1/srtm30m"
         components.queryItems = [URLQueryItem(
             name: "locations",
-            value: points.map { "\($0.latitude),\($0.longitude)" }.joined(separator: "|")
+            value: points.map { String(format: "%.5f,%.5f", $0.latitude, $0.longitude) }.joined(separator: "|")
         )]
         return components.url
     }

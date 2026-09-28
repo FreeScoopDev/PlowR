@@ -411,6 +411,7 @@ struct PropertyScannerView: View {
             actionBar
         }
         .background(.regularMaterial)
+        .disabled(isSaving)     // no zone edits while their slopes are being looked up
     }
 
     private var zoneList: some View {

@@ -210,6 +210,7 @@ struct ClientPropertyScanView: View {
             actionBar
         }
         .background(.regularMaterial)
+        .disabled(isSaving)     // no zone edits while their slopes are being looked up
     }
 
     private var zoneList: some View {
@@ -262,11 +263,14 @@ struct ClientPropertyScanView: View {
 
     private func fetchElevationsAndContinue() {
         isSaving = true
+        // The zones as they are now: grades are paired with them by position,
+        // so they must not be read again after the lookup.
+        let snapshot = zones
         Task {
             // One request for the whole property: the public API allows one a second.
-            let grades = await ElevationService.shared.fetchGrades(for: zones.map(\.coordinates))
+            let grades = await ElevationService.shared.fetchGrades(for: snapshot.map(\.coordinates))
             var drafts: [ClientZoneDraft] = []
-            for (index, zone) in zones.enumerated() {
+            for (index, zone) in snapshot.enumerated() {
                 drafts.append(ClientZoneDraft(
                     label: zone.label,
                     areaSquareFeet: zone.areaSquareFeet,
