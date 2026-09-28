@@ -1,2 +1,3 @@
 ### Fixed
 - **No signal no longer signs you out.** At every launch PlowR asks Apple whether the sign-in is still valid, and it signed out on any answer but yes, including no answer at all. On a job site without signal, that deleted the saved sign-in and locked the user out of their routes until they had signal to sign in again. Now only Apple saying the sign-in was revoked, isn't known or was transferred signs the user out.
+- **Opening PlowR after it started with the phone locked no longer shows the sign-in screen.** Started in the background while the phone was locked, for example by a geofence, it couldn't read the saved sign-in, and it didn't look again when opened. It now checks again whenever it comes to the front signed out.

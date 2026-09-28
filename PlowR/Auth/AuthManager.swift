@@ -7,6 +7,8 @@ final class AuthManager {
     var isSignedIn = false
     var userID: String = ""
     var operatorName: String = ""
+    /// A check is waiting on Apple: the launch check and a return to the app can overlap.
+    @ObservationIgnored private var isChecking = false
 
     init() {
         checkExistingCredentials()
@@ -21,10 +23,12 @@ final class AuthManager {
 
         guard let savedUserID = Self.keychainLoad(key: "appleUserID") else { return }
 
+        isChecking = true
         let provider = ASAuthorizationAppleIDProvider()
         provider.getCredentialState(forUserID: savedUserID) { [weak self] state, error in
             let keep = Self.keepsSession(state: state, error: error)
             DispatchQueue.main.async {
+                self?.isChecking = false
                 if keep {
                     self?.isSignedIn = true
                     self?.userID = savedUserID
@@ -35,6 +39,15 @@ final class AuthManager {
                 }
             }
         }
+    }
+
+    /// Checks again when the app comes to the front signed out. Started in the
+    /// background while the phone was locked (a geofence can do that), PlowR
+    /// can't read the saved sign-in from the Keychain, and it didn't look again
+    /// once opened, so the user saw the sign-in screen and needed signal.
+    func recheckIfSignedOut() {
+        guard !isSignedIn, !isChecking else { return }
+        checkExistingCredentials()
     }
 
     /// Whether a saved sign-in survives the check at launch. Only an answer
