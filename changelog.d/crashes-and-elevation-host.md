@@ -1,0 +1,6 @@
+### Fixed
+- **Settings → Find Services Near Me no longer crashes on Send.** The request screen at the end of that flow needs the app's work-order store. Client mode provided one; Settings didn't.
+- **Deleting a zone while editing another no longer crashes the property map.** The map kept the edited zone's old place in the list, so after an earlier zone was deleted the next tap reached past the end of the list.
+- **Message on a client is only offered where the device can send texts.** Presenting the message composer without checking fails on an iPad without Messages. Every other screen already checked.
+- **Zone slopes are looked up again.** Every lookup went to `api.open-topo-data.com`, which doesn't exist, so every zone silently read as flat. They now go to Open Topo Data's real host, `api.opentopodata.org`, the service the privacy policy names. All of a property's zones go in one request, because the public API allows one request a second. A point it has no data for no longer fails the whole lookup. A lookup that fails keeps the zone's previous grade instead of resetting it to flat.
+- **Saving a mapped property replaces its zones only once the new ones are ready.** The saved zones were deleted before the slope lookups ran, so a slow lookup, or the app closing during one, could leave the client with no zones.
