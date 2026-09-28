@@ -255,16 +255,7 @@ struct ProposalListView: View {
         proposal.invoiceDueDate = Date().addingTimeInterval(30 * 86400)
     }
 
-    private func reminderMessage(for proposal: Proposal) -> String {
-        let amount = proposal.total.formatted(.currency(code: "USD").precision(.fractionLength(0)))
-        let statusWord = proposal.invoiceStatus == .overdue ? "overdue" : "outstanding"
-        var msg = "Hi \(proposal.clientName), just a friendly reminder that invoice \(proposal.invoiceNumber) for \(amount) is \(statusWord)."
-        if let due = proposal.invoiceDueDate {
-            msg += " Due: \(due.formatted(.dateTime.month(.abbreviated).day().year()))."
-        }
-        msg += " Please reach out if you have any questions — thank you!"
-        return msg
-    }
+    private func reminderMessage(for proposal: Proposal) -> String { proposal.reminderMessage() }
 
     private func duplicateProposal(_ proposal: Proposal) {
         guard let client = myClients.first(where: { $0.id.uuidString == proposal.clientID }) else { return }

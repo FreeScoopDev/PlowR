@@ -558,11 +558,11 @@ struct PDFGenerator {
             curY += 17
         }
         if proposal.discountAmount > 0 {
-            subtotalRow("Discount", value: proposal.discountAmount, lX: lX, lW: lW, vX: vX, vW: vW, y: curY, negate: true)
+            subtotalRow("Discount", value: proposal.appliedDiscount, lX: lX, lW: lW, vX: vX, vW: vW, y: curY, negate: true)
             curY += 17
         }
         if proposal.taxRate > 0 {
-            subtotalRow(String(format: "Tax (%.1f%%)", proposal.taxRate),
+            subtotalRow("Tax (\(Proposal.percentText(proposal.taxRate))%)",
                         value: proposal.taxAmount, lX: lX, lW: lW, vX: vX, vW: vW, y: curY)
             curY += 17
         }

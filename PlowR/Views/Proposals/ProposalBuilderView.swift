@@ -325,34 +325,48 @@ struct ProposalBuilderView: View {
         String(format: "$%.2f", calculateTotal())
     }
 
+    /// The estimate is the saved document's total: every line as it will be
+    /// saved, custom lines included, then the discount and tax. It used to leave
+    /// out tax and custom lines, and priced a cleared field without the
+    /// after-hours multiplier.
     private func calculateTotal() -> Double {
-        var total = 0.0
-        for key in selections {
-            if let override = Double(amounts[key] ?? "") {
-                total += override
-            } else {
-                let parts = key.split(separator: "|")
-                guard parts.count == 2,
-                      let service = myServices.first(where: { $0.id.uuidString == String(parts[0]) }),
-                      let zoneIndex = Int(parts[1]) else { continue }
-                if zoneIndex >= 0 && zoneIndex < zones.count {
-                    total += zones[zoneIndex].areaSquareFeet * service.pricePerUnit
-                } else {
-                    total += service.pricePerUnit
-                }
-            }
-        }
-        let discount = Double(discountAmount) ?? 0
-        return max(0, total - discount)
+        let subtotal = selections.compactMap(lineAmount(for:)).reduce(0, +)
+            + customItems.compactMap(customAmount).reduce(0, +)
+        return Proposal.totals(subtotal: subtotal, discount: pendingDiscount, taxRate: pendingTaxRate).total
     }
+
+    /// A selected line's amount: what's typed in its field, or, if the field is
+    /// empty or unreadable, the default shown beside it (after-hours multiplier
+    /// included). The estimate and the saved line both use it.
+    private func lineAmount(for key: String) -> Double? {
+        let parts = key.split(separator: "|")
+        guard parts.count == 2,
+              let service = myServices.first(where: { $0.id.uuidString == String(parts[0]) }),
+              let zoneIndex = Int(parts[1]) else { return nil }
+        let base = zones.indices.contains(zoneIndex)
+            ? zones[zoneIndex].areaSquareFeet * service.pricePerUnit
+            : service.pricePerUnit
+        return InvoiceLines.price(typed: amounts[key],
+                                  default: InvoiceLines.roundedToCent(base * afterHoursMultiplier))
+    }
+
+    /// A custom line's amount, if it has a name and a positive amount.
+    private func customAmount(_ item: CustomLineItem) -> Double? {
+        guard !item.name.isEmpty else { return nil }
+        let amount = InvoiceLines.price(typed: item.amount, default: 0)
+        return amount > 0 ? amount : nil
+    }
+
+    private var pendingDiscount: Double { max(0, InvoiceLines.price(typed: discountAmount, default: 0)) }
+    private var pendingTaxRate: Double { Proposal.taxRate(typed: taxRateString) }
 
     // MARK: - Build
 
     private func buildProposalObject() -> Proposal {
         let proposal = Proposal(operatorID: authManager.userID, client: client)
         proposal.notes = notes
-        proposal.discountAmount = Double(discountAmount) ?? 0
-        proposal.taxRate = Double(taxRateString) ?? 0
+        proposal.discountAmount = pendingDiscount
+        proposal.taxRate = pendingTaxRate
         proposal.disclaimer = disclaimer
         if isInvoiceMode {
             proposal.invoiceNumber = InvoiceNumbering.next(operatorID: authManager.userID, in: modelContext)
@@ -370,7 +384,7 @@ struct ProposalBuilderView: View {
                   let service = myServices.first(where: { $0.id.uuidString == String(parts[0]) }),
                   let zoneIndex = Int(parts[1]) else { continue }
 
-            let amountOverride = Double(amounts[key] ?? "")
+            let amount = lineAmount(for: key)
             let note = lineNotes[key] ?? ""
 
             if zoneIndex >= 0 && zoneIndex < zones.count {
@@ -384,7 +398,7 @@ struct ProposalBuilderView: View {
                     sortOrder: sortIndex,
                     itemNotes: note
                 )
-                if let override = amountOverride { item.lineTotal = override }
+                if let amount { item.lineTotal = amount }
                 lineItems.append(item)
             } else {
                 let item = ProposalLineItem(
@@ -396,14 +410,14 @@ struct ProposalBuilderView: View {
                     sortOrder: sortIndex,
                     itemNotes: note
                 )
-                if let override = amountOverride { item.lineTotal = override }
+                if let amount { item.lineTotal = amount }
                 lineItems.append(item)
             }
             sortIndex += 1
         }
 
         for (i, custom) in customItems.enumerated() {
-            guard !custom.name.isEmpty, let amount = Double(custom.amount), amount > 0 else { continue }
+            guard let amount = customAmount(custom) else { continue }
             let item = ProposalLineItem(
                 serviceName: custom.name,
                 zoneLabel: "",

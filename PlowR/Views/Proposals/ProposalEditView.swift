@@ -13,7 +13,20 @@ struct ProposalEditView: View {
         self.proposal = proposal
         _dueDate = State(initialValue: proposal.invoiceDueDate ?? Date().addingTimeInterval(30 * 86400))
         _discountString = State(initialValue: proposal.discountAmount > 0 ? String(format: "%.2f", proposal.discountAmount) : "")
-        _taxRateString = State(initialValue: proposal.taxRate > 0 ? String(format: "%.1f", proposal.taxRate) : "")
+        _taxRateString = State(initialValue: proposal.taxRate > 0 ? Proposal.percentText(proposal.taxRate) : "")
+    }
+
+    // What Done saves, so the total shown is the total that will be saved.
+    private var pendingDiscount: Double { max(0, InvoiceLines.price(typed: discountString, default: 0)) }
+    private var pendingTaxRate: Double { Proposal.taxRate(typed: taxRateString) }
+    private var pendingTotal: Double {
+        Proposal.totals(subtotal: proposal.subtotal, discount: pendingDiscount, taxRate: pendingTaxRate).total
+    }
+
+    private func applyEdits() {
+        proposal.invoiceDueDate = dueDate
+        proposal.discountAmount = pendingDiscount
+        proposal.taxRate = pendingTaxRate
     }
 
     // MARK: - Body
@@ -33,9 +46,7 @@ struct ProposalEditView: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
-                        proposal.invoiceDueDate = dueDate
-                        proposal.discountAmount = Double(discountString) ?? 0
-                        proposal.taxRate = Double(taxRateString) ?? 0
+                        applyEdits()
                         dismiss()
                     }
                 }
@@ -80,7 +91,7 @@ struct ProposalEditView: View {
                 }
             }
             LabeledContent("Total") {
-                Text(String(format: "$%.2f", proposal.total))
+                Text(String(format: "$%.2f", pendingTotal))
                     .fontWeight(.bold)
             }
         } header: {
@@ -112,12 +123,6 @@ struct ProposalEditView: View {
                     .frame(width: 60)
                 Text("%").foregroundStyle(.secondary)
             }
-            if let discount = Double(discountString), discount > 0 {
-                LabeledContent("Total") {
-                    Text(String(format: "$%.2f", proposal.total - discount))
-                        .fontWeight(.bold)
-                }
-            }
             TextField("Notes", text: $proposal.notes, axis: .vertical)
                 .lineLimit(3...)
         }
@@ -126,7 +131,8 @@ struct ProposalEditView: View {
     private var markSentSection: some View {
         Section {
             Button {
-                proposal.invoiceDueDate = dueDate
+                // Keep the discount and tax typed on this screen: only Done saved them.
+                applyEdits()
                 proposal.invoiceSentAt = Date()
                 dismiss()
             } label: {
