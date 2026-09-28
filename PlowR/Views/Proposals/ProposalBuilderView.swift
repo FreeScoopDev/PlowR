@@ -355,10 +355,7 @@ struct ProposalBuilderView: View {
         proposal.taxRate = Double(taxRateString) ?? 0
         proposal.disclaimer = disclaimer
         if isInvoiceMode {
-            let existingCount = (try? modelContext.fetch(FetchDescriptor<Proposal>()))?.filter {
-                !$0.invoiceNumber.isEmpty && $0.operatorID == authManager.userID
-            }.count ?? 0
-            proposal.invoiceNumber = String(format: "INV-%04d", existingCount + 1)
+            proposal.invoiceNumber = InvoiceNumbering.next(operatorID: authManager.userID, in: modelContext)
             proposal.invoiceDueDate = invoiceDueDate
         } else if validUntilEnabled {
             proposal.validUntil = validUntil
@@ -444,6 +441,12 @@ struct ProposalBuilderView: View {
     }
 
     private func saveProposal(_ proposal: Proposal) {
+        // Numbered when built, so the preview shows it. If another invoice has
+        // taken that number since (synced from another device), take the next.
+        if proposal.isInvoice {
+            proposal.invoiceNumber = InvoiceNumbering.confirmed(proposal.invoiceNumber,
+                                                                operatorID: proposal.operatorID, in: modelContext)
+        }
         proposal.visitID = linkedVisitID
         // Insert items first so the cascade inverse relationship doesn't double-insert them
         for item in (proposal.lineItems ?? []) { modelContext.insert(item) }
