@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 import MapKit
 import CoreLocation
+import MessageUI
 
 struct EditClientView: View {
     @Environment(\.dismiss) private var dismiss
@@ -171,8 +172,13 @@ struct EditClientView: View {
                             Button {
                                 if let url = URL(string: "tel:\(phone.filter { $0.isNumber })") { openURL(url) }
                             } label: { Label("Call", systemImage: "phone.fill") }
-                            Button { showingMessageComposer = true } label: {
-                                Label("Message", systemImage: "message.fill")
+                            // Presenting the composer where texting isn't set up
+                            // (an iPad without Messages) fails; every other
+                            // screen checks this first.
+                            if MFMessageComposeViewController.canSendText() {
+                                Button { showingMessageComposer = true } label: {
+                                    Label("Message", systemImage: "message.fill")
+                                }
                             }
                         }
                         if !email.isEmpty {

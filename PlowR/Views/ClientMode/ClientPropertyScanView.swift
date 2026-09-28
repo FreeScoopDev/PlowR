@@ -263,14 +263,15 @@ struct ClientPropertyScanView: View {
     private func fetchElevationsAndContinue() {
         isSaving = true
         Task {
+            // One request for the whole property: the public API allows one a second.
+            let grades = await ElevationService.shared.fetchGrades(for: zones.map(\.coordinates))
             var drafts: [ClientZoneDraft] = []
-            for zone in zones {
-                let grade = await ElevationService.shared.fetchGrade(for: zone.coordinates)
+            for (index, zone) in zones.enumerated() {
                 drafts.append(ClientZoneDraft(
                     label: zone.label,
                     areaSquareFeet: zone.areaSquareFeet,
                     rateType: zone.rateType,
-                    elevationGrade: grade,
+                    elevationGrade: grades.indices.contains(index) ? grades[index] ?? 0 : 0,
                     coordinates: zone.coordinates
                 ))
             }

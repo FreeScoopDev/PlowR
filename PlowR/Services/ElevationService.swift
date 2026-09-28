@@ -1,46 +1,111 @@
 import Foundation
 import CoreLocation
 
+/// Terrain grade for property zones, from Open Topo Data's free, keyless public
+/// API (SRTM 30 m data). Only coordinates are sent: no identity.
+///
+/// The host was `api.open-topo-data.com`, which does not exist, so every lookup
+/// failed silently and every zone read as flat.
+///
+/// The public API allows 100 locations per request and one request per second,
+/// so all of a property's zones go in one request (three sample points each)
+/// rather than one request per zone.
 actor ElevationService {
     static let shared = ElevationService()
 
-    private struct Response: Decodable {
+    typealias Fetch = @Sendable (URL) async throws -> (Data, URLResponse)
+    private let fetch: Fetch
+    private let pause: Duration
+
+    /// `fetch` and `pause` exist for tests; the app uses the defaults.
+    init(fetch: @escaping Fetch = { try await URLSession.shared.data(from: $0) },
+         pause: Duration = .seconds(1.1)) {
+        self.fetch = fetch
+        self.pause = pause
+    }
+
+    nonisolated static let host = "api.opentopodata.org"
+    nonisolated static let maxLocationsPerRequest = 100
+    nonisolated static let samplesPerZone = 3
+
+    private nonisolated struct Response: Decodable {
         let results: [Result]
         struct Result: Decodable {
-            let elevation: Double
+            // null where the dataset has no data (e.g. open water).
+            let elevation: Double?
         }
     }
 
-    // Returns percent grade (0 = flat, 5 = moderate, 15+ = steep) for a polygon.
-    // Samples the first and last points as a proxy for the zone's slope axis.
-    func fetchGrade(for coordinates: [CLLocationCoordinate2D]) async -> Double {
-        guard coordinates.count >= 2 else { return 0 }
-
-        // Sample start, midpoint, and end to cover the zone's slope
-        let indices = [0, coordinates.count / 2, coordinates.count - 1]
-        let samples = indices.map { coordinates[$0] }
-        let locationString = samples.map { "\($0.latitude),\($0.longitude)" }.joined(separator: "|")
-
-        guard let url = URL(string: "https://api.open-topo-data.com/v1/srtm30m?locations=\(locationString)") else {
-            return 0
+    /// Percent grade for each zone, in order (0 = flat). nil where the grade
+    /// couldn't be looked up (offline, rate-limited, no data), so a caller can
+    /// keep a value it already has rather than resetting it to flat.
+    func fetchGrades(for zones: [[CLLocationCoordinate2D]]) async -> [Double?] {
+        let samples = zones.map(Self.samplePoints)
+        let zonesPerRequest = Self.maxLocationsPerRequest / Self.samplesPerZone
+        var grades: [Double?] = Array(repeating: nil, count: zones.count)
+        var start = 0
+        while start < zones.count {
+            let end = min(start + zonesPerRequest, zones.count)
+            if start > 0 { try? await Task.sleep(for: pause) }   // one request per second
+            let batch = Array(samples[start..<end])
+            if let elevations = await elevations(for: batch.flatMap { $0 }) {
+                var offset = 0
+                for (i, points) in batch.enumerated() {
+                    let slice = Array(elevations[offset..<(offset + points.count)])
+                    grades[start + i] = points.isEmpty ? 0 : Self.grade(samples: points, elevations: slice)
+                    offset += points.count
+                }
+            }
+            start = end
         }
+        return grades
+    }
 
-        do {
-            let (data, _) = try await URLSession.shared.data(from: url)
-            let response = try JSONDecoder().decode(Response.self, from: data)
-            let elevations = response.results.map { $0.elevation }
-            guard let minE = elevations.min(), let maxE = elevations.max(), maxE > minE else { return 0 }
+    /// One zone's grade, or nil if it couldn't be looked up.
+    func fetchGrade(for coordinates: [CLLocationCoordinate2D]) async -> Double? {
+        await fetchGrades(for: [coordinates]).first ?? nil
+    }
 
-            // Calculate horizontal distance between first and last sample
-            guard let first = samples.first, let last = samples.last else { return 0 }
-            let start = CLLocation(latitude: first.latitude, longitude: first.longitude)
-            let end = CLLocation(latitude: last.latitude, longitude: last.longitude)
-            let distance = start.distance(from: end)
-            guard distance > 0 else { return 0 }
+    private func elevations(for points: [CLLocationCoordinate2D]) async -> [Double?]? {
+        guard !points.isEmpty else { return [] }
+        guard let url = Self.requestURL(for: points),
+              let (data, response) = try? await fetch(url),
+              (response as? HTTPURLResponse)?.statusCode == 200,
+              let decoded = try? JSONDecoder().decode(Response.self, from: data),
+              decoded.results.count == points.count else { return nil }
+        return decoded.results.map(\.elevation)
+    }
 
-            return ((maxE - minE) / distance) * 100
-        } catch {
-            return 0
-        }
+    // MARK: - Pure parts, tested
+
+    /// A zone's start, middle and end corners, used as a proxy for its slope.
+    nonisolated static func samplePoints(_ coordinates: [CLLocationCoordinate2D]) -> [CLLocationCoordinate2D] {
+        guard coordinates.count >= 2 else { return [] }
+        return [0, coordinates.count / 2, coordinates.count - 1].map { coordinates[$0] }
+    }
+
+    nonisolated static func requestURL(for points: [CLLocationCoordinate2D]) -> URL? {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = host
+        components.path = "/v1/srtm30m"
+        components.queryItems = [URLQueryItem(
+            name: "locations",
+            value: points.map { "\($0.latitude),\($0.longitude)" }.joined(separator: "|")
+        )]
+        return components.url
+    }
+
+    /// Rise over run, as a percentage: the spread between the highest and lowest
+    /// known sample, over the distance from the first sample to the last.
+    nonisolated static func grade(samples: [CLLocationCoordinate2D], elevations: [Double?]) -> Double? {
+        let known = elevations.compactMap { $0 }
+        guard known.count >= 2 else { return nil }
+        guard let minE = known.min(), let maxE = known.max(), maxE > minE,
+              let first = samples.first, let last = samples.last else { return 0 }
+        let distance = CLLocation(latitude: first.latitude, longitude: first.longitude)
+            .distance(from: CLLocation(latitude: last.latitude, longitude: last.longitude))
+        guard distance > 0 else { return 0 }
+        return (maxE - minE) / distance * 100
     }
 }

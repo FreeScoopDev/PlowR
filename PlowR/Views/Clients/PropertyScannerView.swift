@@ -207,7 +207,7 @@ struct PropertyScannerView: View {
 
                 if isDrawing {
                     handleDrawingTap(coord)
-                } else if let editIdx = editingZoneIndex {
+                } else if let editIdx = editingZoneIndex, zones.indices.contains(editIdx) {
                     handleVertexEditTap(coord, zoneIndex: editIdx)
                 } else {
                     handleZoneSelectTap(coord)
@@ -236,7 +236,7 @@ struct PropertyScannerView: View {
     }
 
     private func handleVertexEditTap(_ coord: CLLocationCoordinate2D, zoneIndex: Int) {
-        if let selVertex = selectedVertexIndex {
+        if let selVertex = selectedVertexIndex, zones[zoneIndex].coordinates.indices.contains(selVertex) {
             // Drop selected vertex at new location
             zones[zoneIndex].coordinates[selVertex] = coord
             zones[zoneIndex].areaSquareFeet = zones[zoneIndex].coordinates.enclosedAreaInSquareFeet()
@@ -454,7 +454,9 @@ struct PropertyScannerView: View {
                     .frame(width: 110)
                     Button {
                         zones.remove(at: index)
-                        if editingZoneIndex == index { editingZoneIndex = nil }
+                        let stillEditing = Self.editingIndex(afterDeleting: index, editing: editingZoneIndex)
+                        if stillEditing == nil { selectedVertexIndex = nil }
+                        editingZoneIndex = stillEditing
                     } label: {
                         Image(systemName: "trash")
                             .foregroundStyle(.red)
@@ -561,16 +563,22 @@ struct PropertyScannerView: View {
 
     private func saveZones() {
         isSaving = true
+        let drafts = zones
         Task {
+            // Look up every zone's slope first, then replace the saved zones in
+            // one go. Deleting first meant a slow lookup, or the app closing
+            // during it, could leave the client with no zones at all.
+            let grades = await ElevationService.shared.fetchGrades(for: drafts.map(\.coordinates))
             for zone in client.sortedZones {
                 modelContext.delete(zone)
             }
-            for (index, draft) in zones.enumerated() {
-                let grade = await ElevationService.shared.fetchGrade(for: draft.coordinates)
+            for (index, draft) in drafts.enumerated() {
                 let zone = PropertyZone(label: draft.label, rateType: draft.rateType, sortOrder: index)
                 zone.setCoordinates(draft.coordinates)
                 zone.areaSquareFeet = draft.areaSquareFeet
-                zone.elevationGrade = grade
+                // A failed lookup keeps the grade the zone already had.
+                zone.elevationGrade = grades.indices.contains(index) ? grades[index] ?? draft.elevationGrade
+                                                                    : draft.elevationGrade
                 zone.client = client
                 modelContext.insert(zone)
             }
@@ -579,6 +587,15 @@ struct PropertyScannerView: View {
                 dismiss()
             }
         }
+    }
+
+    /// Which zone is being edited after zone `deleted` is removed from the list:
+    /// the same zone, one place earlier if it came after the deleted one, or none
+    /// if it was the deleted one. Keeping the old index pointed past the end of
+    /// the list, and the next tap on the map crashed.
+    nonisolated static func editingIndex(afterDeleting deleted: Int, editing: Int?) -> Int? {
+        guard let editing, editing != deleted else { return nil }
+        return editing > deleted ? editing - 1 : editing
     }
 }
 
