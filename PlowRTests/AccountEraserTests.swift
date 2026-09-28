@@ -238,6 +238,16 @@ struct AccountEraserTests {
         #expect(!signedOut)
     }
 
+    // A folder that isn't there has nothing in it to remove: not a failure.
+    @Test func aMissingFolderIsNotAFailure() throws {
+        let account = try Account()
+        defer { account.removeFiles() }
+        var eraser = account.eraser()
+        eraser.temporaryDirectory = account.folder.appending(path: "no-tmp")
+        eraser.archiveFolders = [account.folder.appending(path: "no-store")]
+        #expect(eraser.eraseAll().isEmpty)
+    }
+
     // A step that fails is reported and the others still run. Preferences are
     // kept, so the app stays on Settings to say what's left and to retry.
     @Test func aFailedStepIsReportedAndTheRestStillRun() throws {
