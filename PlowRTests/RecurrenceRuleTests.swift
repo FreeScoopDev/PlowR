@@ -200,6 +200,16 @@ struct RecurrenceRuleTests {
                 date(2026, 10, 5, 7))
     }
 
+    // Two Sunday visits so far: 2:30 on 7 Mar, and 3:00 on 14 Mar because 2:30
+    // didn't exist that day. The jump day is ignored, so the series stays at 2:30
+    // rather than taking the latest visit's 3:00 on a one-to-one split.
+    @Test func aClockChangeDayDoesNotSetTheTime() {
+        let rule = RecurrenceRule(type: .weekly, weekdays: [1])
+        #expect(rule.continuationDate(afterCompleting: date(2027, 3, 14, 3, 0),
+                                      series: [Visit(date: date(2027, 3, 7, 2, 30), isScheduled: false)],
+                                      calendar: calendar) == date(2027, 3, 21, 2, 30))
+    }
+
     // ...and its time of day, even from a visit that landed at 3:00 on the jump day.
     @Test func aContinuedWeekdaySeriesKeepsItsTime() {
         let rule = RecurrenceRule(type: .weekly, weekdays: [1, 4])
