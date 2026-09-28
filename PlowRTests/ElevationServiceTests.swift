@@ -125,8 +125,10 @@ struct ElevationServiceTests {
         }
     }
 
+    // The instance the app uses, not just the constant: a default of .zero in
+    // the initializer would silently stop the throttling.
     @Test func theAppWaitsAtLeastASecondBetweenRequests() {
-        #expect(ElevationService.defaultPause >= .seconds(1))
+        #expect(ElevationService.shared.pause >= .seconds(1))
     }
 
     // A short or garbled reply can't be matched to the points sent: unknown, not a crash.

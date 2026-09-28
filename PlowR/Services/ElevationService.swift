@@ -21,7 +21,8 @@ actor ElevationService {
 
     typealias Fetch = @Sendable (URL) async throws -> (Data, URLResponse)
     private let fetch: Fetch
-    private let pause: Duration
+    /// The gap between requests. Readable so a test can check the app's own instance.
+    nonisolated let pause: Duration
     /// When the latest request went, or is booked to go.
     private var lastRequest: ContinuousClock.Instant?
 
