@@ -9,13 +9,17 @@
 		<string>location</string>
 	</array>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>PlowR uses your location to track your position during an active route.</string>
+	<string>PlowR uses your location to show where you are on the route map, estimate arrival times for your clients, and show your local weather.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>PlowR uses your location in the background to automatically detect when you leave a stop and prompt you to notify the next client.</string>
+	<string>During a route, PlowR uses your location in the background to notice when you leave a stop, so it can prompt you to notify the next client.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
-	<string>PlowR uses your location in the background to automatically detect when you leave a stop and prompt you to notify the next client.</string>
+	<string>During a route, PlowR uses your location in the background to notice when you leave a stop, so it can prompt you to notify the next client.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>PlowR uses your camera to capture before and after photos of service stops, and to scan business cards when adding new clients.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>PlowR saves a job photo to your photo library when you choose Save Image.</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>NSCalendarsUsageDescription</key>
