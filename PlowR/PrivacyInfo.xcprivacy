@@ -18,8 +18,8 @@
     <array>
         <dict>
             <!-- Location is sent to api.open-meteo.com for weather, rounded
-                 to about 1 km first, and a property's zone corners are sent
-                 unrounded to Open Topo Data for its elevation.
+                 to about 1 km first, and a property's zone corners are sent to
+                 Open Topo Data, rounded to about 1 m, for its elevation.
                  Not linked to user identity. Not used for tracking. -->
             <key>NSPrivacyCollectedDataType</key>
             <string>NSPrivacyCollectedDataTypePreciseLocation</string>
