@@ -420,19 +420,6 @@ struct AddVisitView: View {
         .padding(.vertical, 4)
     }
 
-    // MARK: - Recurrence Helpers
-
-    private func nextRecurrenceDate(after date: Date) -> Date? {
-        var components = DateComponents()
-        switch recurrenceType {
-        case .daily:    components.day = recurrenceInterval
-        case .weekly:   components.weekOfYear = recurrenceInterval
-        case .biweekly: components.weekOfYear = 2
-        case .monthly:  components.month = recurrenceInterval
-        }
-        return Calendar.current.date(byAdding: components, to: date)
-    }
-
     // MARK: - Save
 
     private func save() {
@@ -444,13 +431,12 @@ struct AddVisitView: View {
         var dates: [Date] = [scheduledDate]
 
         if isRecurring {
-            var cursor = scheduledDate
-            for _ in 0..<51 {
-                guard let next = nextRecurrenceDate(after: cursor) else { break }
-                if hasEndDate && next > recurrenceEndDate { break }
-                dates.append(next)
-                cursor = next
-            }
+            // The same rule that continues the series when a visit is completed.
+            let rule = RecurrenceRule(type: recurrenceType, interval: recurrenceInterval,
+                                      weekdays: recurrenceType == .weekly ? recurrenceWeekdays : [],
+                                      endDate: hasEndDate ? recurrenceEndDate : nil)
+            let horizon = Calendar.current.date(byAdding: RecurrenceRule.upFrontHorizon, to: scheduledDate)
+            dates = rule.occurrences(from: scheduledDate, horizon: horizon, calendar: .current)
         }
 
         client.isActive = true
@@ -470,7 +456,7 @@ struct AddVisitView: View {
             visit.isRecurring = isRecurring
             visit.recurrenceType = recurrenceType
             visit.recurrenceInterval = recurrenceInterval
-            visit.recurrenceWeekdays = Array(recurrenceWeekdays)
+            visit.recurrenceWeekdays = recurrenceType == .weekly ? Array(recurrenceWeekdays).sorted() : []
             visit.recurrenceEndDate = hasEndDate ? recurrenceEndDate : nil
             visit.seriesID = seriesID
             visit.isAfterHours = isAfterHours
