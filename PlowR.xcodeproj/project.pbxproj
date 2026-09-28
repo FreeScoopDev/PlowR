@@ -576,8 +576,6 @@
 				INFOPLIST_FILE = PlowR/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = PlowR;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
-				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "PlowR uses your location in the background to detect when you've left a job and prompt you to notify the next client.";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "PlowR uses your location to calculate arrival times for clients.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -614,8 +612,6 @@
 				INFOPLIST_FILE = PlowR/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = PlowR;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
-				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "PlowR uses your location in the background to detect when you've left a job and prompt you to notify the next client.";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "PlowR uses your location to calculate arrival times for clients.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
