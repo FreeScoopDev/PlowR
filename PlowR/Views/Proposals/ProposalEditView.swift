@@ -5,29 +5,18 @@ struct ProposalEditView: View {
     @Bindable var proposal: Proposal
     @Environment(\.dismiss) private var dismiss
 
-    @State private var dueDate: Date
-    @State private var discountString: String
-    @State private var taxRateString: String
+    /// The discount, tax and due date typed here. Only the ones changed are saved.
+    @State private var edits: DocumentEdits
 
     init(proposal: Proposal) {
         self.proposal = proposal
-        _dueDate = State(initialValue: proposal.invoiceDueDate ?? Date().addingTimeInterval(30 * 86400))
-        _discountString = State(initialValue: proposal.discountAmount > 0 ? String(format: "%.2f", proposal.discountAmount) : "")
-        _taxRateString = State(initialValue: proposal.taxRate > 0 ? Proposal.percentText(proposal.taxRate) : "")
+        _edits = State(initialValue: DocumentEdits(discount: proposal.discountAmount, taxRate: proposal.taxRate,
+                                                   dueDate: proposal.invoiceDueDate))
     }
 
-    // What Done saves, so the total shown is the total that will be saved.
-    private var pendingDiscount: Double { max(0, InvoiceLines.price(typed: discountString, default: 0)) }
-    private var pendingTaxRate: Double { Proposal.taxRate(typed: taxRateString) }
-    private var pendingTotal: Double {
-        Proposal.totals(subtotal: proposal.subtotal, discount: pendingDiscount, taxRate: pendingTaxRate).total
-    }
-
-    private func applyEdits() {
-        if proposal.isInvoice { proposal.invoiceDueDate = dueDate }
-        proposal.discountAmount = pendingDiscount
-        proposal.taxRate = pendingTaxRate
-    }
+    // Done, Mark as Sent and a swipe down all save, so the total shown is the
+    // total the document will have.
+    private func applyEdits() { edits.apply(to: proposal) }
 
     // MARK: - Body
 
@@ -44,7 +33,7 @@ struct ProposalEditView: View {
             .navigationTitle(proposal.invoiceNumber)
             .navigationBarTitleDisplayMode(.inline)
             // Line amounts save as they're typed; a swipe down must keep the
-            // discount and tax typed here too, not just Done.
+            // discount, tax and due date changed here too, not just Done.
             .onDisappear { applyEdits() }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -85,8 +74,8 @@ struct ProposalEditView: View {
                     Spacer()
                     HStack(spacing: 2) {
                         Text("$").foregroundStyle(.secondary).font(.subheadline)
-                        // Kept to the cent, as it will be billed and printed.
-                        TextField("0.00", value: Binding(get: { item.lineTotal },
+                        // Shown and kept to the cent it's billed and printed at.
+                        TextField("0.00", value: Binding(get: { InvoiceLines.roundedToCent(item.lineTotal) },
                                                          set: { item.lineTotal = InvoiceLines.roundedToCent($0) }),
                                   format: .number.precision(.fractionLength(2)))
                             .keyboardType(.decimalPad)
@@ -97,7 +86,7 @@ struct ProposalEditView: View {
                 }
             }
             LabeledContent("Total") {
-                Text(String(format: "$%.2f", pendingTotal))
+                Text(String(format: "$%.2f", edits.total(of: proposal)))
                     .fontWeight(.bold)
             }
         } header: {
@@ -110,12 +99,12 @@ struct ProposalEditView: View {
     private var invoiceDetailsSection: some View {
         Section("Invoice") {
             if proposal.isInvoice {
-                DatePicker("Due Date", selection: $dueDate, displayedComponents: .date)
+                DatePicker("Due Date", selection: $edits.dueDate, displayedComponents: .date)
             }
             HStack {
                 Text("Discount $")
                 Spacer()
-                TextField("0.00", text: $discountString)
+                TextField("0.00", text: $edits.discountText)
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 80)
@@ -123,7 +112,7 @@ struct ProposalEditView: View {
             HStack {
                 Text("Tax")
                 Spacer()
-                TextField("0.0", text: $taxRateString)
+                TextField("0.0", text: $edits.taxRateText)
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 60)

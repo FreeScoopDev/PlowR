@@ -350,9 +350,6 @@ struct ProposalBuilderView: View {
     private func buildProposalObject() -> Proposal {
         let proposal = Proposal(operatorID: authManager.userID, client: client)
         proposal.notes = notes
-        let draft = self.draft
-        proposal.discountAmount = draft.discountAmount
-        proposal.taxRate = draft.taxRatePercent
         proposal.disclaimer = disclaimer
         if isInvoiceMode {
             proposal.invoiceNumber = InvoiceNumbering.next(operatorID: authManager.userID, in: modelContext)
@@ -361,9 +358,8 @@ struct ProposalBuilderView: View {
             proposal.validUntil = validUntil
         }
 
-        var lineItems = draft.makeLineItems()
-        if grouped { lineItems = ProposalLineItem.grouped(lineItems) }
-        proposal.lineItems = lineItems
+        // Priced by the same draft that gives the estimate, so the two agree.
+        draft.apply(to: proposal, grouped: grouped)
         return proposal
     }
 

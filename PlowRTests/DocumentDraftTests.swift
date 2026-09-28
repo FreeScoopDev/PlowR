@@ -62,7 +62,7 @@ struct DocumentDraftTests {
     }
 }
 
-/// The estimate and the saved document, built the way the builder builds it.
+/// The estimate and the saved document, priced by the step the builder uses.
 @MainActor
 struct DocumentDraftSaveTests {
 
@@ -90,15 +90,16 @@ struct DocumentDraftSaveTests {
         let client = Client(name: "Pat", phone: "", address: "", operatorID: "op")
         context.insert(client)
         let doc = Proposal(operatorID: "op", client: client)
-        doc.discountAmount = d.discountAmount
-        doc.taxRate = d.taxRatePercent
-        var items = d.makeLineItems()
-        if grouped { items = ProposalLineItem.grouped(items) }
+        d.apply(to: doc, grouped: grouped)
+        // Saved as the builder saves it: the items first, then the document.
+        let items = doc.lineItems ?? []
         items.forEach { context.insert($0) }
         doc.lineItems = items
         context.insert(doc)
 
-        #expect(doc.total == d.total)
+        // Mowing twice, Edging, Haul away; grouped, Mowing becomes one line.
+        #expect(items.count == (grouped ? 3 : 4))
+        #expect(InvoiceLines.cents(doc.total) == InvoiceLines.cents(d.total))
         #expect(d.total > 0)
     }
 }

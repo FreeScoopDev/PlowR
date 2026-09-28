@@ -123,6 +123,17 @@ nonisolated struct DocumentDraft {
 }
 
 extension DocumentDraft {
+    /// Prices `proposal` from this draft: its discount, tax rate and line items,
+    /// grouped by service if asked. The builder previews and saves exactly this,
+    /// so the document's total is the estimate.
+    @MainActor
+    func apply(to proposal: Proposal, grouped: Bool) {
+        proposal.discountAmount = discountAmount
+        proposal.taxRate = taxRatePercent
+        let items = makeLineItems()
+        proposal.lineItems = grouped ? ProposalLineItem.grouped(items) : items
+    }
+
     /// The draft's lines as line items for a document. Each keeps its amount.
     @MainActor
     func makeLineItems() -> [ProposalLineItem] {
