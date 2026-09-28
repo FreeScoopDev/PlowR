@@ -8,6 +8,9 @@ struct SettingsView: View {
     @Environment(\.openURL) private var openURL
 
     @State private var showingFindService = false
+    /// The request screen at the end of Find Services requires this store.
+    /// Client mode provides one; this entry point didn't, which crashed on Send.
+    @State private var workOrderStore = ClientWorkOrderStore()
     @State private var sampleDataInserted = false
     @State private var showingDeleteConfirmation = false
 
@@ -109,6 +112,7 @@ struct SettingsView: View {
         .navigationTitle("Settings")
         .sheet(isPresented: $showingFindService) {
             FindServiceFlow()
+                .environment(workOrderStore)
         }
         .alert("Delete Account", isPresented: $showingDeleteConfirmation) {
             Button("Delete Everything", role: .destructive, action: deleteAccount)
