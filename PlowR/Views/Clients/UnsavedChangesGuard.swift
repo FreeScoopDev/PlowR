@@ -1,10 +1,10 @@
 import SwiftUI
 
 extension View {
-    /// While `hasChanges`, Back asks first: Save, Discard Changes or Keep
-    /// Editing. The system Back button, and its swipe, give way to one that
-    /// asks; while `isBusy` (a save underway) neither shows. Edit Client used
-    /// to drop every edit on Back without a word.
+    /// While `hasChanges`, Back asks first: Save or Discard Changes (tapping
+    /// outside keeps editing). The system Back button, and its swipe, give
+    /// way to one that asks; while `isBusy` (a save underway) neither shows.
+    /// Edit Client used to drop every edit on Back without a word.
     func asksBeforeLeaving(hasChanges: Bool, isBusy: Bool,
                            save: @escaping () -> Void, discard: @escaping () -> Void) -> some View {
         modifier(UnsavedChangesGuard(hasChanges: hasChanges, isBusy: isBusy, save: save, discard: discard))
@@ -27,6 +27,7 @@ private struct UnsavedChangesGuard: ViewModifier {
                         Button { asking = true } label: {
                             Image(systemName: "chevron.backward")
                         }
+                        .tint(.primary)                    // as the system's Back is
                         .accessibilityLabel("Back")
                     }
                 }
