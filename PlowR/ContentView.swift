@@ -3,14 +3,14 @@ import SwiftUI
 struct ContentView: View {
     @Environment(AuthManager.self) private var authManager
     @Environment(CalendarSync.self) private var calendarSync
-    @AppStorage("userRole") private var userRole = ""
+    @AppStorage(UserRole.key) private var userRole = ""
     @State private var selectedTab = 0
 
     var body: some View {
         Group {
             if userRole.isEmpty {
                 RoleSelectionView()
-            } else if userRole == "client" {
+            } else if userRole == UserRole.client {
                 ClientHomeView()
             } else {
                 if authManager.isSignedIn {
@@ -25,10 +25,7 @@ struct ContentView: View {
             calendarSync.operatorID = userID
         }
         .onOpenURL { url in
-            guard url.scheme == "plowr" else { return }
-            if url.host == "activeRoute" {
-                selectedTab = 2
-            }
+            if PlowRLink(url) == .activeRoute { selectedTab = 2 }
         }
     }
 }

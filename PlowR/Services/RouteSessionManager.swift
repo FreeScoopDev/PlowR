@@ -1,13 +1,16 @@
 import Foundation
 
-/// Shared state that bridges AppIntents (Siri) to the currently active route view.
-/// ActiveRouteView registers closures on appear and clears them on disappear.
+/// Shared state that bridges Siri's Notify Next Client to the route view, which
+/// registers it on appear and clears it on disappear. Completing a stop doesn't
+/// come through here any more: it goes through ActiveRouteStore
+/// (CompleteStopAction), with or without the route screen.
 @Observable
 final class RouteSessionManager {
     static let shared = RouteSessionManager()
     private init() {}
 
-    var isRouteActive = false
-    var onCompleteStop: (() -> Void)?
     var onNotifyNext: (() -> Void)?
+    /// Why Control Center's Complete Stop didn't complete the stop (the
+    /// route changed on another device, say). The route screen shows it.
+    var completeStopMessage: String?
 }

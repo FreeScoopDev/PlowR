@@ -27,6 +27,10 @@ final class ActiveRouteStore {
         /// client. nil once every stop is done.
         var currentStopID: UUID?
         var stopStartedAt: Date
+        /// `stopChangedUnseen`, kept: iCloud can move the route on while the
+        /// app is in the background, and iOS can end the app before the user
+        /// has seen the new stop. nil in a checkpoint from before it existed.
+        var stopChangedUnseen: Bool?
     }
 
     /// What completing the current stop did, so callers (the screen, Siri,
@@ -58,6 +62,12 @@ final class ActiveRouteStore {
     /// True from `start(_:)` until the screen has offered to notify the first
     /// client. A route restored after a relaunch does not offer it again.
     var isFirstStopPromptPending = false
+
+    /// The current stop changed without the user (iCloud removed or moved the
+    /// stop they were at) and they haven't seen the new one on the route
+    /// screen yet. Siri and Control Center won't complete a stop the user
+    /// hasn't seen: at the old stop, they'd credit the next client's visit.
+    private(set) var stopChangedUnseen = false
 
     private var context: ModelContext?
     private let defaults: UserDefaults
@@ -126,6 +136,7 @@ final class ActiveRouteStore {
         currentStopID = currentStop?.id
         stopStartedAt = now()
         isFirstStopPromptPending = true
+        stopChangedUnseen = false
         saveCheckpoint()
         lastProgress = progress
         surfaces.start(progress)
@@ -153,10 +164,29 @@ final class ActiveRouteStore {
         currentStopIndex += 1
         currentStopID = currentStop?.id
         stopStartedAt = now()
+        stopChangedUnseen = false
         saveCheckpoint()
         lastProgress = progress
         surfaces.update(progress)
+        // Saved now, not left to autosave: Siri completes stops with the app
+        // in the background, which may be suspended before autosave runs.
+        try? context?.save()
         return currentStop == nil ? .finishedLastStop : .advanced(nextStopIndex: currentStopIndex)
+    }
+
+    /// The route screen showed the current stop, with the app in front.
+    func markCurrentStopSeen() {
+        guard stopChangedUnseen else { return }
+        stopChangedUnseen = false
+        saveCheckpoint()
+    }
+
+    /// Whether `stopID` is behind the current stop: completed on this run.
+    /// The route screen's notify sheet can outlive its stop being completed by
+    /// Siri or Control Center; that isn't "changed on another device".
+    func isBehindCurrentStop(_ stopID: UUID) -> Bool {
+        guard let index = sortedStops.firstIndex(where: { $0.id == stopID }) else { return false }
+        return index < currentStopIndex
     }
 
     /// Finishes the route: clears the checkpoint and ends the Live Activity.
@@ -189,7 +219,10 @@ final class ActiveRouteStore {
         }
         let beforeProgress = lastProgress
         let stopChanged = reconcile(stopID: currentStopID, index: currentStopIndex)
-        if stopChanged { stopStartedAt = now() }
+        if stopChanged {
+            stopStartedAt = now()
+            stopChangedUnseen = true
+        }
         if stopChanged || progress != beforeProgress {
             saveCheckpoint()
             lastProgress = progress
@@ -232,7 +265,8 @@ final class ActiveRouteStore {
             currentStopAddress: currentStop?.clientAddress ?? "",
             currentStopNumber: min(currentStopIndex + 1, sortedStops.count),
             totalStops: sortedStops.count,
-            completedStops: min(currentStopIndex, sortedStops.count)
+            completedStops: min(currentStopIndex, sortedStops.count),
+            currentStopID: currentStopID
         )
     }
 
@@ -263,6 +297,7 @@ final class ActiveRouteStore {
         currentStopID = nil
         stopStartedAt = nil
         isFirstStopPromptPending = false
+        stopChangedUnseen = false
         defaults.removeObject(forKey: Self.checkpointKey)
     }
 
@@ -279,7 +314,8 @@ final class ActiveRouteStore {
     private func saveCheckpoint() {
         guard let routeID, let stopStartedAt else { return }
         let checkpoint = Checkpoint(routeID: routeID, currentStopIndex: currentStopIndex,
-                                    currentStopID: currentStopID, stopStartedAt: stopStartedAt)
+                                    currentStopID: currentStopID, stopStartedAt: stopStartedAt,
+                                    stopChangedUnseen: stopChangedUnseen)
         if let data = try? JSONEncoder().encode(checkpoint) {
             defaults.set(data, forKey: Self.checkpointKey)
         }
@@ -315,6 +351,8 @@ final class ActiveRouteStore {
         let stopChanged = reconcile(stopID: checkpoint.currentStopID, index: checkpoint.currentStopIndex)
         // The saved timer belongs to the saved stop only.
         stopStartedAt = stopChanged ? now() : checkpoint.stopStartedAt
+        // Changed now, or before the app was ended and not seen since.
+        stopChangedUnseen = stopChanged || (checkpoint.stopChangedUnseen ?? false)
         isFirstStopPromptPending = false
         lastProgress = progress
         surfaces.resume(progress)
@@ -331,6 +369,8 @@ struct RouteProgress: Equatable {
     var currentStopNumber: Int
     var totalStops: Int
     var completedStops: Int
+    /// The stop shown, for Control Center to name when it completes one.
+    var currentStopID: UUID?
 }
 
 /// Everything outside the app that shows route progress: the Live Activity and

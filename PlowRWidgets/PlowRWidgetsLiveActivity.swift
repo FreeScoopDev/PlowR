@@ -74,7 +74,7 @@ struct PlowRWidgetsLiveActivity: Widget {
                 Image(systemName: "truck.box.fill")
                     .foregroundStyle(.blue)
             }
-            .widgetURL(URL(string: "plowr://activeRoute"))
+            .widgetURL(PlowRLink.activeRoute.url)
             .keylineTint(.blue)
         }
     }

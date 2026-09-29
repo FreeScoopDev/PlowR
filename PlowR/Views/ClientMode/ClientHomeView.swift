@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ClientHomeView: View {
-    @AppStorage("userRole") private var userRole = ""
+    @AppStorage(UserRole.key) private var userRole = ""
     @State private var showingFindService = false
     @State private var workOrderStore = ClientWorkOrderStore()
     @State private var resendingOrder: ClientWorkOrder?
