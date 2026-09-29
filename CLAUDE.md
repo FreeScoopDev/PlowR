@@ -45,8 +45,10 @@ platform work: `LocationManager` (geofencing per stop), `ActiveRouteStore`
 (the in-progress route: current stop, stop timer, checkpoint that survives a
 relaunch; Live Activity and widget via `SystemRouteSurfaces`),
 `RouteSessionManager` (Siri's bridge to the route screen, being retired),
-`NotificationService` (weather alerts, overdue invoices), `CalendarService`
-(EventKit — writes to a "PlowR" calendar), `WeatherService` (Open-Meteo),
+`NotificationService` (weather alerts, overdue invoices), `CalendarSync`
+(Settings switch, off by default: keeps a "PlowR" calendar in step with the
+schedule through EventKit; `VisitCalendar` works out the changes),
+`WeatherService` (Open-Meteo),
 `ElevationService` (Open-Topo-Data), `RouteOptimizer` (nearest-neighbor over
 `MKDirections` or haversine), `WidgetDataStore` (app-group `UserDefaults`,
 key `todayRoute`, read by the widget). Views are grouped by feature under
@@ -109,8 +111,16 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
 - **Delete Account & Data** (Settings) is an App Review 5.1.1(v) requirement.
   It removes all SwiftData records, the encrypted work-orders file, the route
   checkpoint and Live Activities (`ActiveRouteStore.eraseAll()`), the widget's
-  saved route, and Keychain credentials. Any new persistent store must be added to that path or
+  saved route, the "PlowR" calendar (`CalendarSync.eraseAll()`), and Keychain
+  credentials. Any new persistent store must be added to that path or
   the deletion is incomplete and review can fail on it.
+- **Calendar events are matched to visits by their `plowr://visit/<id>`
+  link**, not by an ID saved on the visit (`externalCalendarID` is unused): an
+  event's ID is only good on the device that made it, and visits sync.
+  `CalendarSync` runs after every store save, so no screen calls it. Until
+  2026-09-28 PlowR asked for write-only access, which can't create a calendar
+  or save an event to one, so calendar sync never added an event (seen on a
+  simulator).
 
 ## Conventions
 

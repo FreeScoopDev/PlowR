@@ -462,15 +462,9 @@ struct AddVisitView: View {
             dates = first.recurrenceRule.occurrences(from: scheduledDate, horizon: horizon, calendar: .current)
         }
 
+        // Calendar events follow from the save (CalendarSync).
         for (index, date) in dates.enumerated() {
-            let visit = index == 0 ? first : makeVisit(on: date)
-            modelContext.insert(visit)
-            let capturedVisit = visit
-            Task {
-                if let eventID = await CalendarService.shared.addVisit(capturedVisit) {
-                    capturedVisit.externalCalendarID = eventID
-                }
-            }
+            modelContext.insert(index == 0 ? first : makeVisit(on: date))
         }
     }
 

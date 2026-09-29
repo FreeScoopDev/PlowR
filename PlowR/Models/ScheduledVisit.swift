@@ -19,7 +19,9 @@ final class ScheduledVisit {
     var proposalID: String = ""    // invoice generated from this visit
     var isAfterHours: Bool = false
     var afterHoursMultiplier: Double = 1.5
-    var externalCalendarID: String = ""  // EKEvent identifier for Calendar.app sync
+    /// Unused since calendar sync matches events by link (VisitCalendar); an
+    /// event's ID is only good on one device. Kept: it's in the iCloud schema.
+    var externalCalendarID: String = ""
 
     // Recurrence — all visits in a series share seriesID
     var isRecurring: Bool = false

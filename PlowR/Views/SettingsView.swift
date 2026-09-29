@@ -1,9 +1,11 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 struct SettingsView: View {
     @Environment(AuthManager.self) private var authManager
     @Environment(ActiveRouteStore.self) private var activeRoute
+    @Environment(CalendarSync.self) private var calendarSync
     @Environment(\.modelContext) private var modelContext
     @Environment(\.openURL) private var openURL
 
@@ -28,6 +30,17 @@ struct SettingsView: View {
                 NavigationLink(destination: PaymentMethodsView()) {
                     Label("Payment Methods", systemImage: "creditcard")
                 }
+            }
+
+            Section {
+                Toggle(isOn: Binding(get: { calendarSync.isEnabled || calendarSync.isAsking },
+                                     set: { on in Task { await calendarSync.setEnabled(on) } })) {
+                    Label("Add Visits to Calendar", systemImage: "calendar")
+                }
+            } header: {
+                Text("Calendar")
+            } footer: {
+                calendarFooter
             }
 
             Section("Discover") {
@@ -129,9 +142,27 @@ struct SettingsView: View {
         }
     }
 
+    @ViewBuilder private var calendarFooter: some View {
+        if calendarSync.needsAccess {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("PlowR needs full access to your calendars to keep its events in step with your visits.")
+                Button("Allow in Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+                }
+                .font(.caption.weight(.semibold))
+            }
+        } else if let problem = calendarSync.problem {
+            Text(problem)
+                .foregroundStyle(.red)
+        } else {
+            Text("Adds your visits from the last month and the next six months to a “PlowR” calendar, with a reminder an hour before, and keeps it up to date when visits are moved, skipped or deleted.")
+        }
+    }
+
     private func deleteAccount() {
         // Everything on this device: records, preferences, files, notifications,
-        // geofences, the route in progress and the widget (see AccountEraser).
+        // geofences, the route in progress, the widget and the PlowR calendar
+        // (see AccountEraser).
         let eraser = AccountEraser(context: modelContext,
                                    archiveFolders: AccountEraser.archiveFolders(for: modelContext.container),
                                    routeStore: activeRoute)
@@ -164,4 +195,5 @@ struct SettingsView: View {
     SettingsView()
         .environment(AuthManager())
         .environment(ActiveRouteStore.shared)
+        .environment(CalendarSync.shared)
 }

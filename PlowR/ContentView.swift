@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(AuthManager.self) private var authManager
+    @Environment(CalendarSync.self) private var calendarSync
     @AppStorage("userRole") private var userRole = ""
     @State private var selectedTab = 0
 
@@ -19,6 +20,10 @@ struct ContentView: View {
                 }
             }
         }
+        // Only the signed-in business's visits go in the calendar.
+        .onChange(of: authManager.userID, initial: true) { _, userID in
+            calendarSync.operatorID = userID
+        }
         .onOpenURL { url in
             guard url.scheme == "plowr" else { return }
             if url.host == "activeRoute" {
@@ -32,4 +37,5 @@ struct ContentView: View {
     ContentView()
         .environment(AuthManager())
         .environment(ActiveRouteStore.shared)
+        .environment(CalendarSync.shared)
 }

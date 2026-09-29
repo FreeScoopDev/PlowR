@@ -32,6 +32,11 @@ struct PlowRApp: App {
         // Before any view: a Siri or Control Center launch acts on the route
         // without the UI, and a killed app should come back mid-route.
         ActiveRouteStore.shared.configure(context: container.mainContext)
+        // Not under tests: the test host is the app, with the app's
+        // preferences, and must leave the simulator's calendar alone.
+        if !Self.isRunningUnderTests {
+            CalendarSync.shared.configure(context: container.mainContext)
+        }
     }
 
     // Readable by DashboardView to show a sync-unavailable warning banner.
@@ -110,6 +115,7 @@ struct PlowRApp: App {
             ContentView()
                 .environment(authManager)
                 .environment(ActiveRouteStore.shared)
+                .environment(CalendarSync.shared)
                 .tint(PlowRColor.accent)
         }
         .modelContainer(container)
@@ -118,6 +124,7 @@ struct PlowRApp: App {
             if phase == .active {
                 ActiveRouteStore.shared.validate()
                 authManager.recheckIfSignedOut()
+                CalendarSync.shared.refresh()
             }
         }
     }
