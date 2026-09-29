@@ -112,6 +112,13 @@ final class ActiveRouteStore {
     /// Begins `route` at its first stop. Replaces any route already active.
     func start(_ route: PlowRoute) {
         if isActive { end() }
+        // A new run. Last run's times and recorded services would otherwise
+        // show its stops as done before they're visited.
+        for stop in route.stops ?? [] {
+            stop.actualMinutes = 0
+            stop.completedServiceIDs = []
+            stop.completedNotes = ""
+        }
         self.route = route
         routeID = route.id
         routeName = route.name
@@ -232,8 +239,13 @@ final class ActiveRouteStore {
     // MARK: - Private
 
     private func recordVisit(for stop: RouteStop) {
-        guard !stop.isCustomStop, let startedAt = stopStartedAt, let context else { return }
+        guard let startedAt = stopStartedAt else { return }
         let minutes = max(0, now().timeIntervalSince(startedAt) / 60)
+        // The stop's time this run, which the route list, the dashboard, the
+        // route map and the recap read as "done". Nothing wrote it before. At
+        // least a minute, so a quick stop still reads as done.
+        stop.actualMinutes = max(1, Int(minutes.rounded()))
+        guard !stop.isCustomStop, let context else { return }
         let clientID = stop.clientID
         // Fetch and match by UUID: a #Predicate on `id` clashes with SwiftData's own id.
         guard let client = try? context.fetch(FetchDescriptor<Client>()).first(where: { $0.id == clientID }) else { return }

@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import UserNotifications
 @testable import PlowR
 
 struct NotificationServiceTests {
@@ -70,6 +71,56 @@ struct NotificationServiceTests {
     func adverseForecastDay_calmCodesDoNotAlert(code: Int) {
         let forecasts = [makeDay(code: 0, daysFromNow: 0), makeDay(code: code, daysFromNow: 1)]
         #expect(NotificationService.shared.adverseForecastDay(from: forecasts) == nil)
+    }
+
+    // MARK: - When alerts fire
+
+    /// A fixed calendar and clock, so the timing tests don't depend on where or when they run.
+    private var calendar: Calendar {
+        var c = Calendar(identifier: .gregorian)
+        c.timeZone = TimeZone(identifier: "America/New_York") ?? .gmt
+        return c
+    }
+
+    private func day(_ y: Int, _ m: Int, _ d: Int, hour: Int = 12, code: Int = 0) -> DayForecast {
+        let date = calendar.date(from: DateComponents(year: y, month: m, day: d, hour: hour)) ?? .distantPast
+        return DayForecast(date: date, maxTempF: 30, minTempF: 20, weatherCode: code, precipitationMm: 5)
+    }
+
+    // No test called the scheduling code, so moving the alert from 6 PM to
+    // 8 AM passed. Snow on Thursday: the alert is Wednesday at 6 PM.
+    @Test func theWeatherAlertFiresAtSixTheEveningBefore() throws {
+        let forecasts = [day(2026, 1, 13), day(2026, 1, 14), day(2026, 1, 15, code: 75)]
+        let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 1, day: 13, hour: 9)))
+        let request = try #require(NotificationService.shared.weatherAlertRequest(for: forecasts, now: now, calendar: calendar))
+        let trigger = try #require(request.trigger as? UNCalendarNotificationTrigger)
+        #expect(trigger.dateComponents.day == 14)
+        #expect(trigger.dateComponents.hour == 18)
+        #expect(trigger.dateComponents.minute == 0)
+        #expect(!trigger.repeats)
+        #expect(request.identifier == "weather_alert")
+    }
+
+    // Past 6 PM the evening before, there's nothing left to warn about in time.
+    @Test func noWeatherAlertOnceThatEveningHasPassed() throws {
+        let forecasts = [day(2026, 1, 13), day(2026, 1, 14, code: 75)]
+        let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 1, day: 13, hour: 19)))
+        #expect(NotificationService.shared.weatherAlertRequest(for: forecasts, now: now, calendar: calendar) == nil)
+    }
+
+    // Removing the guard that cancels at zero also passed: the reminder must
+    // only be cancelled, never replaced with "0 invoices past due".
+    @Test func noOverdueReminderWhenNothingIsOverdue() {
+        #expect(NotificationService.overdueReminderRequest(count: 0) == nil)
+    }
+
+    @Test func theOverdueReminderRepeatsDailyAtNine() throws {
+        let request = try #require(NotificationService.overdueReminderRequest(count: 3))
+        let trigger = try #require(request.trigger as? UNCalendarNotificationTrigger)
+        #expect(trigger.dateComponents.hour == 9)
+        #expect(trigger.dateComponents.minute == 0)
+        #expect(trigger.repeats)
+        #expect(request.content.body == NotificationService.overdueBody(count: 3))
     }
 
     // MARK: - overdueBody

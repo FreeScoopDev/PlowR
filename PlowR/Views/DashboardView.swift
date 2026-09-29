@@ -3,6 +3,7 @@ import SwiftData
 import CoreLocation
 
 struct DashboardView: View {
+    @Environment(ActiveRouteStore.self) private var activeRoute
     @Environment(AuthManager.self) private var authManager
 
     @Query private var allProfiles: [BusinessProfile]
@@ -353,10 +354,11 @@ struct DashboardView: View {
     }
 
     private func routeRow(_ route: PlowRoute) -> some View {
-        let total = route.sortedStops.count
-        let done  = route.sortedStops.filter { $0.actualMinutes > 0 }.count
-        let isActive = done > 0 && done < total
-        let isDone   = total > 0 && done == total
+        let run = RouteRunSummary(stops: route.sortedStops, isRunning: activeRoute.route?.id == route.id)
+        let total = run.total
+        let done = run.done
+        let isActive = run.isRunning
+        let isDone = run.isDone
 
         return HStack(spacing: 12) {
             Image(systemName: isActive ? "map.fill"
