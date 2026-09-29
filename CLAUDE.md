@@ -138,7 +138,7 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   `CHANGELOG.md`. `changelog.d/README.md` has the format. The PR that cuts a
   version gathers the files into `CHANGELOG.md`. Two open PRs that both edited
   `[Unreleased]` conflicted every time (Wockett #90–#92), and a conflicted PR
-  cannot merge until it is fixed. `[Unreleased]` in `CHANGELOG.md` still holds the 5.1.1
+  cannot auto-merge. `[Unreleased]` in `CHANGELOG.md` still holds the 5.1.1
   compliance work that hasn't been cut to a version.
 
 ## Process
@@ -147,9 +147,9 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
 
 The process is shared by every app and lives in the toolkit
 (`FreeScoopDev/app-toolkit`, checked out at `~/.claude/toolkit`): every
-change, `changelog.d/`, the release PR and Joe's release steps, git rules,
-verifying claims and working with Joe. **If you cannot see its
-"Every change: Joe's one step is Merge" section, the import did not load: read
+change, auto-merge, `changelog.d/`, the release PR and Joe's release steps,
+git rules, verifying claims and working with Joe. **If you cannot see its
+"Every change: no Joe step" section, the import did not load: read
 `~/.claude/toolkit/PROCESS.md` now, before any git work.** Change the process
 there, not here.
 
