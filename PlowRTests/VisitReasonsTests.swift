@@ -64,6 +64,9 @@ struct VisitReasonsTests {
         #expect(!AddVisitView.canSaveAsPreset("Other", presets: presets))
         #expect(!AddVisitView.canSaveAsPreset("Inspection", presets: presets))
         #expect(!AddVisitView.canSaveAsPreset("", presets: presets))
+        #expect(!AddVisitView.canSaveAsPreset("   ", presets: presets))
+        #expect(!AddVisitView.canSaveAsPreset("Inspection ", presets: presets))
+        #expect(AddVisitView.presetName(" Gutters ") == "Gutters")
     }
 
     // A saved reason that's also a service, or empty, is listed once or not at all.

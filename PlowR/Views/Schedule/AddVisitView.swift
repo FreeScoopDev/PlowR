@@ -33,11 +33,18 @@ struct AddVisitView: View {
         return (mine + generalReasons + saved).filter { listed.insert($0).inserted }
     }
 
-    /// Whether a typed reason can be saved as a preset: not empty, not listed
+    /// Whether a typed reason can be saved as a preset: not blank, not listed
     /// already, and not "Other", which is the picker's own entry and would
     /// leave the visit with no reason.
     static func canSaveAsPreset(_ reason: String, presets: [String]) -> Bool {
-        !reason.isEmpty && reason != otherReason && !presets.contains(reason)
+        let name = presetName(reason)
+        return !name.isEmpty && name != otherReason && !presets.contains(name)
+    }
+
+    /// A typed reason as a preset: without the spaces around it, which would
+    /// make "Inspection " a second "Inspection".
+    static func presetName(_ reason: String) -> String {
+        reason.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// How a visit's saved reason shows in the picker: as a listed reason,
@@ -156,8 +163,9 @@ struct AddVisitView: View {
     private func saveReasonAsPreset() {
         guard let profile = operatorProfile,
               Self.canSaveAsPreset(customReason, presets: allReasonPresets) else { return }
-        profile.customVisitReasons.append(customReason)
-        selectedReasonPreset = customReason
+        let name = Self.presetName(customReason)
+        profile.customVisitReasons.append(name)
+        selectedReasonPreset = name
         customReason = ""
     }
 
