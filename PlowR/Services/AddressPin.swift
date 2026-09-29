@@ -18,6 +18,11 @@ enum AddressPin {
         case failed(Problem)
     }
 
+    /// What the lookup alert can offer (Problem.choices).
+    enum Choice: Equatable {
+        case tryAgain, keepCurrentPin, saveWithoutPin, editAddress
+    }
+
     /// Why an address got no pin.
     enum Problem: Equatable {
         /// The map doesn't know it: a new street, a typo.
@@ -33,14 +38,25 @@ enum AddressPin {
             }
         }
 
-        var message: String {
-            let withoutPin = "Without a pin, the client isn't on route maps and gets no drive times or "
-                + "job-site alerts. You can save them without one and set the pin on their page."
-            switch self {
-            case .notFound: return "PlowR couldn't find this address on the map. " + withoutPin
-            case .unreachable: return "PlowR couldn't reach the map to look this address up: no signal, "
-                + "or the map is busy. Try again in a moment. " + withoutPin
+        /// What the alert says, for a client with or without a pin already.
+        func message(hasPin: Bool) -> String {
+            let found = self == .notFound
+                ? "PlowR couldn't find this address on the map. "
+                : "PlowR couldn't reach the map to look this address up: no signal, or the map is busy. "
+            let retry = self == .unreachable ? "Try again in a moment. " : ""
+            if hasPin {
+                return found + retry + "You can keep the client's current pin with the new address (Adjust Pin "
+                    + "moves it), or edit the address."
             }
+            return found + retry + "Without a pin, the client isn't on route maps and gets no drive times or "
+                + "job-site alerts. You can save them without one and set the pin on their page."
+        }
+
+        /// What the alert offers. A client who already has a pin keeps it or
+        /// has the address typed again (Joe's call); one without is saved
+        /// without one, or the address typed again.
+        func choices(hasPin: Bool) -> [Choice] {
+            (self == .unreachable ? [.tryAgain] : []) + [hasPin ? .keepCurrentPin : .saveWithoutPin, .editAddress]
         }
     }
 
