@@ -44,7 +44,8 @@ injected as an environment object. Services under `PlowR/Services/` own the
 platform work: `LocationManager` (geofencing per stop), `ActiveRouteStore`
 (the in-progress route: current stop, stop timer, checkpoint that survives a
 relaunch; Live Activity and widget via `SystemRouteSurfaces`),
-`RouteSessionManager` (Siri's bridge to the route screen, being retired),
+`RouteSessionManager` (what Siri and Control Center hand the route screen:
+a text to open, a message to show),
 `NotificationService` (weather alerts, overdue invoices), `CalendarSync`
 (Settings switch, off by default: keeps a "PlowR" calendar in step with the
 schedule through EventKit; `VisitCalendar` works out the changes),
@@ -124,8 +125,11 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   the control whenever the data changes. "Seen" is a stand-in:
   the route screen was up with the app in front, not proof that anyone
   looked. Only a business (`userRole == "operator"`) completes stops from
-  outside. Only Notify Next Client still needs the route screen
-  (`RouteSessionManager`).
+  outside. Siri's Notify Next Client only opens a text to the current
+  stop's client and completes nothing (`NotifyNextAction`): it leaves a
+  request in `RouteSessionManager.textRequest`, and the route screen opens
+  it once nothing else is up, if `NotifyNextAction.stopToOpen` says it's
+  still for the current stop and under two minutes old.
 - **A control that acts in the app needs its intent in both targets.**
   Control Center's `CompleteStopControlIntent` is compiled into the app and
   the widget extension, with `openAppWhenRun`, so the system runs it in the
@@ -135,6 +139,15 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   changed. Returning an `OpenURLIntent` from an intent that lived only in the
   extension opened nothing on iOS 26 ("Failed to fetch metadata for
   OpenURLIntent", simulator, 2026-09-29).
+- **A route stop keeps its own copy of the client's name, phone, address and
+  pin** (`RouteStop`), and `ClientStops` keeps it in step: every screen that
+  changes those on a client calls `ClientStops.update(for:)`, and
+  `ClientStops.updateAll(in:)` runs at launch, whenever iCloud brings changes
+  and whenever the app comes back to the front, for stops that fell behind
+  (a client edited on a device with an older PlowR, or a stop made there
+  from an old copy). A new place that edits a client's details must still
+  call `update(for:)`, or its routes lag until the next sweep. Stop notes
+  and run results are the stop's own.
 - **Delete Account & Data** (Settings) is an App Review 5.1.1(v) requirement.
   It removes all SwiftData records, the encrypted work-orders file, the route
   checkpoint and Live Activities (`ActiveRouteStore.eraseAll()`), the widget's

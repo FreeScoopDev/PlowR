@@ -141,6 +141,7 @@ struct LocationAdjustView: View {
             if !resolvedAddress.isEmpty {
                 client.address = resolvedAddress
             }
+            ClientStops.update(for: client)
         }
         dismiss()
     }

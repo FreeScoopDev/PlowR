@@ -33,6 +33,9 @@ struct ActiveRouteView: View {
     @State private var recorderStop: RouteStop?
     @State private var showingMassMessage = false
     @State private var showingFirstStopPrompt = false
+    /// Siri's "Notify next client": a text to this stop's client, completing
+    /// nothing (NotifyNextAction).
+    @State private var textOnlyStop: RouteStop?
     /// The stop that was current when the notify prompt opened. Advancing
     /// completes that stop only; if sync has changed it meanwhile, nothing is
     /// recorded (ActiveRouteStore.CompletionResult.stopChanged).
@@ -70,7 +73,7 @@ struct ActiveRouteView: View {
     /// A sheet, dialog or other alert is up on this screen. A new one must be
     /// added here, or Control Center's message can try to show over it.
     private var isPresentingSomething: Bool {
-        showingFirstStopPrompt || showingNotifyPrompt || recorderStop != nil || showingMassMessage
+        showingFirstStopPrompt || showingNotifyPrompt || textOnlyStop != nil || recorderStop != nil || showingMassMessage
             || showingRouteRecap || showingNavPicker || showingRouteChangedAlert || showingLocationDeniedAlert
     }
 
@@ -89,127 +92,24 @@ struct ActiveRouteView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 0) {
-                    progressHeader
-                    routeMap
-                    weatherStrip
-                    VStack(spacing: 12) {
-                        if let stop = currentStop {
-                            currentStopCard(stop)
-                        } else {
-                            routeCompleteCard
-                        }
-                        if !upcomingStops.isEmpty {
-                            upcomingStopsSection
-                        }
-                    }
-                    .padding()
-                }
-            }
-            .navigationTitle(route.name)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("End Route") { showingRouteRecap = true }
-                        .foregroundStyle(.red)
-                }
-            }
-        }
-        .onAppear {
-            beginTracking()
-            // Built with the app in the background (a location relaunch), it
-            // hasn't been seen: that waits for the app to come to the front.
-            if scenePhase == .active { store.markCurrentStopSeen() }
-            RouteSessionManager.shared.onNotifyNext = { openNotifyPrompt() }
-        }
-        .onDisappear {
-            // Stops GPS for this screen only. The route itself carries on: only
-            // End Route (store.end()) finishes it.
-            locationManager.stopTracking()
-            RouteSessionManager.shared.onNotifyNext = nil
-            // Said about this route: not for the next one.
-            RouteSessionManager.shared.completeStopMessage = nil
-        }
-        .task(id: currentStopIndex) {
-            etaMinutes = nil
-            if let stop = currentStop {
-                etaMinutes = await locationManager.calculateETA(to: stop)
-            }
-        }
-        .onChange(of: locationManager.currentLocation) { _, loc in
-            guard let loc else { return }
-            if weather == nil {
-                Task {
-                    weather = try? await WeatherService.shared.fetch(
-                        latitude: loc.coordinate.latitude,
-                        longitude: loc.coordinate.longitude
-                    )
-                }
-            }
-            if followDriver { recenterMap() }
-        }
-        .onChange(of: currentStopIndex) { _, _ in
-            if followDriver { recenterMap() }
-        }
-        .onChange(of: locationManager.lastExitedRegionID) { _, regionID in
-            guard let regionID,
-                  let stop = currentStop,
-                  stop.id.uuidString == regionID else { return }
-            locationManager.lastExitedRegionID = nil
-            triggerNotifyPrompt()
-        }
-        // Each sheet, dialog and alert on this screen is in isPresentingSomething.
-        .sheet(isPresented: $showingFirstStopPrompt) {
-            if let first = sortedStops.first {
-                NotifyPromptView(
-                    stop: first,
-                    locationManager: locationManager,
-                    onAdvance: {},
-                    promptTitle: "Notify First Client?"
-                )
-            }
-        }
-        .sheet(isPresented: $showingNotifyPrompt, onDismiss: {
-            if routeChangedAfterSheet {
-                routeChangedAfterSheet = false
-                showingRouteChangedAlert = true
-            }
-        }) {
-            if let next = promptNextStop {
-                NotifyPromptView(stop: next, locationManager: locationManager, onAdvance: { advance(completing: promptStopID) })
-            }
-        }
-        .background(
-            Color.clear
-                .sheet(item: $recorderStop) { stop in
-                    StopServiceRecorderView(
-                        stop: stop,
-                        client: client(for: stop),
-                        operatorID: route.operatorID
-                    )
-                }
-        )
-        .sheet(isPresented: $showingMassMessage) {
-            MassMessageView(stops: sortedStops, allClients: allClients)
-        }
-        .sheet(isPresented: $showingRouteRecap) {
-            RouteRecapView(
-                route: route,
-                stops: sortedStops,
-                allClients: allClients,
-                onEndRoute: { store.end() }
-            )
-        }
+        screenWithSheets
         .onChange(of: store.currentStopID) { _, _ in
             locationManager.clearAllGeofences()
             if let stop = currentStop { locationManager.startMonitoringStop(stop) }
             if scenePhase == .active { store.markCurrentStopSeen() }
         }
+        // The current stop's pin moved with its client's, say corrected on
+        // another device: the job-site zone moves too.
+        .onChange(of: currentStop.map { [$0.latitude, $0.longitude] }) { _, _ in
+            locationManager.keepMonitoring(currentStop)
+        }
         // Back in the app with this screen up: whatever stop it shows is seen.
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { store.markCurrentStopSeen() }
+            guard phase == .active else { return }
+            store.markCurrentStopSeen()
+            // The current stop's pin may have moved while the screen couldn't
+            // redraw (the phone locked, say): its job-site zone follows.
+            if locationManager.isAuthorized { locationManager.keepMonitoring(currentStop) }
         }
         // Control Center's Complete Stop, when it couldn't complete the stop.
         // Held while something else is up: iOS won't present an alert over a
@@ -268,6 +168,132 @@ struct ActiveRouteView: View {
                 }
                 Button("Cancel", role: .cancel) {}
             }
+        }
+    }
+
+    /// The route screen with its tracking and sheets. Split from `body`: one
+    /// chain of all the screen's modifiers grew too long to type-check.
+    private var screenWithSheets: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 0) {
+                    progressHeader
+                    routeMap
+                    weatherStrip
+                    VStack(spacing: 12) {
+                        if let stop = currentStop {
+                            currentStopCard(stop)
+                        } else {
+                            routeCompleteCard
+                        }
+                        if !upcomingStops.isEmpty {
+                            upcomingStopsSection
+                        }
+                    }
+                    .padding()
+                }
+            }
+            .navigationTitle(route.name)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("End Route") { showingRouteRecap = true }
+                        .foregroundStyle(.red)
+                }
+            }
+        }
+        .onAppear {
+            beginTracking()
+            // Built with the app in the background (a location relaunch), it
+            // hasn't been seen: that waits for the app to come to the front.
+            if scenePhase == .active { store.markCurrentStopSeen() }
+            openRequestedText()
+        }
+        .onDisappear {
+            // Stops GPS for this screen only. The route itself carries on: only
+            // End Route (store.end()) finishes it.
+            locationManager.stopTracking()
+            // Said about this route: not for the next one.
+            RouteSessionManager.shared.completeStopMessage = nil
+            RouteSessionManager.shared.textRequest = nil
+        }
+        .task(id: currentStopIndex) {
+            etaMinutes = nil
+            if let stop = currentStop {
+                etaMinutes = await locationManager.calculateETA(to: stop)
+            }
+        }
+        .onChange(of: locationManager.currentLocation) { _, loc in
+            guard let loc else { return }
+            if weather == nil {
+                Task {
+                    weather = try? await WeatherService.shared.fetch(
+                        latitude: loc.coordinate.latitude,
+                        longitude: loc.coordinate.longitude
+                    )
+                }
+            }
+            if followDriver { recenterMap() }
+        }
+        .onChange(of: currentStopIndex) { _, _ in
+            if followDriver { recenterMap() }
+        }
+        .onChange(of: locationManager.lastExitedRegionID) { _, regionID in
+            guard let regionID,
+                  let stop = currentStop,
+                  stop.id.uuidString == regionID else { return }
+            locationManager.lastExitedRegionID = nil
+            triggerNotifyPrompt()
+        }
+        // Siri's "Notify next client", once nothing else is up.
+        .onChange(of: RouteSessionManager.shared.textRequest) { _, _ in openRequestedText() }
+        .onChange(of: isPresentingSomething) { _, _ in openRequestedText() }
+        // Each sheet, dialog and alert on this screen is in isPresentingSomething.
+        .sheet(item: $textOnlyStop) { stop in
+            // A text only: Send, Skip and Cancel complete nothing.
+            NotifyPromptView(stop: stop, locationManager: locationManager, onAdvance: {},
+                             promptTitle: "Text Current Stop?")
+        }
+        .sheet(isPresented: $showingFirstStopPrompt) {
+            if let first = sortedStops.first {
+                NotifyPromptView(
+                    stop: first,
+                    locationManager: locationManager,
+                    onAdvance: {},
+                    promptTitle: "Notify First Client?"
+                )
+            }
+        }
+        .sheet(isPresented: $showingNotifyPrompt, onDismiss: {
+            if routeChangedAfterSheet {
+                routeChangedAfterSheet = false
+                showingRouteChangedAlert = true
+            }
+        }) {
+            if let next = promptNextStop {
+                NotifyPromptView(stop: next, locationManager: locationManager, onAdvance: { advance(completing: promptStopID) })
+            }
+        }
+        .background(
+            Color.clear
+                .sheet(item: $recorderStop) { stop in
+                    StopServiceRecorderView(
+                        stop: stop,
+                        client: client(for: stop),
+                        operatorID: route.operatorID
+                    )
+                }
+        )
+        .sheet(isPresented: $showingMassMessage) {
+            MassMessageView(stops: sortedStops, allClients: allClients)
+        }
+        .sheet(isPresented: $showingRouteRecap) {
+            RouteRecapView(
+                route: route,
+                stops: sortedStops,
+                allClients: allClients,
+                onEndRoute: { store.end() }
+            )
         }
     }
 
@@ -768,7 +794,21 @@ struct ActiveRouteView: View {
         openNotifyPrompt()
     }
 
-    /// Siri's "Notify next client" and the Complete button both land here.
+    /// Opens the text Siri asked for, when nothing else is up, if it's still
+    /// wanted (NotifyNextAction.stopToOpen). Asked again while that text is
+    /// already open, it's dropped rather than reopened after it's sent.
+    private func openRequestedText() {
+        guard let request = RouteSessionManager.shared.textRequest else { return }
+        if request.stopID == textOnlyStop?.id {
+            RouteSessionManager.shared.textRequest = nil
+            return
+        }
+        guard !isPresentingSomething else { return }
+        RouteSessionManager.shared.textRequest = nil
+        textOnlyStop = NotifyNextAction.stopToOpen(request, in: store)
+    }
+
+    /// The Complete button and leaving a stop's geofence land here.
     private func openNotifyPrompt() {
         guard let next = nextStop, !showingNotifyPrompt else { return }
         promptStopID = currentStop?.id

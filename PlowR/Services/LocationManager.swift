@@ -46,6 +46,25 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
         manager.startMonitoring(for: region)
     }
 
+    var isAuthorized: Bool {
+        authorizationStatus == .authorizedAlways || authorizationStatus == .authorizedWhenInUse
+    }
+
+    /// Keeps `stop`'s job-site zone where its pin is, placing it again only
+    /// if it's missing or the pin moved: a zone placed afresh first has to
+    /// work out that the phone is inside it, and an exit in that moment is
+    /// missed.
+    func keepMonitoring(_ stop: RouteStop?) {
+        guard let stop else { return clearAllGeofences() }
+        let regions = manager.monitoredRegions
+        if regions.count == 1, let placed = regions.first as? CLCircularRegion,
+           placed.identifier == stop.id.uuidString,
+           abs(placed.center.latitude - stop.latitude) < 1e-7,
+           abs(placed.center.longitude - stop.longitude) < 1e-7 { return }
+        clearAllGeofences()
+        startMonitoringStop(stop)
+    }
+
     func clearAllGeofences() {
         for region in manager.monitoredRegions {
             manager.stopMonitoring(for: region)
