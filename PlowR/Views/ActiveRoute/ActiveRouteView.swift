@@ -12,6 +12,7 @@ struct ActiveRouteView: View {
     @Environment(ActiveRouteStore.self) private var store
     @Environment(\.modelContext) private var modelContext
     @Environment(\.requestReview) private var requestReview
+    @Environment(\.scenePhase) private var scenePhase
 
     @Query private var allClients: [Client]
 
@@ -25,7 +26,11 @@ struct ActiveRouteView: View {
     @State private var etaMinutes: Int? = nil
     @State private var showingNavPicker = false
     @State private var navStop: RouteStop? = nil
-    @State private var showingServiceRecorder = false
+    /// The stop the service recorder opened for, pinned like the notify
+    /// prompt's. Siri or Control Center can complete the stop while the sheet
+    /// is up, and a sheet reading the current stop would then have saved this
+    /// client's services, photos and invoice on the next one.
+    @State private var recorderStop: RouteStop?
     @State private var showingMassMessage = false
     @State private var showingFirstStopPrompt = false
     /// The stop that was current when the notify prompt opened. Advancing
@@ -59,7 +64,11 @@ struct ActiveRouteView: View {
     }
 
     private var currentStopClient: Client? {
-        guard let stop = currentStop, !stop.isCustomStop else { return nil }
+        currentStop.flatMap(client(for:))
+    }
+
+    private func client(for stop: RouteStop) -> Client? {
+        guard !stop.isCustomStop else { return nil }
         return allClients.first { $0.id == stop.clientID }
     }
 
@@ -103,14 +112,13 @@ struct ActiveRouteView: View {
         }
         .onAppear {
             beginTracking()
-            RouteSessionManager.shared.isRouteActive = true
+            store.markCurrentStopSeen()
             RouteSessionManager.shared.onNotifyNext = { openNotifyPrompt() }
         }
         .onDisappear {
             // Stops GPS for this screen only. The route itself carries on: only
             // End Route (store.end()) finishes it.
             locationManager.stopTracking()
-            RouteSessionManager.shared.isRouteActive = false
             RouteSessionManager.shared.onNotifyNext = nil
         }
         .task(id: currentStopIndex) {
@@ -163,14 +171,12 @@ struct ActiveRouteView: View {
         }
         .background(
             Color.clear
-                .sheet(isPresented: $showingServiceRecorder) {
-                    if let stop = currentStop {
-                        StopServiceRecorderView(
-                            stop: stop,
-                            client: currentStopClient,
-                            operatorID: route.operatorID
-                        )
-                    }
+                .sheet(item: $recorderStop) { stop in
+                    StopServiceRecorderView(
+                        stop: stop,
+                        client: client(for: stop),
+                        operatorID: route.operatorID
+                    )
                 }
         )
         .sheet(isPresented: $showingMassMessage) {
@@ -187,6 +193,20 @@ struct ActiveRouteView: View {
         .onChange(of: store.currentStopID) { _, _ in
             locationManager.clearAllGeofences()
             if let stop = currentStop { locationManager.startMonitoringStop(stop) }
+            if scenePhase == .active { store.markCurrentStopSeen() }
+        }
+        // Back in the app with this screen up: whatever stop it shows is seen.
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { store.markCurrentStopSeen() }
+        }
+        // Control Center's Complete Stop, when it couldn't complete the stop.
+        .alert("Complete Stop", isPresented: Binding(
+            get: { RouteSessionManager.shared.completeStopMessage != nil },
+            set: { if !$0 { RouteSessionManager.shared.completeStopMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(RouteSessionManager.shared.completeStopMessage ?? "")
         }
         .onChange(of: locationManager.authorizationStatus) { _, status in
             switch status {
@@ -500,7 +520,7 @@ struct ActiveRouteView: View {
 
             if !stop.isCustomStop {
                 Button {
-                    showingServiceRecorder = true
+                    recorderStop = stop
                 } label: {
                     HStack {
                         Label("Record Services for Invoice", systemImage: "doc.badge.plus")
@@ -745,6 +765,12 @@ struct ActiveRouteView: View {
 
     private func advance(completing stopID: UUID?) {
         guard let stopID else { return }
+        // Completed meanwhile by Siri or Control Center, with the notify sheet
+        // up: done, not "changed on another device".
+        if store.isBehindCurrentStop(stopID) {
+            didAdvance()
+            return
+        }
         if store.completeCurrentStop(expecting: stopID) == .stopChanged {
             if showingNotifyPrompt { routeChangedAfterSheet = true } else { showingRouteChangedAlert = true }
             return

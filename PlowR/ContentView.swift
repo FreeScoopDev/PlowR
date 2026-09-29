@@ -20,14 +20,19 @@ struct ContentView: View {
             }
         }
         .onOpenURL { url in
-            guard url.scheme == "plowr" else { return }
-            if url.host == "activeRoute" {
+            switch PlowRLink(url) {
+            case .activeRoute:
                 selectedTab = 2
-            }
-            // Control Center's Complete Stop. The route screen, shown while a
-            // route is in progress, then shows the next stop.
-            if url.host == "completeStop" {
-                _ = CompleteStopAction.run(in: .shared)
+            case .completeStop(let stopID):
+                // Control Center's Complete Stop, for the stop its widget
+                // showed. Only a signed-in business has a route of its own. The
+                // route screen, up while a route is in progress, shows the next
+                // stop, or why this one wasn't completed.
+                guard userRole != "client", authManager.isSignedIn else { return }
+                let reply = CompleteStopAction.run(in: .shared, expecting: stopID)
+                if !reply.completed { RouteSessionManager.shared.completeStopMessage = reply.text }
+            case nil:
+                break
             }
         }
     }

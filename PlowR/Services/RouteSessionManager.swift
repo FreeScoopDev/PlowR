@@ -9,7 +9,8 @@ final class RouteSessionManager {
     static let shared = RouteSessionManager()
     private init() {}
 
-    var isRouteActive = false
-
     var onNotifyNext: (() -> Void)?
+    /// Why Control Center's Complete Stop didn't complete the stop (the
+    /// route changed on another device, say). The route screen shows it.
+    var completeStopMessage: String?
 }

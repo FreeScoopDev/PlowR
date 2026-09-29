@@ -7,11 +7,13 @@ struct CompleteCurrentStopIntent: AppIntent {
     static var title: LocalizedStringResource = "Complete Current Stop"
     static var description = IntentDescription("Mark the stop you're at as complete in PlowR, and hear which stop is next.")
 
-    // Hands-free, without opening the app (see CompleteStopAction).
+    // Hands-free, without opening the app (see CompleteStopAction). The stop
+    // meant is the current one, unless iCloud has changed it unseen.
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let reply = CompleteStopAction.run(in: .shared)
-        return .result(dialog: "\(reply)")
+        let store = ActiveRouteStore.shared
+        let reply = CompleteStopAction.run(in: store, expecting: store.currentStopID)
+        return .result(dialog: "\(reply.text)")
     }
 }
 
