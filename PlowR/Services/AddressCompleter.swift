@@ -21,6 +21,11 @@ final class AddressCompleter: NSObject, MKLocalSearchCompleterDelegate {
 
     func clear() { completions = [] }
 
+    /// The suggestion `address` was picked: the field is about to show it.
+    func willPick(_ address: String) {
+        picked = address
+    }
+
     /// The address field changed to `text`. Typed: suggest addresses for it,
     /// and true, since a pin from an earlier pick no longer holds. The
     /// suggestion just picked: false, and no suggestions. The field's own
@@ -40,7 +45,7 @@ final class AddressCompleter: NSObject, MKLocalSearchCompleterDelegate {
     func resolve(_ completion: MKLocalSearchCompletion) async -> (address: String, coordinate: CLLocationCoordinate2D?) {
         let parts = [completion.title, completion.subtitle].filter { !$0.isEmpty }
         let fullAddress = parts.joined(separator: ", ")
-        picked = fullAddress
+        willPick(fullAddress)
         let request = MKLocalSearch.Request(completion: completion)
         let coordinate = try? await MKLocalSearch(request: request).start()
             .mapItems.first?.placemark.coordinate

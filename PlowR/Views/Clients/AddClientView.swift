@@ -146,18 +146,16 @@ struct AddClientView: View {
     /// used to be saved with no pin, and nothing said so.
     private func place(_ client: Client) {
         isSaving = true
+        lookupProblem = nil
         Task {
-            let lookup = await AddressPin.lookUp(client.address)
+            let problem = await AddressPin.place(client)
             isSaving = false
-            switch lookup {
-            case let .found(latitude, longitude):
-                client.latitude = latitude
-                client.longitude = longitude
-                modelContext.insert(client)
-                dismiss()
-            case .failed(let problem):
+            if let problem {
                 unplacedClient = client
                 lookupProblem = problem
+            } else {
+                modelContext.insert(client)
+                dismiss()
             }
         }
     }

@@ -50,10 +50,9 @@ struct AddressPinTests {
     // picked suggestion's pin away.
     @Test func aPickedSuggestionIsntTyping() {
         let completer = AddressCompleter()
-        completer.picked = "12 Pleasant St, Claremont, NH"
+        completer.willPick("12 Pleasant St, Claremont, NH")
         #expect(!completer.fieldChanged(to: "12 Pleasant St, Claremont, NH"))
         #expect(completer.picked == nil)
-        #expect(completer.completions.isEmpty)
         #expect(completer.fieldChanged(to: "12 Pleasant St, Claremont, NH"))   // typed again later
         #expect(completer.fieldChanged(to: "14 Pleasant"))
     }

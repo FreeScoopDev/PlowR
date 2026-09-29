@@ -14,7 +14,7 @@ struct EditClientView: View {
     /// The client's address and pin as this screen knows them: when it
     /// opened, or after Adjust Pin or Move Pin changed them.
     @State private var originalAddress: String
-    @State private var originalPin: [Double]
+    @State private var originalPin: PinPlacement.Pin
 
     @Query private var allProposals: [Proposal]
     @Query private var allProfiles: [BusinessProfile]
@@ -48,6 +48,8 @@ struct EditClientView: View {
     /// The new address couldn't be put on the map: save it without a pin,
     /// try again, or check it.
     @State private var lookupProblem: AddressPin.Problem?
+    /// The address being looked up, as it was when Save was tapped.
+    @State private var lookedUpAddress = ""
 
     // Documents
     @State private var revisePaidDoc: Proposal?
@@ -63,7 +65,7 @@ struct EditClientView: View {
     init(client: Client) {
         self.client = client
         _originalAddress = State(initialValue: client.address)
-        _originalPin = State(initialValue: [client.latitude, client.longitude])
+        _originalPin = State(initialValue: .init(latitude: client.latitude, longitude: client.longitude))
         _name = State(initialValue: client.name)
         _phone = State(initialValue: client.phone)
         _email = State(initialValue: client.email)
@@ -98,14 +100,16 @@ struct EditClientView: View {
             photosSection
             propertySection
         }
+        // Nothing changes, and nothing opens over the alert, while the new
+        // address is looked up; and the screen can't be left mid-lookup.
+        .disabled(isSaving)
         .navigationTitle(name.isEmpty ? "Client" : name)
         .navigationBarTitleDisplayMode(.inline)
-        // Leaving mid-lookup lost the new address.
         .navigationBarBackButtonHidden(isSaving)
         .addressLookupAlert($lookupProblem) {
             // The old pin marked the old address: keeping it put the client
             // at their old house on every map and route.
-            client.address = address
+            client.address = lookedUpAddress
             client.latitude = 0
             client.longitude = 0
             ClientStops.update(for: client)
@@ -1014,16 +1018,20 @@ struct EditClientView: View {
     // MARK: - Save
 
     /// Adjust Pin and the property scanner's Move Pin save the client's pin,
-    /// and the address there, themselves. If one did, this screen takes them:
-    /// Save used to write back the address it opened with, and could geocode
-    /// an address typed before over the pin just set by hand.
+    /// and the address there, themselves; this screen takes them. Save used
+    /// to write back the address it opened with, and could look an address
+    /// typed before up again over the pin just set by hand. A pin set for a
+    /// client who had none keeps what was typed (PinPlacement.field).
     private func takePinFromClient() {
-        let pin = [client.latitude, client.longitude]
-        guard pin != originalPin || client.address != originalAddress else { return }
-        originalPin = pin
-        originalAddress = client.address
-        address = client.address
-        geocodedCoordinate = nil
+        let before = PinPlacement.Field(
+            text: address, original: originalAddress, originalPin: originalPin,
+            pinForText: geocodedCoordinate.map { .init(latitude: $0.latitude, longitude: $0.longitude) })
+        let after = PinPlacement.field(before, afterPinSheetWith: client.address,
+                                       .init(latitude: client.latitude, longitude: client.longitude))
+        originalPin = after.originalPin
+        originalAddress = after.original
+        address = after.text
+        geocodedCoordinate = after.pinForText.map { CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude) }
     }
 
     private func saveChanges() {
@@ -1057,6 +1065,8 @@ struct EditClientView: View {
         if address != originalAddress, !address.isEmpty {
             // Taken now: the lookup waits on the network.
             let typed = address
+            lookedUpAddress = typed
+            lookupProblem = nil
             Task {
                 let lookup = await AddressPin.lookUp(typed)
                 isSaving = false

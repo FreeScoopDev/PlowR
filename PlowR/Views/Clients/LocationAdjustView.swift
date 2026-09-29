@@ -25,10 +25,6 @@ struct LocationAdjustView: View {
     private let hadPin: Bool
     private let openedAt: CLLocationCoordinate2D
 
-    /// How close the map must be before a pin can be set by hand: close
-    /// enough to see the house.
-    static let streetDistance: Double = 2_000
-
     init(client: Client, onSave: ((CLLocationCoordinate2D, String) -> Void)? = nil) {
         self.client = client
         self.onSave = onSave
@@ -51,13 +47,9 @@ struct LocationAdjustView: View {
         return CoordinateBounds(pins)?.region()
     }
 
-    /// Confirm needs a real spot: for a pin set by hand, the map zoomed in
-    /// to street level (it starts zoomed out).
     private var canConfirm: Bool {
-        guard !isGeocoding else { return false }
-        if hadPin { return true }
-        return AddressPin.exists(latitude: centerCoordinate.latitude, longitude: centerCoordinate.longitude)
-            && cameraDistance <= Self.streetDistance
+        PinPlacement.canConfirm(hadPin: hadPin, center: centerCoordinate, distance: cameraDistance,
+                                isLookingUp: isGeocoding)
     }
 
     var body: some View {
@@ -77,9 +69,7 @@ struct LocationAdjustView: View {
             .onMapCameraChange(frequency: .onEnd) { context in
                 centerCoordinate = context.camera.centerCoordinate
                 cameraDistance = context.camera.distance
-                let from = CLLocation(latitude: openedAt.latitude, longitude: openedAt.longitude)
-                let to = CLLocation(latitude: centerCoordinate.latitude, longitude: centerCoordinate.longitude)
-                if from.distance(from: to) > 2 { moved = true }
+                if PinPlacement.moved(from: openedAt, to: centerCoordinate) { moved = true }
                 // A pin set by hand keeps the address as typed (the map
                 // couldn't find it): nothing to look up.
                 if hadPin, moved { reverseGeocode(centerCoordinate) }
@@ -180,14 +170,13 @@ struct LocationAdjustView: View {
 
     private var hint: String {
         if hadPin { return "Drag the map to reposition the pin" }
-        return cameraDistance <= Self.streetDistance
+        return cameraDistance <= PinPlacement.streetDistance
             ? "Drag the map until the pin is on the house"
             : "Zoom in to the house, then drag the map to it"
     }
 
     private func saveAndDismiss() {
-        // Nothing moved: nothing to save.
-        guard moved || !hadPin else { return dismiss() }
+        guard PinPlacement.saves(moved: moved, hadPin: hadPin) else { return dismiss() }
         if let onSave {
             // Caller handles the update (e.g. PropertyScannerView before zones are saved)
             onSave(centerCoordinate, resolvedAddress)

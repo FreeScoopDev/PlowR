@@ -3,8 +3,8 @@ import Foundation
 import MapKit
 
 /// A client's map pin, from their address. 0,0 is "no pin": what a client
-/// gets when their address can't be put on the map, and what the map,
-/// route and geofence code already skip.
+/// gets when their address can't be put on the map. (Some older screens
+/// check the latitude alone.)
 enum AddressPin {
     /// Whether `latitude`, `longitude` is a pin. Both must be checked: a
     /// place on the equator or the prime meridian has one of them at 0.
@@ -38,8 +38,8 @@ enum AddressPin {
                 + "job-site alerts. You can save them without one and set the pin on their page."
             switch self {
             case .notFound: return "PlowR couldn't find this address on the map. " + withoutPin
-            case .unreachable: return "PlowR couldn't reach the map to look this address up. "
-                + "Check the connection and try again. " + withoutPin
+            case .unreachable: return "PlowR couldn't reach the map to look this address up: no signal, "
+                + "or the map is busy. Try again in a moment. " + withoutPin
             }
         }
     }
@@ -54,6 +54,19 @@ enum AddressPin {
             return .found(latitude: location.coordinate.latitude, longitude: location.coordinate.longitude)
         } catch {
             return .failed(problem(for: error))
+        }
+    }
+
+    /// Puts a new client on the map. Nil when their address was found (the
+    /// client now has its pin); otherwise why not.
+    static func place(_ client: Client) async -> Problem? {
+        switch await lookUp(client.address) {
+        case let .found(latitude, longitude):
+            client.latitude = latitude
+            client.longitude = longitude
+            return nil
+        case .failed(let problem):
+            return problem
         }
     }
 
