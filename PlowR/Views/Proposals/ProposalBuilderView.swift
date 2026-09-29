@@ -28,6 +28,11 @@ struct ProposalBuilderView: View {
     @State private var showingPreview = false
     @State private var generatedPDFData: Data?
     @State private var pendingProposal: Proposal?
+    /// The document the preview shared before it was saved, and the number
+    /// on it: saved as shared (a draft invoice, as sent) if it's still that
+    /// document with that number (DocumentSent.wasSharedBeforeSave).
+    @State private var sharedProposalID: UUID?
+    @State private var sharedNumber = ""
     @State private var grouped = false
 
     private struct CustomLineItem: Identifiable {
@@ -97,7 +102,11 @@ struct ProposalBuilderView: View {
             }
             .sheet(isPresented: $showingPreview) {
                 if let data = generatedPDFData {
-                    ProposalPreviewView(pdfData: data, client: client, isInvoice: isInvoiceMode) {
+                    ProposalPreviewView(pdfData: data, client: client, isInvoice: isInvoiceMode,
+                                        onShared: {
+                                            sharedProposalID = pendingProposal?.id
+                                            sharedNumber = pendingProposal?.invoiceNumber ?? ""
+                                        }) {
                         if let proposal = pendingProposal {
                             saveProposal(proposal)
                         }
@@ -386,17 +395,8 @@ struct ProposalBuilderView: View {
     }
 
     private func saveProposal(_ proposal: Proposal) {
-        // Numbered when built, so the preview shows it. If another invoice has
-        // taken that number since (synced from another device), take the next.
-        if proposal.isInvoice {
-            proposal.invoiceNumber = InvoiceNumbering.confirmed(proposal.invoiceNumber,
-                                                                operatorID: proposal.operatorID, in: modelContext)
-        }
         proposal.visitID = linkedVisitID
-        // Insert items first so the cascade inverse relationship doesn't double-insert them
-        for item in (proposal.lineItems ?? []) { modelContext.insert(item) }
-        proposal.lineItems = proposal.lineItems   // re-affirm relationship after explicit inserts
-        modelContext.insert(proposal)
+        DocumentSent.saveBuilt(proposal, sharedID: sharedProposalID, sharedNumber: sharedNumber, in: modelContext)
         // Write proposal ID back to the originating scheduled visit
         if !linkedVisitID.isEmpty, let uuid = UUID(uuidString: linkedVisitID) {
             let descriptor = FetchDescriptor<ScheduledVisit>(predicate: #Predicate { $0.id == uuid })
