@@ -36,17 +36,21 @@ enum DocumentSent {
     }
 
     /// Marks an invoice paid now. A payment is the client's response, so it
-    /// ends "Awaiting Response" when this invoice is what they were awaiting:
-    /// sent no earlier than the client's mark. A document sent after it
-    /// keeps them awaiting.
+    /// ends "Awaiting Response" (Joe's call).
     static func markPaid(_ proposal: Proposal, in context: ModelContext, now: Date = .now) {
         proposal.invoicePaidAt = now
         let id = proposal.clientID
-        guard let sent = proposal.invoiceSentAt,
-              let client = try? context.fetch(FetchDescriptor<Client>()).first(where: { $0.id.uuidString == id }),
-              let mark = client.lastMessageSentAt,
-              sent >= mark.addingTimeInterval(-1) else { return }
+        guard let client = try? context.fetch(FetchDescriptor<Client>()).first(where: { $0.id.uuidString == id }),
+              client.lastMessageSentAt != nil else { return }
         client.clientRespondedAt = now
+    }
+
+    /// Whether a document the builder saves is the one its preview shared:
+    /// the same document, not one rebuilt after Back and edits, still with
+    /// the number the client saw (saving renumbers it if another invoice
+    /// took that number meanwhile). Only then is it saved as shared.
+    static func wasSharedBeforeSave(_ proposal: Proposal, sharedID: UUID?, sharedNumber: String) -> Bool {
+        proposal.id == sharedID && proposal.invoiceNumber == sharedNumber
     }
 
     /// Whether finishing the share sheet with `activity` sent the document

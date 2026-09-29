@@ -28,9 +28,11 @@ struct ProposalBuilderView: View {
     @State private var showingPreview = false
     @State private var generatedPDFData: Data?
     @State private var pendingProposal: Proposal?
-    /// The preview shared the document before it was saved: an invoice was
-    /// sent, so it's saved as sent.
-    @State private var sharedFromPreview = false
+    /// The document the preview shared before it was saved, and the number
+    /// on it: saved as shared (a draft invoice, as sent) if it's still that
+    /// document with that number (DocumentSent.wasSharedBeforeSave).
+    @State private var sharedProposalID: UUID?
+    @State private var sharedNumber = ""
     @State private var grouped = false
 
     private struct CustomLineItem: Identifiable {
@@ -101,7 +103,10 @@ struct ProposalBuilderView: View {
             .sheet(isPresented: $showingPreview) {
                 if let data = generatedPDFData {
                     ProposalPreviewView(pdfData: data, client: client, isInvoice: isInvoiceMode,
-                                        onShared: { sharedFromPreview = true }) {
+                                        onShared: {
+                                            sharedProposalID = pendingProposal?.id
+                                            sharedNumber = pendingProposal?.invoiceNumber ?? ""
+                                        }) {
                         if let proposal = pendingProposal {
                             saveProposal(proposal)
                         }
@@ -401,8 +406,8 @@ struct ProposalBuilderView: View {
         for item in (proposal.lineItems ?? []) { modelContext.insert(item) }
         proposal.lineItems = proposal.lineItems   // re-affirm relationship after explicit inserts
         modelContext.insert(proposal)
-        if sharedFromPreview, proposal.isInvoice {
-            DocumentSent.markSent(proposal, in: modelContext)
+        if DocumentSent.wasSharedBeforeSave(proposal, sharedID: sharedProposalID, sharedNumber: sharedNumber) {
+            DocumentSent.shared(proposal, in: modelContext)
         }
         // Write proposal ID back to the originating scheduled visit
         if !linkedVisitID.isEmpty, let uuid = UUID(uuidString: linkedVisitID) {
