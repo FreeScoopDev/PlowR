@@ -224,10 +224,7 @@ struct ProposalListView: View {
             }
         } else if proposal.invoiceStatus == .draft {
             Button {
-                proposal.invoiceSentAt = Date()
-                if proposal.invoiceDueDate == nil {
-                    proposal.invoiceDueDate = Date().addingTimeInterval(30 * 86400)
-                }
+                DocumentSent.markSent(proposal, in: modelContext)
             } label: {
                 Label("Mark Sent", systemImage: "paperplane.fill")
             }

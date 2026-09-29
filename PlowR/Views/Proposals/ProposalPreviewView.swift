@@ -1,5 +1,6 @@
-import SwiftUI
 import PDFKit
+import SwiftData
+import SwiftUI
 
 struct ProposalPreviewView: View {
     let pdfData: Data
@@ -8,6 +9,8 @@ struct ProposalPreviewView: View {
     let onSave: () -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+    @State private var showingShare = false
 
     @State private var shareURL: URL?
 
@@ -26,11 +29,8 @@ struct ProposalPreviewView: View {
                     }
                     ToolbarItem(placement: .primaryAction) {
                         HStack(spacing: 8) {
-                            if let url = shareURL {
-                                ShareLink(
-                                    item: url,
-                                    preview: SharePreview(docTitle, icon: Image(systemName: "doc.fill"))
-                                ) {
+                            if shareURL != nil {
+                                Button { showingShare = true } label: {
                                     Image(systemName: "square.and.arrow.up")
                                 }
                             }
@@ -47,6 +47,15 @@ struct ProposalPreviewView: View {
                 }
         }
         .onAppear { prepareShareURL() }
+        // Sent to the client from the share sheet: they're awaiting a response.
+        .sheet(isPresented: $showingShare) {
+            if let url = shareURL {
+                DocumentShareSheet(url: url) {
+                    DocumentSent.awaitResponse(clientID: client.id.uuidString, in: modelContext)
+                }
+                .presentationDetents([.medium, .large])
+            }
+        }
     }
 
     private func prepareShareURL() {
@@ -71,12 +80,4 @@ struct PDFKitView: UIViewRepresentable {
     func updateUIView(_ view: PDFView, context: Context) {
         view.document = PDFDocument(data: data)
     }
-}
-
-struct ProposalShareSheet: UIViewControllerRepresentable {
-    let url: URL
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: [url], applicationActivities: nil)
-    }
-    func updateUIViewController(_ uvc: UIActivityViewController, context: Context) {}
 }

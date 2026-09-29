@@ -30,11 +30,13 @@ struct PlowRApp: App {
         let schema = Schema(Self.models)
         container = Self.makeContainer(schema: schema)
         // Stops that fell behind their client, before the route in progress
-        // is restored from them; then whenever iCloud brings changes. Not
-        // under tests, which bring their own store.
+        // is restored from them; then whenever iCloud brings changes. And
+        // "Awaiting Response" is for documents sent now: texts set it before.
+        // Not under tests, which bring their own store.
         if !Self.isRunningUnderTests {
             ClientStops.updateAll(in: container.mainContext)
             ClientStops.followRemoteChanges(of: container)
+            DocumentSent.clearTextStamps(in: container.mainContext)
         }
         // Before any view: a Siri or Control Center launch acts on the route
         // without the UI, and a killed app should come back mid-route.

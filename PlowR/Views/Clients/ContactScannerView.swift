@@ -15,6 +15,9 @@ struct ContactScannerView: View {
     @State private var isProcessing = false
     @State private var result: ScannedContact? = nil
     @State private var isSaving = false
+    /// Built, waiting for an answer: its address couldn't be put on the map.
+    @State private var unplacedClient: Client?
+    @State private var lookupProblem: AddressPin.Problem?
 
     // Editable review fields
     @State private var name = ""
@@ -39,11 +42,15 @@ struct ContactScannerView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
+                    // Not mid-lookup: the client would still be saved, from a
+                    // screen already gone.
                     Button("Cancel") { dismiss() }
+                        .disabled(isSaving)
                 }
                 if result != nil {
                     ToolbarItem(placement: .primaryAction) {
                         Button("Retake") { retake() }
+                            .disabled(isSaving)
                     }
                 }
             }
@@ -54,6 +61,14 @@ struct ContactScannerView: View {
             }
         }
         .onAppear { showingCamera = true }
+        .interactiveDismissDisabled(isSaving)
+        .addressLookupAlert($lookupProblem) {
+            if let client = unplacedClient { modelContext.insert(client) }
+            unplacedClient = nil
+            dismiss()
+        } tryAgain: {
+            if let client = unplacedClient { place(client) }
+        }
     }
 
     // MARK: - Processing
@@ -186,15 +201,24 @@ struct ContactScannerView: View {
             return
         }
 
+        place(client)
+    }
+
+    /// Puts the scanned client on the map, then saves them; or asks what to
+    /// do when their address can't be found or the map can't be reached.
+    private func place(_ client: Client) {
+        isSaving = true
+        lookupProblem = nil
         Task {
-            let geocoder = CLGeocoder()
-            if let placemark = try? await geocoder.geocodeAddressString(address).first,
-               let location = placemark.location {
-                client.latitude  = location.coordinate.latitude
-                client.longitude = location.coordinate.longitude
+            let problem = await AddressPin.place(client)
+            isSaving = false
+            if let problem {
+                unplacedClient = client
+                lookupProblem = problem
+            } else {
+                modelContext.insert(client)
+                dismiss()
             }
-            modelContext.insert(client)
-            await MainActor.run { isSaving = false; dismiss() }
         }
     }
 }
