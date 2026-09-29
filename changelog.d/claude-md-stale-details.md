@@ -1,0 +1,2 @@
+### Internal
+- **`CLAUDE.md` names no other project, and lists the build's warnings as they are.** The repo is public, and `CLAUDE.md`'s own rule is to name no other project, but its changelog paragraph gave another app's PR numbers as the example. It said `WeatherService` had three Swift 6 concurrency warnings; a Release build on 2026-09-29 had five, plus warnings for APIs iOS 26 deprecated. It also said `[Unreleased]` still held the 5.1.1 compliance work, which the 1.2.0 release moves out.
