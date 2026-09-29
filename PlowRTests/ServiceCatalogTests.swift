@@ -54,11 +54,12 @@ struct ServiceCatalogTests {
         #expect(!ServiceCatalog.offered(from: left, operatorID: "op").contains { $0.key == "lawn" })
     }
 
-    // Asked for again, only the missing ones come back, after the rest.
-    @Test func askingAgainAddsOnlyWhatsMissingAfterTheRest() throws {
-        let mine = [service("Lawn Mowing", category: "lawn", order: 3), service("Patio", category: "custom", order: 999)]
+    // A custom service with a standard service's name isn't added twice, and
+    // the standard ones go after the business's own.
+    @Test func aCustomServiceWithAStandardNameIsntDoubled() throws {
+        let mine = [service("Edging", category: "custom", order: 999)]
         let added = ServiceCatalog.addStandard(lawn, operatorID: "op", existing: mine, to: context)
-        #expect(added.map(\.name) == ["Edging", "Fertilization", "Hedge Trimming"])
+        #expect(added.map(\.name) == ["Lawn Mowing", "Fertilization", "Hedge Trimming"])
         #expect(added.map(\.sortOrder) == [1000, 1001, 1002])
     }
 
@@ -75,8 +76,8 @@ struct ServiceCatalogTests {
     @Test func whatABusinessHasToPickFrom() {
         let off = service("Patio", category: "custom")
         off.isActive = false
-        #expect(ServiceCatalog.coverage(of: [], operatorID: "op") == .none)
-        #expect(ServiceCatalog.coverage(of: [service("Theirs", category: "lawn", operatorID: "x")], operatorID: "op") == .none)
+        #expect(ServiceCatalog.coverage(of: [], operatorID: "op") == .empty)
+        #expect(ServiceCatalog.coverage(of: [service("Theirs", category: "lawn", operatorID: "x")], operatorID: "op") == .empty)
         #expect(ServiceCatalog.coverage(of: [off], operatorID: "op") == .allOff)
         #expect(ServiceCatalog.coverage(of: [off, service("Mowing", category: "lawn")], operatorID: "op") == .some)
     }

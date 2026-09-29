@@ -8,6 +8,7 @@ struct ServiceCatalogView: View {
 
     @State private var showingAddService = false
     @State private var serviceToEdit: ServiceItem?
+    @State private var standardServicesFirst = false
 
     private var myServices: [ServiceItem] {
         allServices
@@ -32,12 +33,7 @@ struct ServiceCatalogView: View {
         if !offered.isEmpty {
             Section {
                 ForEach(offered) { category in
-                    Button {
-                        ServiceCatalog.addStandard(category, operatorID: authManager.userID,
-                                                   existing: allServices, to: modelContext)
-                    } label: {
-                        Label(category.label, systemImage: "plus.circle")
-                    }
+                    StandardCategoryButton(category: category, operatorID: authManager.userID)
                 }
             } header: {
                 Text("Add Standard Services")
@@ -62,8 +58,10 @@ struct ServiceCatalogView: View {
                 }
             }
 
-            // An empty catalog starts with the standard services on top.
-            if myServices.isEmpty { standardServicesSection }
+            // An empty catalog starts with the standard services on top. Where
+            // is decided on appear, so the rows don't move under the finger
+            // when the first category is added.
+            if standardServicesFirst { standardServicesSection }
 
             Section {
                 Button {
@@ -73,9 +71,10 @@ struct ServiceCatalogView: View {
                 }
             }
 
-            if !myServices.isEmpty { standardServicesSection }
+            if !standardServicesFirst { standardServicesSection }
         }
         .navigationTitle("Service Catalog")
+        .onAppear { standardServicesFirst = myServices.isEmpty }
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showingAddService) {
             ServiceItemEditView(operatorID: authManager.userID)

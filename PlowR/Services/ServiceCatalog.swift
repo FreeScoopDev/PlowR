@@ -28,7 +28,7 @@ enum ServiceCatalog {
     /// What a business has to pick from.
     enum Coverage: Equatable {
         /// No services at all: offer the standard ones.
-        case none
+        case empty
         /// Services, all turned off in the catalog.
         case allOff
         case some
@@ -36,7 +36,7 @@ enum ServiceCatalog {
 
     static func coverage(of services: [ServiceItem], operatorID: String) -> Coverage {
         let mine = services.filter { $0.operatorID == operatorID }
-        if mine.isEmpty { return .none }
+        if mine.isEmpty { return .empty }
         return mine.contains(where: \.isActive) ? .some : .allOff
     }
 
