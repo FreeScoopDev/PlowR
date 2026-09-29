@@ -46,9 +46,9 @@ struct SettingsView: View {
                         .font(.title2)
                         .foregroundStyle(iCloud.warning == nil ? Color.blue : Color.orange)
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(iCloud.warning?.title ?? "Data Backed Up to iCloud")
+                        Text(iCloud.summary.title)
                             .font(.subheadline.weight(.semibold))
-                        Text(iCloud.warning?.message ?? "Your clients, routes, and documents sync automatically across your devices and are stored securely in your private iCloud account.")
+                        Text(iCloud.summary.message)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

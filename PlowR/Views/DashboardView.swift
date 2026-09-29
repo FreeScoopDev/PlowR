@@ -134,7 +134,8 @@ struct DashboardView: View {
                     Image(systemName: "xmark")
                         .font(.caption.weight(.bold))
                         .foregroundStyle(.secondary)
-                        .padding(4)
+                        .frame(minWidth: 44, minHeight: 44)     // In gloves, too.
+                        .contentShape(Rectangle())
                 }
                 .accessibilityLabel("Hide")
             }

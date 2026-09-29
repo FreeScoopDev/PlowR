@@ -6,6 +6,7 @@
 import CloudKit
 import Foundation
 import Testing
+import UIKit
 @testable import PlowR
 
 /// When PlowR says the data isn't backed up to iCloud. It only warned when the
@@ -18,10 +19,14 @@ struct ICloudStatusTests {
     final class Setup {
         let suite = "ICloudStatusTests-\(UUID().uuidString)"
         let defaults: UserDefaults
+        let notifications = NotificationCenter()
         var status: CKAccountStatus = .available
         var fails = false
         var opened = true
         var checks = 0
+        /// Checks held until the test answers them, in order.
+        var holds = false
+        var held: [CheckedContinuation<CKAccountStatus, Never>] = []
 
         init() throws {
             defaults = try #require(UserDefaults(suiteName: suite))
@@ -31,13 +36,21 @@ struct ICloudStatusTests {
             ICloudStatus(check: { [unowned self] in
                              checks += 1
                              if fails { throw CKError(.networkUnavailable) }
+                             if holds { return await withCheckedContinuation { held.append($0) } }
                              return status
                          },
                          databaseOpened: { [unowned self] in opened },
-                         defaults: defaults)
+                         defaults: defaults, notifications: notifications)
         }
 
         deinit { UserDefaults.standard.removePersistentDomain(forName: suite) }
+    }
+
+    private func waitUntil(_ condition: () -> Bool) async throws {
+        for _ in 0..<200 where !condition() {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        #expect(condition())
     }
 
     @Test func eachAccountStatusMapsToAState() {
@@ -48,7 +61,7 @@ struct ICloudStatusTests {
         #expect(ICloudStatus.state(for: .couldNotDetermine) == .couldNotDetermine)
     }
 
-    @Test func aSignedOutIPhoneIsWarned() async throws {
+    @Test func aSignedOutDeviceIsWarned() async throws {
         let s = try Setup()
         s.status = .noAccount
         let status = s.make()
@@ -56,40 +69,44 @@ struct ICloudStatusTests {
         #expect(status.state == .noAccount)
         #expect(status.warning?.title == "Not backed up to iCloud")
         #expect(status.banner == status.warning)
+        #expect(status.summary == status.warning)
     }
 
-    @Test func restrictedAndNeedsAttentionAreWarnedToo() async throws {
-        let s = try Setup()
-        let status = s.make()
-        for account in [CKAccountStatus.restricted, .temporarilyUnavailable] {
-            s.status = account
-            await status.refresh()
-            #expect(status.warning != nil, "\(account.rawValue)")
-        }
+    // Each problem is told apart: a Screen Time restriction isn't fixed by
+    // signing in. PlowR runs on iPad too, so no message says "iPhone".
+    @Test func eachProblemHasItsOwnMessage() {
+        let problems: [ICloudStatus.State] = [.noAccount, .restricted, .temporarilyUnavailable, .localOnly]
+        let warnings = problems.compactMap(ICloudStatus.warning(for:))
+        #expect(warnings.count == problems.count)
+        #expect(Set(warnings.map(\.title)).count == problems.count)
+        #expect(Set(warnings.map(\.message)).count == problems.count)
+        #expect(ICloudStatus.warning(for: .restricted)?.message.contains("Screen Time") == true)
+        #expect(ICloudStatus.warning(for: .noAccount)?.message.contains("signed in") == true)
+        #expect(warnings.allSatisfy { !$0.message.contains("iPhone") && !$0.title.contains("iPhone") })
     }
 
-    // Synced, not known yet, or iCloud couldn't answer (no signal on a job
-    // site): nothing the user can fix, so nothing is shown.
+    // Synced, not known yet, or iCloud couldn't answer: nothing the user can
+    // fix, so no card. Settings says "Backed Up" only when iCloud said so.
     @Test func nothingIsShownWhenSyncedOrUnknown() async throws {
         let s = try Setup()
         let status = s.make()
         #expect(status.state == .checking)
         #expect(status.banner == nil)
+        #expect(status.summary.title != "Data Backed Up to iCloud")
         await status.refresh()
         #expect(status.state == .available)
         #expect(status.banner == nil)
-        s.status = .couldNotDetermine
-        await status.refresh()
-        #expect(status.banner == nil)
+        #expect(status.summary.title == "Data Backed Up to iCloud")
         s.fails = true
         await status.refresh()
         #expect(status.state == .couldNotDetermine)
         #expect(status.banner == nil)
+        #expect(status.summary.title != "Data Backed Up to iCloud")
     }
 
     // The one case the old alert covered: the database didn't open with
-    // iCloud, so PlowR saves on this device only, whatever the account says.
-    @Test func aDatabaseThatDidntOpenWithICloudIsLocalOnly() async throws {
+    // iCloud, whatever the account says.
+    @Test func aDatabaseThatDidntOpenWithICloudIsWarnedAbout() async throws {
         let s = try Setup()
         s.opened = false
         let status = s.make()
@@ -100,33 +117,71 @@ struct ICloudStatusTests {
     }
 
     // The old alert came back every time the Dashboard appeared.
-    @Test func aClosedBannerStaysClosedUntilTheStateChanges() async throws {
+    @Test func aClosedCardStaysClosedUntilSomethingElseIsWrong() async throws {
         let s = try Setup()
         s.status = .noAccount
         let status = s.make()
         await status.refresh()
         status.dismissBanner()
         #expect(status.banner == nil)
-        // Settings still says so.
-        #expect(status.warning != nil)
-        // After a relaunch too.
+        #expect(status.warning != nil)                  // Settings still says so.
         let relaunched = s.make()
         await relaunched.refresh()
-        #expect(relaunched.banner == nil)
-        // Something new to say shows again.
+        #expect(relaunched.banner == nil)               // After a relaunch too.
         s.status = .temporarilyUnavailable
         await relaunched.refresh()
         #expect(relaunched.banner != nil)
     }
 
-    // CloudKit without the iCloud entitlement or account, as in every test
-    // run: the Dashboard's call must not reach it.
-    @Test func watchingDoesNothingUnderTests() async throws {
+    // Closed, then fixed, then signed out again months later: said again.
+    @Test func aClosedCardComesBackWhenItsProblemDoes() async throws {
+        let s = try Setup()
+        s.status = .noAccount
+        let status = s.make()
+        await status.refresh()
+        status.dismissBanner()
+        s.status = .available
+        await status.refresh()
+        s.status = .noAccount
+        await status.refresh()
+        #expect(status.banner != nil)
+        #expect(s.defaults.string(forKey: ICloudStatus.dismissedKey) == nil)
+    }
+
+    // Back from signing in, two checks start close together. The first can
+    // answer last, from before the sign-in: the newer answer stands.
+    @Test func aLateAnswerDoesntOverwriteANewerOne() async throws {
+        let s = try Setup()
+        s.holds = true
+        let status = s.make()
+        let first = Task { await status.refresh() }
+        try await waitUntil { s.held.count == 1 }
+        let second = Task { await status.refresh() }
+        try await waitUntil { s.held.count == 2 }
+        s.held[1].resume(returning: .available)
+        await second.value
+        s.held[0].resume(returning: .noAccount)
+        await first.value
+        #expect(status.state == .available)
+    }
+
+    @Test func comingBackAndAccountChangesAreChecked() async throws {
         let s = try Setup()
         let status = s.make()
         status.watch()
-        try await Task.sleep(for: .milliseconds(100))
-        #expect(s.checks == 0)
-        #expect(status.state == .checking)
+        status.watch()                                  // Once is enough.
+        try await waitUntil { s.checks == 1 }
+        s.notifications.post(name: UIApplication.didBecomeActiveNotification, object: nil)
+        try await waitUntil { s.checks == 2 }
+        s.notifications.post(name: .CKAccountChanged, object: nil)
+        try await waitUntil { s.checks == 3 }
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(s.checks == 3)
+    }
+
+    // The app's own check, which the Dashboard runs, never reaches CloudKit
+    // in a test run.
+    @Test func theAppsCheckNeverAsksCloudKitUnderTests() async throws {
+        #expect(try await ICloudStatus.accountStatus() == .couldNotDetermine)
     }
 }
