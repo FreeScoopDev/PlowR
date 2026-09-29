@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct RoleSelectionView: View {
-    @AppStorage("userRole") private var userRole = ""
+    @AppStorage(UserRole.key) private var userRole = ""
 
     var body: some View {
         VStack(spacing: 0) {
@@ -25,7 +25,7 @@ struct RoleSelectionView: View {
                     description: "Manage clients, plan routes, build proposals, and track jobs.",
                     color: .blue
                 ) {
-                    userRole = "operator"
+                    userRole = UserRole.business
                 }
                 roleCard(
                     icon: "location.magnifyingglass",
@@ -33,7 +33,7 @@ struct RoleSelectionView: View {
                     description: "Find local operators and send a detailed request for your property.",
                     color: .green
                 ) {
-                    userRole = "client"
+                    userRole = UserRole.client
                 }
             }
             .padding(.horizontal, 24)

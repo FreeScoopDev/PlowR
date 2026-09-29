@@ -73,6 +73,8 @@
 			membershipExceptions = (
 				Activity/RouteActivityAttributes.swift,
 				DesignSystem.swift,
+				Intents/CompleteStopControlIntent.swift,
+				Intents/PlowRLink.swift,
 				Services/WidgetDataStore.swift,
 			);
 			target = 602AA00F3018663F00841B7B /* PlowRWidgetsExtension */;

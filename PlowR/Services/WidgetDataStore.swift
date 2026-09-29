@@ -12,10 +12,24 @@ nonisolated struct TodayRouteWidgetData: Codable, Equatable {
     var routeName: String = ""
     var totalStops: Int = 0
     var completedStops: Int = 0
+    /// The current stop's client: the one being driven to or worked at, not
+    /// the one after. Kept under this name so data already written reads.
     var nextStopName: String = ""
     var nextStopAddress: String = ""
     var isActive: Bool = false
     var lastUpdated: Date = .distantPast
+    /// The stop the widget shows. Optional, so data an older version wrote
+    /// still reads.
+    var currentStopID: UUID?
+
+    /// The stop Control Center's Complete Stop shows and completes, with its
+    /// client's name: the current stop, while a route is in progress. None
+    /// once every stop is done. One value, so the name shown and the stop
+    /// completed can't disagree.
+    var shownStop: (id: UUID, name: String)? {
+        guard isActive, let currentStopID else { return nil }
+        return (currentStopID, nextStopName)
+    }
 
     /// The route was ended with every stop done.
     var isComplete: Bool { !isActive && completedStops == totalStops && totalStops > 0 }
@@ -36,12 +50,21 @@ enum WidgetDataStore {
     /// The widget's kind. The widget declares itself with it and the app
     /// reloads it by it, so the two can't drift apart.
     static let widgetKind = "PlowRTodayRoute"
+    /// Control Center's Complete Stop, which shows the current stop and
+    /// completes the one it shows: reloaded with the widget, or it would
+    /// show, and complete, a stop the route has moved past.
+    static let controlKind = "com.Scoops.PlowR.CompleteStop"
 
     static func write(_ data: TodayRouteWidgetData) {
         if let encoded = try? JSONEncoder().encode(data) {
             UserDefaults(suiteName: suiteName)?.set(encoded, forKey: key)
         }
+        reload()
+    }
+
+    private static func reload() {
         WidgetCenter.shared.reloadTimelines(ofKind: widgetKind)
+        ControlCenter.shared.reloadControls(ofKind: controlKind)
     }
 
     static func read() -> TodayRouteWidgetData? {
@@ -51,6 +74,6 @@ enum WidgetDataStore {
 
     static func clear() {
         UserDefaults(suiteName: suiteName)?.removeObject(forKey: key)
-        WidgetCenter.shared.reloadTimelines(ofKind: widgetKind)
+        reload()
     }
 }

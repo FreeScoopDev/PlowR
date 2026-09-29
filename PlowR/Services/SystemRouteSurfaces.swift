@@ -100,7 +100,8 @@ final class SystemRouteSurfaces: RouteSurfaces {
             nextStopName: working ? p.currentStopName : "",
             nextStopAddress: working ? p.currentStopAddress : "",
             isActive: isActive,
-            lastUpdated: now
+            lastUpdated: now,
+            currentStopID: working ? p.currentStopID : nil
         )
     }
 }

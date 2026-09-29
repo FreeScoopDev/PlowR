@@ -58,7 +58,7 @@ struct PlowRWidgetEntryView: View {
             default:            smallView
             }
         }
-        .widgetURL(URL(string: "plowr://activeRoute"))
+        .widgetURL(PlowRLink.activeRoute.url)
     }
 
     // MARK: Small

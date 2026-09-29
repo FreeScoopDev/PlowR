@@ -5,13 +5,15 @@ import ActivityKit
 
 struct CompleteCurrentStopIntent: AppIntent {
     static var title: LocalizedStringResource = "Complete Current Stop"
-    static var description = IntentDescription("Mark the current stop as complete in PlowR.")
-    static var openAppWhenRun = true
+    static var description = IntentDescription("Mark the stop you're at as complete in PlowR, and hear which stop is next.")
 
+    // Hands-free, without opening the app (see CompleteStopAction). The stop
+    // meant is the current one, unless iCloud has changed it unseen.
     @MainActor
-    func perform() async throws -> some IntentResult {
-        RouteSessionManager.shared.onCompleteStop?()
-        return .result(dialog: "Stop marked complete.")
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        let role = UserDefaults.standard.string(forKey: UserRole.key)
+        let reply = CompleteStopAction.siri(in: .shared, role: role)
+        return .result(dialog: "\(reply.text)")
     }
 }
 
