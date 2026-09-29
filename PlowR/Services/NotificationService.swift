@@ -33,41 +33,49 @@ final class NotificationService {
     func scheduleWeatherAlert(for forecasts: [DayForecast]) {
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: ["weather_alert"])
+        if let request = weatherAlertRequest(for: forecasts) { center.add(request) }
+    }
 
-        guard let alertDay = adverseForecastDay(from: forecasts) else { return }
+    /// The weather alert for `forecasts`: 6 PM the evening before the first
+    /// adverse day in the next two, or nil if there's none or that evening has
+    /// passed. A value, so a test can check when it fires.
+    func weatherAlertRequest(for forecasts: [DayForecast], now: Date = Date(),
+                             calendar: Calendar = .current) -> UNNotificationRequest? {
+        guard let alertDay = adverseForecastDay(from: forecasts),
+              let evenBefore = calendar.date(byAdding: .day, value: -1, to: alertDay.date) else { return nil }
+        var components = calendar.dateComponents([.year, .month, .day], from: evenBefore)
+        components.hour = 18
+        components.minute = 0
+        guard let fireDate = calendar.date(from: components), fireDate > now else { return nil }
 
         let content = UNMutableNotificationContent()
         content.title = "Weather Alert"
         let dayName = alertDay.date.formatted(.dateTime.weekday(.wide))
         content.body = "\(alertDay.description) expected \(dayName). Review your schedule."
         content.sound = .default
-
-        guard let alertDate = Calendar.current.date(byAdding: .day, value: -1, to: alertDay.date) else { return }
-        var components = Calendar.current.dateComponents([.year, .month, .day], from: alertDate)
-        components.hour = 18
-        components.minute = 0
-        guard let fireDate = Calendar.current.date(from: components), fireDate > Date() else { return }
-
-        _ = fireDate
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
-        center.add(UNNotificationRequest(identifier: "weather_alert", content: content, trigger: trigger))
+        return UNNotificationRequest(identifier: "weather_alert", content: content, trigger: trigger)
     }
 
     /// Schedule or cancel a repeating daily 9 AM overdue invoice reminder.
     func scheduleOverdueReminder(count: Int) {
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: ["overdue_invoices"])
-        guard count > 0 else { return }
+        if let request = Self.overdueReminderRequest(count: count) { center.add(request) }
+    }
 
+    /// The daily 9 AM reminder for `count` overdue invoices, or nil when none
+    /// are overdue: then the old reminder is only cancelled, never replaced.
+    static func overdueReminderRequest(count: Int) -> UNNotificationRequest? {
+        guard count > 0 else { return nil }
         let content = UNMutableNotificationContent()
         content.title = "Overdue Invoices"
-        content.body = Self.overdueBody(count: count)
+        content.body = overdueBody(count: count)
         content.sound = .default
-
         var components = DateComponents()
         components.hour = 9
         components.minute = 0
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
-        center.add(UNNotificationRequest(identifier: "overdue_invoices", content: content, trigger: trigger))
+        return UNNotificationRequest(identifier: "overdue_invoices", content: content, trigger: trigger)
     }
 }
