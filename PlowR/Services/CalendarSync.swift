@@ -99,9 +99,11 @@ final class CalendarSync {
         }
     }
 
-    /// Brings the calendar in step with the schedule now. Does nothing unless
-    /// it's turned on, with full access, and someone is signed in.
+    /// Brings the calendar in step with the schedule now, including changes
+    /// not saved yet. Does nothing unless it's turned on, with full access,
+    /// and someone is signed in.
     func syncNow() {
+        pending?.cancel()
         guard isEnabled, store.access == .full, !operatorID.isEmpty, let context else { return }
         let window = VisitCalendar.window(from: now())
         do {

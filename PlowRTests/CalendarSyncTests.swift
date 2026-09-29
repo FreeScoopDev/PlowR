@@ -247,6 +247,18 @@ struct CalendarSyncTests {
         try await waitUntil { s.store.events.isEmpty }
     }
 
+    // Leaving the app syncs from memory: autosave may not have run yet.
+    @Test func changesNotSavedYetAreSynced() async throws {
+        let s = try Setup(now: now)
+        await s.sync.setEnabled(true)
+        let visit = ScheduledVisit(operatorID: "op", clientID: "c", clientName: "Unsaved", clientAddress: "",
+                                   scheduledDate: now.addingTimeInterval(86400))
+        s.context.insert(visit)
+        #expect(s.context.hasChanges)
+        s.sync.syncNow()
+        #expect(s.store.visitIDs == [visit.id])
+    }
+
     @Test func accessTakenAwayInSettingsIsShownAndNothingIsWritten() async throws {
         let s = try Setup(now: now)
         await s.sync.setEnabled(true)

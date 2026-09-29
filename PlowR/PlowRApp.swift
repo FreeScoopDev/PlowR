@@ -126,6 +126,13 @@ struct PlowRApp: App {
                 authManager.recheckIfSignedOut()
                 CalendarSync.shared.refresh()
             }
+            // The screens leave saving to autosave, which took up to half a
+            // minute on a simulator, and a sync waiting for it doesn't run
+            // once the app is suspended: add a visit, open Calendar, and it
+            // wasn't there. So sync on the way out, from what's in memory.
+            if phase == .background {
+                CalendarSync.shared.syncNow()
+            }
         }
     }
 }
