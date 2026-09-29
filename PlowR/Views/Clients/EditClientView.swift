@@ -911,7 +911,7 @@ struct EditClientView: View {
 
                     if document.invoiceStatus == .sent || document.invoiceStatus == .overdue {
                         Button("Paid") {
-                            document.invoicePaidAt = Date()
+                            DocumentSent.markPaid(document, in: modelContext)
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.mini)
