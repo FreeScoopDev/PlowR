@@ -57,6 +57,24 @@ enum ClientRemoval {
         return stops.count
     }
 
+    static let inactiveCleanupKey = "inactiveClientsTakenOffRoutes"
+
+    /// Once, at the first launch of this version: clients marked inactive
+    /// before that meant coming off their routes are taken off them too
+    /// (Joe's call). Returns how many stops came off.
+    @discardableResult
+    static func takeInactiveClientsOffRoutes(in context: ModelContext, defaults: UserDefaults = .standard) -> Int {
+        guard !defaults.bool(forKey: inactiveCleanupKey),
+              let clients = try? context.fetch(FetchDescriptor<Client>()) else { return 0 }
+        var removed = 0
+        for client in clients where !client.isActive {
+            removed += takeOffRoutes(client, in: context)
+        }
+        if removed > 0 { try? context.save() }
+        defaults.set(true, forKey: inactiveCleanupKey)
+        return removed
+    }
+
     /// Marks `client` active or inactive; inactive takes them off every route.
     /// The client list and Edit Client both go through here.
     static func setActive(_ active: Bool, for client: Client, in context: ModelContext) {

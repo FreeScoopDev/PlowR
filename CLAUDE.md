@@ -151,7 +151,8 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
 - **Deleting a client or marking them inactive goes through
   `ClientRemoval`**: both take the client's stops off every route (Joe's
   call: inactive clients come off routes, and aren't put back when made
-  active again). A delete also removes their visits still ahead and their
+  active again; clients already inactive came off once, at the first launch
+  of that version, `ClientRemoval.takeInactiveClientsOffRoutes`). A delete also removes their visits still ahead and their
   photos (only the client's page shows photos), and keeps or deletes their
   invoices, proposals and past visits as the user chooses. "Past" goes by
   date, not status: running a route doesn't mark a visit complete. Kept
