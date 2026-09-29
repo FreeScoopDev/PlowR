@@ -136,6 +136,27 @@ struct DocumentSentTests {
         #expect(!DocumentSent.wasSharedBeforeSave(shared, sharedID: nil, sharedNumber: ""))
     }
 
+    // Saved from the builder: an invoice whose number another took while
+    // its preview was up is saved with the next number, as a draft (the
+    // client has the old number); otherwise the shared invoice is saved sent.
+    @Test func aSharedInvoiceRenumberedAtSaveStaysADraft() throws {
+        let built = Proposal(operatorID: "op", client: pat)   // built for the preview, not inserted
+        built.invoiceNumber = "INV-0012"
+        let other = Proposal(operatorID: "op", client: sam)   // synced in meanwhile, with that number
+        other.invoiceNumber = "INV-0012"
+        context.insert(other)
+        DocumentSent.saveBuilt(built, sharedID: built.id, sharedNumber: "INV-0012", in: context, now: now)
+        #expect(built.invoiceNumber == "INV-0013")
+        #expect(built.invoiceSentAt == nil)
+        #expect(built.modelContext != nil)
+
+        let next = Proposal(operatorID: "op", client: pat)
+        next.invoiceNumber = "INV-0014"
+        DocumentSent.saveBuilt(next, sharedID: next.id, sharedNumber: "INV-0014", in: context, now: now)
+        #expect(next.invoiceNumber == "INV-0014")
+        #expect(next.invoiceSentAt == now)
+    }
+
     @Test func payingWithNothingAwaitedChangesOnlyTheInvoice() {
         let invoice = Proposal(operatorID: "op", client: pat)
         invoice.invoiceNumber = "INV-1001"
