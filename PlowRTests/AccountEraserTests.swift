@@ -215,6 +215,21 @@ struct AccountEraserTests {
         #expect(!calendar.hasCalendar)
     }
 
+    // Preferences say which calendar is PlowR's, even renamed: gone first,
+    // the calendar couldn't be found to remove.
+    @Test func theCalendarGoesBeforeThePreferences() throws {
+        let account = try Account()
+        defer { account.removeFiles() }
+        var preferencesWereThere = false
+        var eraser = account.eraser()
+        eraser.eraseCalendar = { [defaults = account.defaults] in
+            preferencesWereThere = defaults.object(forKey: "userRole") != nil
+        }
+        #expect(eraser.eraseAll().isEmpty)
+        #expect(preferencesWereThere)
+        #expect(account.defaults.object(forKey: "userRole") == nil)
+    }
+
     @Test func aCalendarThatCantBeErasedIsReported() throws {
         let account = try Account()
         defer { account.removeFiles() }

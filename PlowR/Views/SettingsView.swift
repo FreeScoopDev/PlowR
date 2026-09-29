@@ -103,6 +103,11 @@ struct SettingsView: View {
                 if !deleteFailures.isEmpty {
                     Text("Not everything was deleted. Left: \(deleteFailures.map(\.step).joined(separator: ", ")). You're still signed in, so you can try again.")
                         .foregroundStyle(.red)
+                    // Only the user can fix this one, so say how.
+                    if let calendar = deleteFailures.first(where: { $0.step == "calendar events" }) {
+                        Text(calendar.reason)
+                            .foregroundStyle(.red)
+                    }
                 }
             }
 
@@ -155,7 +160,7 @@ struct SettingsView: View {
             Text(problem)
                 .foregroundStyle(.red)
         } else {
-            Text("Adds your visits from the last month and the next six months to a “PlowR” calendar, with a reminder an hour before, and keeps it up to date when visits are moved, skipped or deleted.")
+            Text("Adds your visits from the last month and the next six months to a “PlowR” calendar, with a reminder an hour before, and keeps it up to date when visits are moved, skipped or deleted. The switch is for this iPhone; in iCloud, the calendar shows on your other devices too.")
         }
     }
 

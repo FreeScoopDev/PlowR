@@ -40,6 +40,7 @@ final class CalendarSync {
     @ObservationIgnored private let delay: Duration
     @ObservationIgnored private var context: ModelContext?
     @ObservationIgnored private var pending: Task<Void, Never>?
+    @ObservationIgnored private var toldCalendarIsOutOfReach = false
 
     init(store: any VisitCalendarStore, defaults: UserDefaults = .standard,
          now: @escaping () -> Date = Date.init, delay: Duration = .seconds(2)) {
@@ -122,11 +123,19 @@ final class CalendarSync {
     }
 
     /// Delete Account & Data: turns sync off and removes every event PlowR
-    /// added, and its calendar. Without calendar access there's nothing PlowR
-    /// can see to remove.
+    /// added, and its calendar.
+    ///
+    /// Without calendar access (turned off in the Settings app) PlowR can't
+    /// see the calendar to remove it: that fails, once, saying so, so the user
+    /// can allow access or delete the calendar in Calendar. Asked again, it
+    /// goes ahead: PlowR can't tell whether they have.
     func eraseAll() throws {
         isEnabled = false
         defaults.set(false, forKey: Self.enabledKey)
+        if store.access != .full, store.remembersCalendar, !toldCalendarIsOutOfReach {
+            toldCalendarIsOutOfReach = true
+            throw CalendarOutOfReach()
+        }
         try removeEverything()
     }
 
@@ -134,6 +143,10 @@ final class CalendarSync {
         isEnabled = false
         defaults.set(false, forKey: Self.enabledKey)
         needsAccess = false
+        if store.access != .full, store.remembersCalendar {
+            problem = CalendarOutOfReach().localizedDescription
+            return
+        }
         do {
             try removeEverything()
             problem = nil
@@ -142,17 +155,22 @@ final class CalendarSync {
         }
     }
 
-    /// Every event PlowR added, then its calendar, unless the user put
-    /// events of their own in it.
+    /// Every event PlowR added, in any year, then its calendars, unless the
+    /// user put events of their own in them.
     private func removeEverything() throws {
         pending?.cancel()
         seen = []
         guard store.access == .full else { return }
-        let everything = VisitCalendar.everything(from: now())
-        guard let events = try store.events(in: everything, create: false) else { return }
-        let plowRs = events.filter { $0.visitID != nil }.map { CalendarChange.remove(eventID: $0.id) }
-        if !plowRs.isEmpty { try store.apply(plowRs) }
-        try store.removeCalendarIfEmpty(in: everything)
+        var plowRs: [String] = []
+        var found: Set<String> = []     // An event across two spans is found twice.
+        for span in VisitCalendar.allTime {
+            guard let events = try store.events(in: span, create: false) else { return }
+            for event in events where event.visitID != nil && found.insert(event.id).inserted {
+                plowRs.append(event.id)
+            }
+        }
+        if !plowRs.isEmpty { try store.apply(plowRs.map { .remove(eventID: $0) }) }
+        try store.removeEmptyCalendars(searching: VisitCalendar.allTime)
     }
 
     /// Visits this device had with a date in the window at the last sync.
@@ -167,12 +185,18 @@ final class CalendarSync {
                                from context: ModelContext) throws -> [ScheduledVisit] {
         let start = window.start, end = window.end
         var visits = try context.fetch(FetchDescriptor<ScheduledVisit>(
-            predicate: #Predicate { $0.scheduledDate >= start && $0.scheduledDate <= end }))
+            predicate: #Predicate { $0.scheduledDate >= start && $0.scheduledDate < end }))
         let others = Array(Set(events.compactMap(\.visitID)).subtracting(visits.map(\.id)))
         if !others.isEmpty {
             visits += try context.fetch(FetchDescriptor<ScheduledVisit>(
                 predicate: #Predicate { others.contains($0.id) }))
         }
         return visits
+    }
+}
+
+struct CalendarOutOfReach: LocalizedError {
+    var errorDescription: String? {
+        "PlowR can't reach its “PlowR” calendar because its calendar access is turned off. Delete that calendar in the Calendar app, or allow PlowR full access in the Settings app and try again."
     }
 }

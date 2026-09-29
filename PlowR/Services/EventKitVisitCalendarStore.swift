@@ -1,8 +1,8 @@
 import EventKit
 import UIKit
 
-/// The "PlowR" calendar, through EventKit. Only reads and changes that
-/// calendar; `VisitCalendar` decides what goes in it.
+/// The "PlowR" calendar, through EventKit. Only reads and changes PlowR's
+/// calendars; `VisitCalendar` decides what goes in them.
 final class EventKitVisitCalendarStore: VisitCalendarStore {
     static let calendarTitle = "PlowR"
     /// The calendar PlowR made or found, so renaming it in Calendar doesn't
@@ -25,25 +25,40 @@ final class EventKitVisitCalendarStore: VisitCalendarStore {
         }
     }
 
+    var remembersCalendar: Bool { defaults.string(forKey: Self.calendarIDKey) != nil }
+
     func requestFullAccess() async -> Bool {
         (try? await store.requestFullAccessToEvents()) ?? false
     }
 
-    func events(in window: DateInterval, create: Bool) throws -> [CalendarEvent]? {
-        guard let calendar = try plowRCalendar(create: create) else { return nil }
-        let predicate = store.predicateForEvents(withStart: window.start, end: window.end, calendars: [calendar])
+    /// iCloud or this device: the privacy policy says client details stay
+    /// on the device and in iCloud. Never a Google or Exchange calendar, even
+    /// one named "PlowR".
+    nonisolated static func isOwnAccount(type: EKSourceType, title: String) -> Bool {
+        type == .local || (type == .calDAV && title == "iCloud")
+    }
+
+    func events(in span: DateInterval, create: Bool) throws -> [CalendarEvent]? {
+        var calendars = plowRCalendars()
+        if calendars.isEmpty {
+            guard create else { return nil }
+            calendars = [try newCalendar()]
+        }
+        let predicate = store.predicateForEvents(withStart: span.start, end: span.end, calendars: calendars)
         return store.events(matching: predicate).map { event in
             let reminder = event.alarms?.contains { $0.relativeOffset == VisitCalendar.reminderOffset } ?? false
             let details = EventDetails(title: event.title ?? "", location: event.location ?? "",
                                        notes: event.notes ?? "", start: event.startDate, end: event.endDate,
                                        hasReminder: reminder)
             return CalendarEvent(id: event.calendarItemIdentifier, visitID: VisitCalendar.visitID(fromLink: event.url),
-                                 details: details, created: event.creationDate)
+                                 details: details, created: event.creationDate,
+                                 sharedID: event.calendarItemExternalIdentifier)
         }
     }
 
     func apply(_ changes: [CalendarChange]) throws {
-        guard let calendar = try plowRCalendar(create: true) else { return }
+        guard !changes.isEmpty else { return }
+        let calendar = try plowRCalendars().first ?? newCalendar()
         do {
             for change in changes {
                 switch change {
@@ -70,12 +85,16 @@ final class EventKitVisitCalendarStore: VisitCalendarStore {
         }
     }
 
-    func removeCalendarIfEmpty(in window: DateInterval) throws {
-        guard let calendar = try plowRCalendar(create: false) else { return }
-        let predicate = store.predicateForEvents(withStart: window.start, end: window.end, calendars: [calendar])
-        guard store.events(matching: predicate).isEmpty else { return }
-        try store.removeCalendar(calendar, commit: true)
-        defaults.removeObject(forKey: Self.calendarIDKey)
+    func removeEmptyCalendars(searching spans: [DateInterval]) throws {
+        for calendar in plowRCalendars() {
+            let empty = spans.allSatisfy { span in
+                store.events(matching: store.predicateForEvents(withStart: span.start, end: span.end,
+                                                                 calendars: [calendar])).isEmpty
+            }
+            guard empty else { continue }
+            try store.removeCalendar(calendar, commit: true)
+        }
+        if plowRCalendars().isEmpty { defaults.removeObject(forKey: Self.calendarIDKey) }
     }
 
     private static func write(_ details: EventDetails, to event: EKEvent) {
@@ -87,23 +106,31 @@ final class EventKitVisitCalendarStore: VisitCalendarStore {
         event.alarms = details.hasReminder ? [EKAlarm(relativeOffset: VisitCalendar.reminderOffset)] : nil
     }
 
-    /// PlowR's calendar: the one it made or found before, else a "PlowR"
-    /// calendar another of the user's devices made (an iCloud calendar
-    /// arrives here too), else a new one when `create` is true.
-    private func plowRCalendar(create: Bool) throws -> EKCalendar? {
-        if let id = defaults.string(forKey: Self.calendarIDKey),
-           let calendar = store.calendar(withIdentifier: id), calendar.allowsContentModifications {
-            return calendar
+    /// PlowR's calendars, the one it keeps the ID of first: that one, even
+    /// renamed, and any "PlowR" calendar, such as one another of the user's
+    /// devices made in iCloud. Only in iCloud or on this device.
+    private func plowRCalendars() -> [EKCalendar] {
+        let keptID = defaults.string(forKey: Self.calendarIDKey)
+        let calendars = store.calendars(for: .event).filter { calendar in
+            guard calendar.allowsContentModifications,
+                  let source = calendar.source, Self.isOwnAccount(type: source.sourceType, title: source.title)
+            else { return false }
+            return calendar.calendarIdentifier == keptID || calendar.title == Self.calendarTitle
         }
-        let named = store.calendars(for: .event).first {
-            $0.title == Self.calendarTitle && $0.allowsContentModifications
+        let kept = calendars.filter { $0.calendarIdentifier == keptID }
+        let others = calendars.filter { $0.calendarIdentifier != keptID }
+        if kept.isEmpty, let first = others.first {
+            defaults.set(first.calendarIdentifier, forKey: Self.calendarIDKey)
         }
-        if let named {
-            defaults.set(named.calendarIdentifier, forKey: Self.calendarIDKey)
-            return named
-        }
-        guard create else { return nil }
-        for source in sourcesForANewCalendar() {
+        return kept + others
+    }
+
+    /// A new "PlowR" calendar: in iCloud, where the user's calendars usually
+    /// are, so it's on their other devices too; else on this iPhone.
+    private func newCalendar() throws -> EKCalendar {
+        let iCloud = store.sources.first { $0.sourceType == .calDAV && $0.title == "iCloud" }
+        let device = store.sources.first { $0.sourceType == .local }
+        for source in [iCloud, device].compactMap({ $0 }) {
             let calendar = EKCalendar(for: .event, eventStore: store)
             calendar.title = Self.calendarTitle
             calendar.cgColor = PlowRColor.navyUIColor.cgColor
@@ -111,22 +138,13 @@ final class EventKitVisitCalendarStore: VisitCalendarStore {
             do {
                 try store.saveCalendar(calendar, commit: true)
             } catch {
-                continue    // An account that doesn't allow new calendars: try the next.
+                store.reset()   // Nothing of the failed calendar is left to commit later.
+                continue        // An account that doesn't allow new calendars: try the next.
             }
             defaults.set(calendar.calendarIdentifier, forKey: Self.calendarIDKey)
             return calendar
         }
         throw NoCalendarAccount()
-    }
-
-    /// iCloud, where the user's calendars usually are, so the PlowR calendar
-    /// is on their other devices too; else this iPhone. Never another
-    /// account (Google, Exchange), even as the default for new events: the
-    /// privacy policy says client details stay on the device and in iCloud.
-    private func sourcesForANewCalendar() -> [EKSource] {
-        let iCloud = store.sources.first { $0.sourceType == .calDAV && $0.title == "iCloud" }
-        let device = store.sources.first { $0.sourceType == .local }
-        return [iCloud, device].compactMap { $0 }
     }
 }
 

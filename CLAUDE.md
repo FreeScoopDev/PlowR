@@ -119,8 +119,9 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   event's ID is only good on the device that made it, and visits sync.
   `CalendarSync` runs after every store save, so no screen calls it. Until
   2026-09-28 PlowR asked for write-only access, which can't create a calendar
-  or save an event to one, so calendar sync never added an event (seen on a
-  simulator).
+  or move an event into one, so calendar sync never added an event (seen on
+  a simulator). Two devices can each make a "PlowR" calendar before iCloud
+  brings the other's: every PlowR calendar is treated as one.
 
 ## Conventions
 

@@ -3,6 +3,7 @@
 //  PlowRTests
 //
 
+import EventKit
 import Foundation
 import Testing
 @testable import PlowR
@@ -166,6 +167,73 @@ struct VisitCalendarTests {
         let seen = VisitCalendar.seen(visits: [kept], events: events, before: [gone.id], window: window)
         #expect(seen == [kept.id, gone.id])
         #expect(VisitCalendar.seen(visits: [kept], events: [], before: seen, window: window) == [kept.id])
+    }
+
+    // The window leaves out its end: a calendar search does too.
+    @Test func aVisitAtTheWindowsEndIsOutside() throws {
+        let edge = visit()
+        edge.scheduledDate = window.end
+        #expect(!VisitCalendar.isIn(window, window.end))
+        #expect(VisitCalendar.isIn(window, window.start))
+        #expect(changes([edge], []).isEmpty)
+    }
+
+    // An overnight run begun before the window is a record, like every event
+    // the window has moved past, not a visit moved out of it.
+    @Test func anEventBegunBeforeTheWindowIsKept() throws {
+        let overnight = visit()
+        overnight.scheduledDate = window.start.addingTimeInterval(-30 * 60)
+        #expect(changes([overnight], [try event(for: overnight)], seen: [overnight.id]).isEmpty)
+    }
+
+    @Test func anOldEventForAVisitMovedIntoTheWindowMoves() throws {
+        let v = visit()
+        v.scheduledDate = window.start.addingTimeInterval(-30 * 60)
+        let old = try event(for: v)
+        v.scheduledDate = now.addingTimeInterval(86400)
+        #expect(changes([v], [old]) == [.update(eventID: "e1", try #require(VisitCalendar.details(for: v)))])
+    }
+
+    // Created at the same moment (or undated): the tie goes by the ID that's
+    // the same on every device, so every device keeps the same event.
+    @Test func aTieGoesByTheSharedID() throws {
+        let v = visit()
+        var first = try event(for: v, id: "a-local")
+        first.sharedID = "z-shared"
+        var second = try event(for: v, id: "b-local")
+        second.sharedID = "y-shared"
+        #expect(changes([v], [first, second]) == [.remove(eventID: "a-local")])
+    }
+
+    // iCloud can give text back with other line endings or trimmed spaces.
+    @Test func textTheCalendarTidiedIsntAChange() throws {
+        let v = visit()
+        v.notes = "Gate code\n1234"
+        var tidied = try event(for: v)
+        tidied.details.notes = "Gate code\r\n1234 \n"
+        tidied.details.location = " 1 Main St"
+        #expect(changes([v], [tidied]).isEmpty)
+        tidied.details.notes = "Gate code 9999"
+        #expect(changes([v], [tidied]).count == 1)
+    }
+
+    // Removing everything searches every year in spans EventKit accepts.
+    @Test func theSearchCoversEveryYearWithoutGaps() {
+        let spans = VisitCalendar.allTime
+        #expect(spans.first?.start ?? .distantFuture <= Date(timeIntervalSinceReferenceDate: 599_529_600))
+        #expect(spans.last?.end ?? .distantPast >= Date(timeIntervalSinceReferenceDate: 3_124_137_600))
+        for (a, b) in zip(spans, spans.dropFirst()) { #expect(a.end == b.start) }
+        #expect(spans.allSatisfy { $0.duration <= 4 * 365 * 86400 })
+    }
+
+    // The privacy policy: client details stay on the device and in iCloud.
+    // A "PlowR" calendar in Google or Exchange is never used.
+    @Test func onlyICloudAndThisDeviceHoldTheCalendar() {
+        #expect(EventKitVisitCalendarStore.isOwnAccount(type: .local, title: "Default"))
+        #expect(EventKitVisitCalendarStore.isOwnAccount(type: .calDAV, title: "iCloud"))
+        #expect(!EventKitVisitCalendarStore.isOwnAccount(type: .calDAV, title: "Google"))
+        #expect(!EventKitVisitCalendarStore.isOwnAccount(type: .exchange, title: "Work"))
+        #expect(!EventKitVisitCalendarStore.isOwnAccount(type: .subscribed, title: "Holidays"))
     }
 
     @Test func theLinkNamesTheVisit() throws {

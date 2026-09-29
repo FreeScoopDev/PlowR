@@ -9,9 +9,22 @@ struct EventDetails: Equatable {
     var end: Date
     /// The reminder an hour before. Only a visit still to do has one.
     var hasReminder: Bool
+
+    /// The same, as far as the calendar can tell: text as iCloud may give it
+    /// back (other line endings, spaces trimmed), so a round trip through
+    /// the calendar doesn't look like a change and rewrite the event on
+    /// every sync.
+    func matches(_ other: EventDetails) -> Bool {
+        func tidy(_ text: String) -> String {
+            text.replacingOccurrences(of: "\r\n", with: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return tidy(title) == tidy(other.title) && tidy(location) == tidy(other.location)
+            && tidy(notes) == tidy(other.notes) && start == other.start && end == other.end
+            && hasReminder == other.hasReminder
+    }
 }
 
-/// An event in the "PlowR" calendar, as `VisitCalendarStore` reads it.
+/// An event in a "PlowR" calendar, as `VisitCalendarStore` reads it.
 struct CalendarEvent: Equatable {
     var id: String
     /// The visit it's for, from its `plowr://visit/<id>` link. Nil for an
@@ -19,6 +32,8 @@ struct CalendarEvent: Equatable {
     var visitID: UUID?
     var details: EventDetails
     var created: Date?
+    /// The same on every device the calendar syncs to, unlike `id`.
+    var sharedID: String?
 }
 
 enum CalendarChange: Equatable {
@@ -28,8 +43,8 @@ enum CalendarChange: Equatable {
 }
 
 /// Whether PlowR may use the calendar. Only full access can find the events
-/// it added again. Write-only access, which earlier versions asked for, can
-/// add an event but never see it after, and can't make a calendar.
+/// it added again. Write-only access, which earlier versions asked for, can't
+/// read events back or make a calendar.
 enum CalendarAccess: Equatable {
     case full
     /// Not asked yet, or only write-only granted: asking shows a prompt.
@@ -40,19 +55,25 @@ enum CalendarAccess: Equatable {
 
 /// The "PlowR" calendar: EventKit in the app (`EventKitVisitCalendarStore`),
 /// a fake in tests.
+///
+/// There can be more than one: two devices turning sync on before iCloud has
+/// brought either one's calendar to the other. They're treated as one: events
+/// are read from all of them and new ones go in the first.
 @MainActor
 protocol VisitCalendarStore: AnyObject {
     var access: CalendarAccess { get }
+    /// PlowR made or found a calendar on this device and hasn't removed it.
+    var remembersCalendar: Bool { get }
     /// Asks for full access. True when it's granted.
     func requestFullAccess() async -> Bool
-    /// The PlowR calendar's events in `window`, making the calendar first
-    /// when `create` is true. Nil when there's no PlowR calendar and `create`
-    /// is false.
-    func events(in window: DateInterval, create: Bool) throws -> [CalendarEvent]?
+    /// The PlowR calendars' events in `span`, making a calendar first when
+    /// `create` is true and there's none. Nil when there's no PlowR calendar
+    /// and `create` is false.
+    func events(in span: DateInterval, create: Bool) throws -> [CalendarEvent]?
     /// All of them or none.
     func apply(_ changes: [CalendarChange]) throws
-    /// Removes the PlowR calendar if it has no events left in `window`.
-    func removeCalendarIfEmpty(in window: DateInterval) throws
+    /// Removes each PlowR calendar that has no events left in any of `spans`.
+    func removeEmptyCalendars(searching spans: [DateInterval]) throws
 }
 
 /// How the "PlowR" calendar should look for the schedule, and the changes
@@ -71,9 +92,10 @@ enum VisitCalendar {
     /// When the reminder goes off, from the visit's start.
     static let reminderOffset: TimeInterval = -3600
 
-    /// The visits that have events: from a month ago to six months ahead. A
-    /// repeating visit is scheduled two years ahead, and events for all of it
-    /// would crowd the calendar; the rest are added as the window moves on.
+    /// The visits that have events: from a month ago up to (not including)
+    /// six months ahead. A repeating visit is scheduled two years ahead, and
+    /// events for all of it would crowd the calendar; the rest are added as
+    /// the window moves on.
     static func window(from now: Date, calendar: Calendar = .current) -> DateInterval {
         let today = calendar.startOfDay(for: now)
         let start = calendar.date(byAdding: .month, value: -1, to: today) ?? today
@@ -81,15 +103,28 @@ enum VisitCalendar {
         return DateInterval(start: start, end: end)
     }
 
-    /// Where any event PlowR added can be, to remove them all. Events the
-    /// window has moved past stay in the calendar as a record. EventKit
-    /// searches at most four years at a time.
-    static func everything(from now: Date, calendar: Calendar = .current) -> DateInterval {
-        let today = calendar.startOfDay(for: now)
-        let start = calendar.date(byAdding: .year, value: -3, to: today) ?? today
-        let end = calendar.date(byAdding: .year, value: 1, to: today) ?? today
-        return DateInterval(start: start, end: end)
+    /// In `window`, which excludes its end. A calendar search leaves out an
+    /// event that starts right at the end, so a visit there would be added
+    /// again on every sync.
+    static func isIn(_ window: DateInterval, _ date: Date) -> Bool {
+        window.start <= date && date < window.end
     }
+
+    /// Every year an event PlowR added could be in, in three-year spans:
+    /// EventKit searches at most four years at a time. To remove them all,
+    /// and to know a calendar holds nothing else before removing it.
+    static let allTime: [DateInterval] = {
+        let span: TimeInterval = 3 * 365 * 86_400
+        var spans: [DateInterval] = []
+        var start = Date(timeIntervalSinceReferenceDate: 599_529_600)            // 2020-01-01
+        let end = Date(timeIntervalSinceReferenceDate: 3_124_137_600)            // 2100-01-01
+        while start < end {
+            let next = min(start.addingTimeInterval(span), end)
+            spans.append(DateInterval(start: start, end: next))
+            start = next
+        }
+        return spans
+    }()
 
     static func link(for visitID: UUID) -> URL? {
         URL(string: "plowr://visit/\(visitID.uuidString)")
@@ -122,30 +157,35 @@ enum VisitCalendar {
     ///   - visits: every visit dated in `window`, whoever's, and any other
     ///     visit one of `events` is for.
     ///   - operatorID: the signed-in business. Only its visits get events.
-    ///   - events: the PlowR calendar's events in `window`.
+    ///   - events: the PlowR calendars' events in `window`.
     ///   - seen: the visits this device had at the last sync (`seen(...)`).
     static func changes(visits: [ScheduledVisit], operatorID: String, events: [CalendarEvent],
                         seen: Set<UUID>, window: DateInterval) -> [CalendarChange] {
         var wanted: [UUID: EventDetails] = [:]
-        for visit in visits where visit.operatorID == operatorID && window.contains(visit.scheduledDate) {
+        for visit in visits where visit.operatorID == operatorID && isIn(window, visit.scheduledDate) {
             wanted[visit.id] = details(for: visit)
         }
         let known = Set(visits.map(\.id))
         var changes: [CalendarChange] = []
         var matched: Set<UUID> = []
         // Oldest first, so of two events for one visit (two devices adding it
-        // at the same time) every device keeps the same one.
+        // at the same time) every device keeps the same one. A tie goes by the
+        // ID every device shares, not this device's own.
         let oldestFirst = events.sorted {
-            ($0.created ?? .distantFuture, $0.id) < ($1.created ?? .distantFuture, $1.id)
+            ($0.created ?? .distantFuture, $0.sharedID ?? $0.id) < ($1.created ?? .distantFuture, $1.sharedID ?? $1.id)
         }
         for event in oldestFirst {
             guard let visitID = event.visitID else { continue }
             if let details = wanted[visitID], matched.insert(visitID).inserted {
-                if event.details != details { changes.append(.update(eventID: event.id, details)) }
-            } else if wanted[visitID] != nil || known.contains(visitID) || seen.contains(visitID) {
-                // A second event for the visit; or the visit is skipped,
-                // cancelled, moved out of the window or another business's;
-                // or it's been deleted.
+                if !event.details.matches(details) { changes.append(.update(eventID: event.id, details)) }
+            } else if wanted[visitID] != nil {
+                changes.append(.remove(eventID: event.id))      // a second event for the visit
+            } else if event.details.start < window.start {
+                // Begun before the window (say an overnight run): a record,
+                // like every event the window has moved past.
+            } else if known.contains(visitID) || seen.contains(visitID) {
+                // Skipped, cancelled, moved out of the window or another
+                // business's; or deleted.
                 changes.append(.remove(eventID: event.id))
             }
             // Otherwise the visit is one this device hasn't received yet.
@@ -157,10 +197,10 @@ enum VisitCalendar {
 
     /// The visits to count as seen at the next sync: every one dated in the
     /// window, and any seen before whose event was still there, in case
-    /// removing it failed.
+    /// removing it didn't take.
     static func seen(visits: [ScheduledVisit], events: [CalendarEvent], before: Set<UUID>,
                      window: DateInterval) -> Set<UUID> {
-        let dated = visits.filter { window.contains($0.scheduledDate) }.map(\.id)
+        let dated = visits.filter { isIn(window, $0.scheduledDate) }.map(\.id)
         return Set(dated).union(before.intersection(events.compactMap(\.visitID)))
     }
 }

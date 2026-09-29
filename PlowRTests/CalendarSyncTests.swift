@@ -8,18 +8,27 @@ import SwiftData
 import Testing
 @testable import PlowR
 
-/// A calendar in memory, standing in for EventKit (tests can't be given
-/// calendar access).
+/// Calendars in memory, standing in for EventKit (tests can't be given
+/// calendar access). Like the real one, several "PlowR" calendars are one.
 @MainActor
 final class FakeVisitCalendarStore: VisitCalendarStore {
     var access: CalendarAccess = .full
     /// What the permission prompt answers.
     var grants = true
     var requests = 0
-    var hasCalendar = false
+    /// PlowR's calendars, the one new events go in first.
+    var calendars: [String] = []
     var events: [CalendarEvent] = []
+    /// Which calendar each event is in; "PlowR" when not set.
+    var calendarOf: [String: String] = [:]
     var applyFails = false
+    /// A removal that "works" but leaves the event, as EventKit does when it
+    /// can't find the event it was given.
+    var removalsDontTake = false
+    private(set) var remembersCalendar = false
     private var next = 0
+
+    var hasCalendar: Bool { !calendars.isEmpty }
 
     func requestFullAccess() async -> Bool {
         requests += 1
@@ -27,32 +36,44 @@ final class FakeVisitCalendarStore: VisitCalendarStore {
         return grants
     }
 
-    func events(in window: DateInterval, create: Bool) throws -> [CalendarEvent]? {
-        if !hasCalendar {
+    func events(in span: DateInterval, create: Bool) throws -> [CalendarEvent]? {
+        if calendars.isEmpty {
             guard create else { return nil }
-            hasCalendar = true
+            calendars = ["PlowR"]
+            remembersCalendar = true
         }
-        return events.filter { $0.details.end > window.start && $0.details.start < window.end }
+        return events.filter { $0.details.end > span.start && $0.details.start < span.end }
     }
 
     func apply(_ changes: [CalendarChange]) throws {
         if applyFails { throw CocoaError(.fileWriteUnknown) }
+        if calendars.isEmpty {
+            calendars = ["PlowR"]
+            remembersCalendar = true
+        }
         for change in changes {
             switch change {
             case let .add(visitID, details):
                 next += 1
                 events.append(CalendarEvent(id: "event-\(next)", visitID: visitID, details: details,
                                             created: Date(timeIntervalSinceReferenceDate: Double(next))))
+                calendarOf["event-\(next)"] = calendars[0]
             case let .update(id, details):
                 if let i = events.firstIndex(where: { $0.id == id }) { events[i].details = details }
             case let .remove(id):
-                events.removeAll { $0.id == id }
+                if !removalsDontTake { events.removeAll { $0.id == id } }
             }
         }
     }
 
-    func removeCalendarIfEmpty(in window: DateInterval) throws {
-        if events.isEmpty { hasCalendar = false }
+    func removeEmptyCalendars(searching spans: [DateInterval]) throws {
+        calendars.removeAll { calendar in
+            !events.contains { event in
+                (calendarOf[event.id] ?? "PlowR") == calendar
+                    && spans.contains { event.details.end > $0.start && event.details.start < $0.end }
+            }
+        }
+        if calendars.isEmpty { remembersCalendar = false }
     }
 
     /// PlowR's events, by visit.
@@ -289,8 +310,8 @@ struct CalendarSyncTests {
         #expect(s.store.events.count == 1)
     }
 
-    // A deleted visit whose event couldn't be removed is tried again: the
-    // visit is still counted as seen while its event is there.
+    // A sync that fails changes nothing, the seen visits included, so a
+    // deleted visit's event is still removed by the next one.
     @Test func aRemovalThatFailedIsTriedAgain() async throws {
         let s = try Setup(now: now)
         let gone = try s.visit()
@@ -330,6 +351,135 @@ struct CalendarSyncTests {
         s.store.applyFails = false
         try s.sync.eraseAll()
         #expect(s.store.events.isEmpty)
+    }
+
+    // A removal can "work" and leave the event (EventKit skips an event it
+    // can't find). The visit stays seen while its event is there, so the
+    // next sync removes it; forgotten, it would stay for good.
+    @Test func anEventThatOutlivedItsRemovalIsRemovedNextTime() async throws {
+        let s = try Setup(now: now)
+        let gone = try s.visit()
+        await s.sync.setEnabled(true)
+        s.context.delete(gone)
+        try s.context.save()
+        s.store.removalsDontTake = true
+        s.sync.syncNow()
+        #expect(s.store.events.count == 1)
+        s.store.removalsDontTake = false
+        s.sync.syncNow()
+        #expect(s.store.events.isEmpty)
+    }
+
+    // A reinstall starts with nothing seen. An event for a visit this device
+    // has, moved out of the window, still goes.
+    @Test func afterAReinstallAMovedVisitsEventIsRemoved() async throws {
+        let s = try Setup(now: now)
+        let visit = try s.visit()
+        await s.sync.setEnabled(true)
+        s.defaults.removeObject(forKey: CalendarSync.seenKey)
+        visit.scheduledDate = now.addingTimeInterval(400 * 86400)
+        try s.context.save()
+        s.relaunch()
+        s.sync.syncNow()
+        #expect(s.store.events.isEmpty)
+    }
+
+    // Today + 6 months is midnight, and a visit added on a tapped day with no
+    // time chosen is at midnight. A calendar search leaves out an event that
+    // starts right at the end, so it was added again on every sync.
+    @Test func aVisitAtTheWindowsEndDoesntPileUp() async throws {
+        let s = try Setup(now: now)
+        await s.sync.setEnabled(true)
+        let edge = ScheduledVisit(operatorID: "op", clientID: "c", clientName: "Edge", clientAddress: "",
+                                  scheduledDate: VisitCalendar.window(from: now).end)
+        s.context.insert(edge)
+        try s.context.save()
+        s.sync.syncNow()
+        s.sync.syncNow()
+        #expect(s.store.events.count <= 1)
+    }
+
+    // Two devices turned sync on before either's calendar reached the other:
+    // two "PlowR" calendars, with the same visit in each.
+    @Test func twoPlowRCalendarsAreTreatedAsOne() async throws {
+        let s = try Setup(now: now)
+        let visit = try s.visit()
+        await s.sync.setEnabled(true)
+        let first = try #require(s.store.events.first)
+        s.store.calendars.append("PlowR (iPad)")
+        var copy = first
+        copy.id = "from-the-ipad"
+        copy.created = now
+        s.store.events.append(copy)
+        s.store.calendarOf[copy.id] = "PlowR (iPad)"
+        s.sync.syncNow()
+        #expect(s.store.events.map(\.id) == [first.id])
+        #expect(s.store.visitIDs == [visit.id])
+        // Both go on the way out.
+        await s.sync.setEnabled(false)
+        #expect(s.store.calendars.isEmpty)
+    }
+
+    // Turned off in the Settings app, calendar access can't remove the
+    // calendar: Delete Account said everything was gone while every client's
+    // name and address stayed in iCloud.
+    @Test func deleteAccountWithoutCalendarAccessSaysSoOnce() async throws {
+        let s = try Setup(now: now)
+        try s.visit()
+        await s.sync.setEnabled(true)
+        s.store.access = .denied
+        #expect(throws: CalendarOutOfReach.self) { try s.sync.eraseAll() }
+        #expect(s.store.events.count == 1)
+        // Asked again, it goes ahead: the user may have deleted it by hand.
+        try s.sync.eraseAll()
+    }
+
+    @Test func deleteAccountWithoutAccessButNoCalendarIsFine() throws {
+        let s = try Setup(now: now)
+        s.store.access = .denied
+        try s.sync.eraseAll()
+    }
+
+    @Test func turningOffWithoutCalendarAccessSaysSo() async throws {
+        let s = try Setup(now: now)
+        try s.visit()
+        await s.sync.setEnabled(true)
+        s.store.access = .denied
+        await s.sync.setEnabled(false)
+        #expect(!s.sync.isEnabled)
+        #expect(s.sync.problem != nil)
+    }
+
+    // Removing a calendar removes everything in it, in every year: it's
+    // removed only if nothing of the user's is left, however far ahead.
+    @Test func turningOffKeepsACalendarWithTheUsersEventYearsAhead() async throws {
+        let s = try Setup(now: now)
+        try s.visit()
+        await s.sync.setEnabled(true)
+        let later = now.addingTimeInterval(2 * 365 * 86400)
+        s.store.events.append(CalendarEvent(id: "wedding", visitID: nil,
+                                            details: EventDetails(title: "Wedding", location: "", notes: "",
+                                                                  start: later, end: later.addingTimeInterval(3600),
+                                                                  hasReminder: false),
+                                            created: nil))
+        await s.sync.setEnabled(false)
+        #expect(s.store.events.map(\.id) == ["wedding"])
+        #expect(s.store.hasCalendar)
+    }
+
+    // Records stay while sync is on; turning it off removes them, from years back too.
+    @Test func turningOffRemovesRecordsFromYearsBack() async throws {
+        let s = try Setup(now: now)
+        await s.sync.setEnabled(true)
+        let old = now.addingTimeInterval(-4.5 * 365 * 86400)
+        s.store.events.append(CalendarEvent(id: "2022", visitID: UUID(),
+                                            details: EventDetails(title: "PlowR: Old", location: "", notes: "",
+                                                                  start: old, end: old.addingTimeInterval(3600),
+                                                                  hasReminder: false),
+                                            created: nil))
+        await s.sync.setEnabled(false)
+        #expect(s.store.events.isEmpty)
+        #expect(!s.store.hasCalendar)
     }
 
     private func waitUntil(_ condition: () -> Bool) async throws {
