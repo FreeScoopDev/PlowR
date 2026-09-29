@@ -1,0 +1,2 @@
+### Internal
+- **The weather alert's time and the overdue reminder's cancel are tested.** No test called the scheduling code, so moving the alert from 6 PM to 8 AM, or dropping the guard that cancels the overdue reminder when nothing is overdue, would have passed. The service now builds each notification request as a value before scheduling it, and tests check when it fires and that nothing is scheduled at zero.
