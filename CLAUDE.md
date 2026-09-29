@@ -145,9 +145,11 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   `ClientStops.updateAll(in:)` runs at launch, whenever iCloud brings changes
   and whenever the app comes back to the front, for stops that fell behind
   (a client edited on a device with an older PlowR, or a stop made there
-  from an old copy). A new place that edits a client's details must still
-  call `update(for:)`, or its routes lag until the next sweep. Stop notes
-  and run results are the stop's own.
+  from an old copy). Visits from today on follow the same way
+  (`ClientVisits`, called from `ClientStops`); earlier days' visits are a
+  record. A new place that edits a client's details must still call
+  `update(for:)`, or its routes lag until the next sweep. Stop notes and
+  run results are the stop's own.
 - **Deleting a client or marking them inactive goes through
   `ClientRemoval`**: both take the client's stops off every route (Joe's
   call: inactive clients come off routes, and aren't put back when made
