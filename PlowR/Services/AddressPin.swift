@@ -18,6 +18,11 @@ enum AddressPin {
         case failed(Problem)
     }
 
+    /// What the lookup alert can offer (Problem.choices).
+    enum Choice: Equatable {
+        case tryAgain, keepCurrentPin, saveWithoutPin, editAddress
+    }
+
     /// Why an address got no pin.
     enum Problem: Equatable {
         /// The map doesn't know it: a new street, a typo.
@@ -45,10 +50,6 @@ enum AddressPin {
             }
             return found + retry + "Without a pin, the client isn't on route maps and gets no drive times or "
                 + "job-site alerts. You can save them without one and set the pin on their page."
-        }
-
-        enum Choice: Equatable {
-            case tryAgain, keepCurrentPin, saveWithoutPin, editAddress
         }
 
         /// What the alert offers. A client who already has a pin keeps it or

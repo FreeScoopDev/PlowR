@@ -53,7 +53,7 @@ struct AddressPinTests {
     // Joe's call: a client who has a pin keeps it or has the address typed
     // again; one without is saved without one, or the address typed again.
     @Test func theAlertOffersWhatFitsTheClient() {
-        typealias C = AddressPin.Problem.Choice
+        typealias C = AddressPin.Choice
         #expect(AddressPin.Problem.notFound.choices(hasPin: false) == [C.saveWithoutPin, .editAddress])
         #expect(AddressPin.Problem.notFound.choices(hasPin: true) == [C.keepCurrentPin, .editAddress])
         #expect(AddressPin.Problem.unreachable.choices(hasPin: false) == [C.tryAgain, .saveWithoutPin, .editAddress])

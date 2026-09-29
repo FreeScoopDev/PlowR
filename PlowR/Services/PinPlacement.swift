@@ -110,7 +110,7 @@ nonisolated enum PinPlacement {
         "boulevard": "blvd", "place": "pl", "circle": "cir", "highway": "hwy", "terrace": "ter",
         "parkway": "pkwy", "square": "sq", "trail": "trl", "route": "rte", "turnpike": "tpke",
         "extension": "ext", "mount": "mt", "mountain": "mtn",
-        "north": "n", "south": "s", "east": "e", "west": "w",
+        "north": "n", "south": "s", "east": "e", "west": "w"
     ]
 
     /// The address saved with a pin from the pin screen: the one the map

@@ -65,7 +65,9 @@ struct PropertyScannerView: View {
         _pendingAddress = State(initialValue: pendingAddress)
         _startingPin = State(initialValue: startingPin)
         self.onAddressChosen = onAddressChosen
-        let center = CLLocationCoordinate2D(latitude: client.latitude, longitude: client.longitude)
+        // At the typed address's pin, when there is one: the property being mapped.
+        let center = startingPin?.coordinate
+            ?? CLLocationCoordinate2D(latitude: client.latitude, longitude: client.longitude)
         _cameraPosition = State(initialValue: .camera(
             MapCamera(centerCoordinate: center, distance: 120, heading: 0, pitch: 0)
         ))
@@ -290,7 +292,7 @@ struct PropertyScannerView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Is this the correct property?")
                         .font(.subheadline.weight(.semibold))
-                    Text(client.address)
+                    Text(pendingAddress ?? client.address)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
@@ -344,14 +346,14 @@ struct PropertyScannerView: View {
                                    onAddressChosen: { chosen in
                                        pendingAddress = nil
                                        onAddressChosen?(chosen)
-                                   }) { coord, address in
+                                   }, onSave: { coord, address in
                     startingPin = nil
                     cameraPosition = .camera(MapCamera(centerCoordinate: coord, distance: 80))
                     client.latitude = coord.latitude
                     client.longitude = coord.longitude
                     if !address.isEmpty { client.address = address }
                     ClientStops.update(for: client)
-                }
+                })
             }
         }
     }

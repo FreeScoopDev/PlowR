@@ -1054,11 +1054,6 @@ struct EditClientView: View {
 
     // MARK: - Save
 
-    /// Adjust Pin and the property scanner's Move Pin save the client's pin,
-    /// and the address there, themselves; this screen takes them. Save used
-    /// to write back the address it opened with, and could look an address
-    /// typed before up again over the pin just set by hand. Which pins keep
-    /// what was typed: PinPlacement.field.
     /// A new address typed here and not saved yet, and its pin (picked, or
     /// set by hand): the pin screens show that address and open at that pin.
     private var pendingAddress: String? { address != originalAddress ? address : nil }
@@ -1066,6 +1061,11 @@ struct EditClientView: View {
         geocodedCoordinate.map { .init(latitude: $0.latitude, longitude: $0.longitude) } ?? handPin
     }
 
+    /// Adjust Pin and the property scanner's Move Pin save the client's pin,
+    /// and the address there, themselves; this screen takes them. Save used
+    /// to write back the address it opened with, and could look an address
+    /// typed before up again over the pin just set by hand. Which pins keep
+    /// what was typed: PinPlacement.field.
     private func takePinFromClient() {
         let before = PinPlacement.Field(
             text: address, original: originalAddress, originalPin: originalPin,
