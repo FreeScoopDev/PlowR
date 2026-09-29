@@ -17,6 +17,22 @@ struct SettingsView: View {
     @State private var deleteFailures: [AccountEraser.Failure] = []
     private let iCloud = ICloudStatus.shared
 
+    private var iCloudSymbol: String {
+        switch iCloud.summary.kind {
+        case .backedUp: return "icloud.fill"
+        case .unknown: return "icloud"
+        case .problem: return "icloud.slash"
+        }
+    }
+
+    private var iCloudTint: Color {
+        switch iCloud.summary.kind {
+        case .backedUp: return .blue
+        case .unknown: return .secondary
+        case .problem: return .orange
+        }
+    }
+
     var body: some View {
         Form {
             Section("Business") {
@@ -42,9 +58,9 @@ struct SettingsView: View {
             Section {
                 // It said "Backed Up" whatever iCloud's state (ICloudStatus).
                 HStack(alignment: .top, spacing: 12) {
-                    Image(systemName: iCloud.warning == nil ? "icloud.fill" : "icloud.slash")
+                    Image(systemName: iCloudSymbol)
                         .font(.title2)
-                        .foregroundStyle(iCloud.warning == nil ? Color.blue : Color.orange)
+                        .foregroundStyle(iCloudTint)
                     VStack(alignment: .leading, spacing: 4) {
                         Text(iCloud.summary.title)
                             .font(.subheadline.weight(.semibold))

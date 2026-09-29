@@ -47,7 +47,7 @@ struct ICloudStatusTests {
     }
 
     private func waitUntil(_ condition: () -> Bool) async throws {
-        for _ in 0..<200 where !condition() {
+        for _ in 0..<1000 where !condition() {      // Up to 5 s on a busy CI runner.
             try await Task.sleep(for: .milliseconds(5))
         }
         #expect(condition())
@@ -69,7 +69,8 @@ struct ICloudStatusTests {
         #expect(status.state == .noAccount)
         #expect(status.warning?.title == "Not backed up to iCloud")
         #expect(status.banner == status.warning)
-        #expect(status.summary == status.warning)
+        #expect(status.summary.kind == .problem)
+        #expect(status.summary.title == status.warning?.title)
     }
 
     // Each problem is told apart: a Screen Time restriction isn't fixed by
@@ -92,15 +93,17 @@ struct ICloudStatusTests {
         let status = s.make()
         #expect(status.state == .checking)
         #expect(status.banner == nil)
-        #expect(status.summary.title != "Data Backed Up to iCloud")
+        #expect(status.summary.kind == .unknown)
         await status.refresh()
         #expect(status.state == .available)
         #expect(status.banner == nil)
+        #expect(status.summary.kind == .backedUp)
         #expect(status.summary.title == "Data Backed Up to iCloud")
         s.fails = true
         await status.refresh()
         #expect(status.state == .couldNotDetermine)
         #expect(status.banner == nil)
+        #expect(status.summary.kind == .unknown)
         #expect(status.summary.title != "Data Backed Up to iCloud")
     }
 

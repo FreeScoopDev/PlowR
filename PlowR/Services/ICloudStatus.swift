@@ -34,6 +34,15 @@ final class ICloudStatus {
         var message: String
     }
 
+    /// What Settings > Data & Backup shows. Its icon follows `kind`, so a
+    /// state PlowR doesn't know isn't shown as backed up.
+    struct Summary: Equatable {
+        enum Kind { case backedUp, unknown, problem }
+        var kind: Kind
+        var title: String
+        var message: String
+    }
+
     static let shared = ICloudStatus(check: accountStatus, databaseOpened: { PlowRApp.isCloudKitAvailable })
     /// The warning the user closed on the Dashboard. It comes back when the
     /// problem does, after iCloud has worked in between.
@@ -130,16 +139,16 @@ final class ICloudStatus {
 
     /// What Settings > Data & Backup says. "Backed Up" only when iCloud said
     /// so; it used to say that whatever iCloud's state.
-    var summary: Warning {
-        if let warning { return warning }
+    var summary: Summary {
+        if let warning { return Summary(kind: .problem, title: warning.title, message: warning.message) }
         switch state {
         case .available:
-            return Warning(title: "Data Backed Up to iCloud",
+            return Summary(kind: .backedUp, title: "Data Backed Up to iCloud",
                            message: "Your clients, routes, and documents sync automatically across your devices and are stored securely in your private iCloud account.")
         case .checking:
-            return Warning(title: "iCloud", message: "Checking whether your data is backed up…")
+            return Summary(kind: .unknown, title: "iCloud", message: "Checking whether your data is backed up…")
         default:
-            return Warning(title: "iCloud",
+            return Summary(kind: .unknown, title: "iCloud",
                            message: "PlowR couldn't check iCloud just now. When iCloud is on, your clients, routes, and documents sync across your devices through your private iCloud account.")
         }
     }
