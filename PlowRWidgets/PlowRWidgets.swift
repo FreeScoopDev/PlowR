@@ -1,26 +1,13 @@
 import WidgetKit
 import SwiftUI
 
-// MARK: - Shared Data (mirrors main app's TodayRouteWidgetData)
+// MARK: - Data (TodayRouteWidgetData, shared with the app: WidgetDataStore.swift)
 
-struct RouteWidgetData: Decodable {
-    var routeName: String = ""
-    var totalStops: Int = 0
-    var completedStops: Int = 0
-    var nextStopName: String = ""
-    var nextStopAddress: String = ""
-    var isActive: Bool = false
-    var lastUpdated: Date = .distantPast
+extension TodayRouteWidgetData {
+    /// What the app last wrote, or an empty route.
+    static func current() -> TodayRouteWidgetData { WidgetDataStore.read() ?? TodayRouteWidgetData() }
 
-    static func read() -> RouteWidgetData {
-        guard let raw = UserDefaults(suiteName: "group.com.Scoops.PlowR")?.data(forKey: "todayRoute"),
-              let decoded = try? JSONDecoder().decode(RouteWidgetData.self, from: raw) else {
-            return RouteWidgetData()
-        }
-        return decoded
-    }
-
-    static let placeholder = RouteWidgetData(
+    static let placeholder = TodayRouteWidgetData(
         routeName: "Monday Route",
         totalStops: 8, completedStops: 3,
         nextStopName: "Johnson Residence",
@@ -29,18 +16,17 @@ struct RouteWidgetData: Decodable {
         lastUpdated: Date()
     )
 
-    var hasData: Bool { totalStops > 0 }
-    var isComplete: Bool { !isActive && completedStops == totalStops && totalStops > 0 }
-    var progress: Double {
-        totalStops > 0 ? Double(completedStops) / Double(totalStops) : 0
-    }
+    /// Every stop done, the route not ended yet.
+    static let allDone = TodayRouteWidgetData(routeName: "Monday Route", totalStops: 8, completedStops: 8, isActive: true)
+    /// Ended.
+    static let ended = TodayRouteWidgetData(routeName: "Monday Route", totalStops: 8, completedStops: 8, isActive: false)
 }
 
 // MARK: - Timeline Entry
 
 struct RouteEntry: TimelineEntry {
     let date: Date
-    let data: RouteWidgetData
+    let data: TodayRouteWidgetData
 }
 
 // MARK: - Provider
@@ -50,10 +36,10 @@ struct PlowRWidgetProvider: TimelineProvider {
         RouteEntry(date: Date(), data: .placeholder)
     }
     func getSnapshot(in context: Context, completion: @escaping (RouteEntry) -> Void) {
-        completion(RouteEntry(date: Date(), data: .read()))
+        completion(RouteEntry(date: Date(), data: .current()))
     }
     func getTimeline(in context: Context, completion: @escaping (Timeline<RouteEntry>) -> Void) {
-        let entry = RouteEntry(date: Date(), data: .read())
+        let entry = RouteEntry(date: Date(), data: .current())
         let refresh = Date().addingTimeInterval(5 * 60)
         completion(Timeline(entries: [entry], policy: .after(refresh)))
     }
@@ -96,16 +82,18 @@ struct PlowRWidgetEntryView: View {
                     .font(.subheadline.bold())
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
-                Text("Stop \(entry.data.completedStops + 1) of \(entry.data.totalStops)")
+                Text(entry.data.stopLine)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .padding(.top, 1)
                 ProgressView(value: entry.data.progress)
                     .tint(.blue)
                     .padding(.vertical, 5)
-                Text(entry.data.nextStopName)
-                    .font(.caption.weight(.medium))
-                    .lineLimit(1)
+                if !entry.data.nextStopName.isEmpty {
+                    Text(entry.data.nextStopName)
+                        .font(.caption.weight(.medium))
+                        .lineLimit(1)
+                }
             } else if entry.data.isComplete {
                 Spacer()
                 Image(systemName: "checkmark.circle.fill")
@@ -226,7 +214,7 @@ struct PlowRWidgetEntryView: View {
 // MARK: - Widget Definition
 
 struct PlowRTodayRouteWidget: Widget {
-    let kind: String = "PlowRTodayRoute"
+    let kind: String = WidgetDataStore.widgetKind
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: PlowRWidgetProvider()) { entry in
@@ -250,7 +238,25 @@ struct PlowRTodayRouteWidget: Widget {
 #Preview("Small — Idle", as: .systemSmall) {
     PlowRTodayRouteWidget()
 } timeline: {
-    RouteEntry(date: .now, data: RouteWidgetData())
+    RouteEntry(date: .now, data: TodayRouteWidgetData())
+}
+
+#Preview("Small — All done", as: .systemSmall) {
+    PlowRTodayRouteWidget()
+} timeline: {
+    RouteEntry(date: .now, data: .allDone)
+}
+
+#Preview("Small — Route complete", as: .systemSmall) {
+    PlowRTodayRouteWidget()
+} timeline: {
+    RouteEntry(date: .now, data: .ended)
+}
+
+#Preview("Medium — All done", as: .systemMedium) {
+    PlowRTodayRouteWidget()
+} timeline: {
+    RouteEntry(date: .now, data: .allDone)
 }
 
 #Preview("Medium — Active", as: .systemMedium) {
