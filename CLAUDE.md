@@ -32,7 +32,7 @@ and asks for the reasoning, not just the command.
 Zero third-party dependencies — every import is an Apple framework. Keep it
 that way unless there's a strong reason; adding the first one is a real decision.
 
-Deployment target is **iOS 26.5**. Swift language mode is 5, so the Swift 6
+Deployment target is **iOS 26.0** (was 26.5 until 2026-09-29; nothing needed more). Swift language mode is 5, so the Swift 6
 strict-concurrency diagnostics show as warnings, not errors — `WeatherService`
 currently has three.
 
