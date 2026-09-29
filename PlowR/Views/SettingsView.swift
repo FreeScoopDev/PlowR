@@ -101,13 +101,14 @@ struct SettingsView: View {
                 }
             } footer: {
                 if !deleteFailures.isEmpty {
-                    Text("Not everything was deleted. Left: \(deleteFailures.map(\.step).joined(separator: ", ")). You're still signed in, so you can try again.")
-                        .foregroundStyle(.red)
-                    // Only the user can fix this one, so say how.
-                    if let calendar = deleteFailures.first(where: { $0.step == "calendar events" }) {
-                        Text(calendar.reason)
-                            .foregroundStyle(.red)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Not everything was deleted. Left: \(deleteFailures.map(\.step).joined(separator: ", ")). You're still signed in, so you can try again.")
+                        // Only the user can fix this one, so say how.
+                        if let calendar = deleteFailures.first(where: { $0.step == "calendar events" }) {
+                            Text(calendar.reason)
+                        }
                     }
+                    .foregroundStyle(.red)
                 }
             }
 
