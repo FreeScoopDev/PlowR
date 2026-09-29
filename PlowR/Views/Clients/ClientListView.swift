@@ -241,11 +241,12 @@ struct ClientListView: View {
                     Button("Delete, Keep Records") { delete(client, keepingRecords: true) }
                     Button("Delete Everything", role: .destructive) { delete(client, keepingRecords: false) }
                 } else {
-                    Button("Delete", role: .destructive) { delete(client, keepingRecords: false) }
+                    // Nothing was listed to keep; anything that turns up meanwhile stays.
+                    Button("Delete", role: .destructive) { delete(client, keepingRecords: true) }
                 }
                 if client.isActive {
                     Button("Mark Inactive Instead") {
-                        ClientRemoval.deactivate(client, in: modelContext)
+                        ClientRemoval.setActive(false, for: client, in: modelContext)
                         clientToDelete = nil
                     }
                 }
@@ -264,7 +265,7 @@ struct ClientListView: View {
         ) {
             if let client = clientToDeactivate {
                 Button("Mark Inactive", role: .destructive) {
-                    ClientRemoval.deactivate(client, in: modelContext)
+                    ClientRemoval.setActive(false, for: client, in: modelContext)
                     clientToDeactivate = nil
                 }
             }
@@ -389,12 +390,12 @@ extension ClientListView {
     /// back on routes.
     private func toggleActive(_ client: Client) {
         guard client.isActive else {
-            client.isActive = true
+            ClientRemoval.setActive(true, for: client, in: modelContext)
             return
         }
         removalFootprint = ClientRemoval.footprint(of: client, in: modelContext)
         if removalFootprint.routeNames.isEmpty {
-            ClientRemoval.deactivate(client, in: modelContext)
+            ClientRemoval.setActive(false, for: client, in: modelContext)
         } else {
             clientToDeactivate = client
         }

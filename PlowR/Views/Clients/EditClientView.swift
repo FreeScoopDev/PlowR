@@ -1044,8 +1044,7 @@ struct EditClientView: View {
         client.defaultDiscountPercent = defaultDiscountPercent
         client.tags = tags
         client.notes = notes
-        if client.isActive, !isActive { ClientRemoval.takeOffRoutes(client, in: modelContext) }
-        client.isActive = isActive
+        ClientRemoval.setActive(isActive, for: client, in: modelContext)
         client.expectedServiceIDs = Array(expectedServiceIDs)
 
         // Every path ends with the client's stops following (ClientStops): a

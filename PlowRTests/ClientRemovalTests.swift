@@ -80,12 +80,24 @@ struct ClientRemovalTests {
     // MARK: - Inactive
 
     @Test func markingInactiveTakesThemOffEveryRoute() throws {
-        ClientRemoval.deactivate(pat, in: context)
+        ClientRemoval.setActive(false, for: pat, in: context)
         #expect(!pat.isActive)
         #expect(monday.sortedStops.map(\.clientName) == ["Sam Roe", "Salt shed"])
         #expect(tuesday.sortedStops.isEmpty)
         #expect(try ClientStops.of(pat, in: context).isEmpty)
         #expect(!context.hasChanges)                          // saved
+    }
+
+    // Marking them active again doesn't put them back, and an active client
+    // marked active keeps their stops.
+    @Test func markingActiveTakesNothingOffAndPutsNothingBack() throws {
+        ClientRemoval.setActive(true, for: pat, in: context)
+        #expect(try ClientStops.of(pat, in: context).count == 3)
+        ClientRemoval.setActive(false, for: pat, in: context)
+        ClientRemoval.setActive(true, for: pat, in: context)
+        #expect(pat.isActive)
+        #expect(try ClientStops.of(pat, in: context).isEmpty)
+        #expect(!context.hasChanges)
     }
 
     @Test func takingOffRoutesLeavesTheirRecords() throws {
@@ -101,25 +113,38 @@ struct ClientRemovalTests {
 
     // MARK: - Delete
 
+    // Routes don't mark visits complete: a visit done from a route is still
+    // "scheduled". What's dated in the past is history either way.
+    @Test func visitsAheadAreThoseDatedFromNowOnAndNotCompleted() {
+        let now = Date()
+        #expect(ClientRemoval.isAhead(visit(pat, .scheduled, daysFromNow: 1), now: now))
+        #expect(ClientRemoval.isAhead(visit(pat, .cancelled, daysFromNow: 7), now: now))
+        #expect(!ClientRemoval.isAhead(visit(pat, .completed, daysFromNow: 1), now: now))
+        #expect(!ClientRemoval.isAhead(visit(pat, .scheduled, daysFromNow: -3), now: now))
+        #expect(!ClientRemoval.isAhead(visit(pat, .skipped, daysFromNow: -14), now: now))
+    }
+
     @Test func deletingKeepsRecordsWhenAsked() throws {
-        visit(pat, .scheduled)                                // to do: deleted
-        visit(pat, .scheduled, daysFromNow: -3)               // missed, still to do: deleted
+        visit(pat, .scheduled)                                // ahead: deleted
+        visit(pat, .cancelled, daysFromNow: 7)                // ahead: deleted
+        visit(pat, .scheduled, daysFromNow: -3)               // done from a route: kept
         visit(pat, .completed, daysFromNow: -7)
         visit(pat, .skipped, daysFromNow: -14)
         visit(sam, .scheduled)
         document(pat, invoice: true)
         document(pat)
-        photo(pat)
+        photo(pat)                                            // only their page shows it: deleted
+        photo(sam)
         ClientRemoval.delete(pat, keepingRecords: true, in: context)
         #expect(try count(Client.self) == 1)
         #expect(try count(RouteStop.self) == 2)               // Sam's and the salt shed
         let visits = try context.fetch(FetchDescriptor<ScheduledVisit>())
-        #expect(visits.filter { $0.clientID == pat.id.uuidString }.map(\.status).sorted { $0.rawValue < $1.rawValue }
-                == [.completed, .skipped])
+        #expect(visits.filter { $0.clientID == pat.id.uuidString }.map(\.status.rawValue).sorted()
+                == [VisitStatus.completed, .scheduled, .skipped].map(\.rawValue).sorted())
         #expect(visits.contains { $0.clientID == sam.id.uuidString })
         #expect(try count(Proposal.self) == 2)
         #expect(try count(ProposalLineItem.self) == 2)
-        #expect(try count(StopPhoto.self) == 1)
+        #expect(try context.fetch(FetchDescriptor<StopPhoto>()).map(\.clientID) == [sam.id.uuidString])
         #expect(!context.hasChanges)
     }
 
@@ -145,6 +170,7 @@ struct ClientRemovalTests {
 
     @Test func theFootprintCountsWhatRemovalTouches() {
         visit(pat, .scheduled)
+        visit(pat, .scheduled, daysFromNow: -2)
         visit(pat, .completed, daysFromNow: -7)
         visit(pat, .cancelled, daysFromNow: -8)
         document(pat)
@@ -152,30 +178,41 @@ struct ClientRemovalTests {
         photo(pat)
         visit(sam, .scheduled)
         #expect(ClientRemoval.footprint(of: pat, in: context) == .init(
-            routeNames: ["Monday", "Tuesday"], visitsToDo: 1, documents: 2, pastVisits: 2, photos: 1))
-        #expect(ClientRemoval.footprint(of: sam, in: context) == .init(routeNames: ["Monday"], visitsToDo: 1))
+            routeNames: ["Monday", "Tuesday"], visitsAhead: 1, documents: 2, pastVisits: 3, photos: 1))
+        #expect(ClientRemoval.footprint(of: sam, in: context) == .init(routeNames: ["Monday"], visitsAhead: 1))
     }
 
+    private let us = Locale(identifier: "en_US")
+
     @Test func theDeletePromptSaysWhatGoesAndWhatCanStay() {
-        let full = ClientRemoval.Footprint(routeNames: ["Monday", "Tuesday"], visitsToDo: 2,
+        let full = ClientRemoval.Footprint(routeNames: ["Monday", "Tuesday"], visitsAhead: 2,
                                           documents: 3, pastVisits: 1, photos: 4)
-        #expect(ClientRemoval.deleteMessage(for: full, isActive: true) == "They'll be taken off 2 routes: Monday and Tuesday. "
-            + "2 visits not yet done will be deleted. "
-            + "Keep their 3 invoices and proposals, 1 past visit, and 4 photos for your records, or delete everything? "
-            + "To keep the client too, mark them Inactive instead.")
-        let bare = ClientRemoval.Footprint(routeNames: ["Monday"], visitsToDo: 1, documents: 1)
-        #expect(ClientRemoval.deleteMessage(for: bare, isActive: false) == "They'll be taken off the route Monday. "
-            + "1 visit not yet done will be deleted. "
+        #expect(ClientRemoval.deleteMessage(for: full, isActive: true, locale: us)
+            == "They'll be taken off 2 routes: Monday and Tuesday. "
+            + "Their 2 upcoming visits and 4 photos will be deleted with them. "
+            + "Keep their 3 invoices and proposals and 1 past visit for your records, or delete everything? "
+            + "To keep them and their history, mark them Inactive instead.")
+        let one = ClientRemoval.Footprint(routeNames: ["Monday"], visitsAhead: 1, documents: 1)
+        #expect(ClientRemoval.deleteMessage(for: one, isActive: false, locale: us)
+            == "They'll be taken off the route Monday. "
+            + "Their 1 upcoming visit will be deleted with them. "
             + "Keep their 1 invoice or proposal for your records, or delete everything?")
-        #expect(ClientRemoval.deleteMessage(for: .init(), isActive: true) == "To keep the client too, mark them Inactive instead.")
-        #expect(!ClientRemoval.Footprint(routeNames: ["Monday"], visitsToDo: 3).hasRecords)
+        #expect(ClientRemoval.deleteMessage(for: .init(photos: 1), isActive: false, locale: us)
+            == "Their 1 photo will be deleted with them. This can't be undone.")
+        #expect(ClientRemoval.deleteMessage(for: .init(), isActive: false, locale: us) == "This can't be undone.")
+        #expect(ClientRemoval.deleteMessage(for: .init(), isActive: true, locale: us)
+            == "This can't be undone. To keep them and their history, mark them Inactive instead.")
+    }
+
+    // Photos can't be kept: only the client's page shows them.
+    @Test func onlyDocumentsAndPastVisitsAreRecordsToKeep() {
+        #expect(!ClientRemoval.Footprint(routeNames: ["Monday"], visitsAhead: 3, photos: 2).hasRecords)
         #expect(ClientRemoval.Footprint(documents: 1).hasRecords)
         #expect(ClientRemoval.Footprint(pastVisits: 1).hasRecords)
-        #expect(ClientRemoval.Footprint(photos: 1).hasRecords)
     }
 
     @Test func theInactivePromptSaysWhichRoutes() {
-        #expect(ClientRemoval.deactivateMessage(for: .init(routeNames: ["Monday", "Tuesday"]))
+        #expect(ClientRemoval.deactivateMessage(for: .init(routeNames: ["Monday", "Tuesday"]), locale: us)
             == "They'll be taken off 2 routes: Monday and Tuesday. Marking them active again won't put them back.")
     }
 }
