@@ -18,6 +18,7 @@ final class CalendarSync {
     static let shared = CalendarSync(store: EventKitVisitCalendarStore())
     static let enabledKey = "calendarSyncEnabled"
     static let seenKey = "calendarSyncSeenVisits"
+    static let removalOwedKey = "calendarSyncRemovalOwed"
 
     /// The switch, kept in preferences.
     private(set) var isEnabled: Bool
@@ -42,8 +43,12 @@ final class CalendarSync {
     @ObservationIgnored private var pending: Task<Void, Never>?
     @ObservationIgnored private var toldCalendarIsOutOfReach = false
     /// Turned off without calendar access: PlowR's events are still there,
-    /// to remove when access comes back.
-    @ObservationIgnored private var removalOwed = false
+    /// to remove when access comes back. In preferences, so it isn't forgotten
+    /// if iOS closes PlowR while the user is in the Settings app giving access.
+    private var removalOwed: Bool {
+        get { defaults.bool(forKey: Self.removalOwedKey) }
+        set { defaults.set(newValue, forKey: Self.removalOwedKey) }
+    }
 
     init(store: any VisitCalendarStore, defaults: UserDefaults = .standard,
          now: @escaping () -> Date = Date.init, delay: Duration = .seconds(2)) {

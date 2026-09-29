@@ -37,7 +37,8 @@ struct AccountEraserTests {
         /// Every preference key the app writes, as of this change.
         static let keys = ["clientName", "clientPhone", "clientEmail", "userRole", "completedRoutesCount",
                            "notifyIncludeLocation", "operatorName", ActiveRouteStore.checkpointKey,
-                           CalendarSync.enabledKey, CalendarSync.seenKey, EventKitVisitCalendarStore.calendarIDKey]
+                           CalendarSync.enabledKey, CalendarSync.seenKey, CalendarSync.removalOwedKey,
+                           EventKitVisitCalendarStore.calendarIDKey]
 
         let container: ModelContainer
         let context: ModelContext

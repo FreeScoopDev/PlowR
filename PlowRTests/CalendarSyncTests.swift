@@ -459,6 +459,22 @@ struct CalendarSyncTests {
         #expect(s.sync.problem == nil)
     }
 
+    // iOS can close PlowR while the user is in the Settings app giving access
+    // back: the removal it owes is still done when it's opened again.
+    @Test func anOwedRemovalSurvivesARelaunch() async throws {
+        let s = try Setup(now: now)
+        try s.visit()
+        await s.sync.setEnabled(true)
+        s.store.access = .denied
+        await s.sync.setEnabled(false)
+        #expect(s.store.events.count == 1)
+        s.relaunch()
+        s.store.access = .full
+        s.sync.refresh()
+        #expect(s.store.events.isEmpty)
+        #expect(!s.store.hasCalendar)
+    }
+
     // Removing a calendar removes everything in it, in every year: it's
     // removed only if nothing of the user's is left, however far ahead.
     @Test func turningOffKeepsACalendarWithTheUsersEventYearsAhead() async throws {
