@@ -86,6 +86,17 @@ struct EditClientView: View {
         _expectedServiceIDs = State(initialValue: Set(client.expectedServiceIDs))
     }
 
+    /// The screen's fields, to compare with the client as saved.
+    private var draft: ClientDraft {
+        ClientDraft(name: name, phone: phone, email: email, address: address,
+                    skipNotificationPrompt: skipNotificationPrompt, goalMinutes: goalMinutes,
+                    defaultStopNotes: defaultStopNotes, preferredPayment: preferredPayment,
+                    isComped: isComped, defaultDiscountPercent: defaultDiscountPercent,
+                    tags: tags, notes: notes, isActive: isActive, expectedServiceIDs: expectedServiceIDs)
+    }
+
+    private var hasUnsavedChanges: Bool { draft != ClientDraft(client) }
+
     // MARK: - Body
 
     var body: some View {
@@ -109,7 +120,7 @@ struct EditClientView: View {
         .disabled(isSaving)
         .navigationTitle(name.isEmpty ? "Client" : name)
         .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(isSaving)
+        .asksBeforeLeaving(hasChanges: hasUnsavedChanges, isBusy: isSaving, save: save, discard: { dismiss() })
         .addressLookupAlert($lookupProblem) {
             // The old pin marked the old address: keeping it put the client
             // at their old house on every map and route.
