@@ -11,6 +11,7 @@ nonisolated enum PinPlacement {
         var longitude: Double
 
         var exists: Bool { AddressPin.exists(latitude: latitude, longitude: longitude) }
+        var coordinate: CLLocationCoordinate2D { .init(latitude: latitude, longitude: longitude) }
     }
 
     /// How close the map must be before a pin can be set by hand: close
@@ -41,38 +42,77 @@ nonisolated enum PinPlacement {
     nonisolated struct Suggestion: Equatable {
         private(set) var spot: Pin?
         private(set) var found: String?
+        /// The lookup for `spot` hasn't answered: Confirm waits.
+        private(set) var isLookingUp = false
         var chosen = false
+
+        /// Whether the pin, now at `center`, has left the spot looked up (or
+        /// nothing was looked up yet). A zoom that leaves it within a couple
+        /// of metres keeps the suggestion, and a choice already made.
+        func needsLookup(at center: Pin) -> Bool {
+            guard let spot else { return true }
+            return PinPlacement.moved(from: spot.coordinate, to: center.coordinate)
+        }
 
         mutating func moved(to newSpot: Pin) {
             self = Suggestion()
             spot = newSpot
+            isLookingUp = true
         }
 
+        /// The map's answer for `lookedUp`, as the map writes it ("12 Old Rd,
+        /// Claremont, NH  03743").
         mutating func found(_ address: String, at lookedUp: Pin) {
             guard lookedUp == spot else { return }
-            found = address.isEmpty ? nil : address
+            let tidy = address.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+            found = tidy.isEmpty ? nil : tidy
             chosen = false
+            isLookingUp = false
         }
 
         mutating func failed(at lookedUp: Pin) {
             guard lookedUp == spot else { return }
             found = nil
             chosen = false
+            isLookingUp = false
         }
 
-        /// What's offered: the address found here, when it isn't `current`
-        /// written another way.
+        /// What's offered: the address found here, when it's a new address
+        /// and not `current` written another way (PinPlacement.isNewAddress).
         func offer(differentFrom current: String) -> String? {
-            guard let found, PinPlacement.differs(found, from: current) else { return nil }
+            guard let found, PinPlacement.isNewAddress(found, comparedWith: current) else { return nil }
             return found
         }
     }
 
-    /// Two addresses differ beyond case, spaces and punctuation.
-    static func differs(_ a: String, from b: String) -> Bool {
-        func key(_ s: String) -> String { s.lowercased().filter { $0.isLetter || $0.isNumber } }
-        return key(a) != key(b)
+    /// Whether `found`, the address the map gives for a spot, is worth
+    /// offering in place of `current`: it has a house number, and its street
+    /// line ("12 Old Rd") isn't how `current` begins, word for word, beyond
+    /// case, punctuation and the usual abbreviations (Road, Rd). The client's
+    /// own address often says more than the map's "12 Old Rd, Claremont,
+    /// NH 03743" ("12 Old Rd, Claremont, NH, United States", from an address
+    /// suggestion) or less ("12 Old Rd"). A map answer with no house number
+    /// ("Claremont, NH 03743") would only lose detail.
+    static func isNewAddress(_ found: String, comparedWith current: String) -> Bool {
+        let street = words(found.split(separator: ",").first.map(String.init) ?? "")
+        guard street.first?.first?.isNumber == true else { return false }
+        return !words(current).starts(with: street)
     }
+
+    /// An address's words, lowercased, with the usual abbreviations.
+    static func words(_ address: String) -> [String] {
+        address.lowercased()
+            .split { !$0.isLetter && !$0.isNumber }
+            .map { abbreviations[String($0)] ?? String($0) }
+    }
+
+    static let abbreviations: [String: String] = [
+        "road": "rd", "street": "st", "avenue": "ave", "drive": "dr", "lane": "ln", "court": "ct",
+        "boulevard": "blvd", "place": "pl", "circle": "cir", "highway": "hwy", "terrace": "ter",
+        "parkway": "pkwy", "square": "sq", "trail": "trl", "route": "rte", "turnpike": "tpke",
+        "extension": "ext", "mount": "mt", "mountain": "mtn",
+        "north": "n", "south": "s", "east": "e", "west": "w",
+    ]
 
     /// The address saved with a pin from the pin screen: the one the map
     /// found there only if the user chose it, and never for a pin set by

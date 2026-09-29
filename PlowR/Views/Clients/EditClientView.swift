@@ -35,7 +35,8 @@ struct EditClientView: View {
     @State private var tags: [String]
     @State private var newTag = ""
     @State private var geocodedCoordinate: CLLocationCoordinate2D?
-    /// A pin set by hand for a client who had none (PinPlacement.Field).
+    /// A pin from the pin screen that Save pairs with the typed address
+    /// (PinPlacement.Field.handPin).
     @State private var handPin: PinPlacement.Pin?
     @State private var isSaving = false
     @State private var showingPropertyScanner = false
@@ -141,7 +142,12 @@ struct EditClientView: View {
         }
         .sheet(isPresented: $showingLocationAdjust, onDismiss: takePinFromClient) {
             NavigationStack {
-                LocationAdjustView(client: client)
+                // A new address typed here, and its picked pin, if any: the
+                // pin screen shows that address and opens at that pin.
+                LocationAdjustView(
+                    client: client,
+                    pendingAddress: address != originalAddress ? address : nil,
+                    startingPin: geocodedCoordinate.map { .init(latitude: $0.latitude, longitude: $0.longitude) } ?? handPin)
             }
         }
         .sheet(item: $editingProposal) { proposal in
@@ -1051,8 +1057,8 @@ struct EditClientView: View {
     /// Adjust Pin and the property scanner's Move Pin save the client's pin,
     /// and the address there, themselves; this screen takes them. Save used
     /// to write back the address it opened with, and could look an address
-    /// typed before up again over the pin just set by hand. A pin set for a
-    /// client who had none keeps what was typed (PinPlacement.field).
+    /// typed before up again over the pin just set by hand. Which pins keep
+    /// what was typed: PinPlacement.field.
     private func takePinFromClient() {
         let before = PinPlacement.Field(
             text: address, original: originalAddress, originalPin: originalPin,

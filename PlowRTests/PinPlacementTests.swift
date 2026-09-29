@@ -66,28 +66,61 @@ struct PinPlacementTests {
     // failed lookup never offers (or saves) the last spot's address.
     @Test func aSuggestionIsForOneSpot() {
         var suggestion = found("12 Old Rd", at: old, chosen: true)
+        #expect(!suggestion.isLookingUp)
         suggestion.moved(to: new)
+        #expect(suggestion.isLookingUp)                        // Confirm waits
         #expect(suggestion.offer(differentFrom: "10 Old Rd") == nil)
         #expect(!suggestion.chosen)
         suggestion.found("12 Old Rd", at: old)                  // the old spot's lookup, late
         #expect(suggestion.offer(differentFrom: "10 Old Rd") == nil)
+        #expect(suggestion.isLookingUp)
         suggestion.found("14 Old Rd", at: new)
+        #expect(!suggestion.isLookingUp)
         #expect(suggestion.offer(differentFrom: "10 Old Rd") == "14 Old Rd")
         suggestion.failed(at: old)                             // the old spot's, failing late
         #expect(suggestion.offer(differentFrom: "10 Old Rd") == "14 Old Rd")
         suggestion.chosen = true
         suggestion.failed(at: new)                             // looked up again, failed
         #expect(suggestion.offer(differentFrom: "10 Old Rd") == nil)
+        suggestion.moved(to: old)
+        suggestion.failed(at: old)                             // a new spot's lookup failed
+        #expect(!suggestion.isLookingUp)
         #expect(PinPlacement.addressToSave(hadPin: true, suggestion: suggestion, current: "10 Old Rd") == nil)
     }
 
-    // The client's own address, written another way, isn't offered.
+    // The client's own address, written another way, isn't offered: the
+    // map's "12 Old Rd, Claremont, NH 03743" against an address suggestion's
+    // "…, NH, United States", a street typed alone, Road for Rd, or case and
+    // punctuation.
     @Test func theSameAddressWrittenDifferentlyIsntOffered() {
-        #expect(found("12 Old Rd Claremont NH 03743", at: new).offer(differentFrom: "12 old rd, Claremont, NH  03743") == nil)
-        let same = found("12 Old Rd Claremont NH 03743", at: new, chosen: true)
-        #expect(PinPlacement.addressToSave(hadPin: true, suggestion: same, current: "12 old rd, Claremont, NH  03743") == nil)
-        #expect(!PinPlacement.differs("12 Old Rd, Claremont", from: "12 OLD RD CLAREMONT"))
-        #expect(PinPlacement.differs("14 Old Rd", from: "12 Old Rd"))
+        let map = found("12 Old Rd, Claremont, NH 03743", at: new)
+        for same in ["12 Old Rd, Claremont, NH, United States", "12 Old Rd", "12 old road claremont",
+                     "12 OLD RD CLAREMONT NH 03743", "12 Old Rd, Apt 2, Claremont"] {
+            #expect(map.offer(differentFrom: same) == nil, "\(same)")
+        }
+        let chosen = found("12 Old Rd, Claremont, NH 03743", at: new, chosen: true)
+        #expect(PinPlacement.addressToSave(hadPin: true, suggestion: chosen, current: "12 Old Rd") == nil)
+        for other in ["14 Old Rd, Claremont", "120 Old Rd", "12 Old Ridge Rd", "", "Old Rd, Claremont"] {
+            #expect(map.offer(differentFrom: other) == "12 Old Rd, Claremont, NH 03743", "\(other)")
+        }
+    }
+
+    // An answer with no house number would only lose detail; the map's
+    // double space before the ZIP code is tidied.
+    @Test func whatTheMapGivesIsTidiedOrLeft() {
+        #expect(found("Claremont, NH  03743", at: new).offer(differentFrom: "12 Old Rd") == nil)
+        #expect(found("233 Pleasant St, Claremont, NH  03743", at: new).offer(differentFrom: "12 Old Rd")
+                == "233 Pleasant St, Claremont, NH 03743")
+    }
+
+    // A zoom that leaves the pin where it was looked up keeps the suggestion.
+    @Test func onlyAMoveNeedsANewLookup() {
+        let here = PinPlacement.Pin(latitude: home.latitude, longitude: home.longitude)
+        var suggestion = PinPlacement.Suggestion()
+        #expect(suggestion.needsLookup(at: here))
+        suggestion.moved(to: here)
+        #expect(!suggestion.needsLookup(at: .init(latitude: offset(1).latitude, longitude: offset(1).longitude)))
+        #expect(suggestion.needsLookup(at: .init(latitude: offset(3).latitude, longitude: offset(3).longitude)))
     }
 
     // MARK: - Edit Client's address field after the pin screen
