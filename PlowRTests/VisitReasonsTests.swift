@@ -56,6 +56,16 @@ struct VisitReasonsTests {
         #expect(AddVisitView.pickerSelection(for: "Other", presets: presets) == ("Other", "Other"))
     }
 
+    // Saving "Other" as a preset would leave the visit with no reason: Other
+    // is the picker's own entry, never a listed one.
+    @Test func onlyANewNamedReasonCanBeSavedAsAPreset() {
+        let presets = ["Lawn Mowing", "Inspection"]
+        #expect(AddVisitView.canSaveAsPreset("Gutters", presets: presets))
+        #expect(!AddVisitView.canSaveAsPreset("Other", presets: presets))
+        #expect(!AddVisitView.canSaveAsPreset("Inspection", presets: presets))
+        #expect(!AddVisitView.canSaveAsPreset("", presets: presets))
+    }
+
     // A saved reason that's also a service, or empty, is listed once or not at all.
     @Test func savedReasonsComeLastWithoutRepeats() {
         let services = [service("Lawn Mowing")]

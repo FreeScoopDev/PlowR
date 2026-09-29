@@ -33,6 +33,13 @@ struct AddVisitView: View {
         return (mine + generalReasons + saved).filter { listed.insert($0).inserted }
     }
 
+    /// Whether a typed reason can be saved as a preset: not empty, not listed
+    /// already, and not "Other", which is the picker's own entry and would
+    /// leave the visit with no reason.
+    static func canSaveAsPreset(_ reason: String, presets: [String]) -> Bool {
+        !reason.isEmpty && reason != otherReason && !presets.contains(reason)
+    }
+
     /// How a visit's saved reason shows in the picker: as a listed reason,
     /// or as Other with its text (a service since removed, a typed reason).
     static func pickerSelection(for reason: String, presets: [String]) -> (preset: String, custom: String) {
@@ -147,9 +154,8 @@ struct AddVisitView: View {
     }
 
     private func saveReasonAsPreset() {
-        guard !customReason.isEmpty,
-              let profile = operatorProfile,
-              !allReasonPresets.contains(customReason) else { return }
+        guard let profile = operatorProfile,
+              Self.canSaveAsPreset(customReason, presets: allReasonPresets) else { return }
         profile.customVisitReasons.append(customReason)
         selectedReasonPreset = customReason
         customReason = ""
@@ -301,8 +307,7 @@ struct AddVisitView: View {
             }
             if selectedReasonPreset == Self.otherReason {
                 TextField("Describe the visit reason…", text: $customReason)
-                if !customReason.isEmpty,
-                   !allReasonPresets.contains(customReason),
+                if Self.canSaveAsPreset(customReason, presets: allReasonPresets),
                    operatorProfile != nil {
                     Button {
                         saveReasonAsPreset()
