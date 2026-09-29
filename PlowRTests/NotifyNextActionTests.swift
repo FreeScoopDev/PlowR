@@ -70,13 +70,27 @@ struct NotifyNextActionTests {
 
     // The route was deleted on another device while PlowR was closed: the
     // store only finds out when it checks, which Siri makes it do.
-    @Test func aRouteDeletedElsewhereIsntTexted() throws {
+    @Test func aRouteDeletedWhileClosedIsntTexted() throws {
         let h = try harnessWithPhones()
-        let store = h.makeClosedAppStore()
-        store.start(h.route)
+        let before = h.makeClosedAppStore()
+        before.start(h.route)
         h.context.delete(h.route)
         try h.context.save()
+        #expect(siri(h.makeStore()) == .init(text: "No route is in progress.", stopID: nil))
+    }
+
+    // Siri checks the route itself: iCloud can remove it before the app has
+    // heard (the store then still holds it).
+    @Test func aRouteGoneBeforeTheAppHeardIsntTexted() throws {
+        let h = try harnessWithPhones()
+        var gone = false
+        let store = h.makeStore(fetchRoutes: { context in
+            gone ? [] : try context.fetch(FetchDescriptor<PlowRoute>())
+        })
+        store.start(h.route)
+        gone = true
         #expect(siri(store) == .init(text: "No route is in progress.", stopID: nil))
+        #expect(!store.isActive)
     }
 
     // A request held behind another sheet opens only if its stop is still
