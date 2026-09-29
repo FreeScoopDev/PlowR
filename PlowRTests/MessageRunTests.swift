@@ -86,6 +86,13 @@ struct MessageRunTests {
         #expect(step.note?.hasPrefix("A text was cancelled. Sent to 1 of 5.") == true)
     }
 
+    @Test func aFailedTextStopsAndSaysItDidntSend() {
+        let step = MessageRun.step(MessageRun(people), outcome: .failed, selection: Set(ids))
+        #expect(step.action == .stay)
+        #expect(step.selection == Set(ids))
+        #expect(step.note?.hasPrefix("A text didn't send. Sent to 0 of 5.") == true)
+    }
+
     // Messages' own results: only a text that went counts as sent.
     @Test func onlyASentTextCountsAsSent() {
         #expect(MessageOutcome(.sent) == .sent)
