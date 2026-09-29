@@ -73,6 +73,8 @@ struct PinPlacementTests {
         #expect(suggestion.offer(differentFrom: "10 Old Rd") == nil)
         suggestion.found("14 Old Rd", at: new)
         #expect(suggestion.offer(differentFrom: "10 Old Rd") == "14 Old Rd")
+        suggestion.failed(at: old)                             // the old spot's, failing late
+        #expect(suggestion.offer(differentFrom: "10 Old Rd") == "14 Old Rd")
         suggestion.chosen = true
         suggestion.failed(at: new)                             // looked up again, failed
         #expect(suggestion.offer(differentFrom: "10 Old Rd") == nil)
@@ -82,6 +84,8 @@ struct PinPlacementTests {
     // The client's own address, written another way, isn't offered.
     @Test func theSameAddressWrittenDifferentlyIsntOffered() {
         #expect(found("12 Old Rd Claremont NH 03743", at: new).offer(differentFrom: "12 old rd, Claremont, NH  03743") == nil)
+        let same = found("12 Old Rd Claremont NH 03743", at: new, chosen: true)
+        #expect(PinPlacement.addressToSave(hadPin: true, suggestion: same, current: "12 old rd, Claremont, NH  03743") == nil)
         #expect(!PinPlacement.differs("12 Old Rd, Claremont", from: "12 OLD RD CLAREMONT"))
         #expect(PinPlacement.differs("14 Old Rd", from: "12 Old Rd"))
     }
