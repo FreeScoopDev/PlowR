@@ -33,6 +33,29 @@ struct VisitReasonsTests {
         #expect(AddVisitView.reasonPresets(services: services, operatorID: "op", saved: []) == ["Inspection", "Routine Visit"])
     }
 
+    // "Other" is the picker's entry for a typed reason. A service or saved
+    // reason with that name, listed too, would save an empty reason.
+    @Test func otherIsNeverAListedReason() {
+        let services = [service("Other")]
+        #expect(!AddVisitView.reasonPresets(services: services, operatorID: "op", saved: ["Other"]).contains("Other"))
+    }
+
+    @Test func twoServicesWithOneNameAreListedOnce() {
+        let services = [service("Mowing", order: 0), service("Mowing", order: 1)]
+        #expect(AddVisitView.reasonPresets(services: services, operatorID: "op", saved: [])
+            == ["Mowing", "Inspection", "Routine Visit"])
+    }
+
+    // Editing a visit: a listed reason is picked; one that isn't any more
+    // (a service since turned off, a typed reason) shows as Other, text kept.
+    @Test func aVisitsReasonShowsAsPickedOrOther() {
+        let presets = ["Lawn Mowing", "Inspection"]
+        #expect(AddVisitView.pickerSelection(for: "Lawn Mowing", presets: presets) == ("Lawn Mowing", ""))
+        #expect(AddVisitView.pickerSelection(for: "Snow Plowing", presets: presets) == ("Other", "Snow Plowing"))
+        #expect(AddVisitView.pickerSelection(for: "", presets: presets) == ("", ""))
+        #expect(AddVisitView.pickerSelection(for: "Other", presets: presets) == ("Other", "Other"))
+    }
+
     // A saved reason that's also a service, or empty, is listed once or not at all.
     @Test func savedReasonsComeLastWithoutRepeats() {
         let services = [service("Lawn Mowing")]
