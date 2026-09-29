@@ -400,7 +400,9 @@ struct CalendarSyncTests {
     }
 
     // Two devices turned sync on before either's calendar reached the other:
-    // two "PlowR" calendars, with the same visit in each.
+    // two "PlowR" calendars, with the same visit in each. This covers the
+    // rules and the store's contract; which EventKit calendars count is
+    // plowRCalendarIDs (VisitCalendarTests).
     @Test func twoPlowRCalendarsAreTreatedAsOne() async throws {
         let s = try Setup(now: now)
         let visit = try s.visit()
@@ -448,6 +450,13 @@ struct CalendarSyncTests {
         await s.sync.setEnabled(false)
         #expect(!s.sync.isEnabled)
         #expect(s.sync.problem != nil)
+        #expect(s.store.events.count == 1)
+        // Access given back: the removal it owed happens when the app comes back.
+        s.store.access = .full
+        s.sync.refresh()
+        #expect(s.store.events.isEmpty)
+        #expect(!s.store.hasCalendar)
+        #expect(s.sync.problem == nil)
     }
 
     // Removing a calendar removes everything in it, in every year: it's

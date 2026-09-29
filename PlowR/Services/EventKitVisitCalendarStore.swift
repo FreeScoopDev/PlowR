@@ -38,6 +38,26 @@ final class EventKitVisitCalendarStore: VisitCalendarStore {
         type == .local || (type == .calDAV && title == "iCloud")
     }
 
+    /// A calendar as far as choosing PlowR's goes.
+    struct CalendarInfo: Equatable {
+        var id: String
+        var title: String
+        var sourceType: EKSourceType
+        var sourceTitle: String
+        var writable: Bool
+    }
+
+    /// PlowR's calendars, the kept one first: that one even renamed, and any
+    /// "PlowR" calendar, such as one another of the user's devices made in
+    /// iCloud. Only writable ones in iCloud or on this device.
+    nonisolated static func plowRCalendarIDs(_ calendars: [CalendarInfo], keptID: String?) -> [String] {
+        let mine = calendars.filter {
+            $0.writable && isOwnAccount(type: $0.sourceType, title: $0.sourceTitle)
+                && ($0.id == keptID || $0.title == calendarTitle)
+        }
+        return mine.filter { $0.id == keptID }.map(\.id) + mine.filter { $0.id != keptID }.map(\.id)
+    }
+
     func events(in span: DateInterval, create: Bool) throws -> [CalendarEvent]? {
         var calendars = plowRCalendars()
         if calendars.isEmpty {
@@ -106,23 +126,21 @@ final class EventKitVisitCalendarStore: VisitCalendarStore {
         event.alarms = details.hasReminder ? [EKAlarm(relativeOffset: VisitCalendar.reminderOffset)] : nil
     }
 
-    /// PlowR's calendars, the one it keeps the ID of first: that one, even
-    /// renamed, and any "PlowR" calendar, such as one another of the user's
-    /// devices made in iCloud. Only in iCloud or on this device.
+    /// PlowR's calendars (`plowRCalendarIDs`). With the kept one gone, the
+    /// first of the others is kept from now on.
     private func plowRCalendars() -> [EKCalendar] {
         let keptID = defaults.string(forKey: Self.calendarIDKey)
-        let calendars = store.calendars(for: .event).filter { calendar in
-            guard calendar.allowsContentModifications,
-                  let source = calendar.source, Self.isOwnAccount(type: source.sourceType, title: source.title)
-            else { return false }
-            return calendar.calendarIdentifier == keptID || calendar.title == Self.calendarTitle
+        let all = store.calendars(for: .event)
+        let infos = all.map { calendar in
+            CalendarInfo(id: calendar.calendarIdentifier, title: calendar.title,
+                         sourceType: calendar.source?.sourceType ?? .subscribed,
+                         sourceTitle: calendar.source?.title ?? "", writable: calendar.allowsContentModifications)
         }
-        let kept = calendars.filter { $0.calendarIdentifier == keptID }
-        let others = calendars.filter { $0.calendarIdentifier != keptID }
-        if kept.isEmpty, let first = others.first {
-            defaults.set(first.calendarIdentifier, forKey: Self.calendarIDKey)
+        let ids = Self.plowRCalendarIDs(infos, keptID: keptID)
+        if let first = ids.first, first != keptID {
+            defaults.set(first, forKey: Self.calendarIDKey)
         }
-        return kept + others
+        return ids.compactMap { id in all.first { $0.calendarIdentifier == id } }
     }
 
     /// A new "PlowR" calendar: in iCloud, where the user's calendars usually
@@ -130,7 +148,10 @@ final class EventKitVisitCalendarStore: VisitCalendarStore {
     private func newCalendar() throws -> EKCalendar {
         let iCloud = store.sources.first { $0.sourceType == .calDAV && $0.title == "iCloud" }
         let device = store.sources.first { $0.sourceType == .local }
-        for source in [iCloud, device].compactMap({ $0 }) {
+        // By identifier: a failed try resets the store, and a source fetched
+        // before that may no longer be good to save with.
+        for sourceID in [iCloud, device].compactMap({ $0?.sourceIdentifier }) {
+            guard let source = store.source(withIdentifier: sourceID) else { continue }
             let calendar = EKCalendar(for: .event, eventStore: store)
             calendar.title = Self.calendarTitle
             calendar.cgColor = PlowRColor.navyUIColor.cgColor
@@ -149,5 +170,5 @@ final class EventKitVisitCalendarStore: VisitCalendarStore {
 }
 
 struct NoCalendarAccount: LocalizedError {
-    var errorDescription: String? { "Neither iCloud nor this iPhone lets PlowR add a calendar." }
+    var errorDescription: String? { "Neither iCloud nor this device lets PlowR add a calendar." }
 }

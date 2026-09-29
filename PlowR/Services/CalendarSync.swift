@@ -41,6 +41,9 @@ final class CalendarSync {
     @ObservationIgnored private var context: ModelContext?
     @ObservationIgnored private var pending: Task<Void, Never>?
     @ObservationIgnored private var toldCalendarIsOutOfReach = false
+    /// Turned off without calendar access: PlowR's events are still there,
+    /// to remove when access comes back.
+    @ObservationIgnored private var removalOwed = false
 
     init(store: any VisitCalendarStore, defaults: UserDefaults = .standard,
          now: @escaping () -> Date = Date.init, delay: Duration = .seconds(2)) {
@@ -62,6 +65,7 @@ final class CalendarSync {
 
     func setEnabled(_ on: Bool) async {
         guard on else { return turnOff() }
+        removalOwed = false
         if store.access != .full {
             isAsking = true
             let granted = store.access == .canAsk ? await store.requestFullAccess() : false
@@ -82,6 +86,7 @@ final class CalendarSync {
     func refresh() {
         if store.access == .full {
             needsAccess = false
+            if removalOwed, !isEnabled { removeForTurnOff() }
         } else if isEnabled {
             needsAccess = true
         }
@@ -143,15 +148,23 @@ final class CalendarSync {
         isEnabled = false
         defaults.set(false, forKey: Self.enabledKey)
         needsAccess = false
+        removeForTurnOff()
+    }
+
+    /// Tried again when the app comes back with access, if it couldn't be done.
+    private func removeForTurnOff() {
         if store.access != .full, store.remembersCalendar {
             problem = CalendarOutOfReach().localizedDescription
+            removalOwed = true
             return
         }
         do {
             try removeEverything()
             problem = nil
+            removalOwed = false
         } catch {
             problem = "Couldn't remove the “PlowR” calendar's events. \(error.localizedDescription)"
+            removalOwed = true
         }
     }
 

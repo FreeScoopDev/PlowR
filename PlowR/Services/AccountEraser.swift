@@ -40,6 +40,9 @@ struct AccountEraser {
         var reason: String
     }
 
+    /// Settings shows this step's reason: only the user can fix it.
+    static let calendarStep = "calendar events"
+
     var context: ModelContext
     var models: [any PersistentModel.Type] = PlowRApp.models
     var defaults: UserDefaults = .standard
@@ -101,7 +104,7 @@ struct AccountEraser {
         for region in regions.monitoredRegions { regions.stopMonitoring(for: region) }
         clearWidget()
         // Before preferences: they say which calendar is PlowR's.
-        attempt("calendar events") { try eraseCalendar() }
+        attempt(Self.calendarStep) { try eraseCalendar() }
         if failures.isEmpty, let defaultsDomain {
             defaults.removePersistentDomain(forName: defaultsDomain)
         }

@@ -237,7 +237,7 @@ struct AccountEraserTests {
         eraser.eraseCalendar = { throw CocoaError(.fileWriteUnknown) }
         var signedOut = false
         let failures = eraser.eraseAll(thenSignOut: { signedOut = true })
-        #expect(failures.map(\.step) == ["calendar events"])
+        #expect(failures.map(\.step) == [AccountEraser.calendarStep])
         #expect(!signedOut)
         #expect(account.defaults.object(forKey: "userRole") != nil)
     }

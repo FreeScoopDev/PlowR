@@ -236,6 +236,27 @@ struct VisitCalendarTests {
         #expect(!EventKitVisitCalendarStore.isOwnAccount(type: .subscribed, title: "Holidays"))
     }
 
+    // Which calendars are PlowR's: the kept one first even renamed, any other
+    // "PlowR" (two devices can each make one), never a read-only one or one
+    // in another account.
+    @Test func plowRsCalendarsAreChosenLikeThis() {
+        typealias Info = EventKitVisitCalendarStore.CalendarInfo
+        let calendars = [
+            Info(id: "home", title: "Home", sourceType: .calDAV, sourceTitle: "iCloud", writable: true),
+            Info(id: "ipad", title: "PlowR", sourceType: .calDAV, sourceTitle: "iCloud", writable: true),
+            Info(id: "kept", title: "Snow jobs", sourceType: .calDAV, sourceTitle: "iCloud", writable: true),
+            Info(id: "google", title: "PlowR", sourceType: .calDAV, sourceTitle: "Google", writable: true),
+            Info(id: "shared", title: "PlowR", sourceType: .calDAV, sourceTitle: "iCloud", writable: false),
+            Info(id: "local", title: "PlowR", sourceType: .local, sourceTitle: "Default", writable: true),
+        ]
+        #expect(EventKitVisitCalendarStore.plowRCalendarIDs(calendars, keptID: "kept") == ["kept", "ipad", "local"])
+        #expect(EventKitVisitCalendarStore.plowRCalendarIDs(calendars, keptID: nil) == ["ipad", "local"])
+        #expect(EventKitVisitCalendarStore.plowRCalendarIDs(calendars, keptID: "gone") == ["ipad", "local"])
+        // A kept calendar that moved to another account isn't used either.
+        let moved = [Info(id: "kept", title: "PlowR", sourceType: .exchange, sourceTitle: "Work", writable: true)]
+        #expect(EventKitVisitCalendarStore.plowRCalendarIDs(moved, keptID: "kept").isEmpty)
+    }
+
     @Test func theLinkNamesTheVisit() throws {
         let id = UUID()
         #expect(VisitCalendar.visitID(fromLink: VisitCalendar.link(for: id)) == id)
