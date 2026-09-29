@@ -48,6 +48,12 @@ struct ElevationServiceTests {
         }
     }
 
+    /// The pause the throttling tests use, and the least gap they accept: half
+    /// of it, so a busy test machine's scheduling can't fail them. A missing or
+    /// broken throttle sends requests well under a millisecond apart.
+    private static let testPause: Duration = .milliseconds(300)
+    private static let leastGap = 0.15
+
     /// Seconds between consecutive requests.
     private func gaps(_ times: [ContinuousClock.Instant]) -> [Double] {
         zip(times, times.dropFirst()).map { a, b in
@@ -60,9 +66,9 @@ struct ElevationServiceTests {
         ElevationService(fetch: { try await api.answer($0) }, pause: .zero)
     }
 
-    /// A service that waits `pause` between requests, as the app does, timing
-    /// each request as it's sent. `oversleep` makes every wait end that late.
-    private func throttled(_ api: FakeAPI, pause: Duration = .milliseconds(150),
+    /// A service that waits between requests, as the app does, timing each
+    /// request as it's sent. `oversleep` makes every wait end that late.
+    private func throttled(_ api: FakeAPI, pause: Duration = Self.testPause,
                            oversleep: Duration = .zero) -> ElevationService {
         ElevationService(fetch: { url in
                              let sent = ContinuousClock.now
@@ -135,7 +141,7 @@ struct ElevationServiceTests {
         let times = await api.times
         #expect(times.count == 3)
         for gap in gaps(times) {
-            #expect(gap >= 0.1, "requests \(gap) s apart")
+            #expect(gap >= Self.leastGap, "requests \(gap) s apart")
         }
     }
 
@@ -150,7 +156,7 @@ struct ElevationServiceTests {
         let times = await api.times
         #expect(times.count == 3)
         for gap in gaps(times) {
-            #expect(gap >= 0.1, "requests \(gap) s apart")
+            #expect(gap >= Self.leastGap, "requests \(gap) s apart")
         }
     }
 
@@ -165,7 +171,7 @@ struct ElevationServiceTests {
         let times = await api.times.sorted()
         #expect(times.count == 3)
         for gap in gaps(times) {
-            #expect(gap >= 0.1, "requests \(gap) s apart")
+            #expect(gap >= Self.leastGap, "requests \(gap) s apart")
         }
     }
 
