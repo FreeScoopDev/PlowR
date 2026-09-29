@@ -15,6 +15,9 @@ struct ContactScannerView: View {
     @State private var isProcessing = false
     @State private var result: ScannedContact? = nil
     @State private var isSaving = false
+    /// Built, waiting for an answer: its address couldn't be put on the map.
+    @State private var unplacedClient: Client?
+    @State private var lookupProblem: AddressPin.Problem?
 
     // Editable review fields
     @State private var name = ""
@@ -54,6 +57,14 @@ struct ContactScannerView: View {
             }
         }
         .onAppear { showingCamera = true }
+        .interactiveDismissDisabled(isSaving)
+        .addressLookupAlert($lookupProblem) {
+            if let client = unplacedClient { modelContext.insert(client) }
+            unplacedClient = nil
+            dismiss()
+        } tryAgain: {
+            if let client = unplacedClient { place(client) }
+        }
     }
 
     // MARK: - Processing
@@ -186,15 +197,26 @@ struct ContactScannerView: View {
             return
         }
 
+        place(client)
+    }
+
+    /// Puts the scanned client on the map, then saves them; or asks what to
+    /// do when their address can't be found or the map can't be reached.
+    private func place(_ client: Client) {
+        isSaving = true
         Task {
-            let geocoder = CLGeocoder()
-            if let placemark = try? await geocoder.geocodeAddressString(address).first,
-               let location = placemark.location {
-                client.latitude  = location.coordinate.latitude
-                client.longitude = location.coordinate.longitude
+            let lookup = await AddressPin.lookUp(client.address)
+            isSaving = false
+            switch lookup {
+            case let .found(latitude, longitude):
+                client.latitude = latitude
+                client.longitude = longitude
+                modelContext.insert(client)
+                dismiss()
+            case .failed(let problem):
+                unplacedClient = client
+                lookupProblem = problem
             }
-            modelContext.insert(client)
-            await MainActor.run { isSaving = false; dismiss() }
         }
     }
 }

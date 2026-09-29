@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import MapKit
 import CoreLocation
 
@@ -7,19 +8,56 @@ struct LocationAdjustView: View {
     let onSave: ((CLLocationCoordinate2D, String) -> Void)?
 
     @Environment(\.dismiss) private var dismiss
+    @Query private var clients: [Client]
 
     @State private var cameraPosition: MapCameraPosition
     @State private var centerCoordinate: CLLocationCoordinate2D
+    @State private var cameraDistance: Double
     @State private var resolvedAddress: String
     @State private var isGeocoding = false
+    /// The map was moved from the pin it opened on. Only then is anything
+    /// saved: opening the screen looked the pin's address up again, and
+    /// Confirm wrote that back over the client's.
+    @State private var moved = false
+    /// The client had a pin to adjust. Without one (their address couldn't
+    /// be found) the pin is set here, and the map starts where the user is,
+    /// or around the business's other clients, not at 0,0 in the ocean.
+    private let hadPin: Bool
+    private let openedAt: CLLocationCoordinate2D
+
+    /// How close the map must be before a pin can be set by hand: close
+    /// enough to see the house.
+    static let streetDistance: Double = 2_000
 
     init(client: Client, onSave: ((CLLocationCoordinate2D, String) -> Void)? = nil) {
         self.client = client
         self.onSave = onSave
         let coord = CLLocationCoordinate2D(latitude: client.latitude, longitude: client.longitude)
-        _cameraPosition = State(initialValue: .camera(MapCamera(centerCoordinate: coord, distance: 80)))
+        hadPin = AddressPin.exists(latitude: coord.latitude, longitude: coord.longitude)
+        openedAt = coord
+        _cameraPosition = State(initialValue: hadPin
+            ? .camera(MapCamera(centerCoordinate: coord, distance: 80)) : .automatic)
         _centerCoordinate = State(initialValue: coord)
+        _cameraDistance = State(initialValue: hadPin ? 80 : .infinity)
         _resolvedAddress = State(initialValue: client.address)
+    }
+
+    /// Where a pinless client's map starts when the user's location isn't
+    /// known: around the business's other clients.
+    private var otherClientsRegion: MKCoordinateRegion? {
+        let pins = clients
+            .filter { $0.operatorID == client.operatorID && AddressPin.exists(latitude: $0.latitude, longitude: $0.longitude) }
+            .map { CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude) }
+        return CoordinateBounds(pins)?.region()
+    }
+
+    /// Confirm needs a real spot: for a pin set by hand, the map zoomed in
+    /// to street level (it starts zoomed out).
+    private var canConfirm: Bool {
+        guard !isGeocoding else { return false }
+        if hadPin { return true }
+        return AddressPin.exists(latitude: centerCoordinate.latitude, longitude: centerCoordinate.longitude)
+            && cameraDistance <= Self.streetDistance
     }
 
     var body: some View {
@@ -38,9 +76,19 @@ struct LocationAdjustView: View {
             }
             .onMapCameraChange(frequency: .onEnd) { context in
                 centerCoordinate = context.camera.centerCoordinate
-                reverseGeocode(centerCoordinate)
+                cameraDistance = context.camera.distance
+                let from = CLLocation(latitude: openedAt.latitude, longitude: openedAt.longitude)
+                let to = CLLocation(latitude: centerCoordinate.latitude, longitude: centerCoordinate.longitude)
+                if from.distance(from: to) > 2 { moved = true }
+                // A pin set by hand keeps the address as typed (the map
+                // couldn't find it): nothing to look up.
+                if hadPin, moved { reverseGeocode(centerCoordinate) }
             }
-            .navigationTitle("Adjust Location")
+            .onAppear {
+                guard !hadPin else { return }
+                cameraPosition = .userLocation(fallback: otherClientsRegion.map { .region($0) } ?? .automatic)
+            }
+            .navigationTitle(hadPin ? "Adjust Location" : "Set Location")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -85,7 +133,7 @@ struct LocationAdjustView: View {
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(isGeocoding ? .secondary : .primary)
                         .animation(.easeInOut(duration: 0.2), value: resolvedAddress)
-                    Text("Drag the map to reposition the pin")
+                    Text(hint)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -100,7 +148,7 @@ struct LocationAdjustView: View {
                 Button("Confirm Location") { saveAndDismiss() }
                     .buttonStyle(.borderedProminent)
                     .frame(maxWidth: .infinity)
-                    .disabled(isGeocoding)
+                    .disabled(!canConfirm)
             }
         }
         .padding()
@@ -130,7 +178,16 @@ struct LocationAdjustView: View {
         }
     }
 
+    private var hint: String {
+        if hadPin { return "Drag the map to reposition the pin" }
+        return cameraDistance <= Self.streetDistance
+            ? "Drag the map until the pin is on the house"
+            : "Zoom in to the house, then drag the map to it"
+    }
+
     private func saveAndDismiss() {
+        // Nothing moved: nothing to save.
+        guard moved || !hadPin else { return dismiss() }
         if let onSave {
             // Caller handles the update (e.g. PropertyScannerView before zones are saved)
             onSave(centerCoordinate, resolvedAddress)
@@ -138,7 +195,9 @@ struct LocationAdjustView: View {
             // Direct SwiftData model update (EditClientView path)
             client.latitude = centerCoordinate.latitude
             client.longitude = centerCoordinate.longitude
-            if !resolvedAddress.isEmpty {
+            // A pin set by hand is for an address the map couldn't find: the
+            // nearest address it knows would replace the one the user typed.
+            if hadPin, !resolvedAddress.isEmpty {
                 client.address = resolvedAddress
             }
             ClientStops.update(for: client)

@@ -45,6 +45,9 @@ struct EditClientView: View {
     @State private var isLoadingLookAround = false
     @State private var showingLookAroundUnavailable = false
     @State private var showingLocationAdjust = false
+    /// The new address couldn't be put on the map: save it without a pin,
+    /// try again, or check it.
+    @State private var lookupProblem: AddressPin.Problem?
 
     // Documents
     @State private var revisePaidDoc: Proposal?
@@ -97,6 +100,19 @@ struct EditClientView: View {
         }
         .navigationTitle(name.isEmpty ? "Client" : name)
         .navigationBarTitleDisplayMode(.inline)
+        // Leaving mid-lookup lost the new address.
+        .navigationBarBackButtonHidden(isSaving)
+        .addressLookupAlert($lookupProblem) {
+            // The old pin marked the old address: keeping it put the client
+            // at their old house on every map and route.
+            client.address = address
+            client.latitude = 0
+            client.longitude = 0
+            ClientStops.update(for: client)
+            dismiss()
+        } tryAgain: {
+            saveChanges()
+        }
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 if isSaving {
@@ -509,10 +525,13 @@ struct EditClientView: View {
             TextField("Street Address", text: $address)
                 .textContentType(.fullStreetAddress)
                 .onChange(of: address) { _, v in
-                    geocodedCoordinate = nil
                     // Not typed: the address a new pin brought.
-                    guard v != originalAddress else { addressCompleter.clear(); return }
-                    addressCompleter.search(v)
+                    guard v != originalAddress else {
+                        geocodedCoordinate = nil
+                        addressCompleter.clear()
+                        return
+                    }
+                    if addressCompleter.fieldChanged(to: v) { geocodedCoordinate = nil }
                 }
 
             if !addressCompleter.completions.isEmpty {
@@ -660,7 +679,15 @@ struct EditClientView: View {
                     .listRowInsets(EdgeInsets())
             }
 
-            if client.latitude != 0 {
+            if !AddressPin.exists(latitude: client.latitude, longitude: client.longitude) {
+                // No pin (the address couldn't be found): set it by hand, or the
+                // client stays off route maps. Adjust Pin was hidden here.
+                Button {
+                    showingLocationAdjust = true
+                } label: {
+                    Label("Set Pin on the Map", systemImage: "mappin.and.ellipse")
+                }
+            } else {
                 HStack(spacing: 10) {
                     Button {
                         showingLocationAdjust = true
@@ -691,7 +718,7 @@ struct EditClientView: View {
                 } label: {
                     Label("Map Service Area", systemImage: "map")
                 }
-                .disabled(client.latitude == 0 && client.longitude == 0)
+                .disabled(!AddressPin.exists(latitude: client.latitude, longitude: client.longitude))
             } else {
                 ForEach(zones) { zone in
                     HStack {
@@ -1028,18 +1055,21 @@ struct EditClientView: View {
         }
 
         if address != originalAddress, !address.isEmpty {
-            client.address = address
+            // Taken now: the lookup waits on the network.
+            let typed = address
             Task {
-                let geocoder = CLGeocoder()
-                if let placemark = try? await geocoder.geocodeAddressString(address).first,
-                   let location = placemark.location {
-                    client.latitude = location.coordinate.latitude
-                    client.longitude = location.coordinate.longitude
-                }
-                await MainActor.run {
+                let lookup = await AddressPin.lookUp(typed)
+                isSaving = false
+                switch lookup {
+                case let .found(latitude, longitude):
+                    client.address = typed
+                    client.latitude = latitude
+                    client.longitude = longitude
                     ClientStops.update(for: client)
-                    isSaving = false
                     dismiss()
+                case .failed(let problem):
+                    // It used to keep the old address's pin, and say nothing.
+                    lookupProblem = problem
                 }
             }
         } else {
