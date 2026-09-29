@@ -12,9 +12,7 @@ struct CreateRouteView: View {
     @State private var showingClientPicker = false
 
     var availableClients: [Client] {
-        allClients
-            .filter { $0.operatorID == authManager.userID }
-            .sorted { $0.name < $1.name }
+        Client.routable(from: allClients, operatorID: authManager.userID)
     }
 
     var body: some View {

@@ -16,6 +16,8 @@ struct ScheduleView: View {
     @State private var invoicingVisit: ScheduledVisit?
     @State private var showingRouteCreated = false
     @State private var createdRouteName = ""
+    /// Scheduled visits left off the new route because their client is inactive.
+    @State private var skippedInactiveVisits = 0
 
     // MARK: - Computed Properties
 
@@ -102,10 +104,10 @@ struct ScheduleView: View {
                     }
                 }
             }
-            .alert("Route Created", isPresented: $showingRouteCreated) {
+            .alert(createdRouteName.isEmpty ? "No Route Created" : "Route Created", isPresented: $showingRouteCreated) {
                 Button("OK", role: .cancel) { }
             } message: {
-                Text("\"\(createdRouteName)\" has been added to your Routes tab.")
+                Text(routeCreatedMessage)
             }
         }
     }
@@ -360,22 +362,42 @@ struct ScheduleView: View {
     private func createRouteFromSchedule() {
         let dateLabel = selectedDate.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
         let name = "Route – \(dateLabel)"
+        let scheduled = visitsForSelectedDate.filter { $0.status == .scheduled }
+        // Inactive clients are hidden from route building, even with a visit
+        // still scheduled from before they were marked inactive.
+        let (clients, skipped) = Client.routeClients(for: scheduled, from: allClients, operatorID: authManager.userID)
+        skippedInactiveVisits = skipped
+        // No stops left: say why instead of saving an empty route.
+        guard !clients.isEmpty else {
+            createdRouteName = ""
+            showingRouteCreated = true
+            return
+        }
         let route = PlowRoute(name: name, operatorID: authManager.userID)
         modelContext.insert(route)
-
-        let scheduled = visitsForSelectedDate.filter { $0.status == .scheduled }
-        var order = 0
-        for visit in scheduled {
-            if let client = allClients.first(where: { $0.id.uuidString == visit.clientID && $0.operatorID == authManager.userID }) {
-                let stop = RouteStop(order: order, client: client)
-                stop.route = route
-                modelContext.insert(stop)
-                order += 1
-            }
+        for (order, client) in clients.enumerated() {
+            let stop = RouteStop(order: order, client: client)
+            stop.route = route
+            modelContext.insert(stop)
         }
-
         createdRouteName = name
         showingRouteCreated = true
+    }
+
+    /// What Create Route did, including any visits it left off.
+    private var routeCreatedMessage: String {
+        if createdRouteName.isEmpty {
+            return skippedInactiveVisits > 0
+                ? "The visits scheduled that day are all for inactive clients."
+                : "None of the visits scheduled that day has a client on file."
+        }
+        var text = "\"\(createdRouteName)\" has been added to your Routes tab."
+        if skippedInactiveVisits == 1 {
+            text += " 1 visit was left off because that client is inactive."
+        } else if skippedInactiveVisits > 1 {
+            text += " \(skippedInactiveVisits) visits were left off because those clients are inactive."
+        }
+        return text
     }
 
     private func markComplete(_ visit: ScheduledVisit) {
