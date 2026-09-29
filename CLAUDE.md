@@ -75,7 +75,7 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
 - **The `ModelContainer` fallback chain archives the store rather than
   deleting it** (`default.store.<timestamp>.bak` and the photo folder, beside
   the store: the app-group container on a signed build), and only when the
-  store can't be migrated even with iCloud off (`StoreArchive.verdict`). Any
+  store can't be migrated even with iCloud off: a Core Data migration error, not a full disk or a locked file (`StoreArchive.verdict`). Any
   other failure stops the app with the data in place. That is deliberate: a
   user's data survives a bad migration, and a store that merely failed to open
   is never hidden behind an empty app. Don't "simplify" it to a delete, or to

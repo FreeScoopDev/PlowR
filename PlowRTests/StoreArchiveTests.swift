@@ -40,11 +40,26 @@ struct StoreArchiveTests {
         return url
     }
 
-    private func verdict(_ url: URL, _ models: [any PersistentModel.Type]) -> StoreArchive.Verdict {
-        StoreArchive.verdict(storeAt: url, model: NSManagedObjectModel.makeManagedObjectModel(for: models)) {
-            (try? ModelContainer(for: Schema(models),
-                                 configurations: ModelConfiguration(url: url, cloudKitDatabase: .none))) != nil
+    /// A `StoreV1` store as iCloud sync leaves one: made with history tracking on.
+    private func v1TrackedStore(in dir: URL) throws -> URL {
+        let url = dir.appending(path: "default.store")
+        let model = try #require(NSManagedObjectModel.makeManagedObjectModel(for: [StoreV1.Item.self]))
+        let container = NSPersistentContainer(name: "Tracked", managedObjectModel: model)
+        let description = NSPersistentStoreDescription(url: url)
+        description.shouldAddStoreAsynchronously = false
+        description.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
+        container.persistentStoreDescriptions = [description]
+        var failure: Error?
+        container.loadPersistentStores { _, error in failure = error }
+        if let failure { throw failure }
+        for store in container.persistentStoreCoordinator.persistentStores {
+            try container.persistentStoreCoordinator.remove(store)
         }
+        return url
+    }
+
+    private func verdict(_ url: URL, _ models: [any PersistentModel.Type]) -> StoreArchive.Verdict {
+        StoreArchive.verdict(storeAt: url, model: NSManagedObjectModel.makeManagedObjectModel(for: models))
     }
 
     @Test func aStoreThatMatchesTheModelIsLeftAlone() throws {
@@ -64,6 +79,74 @@ struct StoreArchiveTests {
         let dir = try folder()
         defer { try? FileManager.default.removeItem(at: dir) }
         #expect(verdict(try v1Store(in: dir), [StoreV3.Item.self]) == .cannotBeMigrated)
+    }
+
+    // Real stores were made with iCloud sync, which turns history tracking on.
+    // Opened without it they'd be read-only and couldn't migrate, and so would
+    // be archived by mistake.
+    @Test func aStoreFromICloudSyncStillMigratesWithICloudOff() throws {
+        let dir = try folder()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        #expect(verdict(try v1TrackedStore(in: dir), [StoreV2.Item.self]) == .opensWithoutICloud)
+    }
+
+    @Test func aStoreFromICloudSyncThatCantMigrateIsTheOneMovedAside() throws {
+        let dir = try folder()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        #expect(verdict(try v1TrackedStore(in: dir), [StoreV3.Item.self]) == .cannotBeMigrated)
+    }
+
+    // The check migrates a store it can; the app must then still be able to
+    // write to it.
+    @Test func theCheckLeavesAMigratedStoreWritable() throws {
+        let dir = try folder()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let url = try v1Store(in: dir)
+        #expect(verdict(url, [StoreV2.Item.self]) == .opensWithoutICloud)
+        let container = try ModelContainer(for: StoreV2.Item.self,
+                                           configurations: ModelConfiguration(url: url, cloudKitDatabase: .none))
+        container.mainContext.insert(StoreV2.Item())
+        try container.mainContext.save()
+        #expect(try container.mainContext.fetchCount(FetchDescriptor<StoreV2.Item>()) == 2)
+    }
+
+    // Only Core Data's migration errors mean the model is the problem. A full
+    // disk or a database fault anywhere in the chain means it isn't.
+    @Test func onlyMigrationErrorsCount() {
+        let cocoa = { (code: Int, under: NSError?) in
+            NSError(domain: NSCocoaErrorDomain, code: code,
+                    userInfo: under.map { [NSUnderlyingErrorKey: $0] } ?? [:])
+        }
+        let sqlite = NSError(domain: NSCocoaErrorDomain, code: NSMigrationError, userInfo: [NSSQLiteErrorDomain: 8])
+        // What Core Data reported for a field whose type changed.
+        #expect(StoreArchive.isMigrationFailure(cocoa(NSMigrationMissingMappingModelError, cocoa(NSInferredMappingModelError, nil))))
+        #expect(StoreArchive.isMigrationFailure(cocoa(NSPersistentStoreIncompatibleVersionHashError, nil)))
+        // What it reported for read-only files: the generic error, with an
+        // SQLite error inside. The generic error alone isn't enough either.
+        #expect(!StoreArchive.isMigrationFailure(cocoa(NSMigrationError, sqlite)))
+        #expect(!StoreArchive.isMigrationFailure(cocoa(NSMigrationError, nil)))
+        // A database fault or a file problem anywhere in the chain means the
+        // model isn't the problem, whatever the error on top says.
+        #expect(!StoreArchive.isMigrationFailure(cocoa(NSMigrationMissingMappingModelError, sqlite)))
+        #expect(!StoreArchive.isMigrationFailure(cocoa(NSMigrationMissingMappingModelError, cocoa(NSFileWriteOutOfSpaceError, nil))))
+        #expect(!StoreArchive.isMigrationFailure(cocoa(NSMigrationMissingMappingModelError, cocoa(NSSQLiteError, nil))))
+        #expect(!StoreArchive.isMigrationFailure(NSError(domain: "other", code: NSMigrationMissingMappingModelError)))
+    }
+
+    // A store the check can't write to (its files are read-only) fails to
+    // migrate for a reason that isn't the model: it stays where it is.
+    @Test func aStoreThatCantBeWrittenIsLeftAlone() throws {
+        let dir = try folder()
+        let url = try v1Store(in: dir)
+        let files = StoreArchive.parts(of: url).filter { exists($0) }
+        for file in files { try FileManager.default.setAttributes([.posixPermissions: 0o444], ofItemAtPath: file.path) }
+        defer {
+            for file in files { try? FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: file.path) }
+            try? FileManager.default.removeItem(at: dir)
+        }
+        // Core Data reports this as a failed migration with an SQLite error in
+        // it ("attempt to write a readonly database"), not as a model problem.
+        #expect(verdict(url, [StoreV2.Item.self]) == .failedForAnotherReason(code: NSMigrationError))
     }
 
     @Test func aMissingStoreIsNotJudged() throws {
@@ -131,14 +214,13 @@ struct StoreArchiveTests {
         #expect(exists(dir.appending(path: "default.store.7.bak")))
     }
 
-    // Every step of the launch opens, judges and archives one file. Only a signed
-    // build shows where that is (the app-group container); CI is unsigned, so
-    // this pins that the steps agree, not the folder.
+    // Every step of the launch opens, judges and archives one file: the local
+    // configuration's. Only a signed build shows where that is (the app-group
+    // container); CI is unsigned, so this pins that the steps agree, not the folder.
     @Test func everyStepUsesTheSameStore() {
         let schema = Schema(PlowRApp.models)
         let local = PlowRApp.localConfiguration(for: schema).url
         #expect(PlowRApp.cloudConfiguration(for: schema).url == local)
-        #expect(ModelConfiguration(schema: schema, cloudKitDatabase: .none).url == local)
         #expect(local.lastPathComponent == "default.store")
     }
 }

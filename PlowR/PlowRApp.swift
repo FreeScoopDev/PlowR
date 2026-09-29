@@ -89,13 +89,11 @@ struct PlowRApp: App {
         }
 
         // 3. Move the store aside with a timestamp, never delete it, and start a
-        //    new one: only for a store from an older model that can't be migrated,
+        //    new one: only when Core Data says it can't be migrated to this model,
         //    even with iCloud off. Anything else (a store that can't be read yet
-        //    after a restart, one that matches the model) is left in place and
-        //    the app stops, so a fixed build still finds the data. See StoreArchive.
-        let verdict = StoreArchive.verdict(storeAt: local.url, model: NSManagedObjectModel.makeManagedObjectModel(for: models)) {
-            (try? ModelContainer(for: schema, configurations: [ModelConfiguration(schema: schema, cloudKitDatabase: .none)])) != nil
-        }
+        //    after a restart, one that matches the model, a full disk) is left in
+        //    place and the app stops, so a fixed build still finds the data.
+        let verdict = StoreArchive.verdict(storeAt: local.url, model: NSManagedObjectModel.makeManagedObjectModel(for: models))
         guard verdict == .cannotBeMigrated,
               StoreArchive.archive(storeAt: local.url, stamp: Int(Date().timeIntervalSince1970)) else {
             fatalError("Could not open the store (\(verdict)); it was left in place. \(errors)")
