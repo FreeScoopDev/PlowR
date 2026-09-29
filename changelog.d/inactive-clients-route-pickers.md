@@ -1,2 +1,0 @@
-### Fixed
-- **Inactive clients are no longer put on new routes.** The 1.1.0 notes said they are hidden from route building, but the New Route and Edit Route pickers listed them with every other client, Schedule's Create Route added them when a visit was still scheduled from before they were marked inactive, and duplicating a route copied them. All four now leave inactive clients out. Create Route says how many visits it left off, and if none are left it says so instead of saving an empty route. A stop already on a route stays until it's removed.
