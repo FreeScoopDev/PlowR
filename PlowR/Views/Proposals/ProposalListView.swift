@@ -139,7 +139,7 @@ struct ProposalListView: View {
         }
         .sheet(item: $reminderProposal) { proposal in
             let phone = myClients.first(where: { $0.id.uuidString == proposal.clientID })?.phone ?? ""
-            MessageComposer(recipients: [phone], body: reminderMessage(for: proposal)) { }
+            MessageComposer(recipients: [phone], body: reminderMessage(for: proposal)) { _ in }
         }
     }
 

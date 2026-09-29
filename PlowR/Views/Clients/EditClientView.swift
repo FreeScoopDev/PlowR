@@ -125,7 +125,9 @@ struct EditClientView: View {
         }
         .sheet(isPresented: $showingMessageComposer) {
             if !phone.isEmpty {
-                MessageComposer(recipients: [phone], body: "") {
+                MessageComposer(recipients: [phone], body: "") { outcome in
+                    // Only a text that went counts as the last one sent.
+                    guard outcome == .sent else { return }
                     client.lastMessageSentAt = Date()
                     client.clientRespondedAt = nil
                 }
