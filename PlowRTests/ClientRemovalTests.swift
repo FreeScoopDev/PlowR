@@ -169,6 +169,9 @@ struct ClientRemovalTests {
             + "Keep their 1 invoice or proposal for your records, or delete everything?")
         #expect(ClientRemoval.deleteMessage(for: .init(), isActive: true) == "To keep the client too, mark them Inactive instead.")
         #expect(!ClientRemoval.Footprint(routeNames: ["Monday"], visitsToDo: 3).hasRecords)
+        #expect(ClientRemoval.Footprint(documents: 1).hasRecords)
+        #expect(ClientRemoval.Footprint(pastVisits: 1).hasRecords)
+        #expect(ClientRemoval.Footprint(photos: 1).hasRecords)
     }
 
     @Test func theInactivePromptSaysWhichRoutes() {
