@@ -39,6 +39,13 @@ enum DocumentSent {
         }
     }
 
+    /// What a saved document's share sheet does when the PDF was sent to
+    /// someone, given its Mark as Sent switch: `shared`. The one place the
+    /// document's page and a client's document list wire it.
+    static func shareHandler(for proposal: Proposal, in context: ModelContext) -> (_ toClient: Bool) -> Void {
+        { toClient in shared(proposal, toClient: toClient, in: context) }
+    }
+
     /// The builder's preview shared a document not saved yet. Sent to the
     /// client (`toClient`), its client is awaiting a response now, and the
     /// builder saves it as shared (true; saveBuilt), which marks an invoice
@@ -181,6 +188,8 @@ enum DocumentSent {
 /// PDF to someone marks it sent to the client (DocumentSent.shared); off,
 /// for a copy that isn't going to the client, nothing is marked. It starts
 /// on every time. A paid invoice, which sharing never marks, has no switch.
+/// A saved document uses `init(url:document:in:)`; the builder's preview,
+/// whose document isn't saved yet, says what the switch does itself.
 struct DocumentShareView: View {
     let url: URL
     let status: InvoiceStatus
@@ -206,6 +215,15 @@ struct DocumentShareView: View {
             }
             DocumentShareSheet(url: url) { onSent(toClient) }
         }
+    }
+}
+
+extension DocumentShareView {
+    /// Sharing a saved document: its status and client, and what a send
+    /// does (DocumentSent.shareHandler), all from the document.
+    init(url: URL, document: Proposal, in context: ModelContext) {
+        self.init(url: url, status: document.invoiceStatus, clientName: document.clientName,
+                  onSent: DocumentSent.shareHandler(for: document, in: context))
     }
 }
 

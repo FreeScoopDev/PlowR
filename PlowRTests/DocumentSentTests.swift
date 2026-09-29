@@ -203,6 +203,21 @@ struct DocumentSentTests {
         #expect(pat.lastMessageSentAt == nil && sam.lastMessageSentAt == nil)
     }
 
+    // What the document's page and a client's document list do when a share
+    // sends the PDF: the switch's value decides.
+    @Test func aSavedDocumentsShareFollowsTheSwitch() {
+        let invoice = Proposal(operatorID: "op", client: pat)
+        invoice.invoiceNumber = "INV-1001"
+        context.insert(invoice)
+        let onSent = DocumentSent.shareHandler(for: invoice, in: context)
+        onSent(false)
+        #expect(invoice.invoiceStatus == .draft)
+        #expect(pat.lastMessageSentAt == nil)
+        onSent(true)
+        #expect(invoice.invoiceStatus == .sent)
+        #expect(pat.lastMessageSentAt != nil)
+    }
+
     // The builder's preview, before the document is saved: shared to the
     // client, they're awaiting now and the builder saves it as shared; an
     // internal copy, neither.
@@ -214,8 +229,9 @@ struct DocumentSentTests {
         #expect(sam.lastMessageSentAt == nil)
     }
 
-    // Sharing a paid invoice marks nothing, so its share sheet has no switch.
-    @Test func onlyAPaidInvoiceHasNoSwitch() {
+    // Sharing a paid invoice marks nothing (the share sheet shows no switch
+    // for it: screen code, checked on the simulator).
+    @Test func sharingCanMarkEverythingButAPaidInvoice() {
         #expect(!DocumentSent.shareCanMark(.paid))
         for status in [InvoiceStatus.proposal, .draft, .sent, .overdue] {
             #expect(DocumentSent.shareCanMark(status), "\(status)")

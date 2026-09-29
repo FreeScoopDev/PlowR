@@ -50,7 +50,8 @@ struct ProposalPreviewView: View {
                 }
         }
         .onAppear { prepareShareURL() }
-        // Sent to the client from the share sheet: they're awaiting a response.
+        // Sent to the client from the share sheet (Mark as Sent on): they're
+        // awaiting a response, and the builder saves it as shared.
         .sheet(isPresented: $showingShare) {
             if let url = shareURL {
                 DocumentShareView(url: url, status: isInvoice ? .draft : .proposal, clientName: client.name) { toClient in

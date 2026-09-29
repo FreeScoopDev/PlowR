@@ -163,13 +163,11 @@ struct EditClientView: View {
                 MessageComposer(recipients: [draft.phone], body: "") { _ in }
             }
         }
-        // Sent to the client from the share sheet: they're awaiting a response.
+        // Sent to the client from the share sheet (Mark as Sent on): they're
+        // awaiting a response.
         .sheet(item: $documentShare) { share in
-            DocumentShareView(url: share.url, status: share.proposal.invoiceStatus,
-                              clientName: share.proposal.clientName) { toClient in
-                DocumentSent.shared(share.proposal, toClient: toClient, in: modelContext)
-            }
-            .presentationDetents([.medium, .large])
+            DocumentShareView(url: share.url, document: share.proposal, in: modelContext)
+                .presentationDetents([.medium, .large])
         }
         .lookAroundViewer(isPresented: $showingLookAround, initialScene: lookAroundScene)
         .alert("Street View Unavailable", isPresented: $showingLookAroundUnavailable) {

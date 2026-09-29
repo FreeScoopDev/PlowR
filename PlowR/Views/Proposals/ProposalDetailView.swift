@@ -76,13 +76,12 @@ struct ProposalDetailView: View {
         .onChange(of: proposal.invoicePaidAt) { _, _ in generatePDF() }
         .onChange(of: proposal.invoiceSentAt) { _, _ in generatePDF() }
         .onChange(of: allProfiles) { _, _ in generatePDF() }
-        // Sent to the client from the share sheet: they're awaiting a response.
+        // Sent to the client from the share sheet (Mark as Sent on): they're
+        // awaiting a response.
         .sheet(isPresented: $showingShare) {
             if let url = shareURL {
-                DocumentShareView(url: url, status: proposal.invoiceStatus, clientName: proposal.clientName) { toClient in
-                    DocumentSent.shared(proposal, toClient: toClient, in: modelContext)
-                }
-                .presentationDetents([.medium, .large])
+                DocumentShareView(url: url, document: proposal, in: modelContext)
+                    .presentationDetents([.medium, .large])
             }
         }
         .sheet(isPresented: $showingReminder) {
