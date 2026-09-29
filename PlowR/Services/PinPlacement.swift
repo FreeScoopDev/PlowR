@@ -33,14 +33,55 @@ nonisolated enum PinPlacement {
         return AddressPin.exists(latitude: center.latitude, longitude: center.longitude) && distance <= streetDistance
     }
 
+    /// The address the map found where a moved pin is, offered on the pin
+    /// screen for the user to take (Use This Address; Joe's call). It
+    /// belongs to one spot: a move starts over, and a lookup's answer for a
+    /// spot the pin has since left is ignored, so a failed or late lookup
+    /// never offers the last spot's address.
+    nonisolated struct Suggestion: Equatable {
+        private(set) var spot: Pin?
+        private(set) var found: String?
+        var chosen = false
+
+        mutating func moved(to newSpot: Pin) {
+            self = Suggestion()
+            spot = newSpot
+        }
+
+        mutating func found(_ address: String, at lookedUp: Pin) {
+            guard lookedUp == spot else { return }
+            found = address.isEmpty ? nil : address
+            chosen = false
+        }
+
+        mutating func failed(at lookedUp: Pin) {
+            guard lookedUp == spot else { return }
+            found = nil
+            chosen = false
+        }
+
+        /// What's offered: the address found here, when it isn't `current`
+        /// written another way.
+        func offer(differentFrom current: String) -> String? {
+            guard let found, PinPlacement.differs(found, from: current) else { return nil }
+            return found
+        }
+    }
+
+    /// Two addresses differ beyond case, spaces and punctuation.
+    static func differs(_ a: String, from b: String) -> Bool {
+        func key(_ s: String) -> String { s.lowercased().filter { $0.isLetter || $0.isNumber } }
+        return key(a) != key(b)
+    }
+
     /// The address saved with a pin from the pin screen: the one the map
-    /// found there only if the user chose it (Use This Address), and never
-    /// for a pin set by hand, whose address the map couldn't find. Nil keeps
-    /// the client's. It used to be written on every move: a reformatted
-    /// version of the same address, or a neighbour's number.
-    static func addressToSave(hadPin: Bool, useFound: Bool, found: String) -> String? {
-        guard hadPin, useFound, !found.isEmpty else { return nil }
-        return found
+    /// found there only if the user chose it, and never for a pin set by
+    /// hand, whose address the map couldn't find. Nil keeps the client's. It
+    /// used to be written on every move: a reformatted version of the same
+    /// address, or a neighbour's number.
+    static func addressToSave(hadPin: Bool, suggestion: Suggestion, current: String) -> String? {
+        guard hadPin, suggestion.chosen else { return nil }
+        return suggestion.offer(differentFrom: current)
     }
 
     /// Whether Confirm saves anything. A pin being adjusted saves only if it
@@ -57,8 +98,10 @@ nonisolated enum PinPlacement {
         var originalPin: Pin
         /// A picked suggestion's pin: typing drops it.
         var pickedPin: Pin?
-        /// A pin set by hand for a client who had none: typing keeps it, as
-        /// the address the map couldn't find is often still being fixed.
+        /// A pin from the pin screen, the client's address kept, that Save
+        /// pairs with what's typed: one set for a client who had none, or
+        /// one moved after a new address was typed. Typing keeps it, as the
+        /// address is often still being fixed.
         var handPin: Pin?
 
         /// The pin Save writes with a changed address, instead of looking it
@@ -80,14 +123,20 @@ nonisolated enum PinPlacement {
         guard storedPin != field.originalPin || storedAddress != field.original else { return field }  // cancelled
         var next = field
         next.originalPin = storedPin
-        if !field.originalPin.exists, storedAddress == field.original {
-            // A pin set by hand for a client who had none. The address stays
-            // as typed, and Save writes it with this pin.
-            next.handPin = storedPin
+        if storedAddress == field.original {
+            // A pin set or moved by hand, the client's address kept: the
+            // field keeps what's typed. Save writes it with this pin when
+            // the pin was set for a client who had none (the map couldn't
+            // find their address) or moved after a new address was typed.
+            // A pin only nudged leaves an address typed later to be looked
+            // up, as any changed address is.
+            let typedFirst = field.text != field.original
+            next.handPin = typedFirst || !field.originalPin.exists ? storedPin : nil
             next.pickedPin = nil
             return next
         }
-        // A pin moved, and the address the pin screen took with it.
+        // The pin screen saved the address the map found there (Use This
+        // Address): the field takes it.
         next.original = storedAddress
         next.text = storedAddress
         next.pickedPin = nil
