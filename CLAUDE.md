@@ -124,8 +124,9 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   the control whenever the data changes. "Seen" is a stand-in:
   the route screen was up with the app in front, not proof that anyone
   looked. Only a business (`userRole == "operator"`) completes stops from
-  outside. Only Notify Next Client still needs the route screen
-  (`RouteSessionManager`).
+  outside. Siri's Notify Next Client only opens a text to the current
+  stop's client and completes nothing (`NotifyNextAction`); the route screen
+  opens it from `RouteSessionManager.textStopID`.
 - **A control that acts in the app needs its intent in both targets.**
   Control Center's `CompleteStopControlIntent` is compiled into the app and
   the widget extension, with `openAppWhenRun`, so the system runs it in the

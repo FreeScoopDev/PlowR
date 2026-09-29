@@ -33,6 +33,9 @@ struct ActiveRouteView: View {
     @State private var recorderStop: RouteStop?
     @State private var showingMassMessage = false
     @State private var showingFirstStopPrompt = false
+    /// Siri's "Notify next client": a text to this stop's client, completing
+    /// nothing (NotifyNextAction).
+    @State private var textOnlyStop: RouteStop?
     /// The stop that was current when the notify prompt opened. Advancing
     /// completes that stop only; if sync has changed it meanwhile, nothing is
     /// recorded (ActiveRouteStore.CompletionResult.stopChanged).
@@ -70,7 +73,7 @@ struct ActiveRouteView: View {
     /// A sheet, dialog or other alert is up on this screen. A new one must be
     /// added here, or Control Center's message can try to show over it.
     private var isPresentingSomething: Bool {
-        showingFirstStopPrompt || showingNotifyPrompt || recorderStop != nil || showingMassMessage
+        showingFirstStopPrompt || showingNotifyPrompt || textOnlyStop != nil || recorderStop != nil || showingMassMessage
             || showingRouteRecap || showingNavPicker || showingRouteChangedAlert || showingLocationDeniedAlert
     }
 
@@ -122,15 +125,15 @@ struct ActiveRouteView: View {
             // Built with the app in the background (a location relaunch), it
             // hasn't been seen: that waits for the app to come to the front.
             if scenePhase == .active { store.markCurrentStopSeen() }
-            RouteSessionManager.shared.onNotifyNext = { openNotifyPrompt() }
+            openRequestedText()
         }
         .onDisappear {
             // Stops GPS for this screen only. The route itself carries on: only
             // End Route (store.end()) finishes it.
             locationManager.stopTracking()
-            RouteSessionManager.shared.onNotifyNext = nil
             // Said about this route: not for the next one.
             RouteSessionManager.shared.completeStopMessage = nil
+            RouteSessionManager.shared.textStopID = nil
         }
         .task(id: currentStopIndex) {
             etaMinutes = nil
@@ -160,7 +163,13 @@ struct ActiveRouteView: View {
             locationManager.lastExitedRegionID = nil
             triggerNotifyPrompt()
         }
+        // Siri's "Notify next client", once nothing else is up.
+        .onChange(of: RouteSessionManager.shared.textStopID) { _, _ in openRequestedText() }
+        .onChange(of: isPresentingSomething) { _, _ in openRequestedText() }
         // Each sheet, dialog and alert on this screen is in isPresentingSomething.
+        .sheet(item: $textOnlyStop) { stop in
+            NotifyPromptView(stop: stop, locationManager: locationManager, onAdvance: {})
+        }
         .sheet(isPresented: $showingFirstStopPrompt) {
             if let first = sortedStops.first {
                 NotifyPromptView(
@@ -768,7 +777,16 @@ struct ActiveRouteView: View {
         openNotifyPrompt()
     }
 
-    /// Siri's "Notify next client" and the Complete button both land here.
+    /// Opens the text Siri asked for, when nothing else is up. Only a stop on
+    /// this route: one Siri named for another is dropped.
+    private func openRequestedText() {
+        guard let id = RouteSessionManager.shared.textStopID, !isPresentingSomething else { return }
+        RouteSessionManager.shared.textStopID = nil
+        guard let stop = sortedStops.first(where: { $0.id == id }) else { return }
+        textOnlyStop = stop
+    }
+
+    /// The Complete button and leaving a stop's geofence land here.
     private func openNotifyPrompt() {
         guard let next = nextStop, !showingNotifyPrompt else { return }
         promptStopID = currentStop?.id

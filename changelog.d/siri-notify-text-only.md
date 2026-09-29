@@ -1,0 +1,2 @@
+### Changed
+- **Siri's "Notify next client" only opens a text, to the client you're driving to, and marks nothing complete.** It used to open the route screen's prompt, whose Send and Skip also mark the current stop done: said after "Complete current stop", it offered to text the client after next and marked a stop not yet reached as done. Say "Complete current stop" first, then "Notify next client". It also works now when PlowR wasn't already showing the route.
