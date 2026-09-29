@@ -1,9 +1,14 @@
 import Foundation
 import WidgetKit
 
-/// Data written by the main app into the shared App Group container
-/// and read by the PlowRWidgets extension to power the Today's Route widget.
-struct TodayRouteWidgetData: Codable {
+/// Today's route as the home-screen widget shows it: written by the app into
+/// the shared app group, read by the PlowRWidgets extension. This file is
+/// compiled into both targets, so they can't disagree about the fields. The
+/// widget used to declare its own copy, and renaming a field here would have
+/// turned it into "No Active Route" with nothing to catch it.
+///
+/// `nonisolated`: plain values, read by the widget's timeline provider.
+nonisolated struct TodayRouteWidgetData: Codable, Equatable {
     var routeName: String = ""
     var totalStops: Int = 0
     var completedStops: Int = 0
@@ -11,6 +16,19 @@ struct TodayRouteWidgetData: Codable {
     var nextStopAddress: String = ""
     var isActive: Bool = false
     var lastUpdated: Date = .distantPast
+
+    var hasData: Bool { totalStops > 0 }
+    /// The route was ended with every stop done.
+    var isComplete: Bool { !isActive && completedStops == totalStops && totalStops > 0 }
+    var progress: Double { totalStops > 0 ? min(1, Double(completedStops) / Double(totalStops)) : 0 }
+
+    /// "Stop 4 of 8", or once every stop is done, "All 8 stops done". After the
+    /// last stop it read "Stop 9 of 8" until the route was ended.
+    var stopLine: String {
+        if totalStops == 0 { return "No stops" }
+        if completedStops >= totalStops { return "All \(totalStops) stops done" }
+        return "Stop \(completedStops + 1) of \(totalStops)"
+    }
 }
 
 enum WidgetDataStore {
