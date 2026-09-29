@@ -35,8 +35,12 @@ struct EditClientView: View {
     @State private var tags: [String]
     @State private var newTag = ""
     @State private var geocodedCoordinate: CLLocationCoordinate2D?
-    /// A pin set by hand for a client who had none (PinPlacement.Field).
+    /// A pin from the pin screen that Save pairs with the typed address
+    /// (PinPlacement.Field.handPin).
     @State private var handPin: PinPlacement.Pin?
+    /// The address taken from the map on the pin screen, until the sheet
+    /// closes (PinPlacement.field).
+    @State private var addressChosenOnPinScreen: String?
     @State private var isSaving = false
     @State private var showingPropertyScanner = false
     @State private var addressCompleter = AddressCompleter()
@@ -110,17 +114,22 @@ struct EditClientView: View {
         .navigationTitle(name.isEmpty ? "Client" : name)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(isSaving)
-        .addressLookupAlert($lookupProblem) {
-            // The old pin marked the old address: keeping it put the client
-            // at their old house on every map and route.
+        .addressLookupAlert($lookupProblem, saveWithoutPin: {
+            // A client with no pin yet: saved without one.
             client.address = lookedUpAddress
             client.latitude = 0
             client.longitude = 0
             ClientStops.update(for: client)
             dismiss()
-        } tryAgain: {
+        }, tryAgain: {
             saveChanges()
-        }
+        }, keepCurrentPin: AddressPin.exists(latitude: client.latitude, longitude: client.longitude) ? {
+            // The new address with the pin the client has (a corrected spelling
+            // of the same house, say); Adjust Pin moves it if it's a new place.
+            client.address = lookedUpAddress
+            ClientStops.update(for: client)
+            dismiss()
+        } : nil)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 if isSaving {
@@ -132,11 +141,13 @@ struct EditClientView: View {
             }
         }
         .sheet(isPresented: $showingPropertyScanner, onDismiss: takePinFromClient) {
-            PropertyScannerView(client: client)
+            PropertyScannerView(client: client, pendingAddress: pendingAddress, startingPin: pendingPin,
+                                onAddressChosen: { addressChosenOnPinScreen = $0 })
         }
         .sheet(isPresented: $showingLocationAdjust, onDismiss: takePinFromClient) {
             NavigationStack {
-                LocationAdjustView(client: client)
+                LocationAdjustView(client: client, pendingAddress: pendingAddress, startingPin: pendingPin,
+                                   onAddressChosen: { addressChosenOnPinScreen = $0 })
             }
         }
         .sheet(item: $editingProposal) { proposal in
@@ -1043,18 +1054,27 @@ struct EditClientView: View {
 
     // MARK: - Save
 
+    /// A new address typed here and not saved yet, and its pin (picked, or
+    /// set by hand): the pin screens show that address and open at that pin.
+    private var pendingAddress: String? { address != originalAddress ? address : nil }
+    private var pendingPin: PinPlacement.Pin? {
+        geocodedCoordinate.map { .init(latitude: $0.latitude, longitude: $0.longitude) } ?? handPin
+    }
+
     /// Adjust Pin and the property scanner's Move Pin save the client's pin,
     /// and the address there, themselves; this screen takes them. Save used
     /// to write back the address it opened with, and could look an address
-    /// typed before up again over the pin just set by hand. A pin set for a
-    /// client who had none keeps what was typed (PinPlacement.field).
+    /// typed before up again over the pin just set by hand. Which pins keep
+    /// what was typed: PinPlacement.field.
     private func takePinFromClient() {
         let before = PinPlacement.Field(
             text: address, original: originalAddress, originalPin: originalPin,
             pickedPin: geocodedCoordinate.map { .init(latitude: $0.latitude, longitude: $0.longitude) },
             handPin: handPin)
         let after = PinPlacement.field(before, afterPinSheetWith: client.address,
-                                       .init(latitude: client.latitude, longitude: client.longitude))
+                                       .init(latitude: client.latitude, longitude: client.longitude),
+                                       chosen: addressChosenOnPinScreen)
+        addressChosenOnPinScreen = nil
         originalPin = after.originalPin
         originalAddress = after.original
         address = after.text

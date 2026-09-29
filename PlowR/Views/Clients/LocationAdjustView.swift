@@ -5,6 +5,10 @@ import CoreLocation
 
 struct LocationAdjustView: View {
     let client: Client
+    /// The address the user took from the map (Use This Address), told to
+    /// the screen that opened this one, since the client's saved address
+    /// can't show a choice of the one it already had.
+    let onAddressChosen: ((String) -> Void)?
     let onSave: ((CLLocationCoordinate2D, String) -> Void)?
 
     @Environment(\.dismiss) private var dismiss
@@ -13,8 +17,9 @@ struct LocationAdjustView: View {
     @State private var cameraPosition: MapCameraPosition
     @State private var centerCoordinate: CLLocationCoordinate2D
     @State private var cameraDistance: Double
-    @State private var resolvedAddress: String
-    @State private var isGeocoding = false
+    /// The address the map found where the pin is, to take or leave.
+    @State private var suggestion = PinPlacement.Suggestion()
+    @State private var lookup: Task<Void, Never>?
     /// The map was moved from the pin it opened on. Only then is anything
     /// saved: opening the screen looked the pin's address up again, and
     /// Confirm wrote that back over the client's.
@@ -24,19 +29,33 @@ struct LocationAdjustView: View {
     /// or around the business's other clients, not at 0,0 in the ocean.
     private let hadPin: Bool
     private let openedAt: CLLocationCoordinate2D
+    private let opensOnPin: Bool
+    /// An address typed on the client's page and not saved yet: the one
+    /// kept with the pin unless the user takes the map's.
+    private let pendingAddress: String?
 
-    init(client: Client, onSave: ((CLLocationCoordinate2D, String) -> Void)? = nil) {
+    /// `startingPin` is where a pin for `pendingAddress` already is (a picked
+    /// address suggestion's), so the map opens at the new house, not the
+    /// old one.
+    init(client: Client, pendingAddress: String? = nil, startingPin: PinPlacement.Pin? = nil,
+         onAddressChosen: ((String) -> Void)? = nil,
+         onSave: ((CLLocationCoordinate2D, String) -> Void)? = nil) {
         self.client = client
+        self.pendingAddress = pendingAddress
+        self.onAddressChosen = onAddressChosen
         self.onSave = onSave
-        let coord = CLLocationCoordinate2D(latitude: client.latitude, longitude: client.longitude)
-        hadPin = AddressPin.exists(latitude: coord.latitude, longitude: coord.longitude)
-        openedAt = coord
-        _cameraPosition = State(initialValue: hadPin
-            ? .camera(MapCamera(centerCoordinate: coord, distance: 80)) : .automatic)
-        _centerCoordinate = State(initialValue: coord)
-        _cameraDistance = State(initialValue: hadPin ? 80 : .infinity)
-        _resolvedAddress = State(initialValue: client.address)
+        hadPin = AddressPin.exists(latitude: client.latitude, longitude: client.longitude)
+        let start = startingPin.map(\.coordinate)
+            ?? CLLocationCoordinate2D(latitude: client.latitude, longitude: client.longitude)
+        opensOnPin = AddressPin.exists(latitude: start.latitude, longitude: start.longitude)
+        openedAt = start
+        _cameraPosition = State(initialValue: opensOnPin
+            ? .camera(MapCamera(centerCoordinate: start, distance: 80)) : .automatic)
+        _centerCoordinate = State(initialValue: start)
+        _cameraDistance = State(initialValue: opensOnPin ? 80 : .infinity)
     }
+
+    private var keptAddress: String { pendingAddress ?? client.address }
 
     /// Where a pinless client's map starts when the user's location isn't
     /// known: around the business's other clients.
@@ -48,8 +67,7 @@ struct LocationAdjustView: View {
     }
 
     private var canConfirm: Bool {
-        PinPlacement.canConfirm(hadPin: hadPin, center: centerCoordinate, distance: cameraDistance,
-                                isLookingUp: isGeocoding)
+        PinPlacement.canConfirm(hadPin: hadPin, center: centerCoordinate, distance: cameraDistance)
     }
 
     var body: some View {
@@ -70,12 +88,15 @@ struct LocationAdjustView: View {
                 centerCoordinate = context.camera.centerCoordinate
                 cameraDistance = context.camera.distance
                 if PinPlacement.moved(from: openedAt, to: centerCoordinate) { moved = true }
-                // A pin set by hand keeps the address as typed (the map
-                // couldn't find it): nothing to look up.
-                if hadPin, moved { reverseGeocode(centerCoordinate) }
+                // Only a pin being adjusted is looked up: one set by hand
+                // keeps the address as typed (the map couldn't find it).
+                let center = PinPlacement.Pin(latitude: centerCoordinate.latitude, longitude: centerCoordinate.longitude)
+                if hadPin, moved, suggestion.needsLookup(at: center) {
+                    lookUpAddress(at: center)
+                }
             }
             .onAppear {
-                guard !hadPin else { return }
+                guard !opensOnPin else { return }
                 cameraPosition = .userLocation(fallback: otherClientsRegion.map { .region($0) } ?? .automatic)
             }
             .navigationTitle(hadPin ? "Adjust Location" : "Set Location")
@@ -114,15 +135,33 @@ struct LocationAdjustView: View {
     private var confirmationPanel: some View {
         VStack(spacing: 12) {
             HStack(alignment: .top, spacing: 10) {
-                Image(systemName: isGeocoding ? "arrow.triangle.2.circlepath" : "mappin.circle.fill")
-                    .foregroundStyle(isGeocoding ? Color(.secondaryLabel) : Color.blue)
-                    .symbolEffect(.rotate, isActive: isGeocoding)
+                Image(systemName: suggestion.isLookingUp ? "arrow.triangle.2.circlepath" : "mappin.circle.fill")
+                    .foregroundStyle(suggestion.isLookingUp ? Color(.secondaryLabel) : Color.blue)
+                    .symbolEffect(.rotate, isActive: suggestion.isLookingUp)
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(isGeocoding ? "Finding address…" : (resolvedAddress.isEmpty ? "Unknown location" : resolvedAddress))
+                    // The address that's kept, unless the user takes the one
+                    // the map found here.
+                    let offered = suggestion.offer(differentFrom: keptAddress)
+                    Text(suggestion.chosen ? (offered ?? keptAddress)
+                         : (keptAddress.isEmpty ? "No address" : keptAddress))
                         .font(.subheadline.weight(.medium))
-                        .foregroundStyle(isGeocoding ? .secondary : .primary)
-                        .animation(.easeInOut(duration: 0.2), value: resolvedAddress)
+                        .animation(.easeInOut(duration: 0.2), value: suggestion.chosen)
+                    if suggestion.isLookingUp {
+                        Text("Finding the address here…")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else if let offered {
+                        HStack(spacing: 6) {
+                            Text("The map shows \(offered) here.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Button(suggestion.chosen ? "Keep Client's Address" : "Use This Address") {
+                                suggestion.chosen.toggle()
+                            }
+                            .font(.caption.weight(.semibold))
+                        }
+                    }
                     Text(hint)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -145,27 +184,30 @@ struct LocationAdjustView: View {
         .background(.regularMaterial)
     }
 
-    private func reverseGeocode(_ coord: CLLocationCoordinate2D) {
-        isGeocoding = true
-        Task {
-            let geocoder = CLGeocoder()
-            let location = CLLocation(latitude: coord.latitude, longitude: coord.longitude)
-            if let placemark = try? await geocoder.reverseGeocodeLocation(location).first {
-                var parts: [String] = []
-                if let number = placemark.subThoroughfare { parts.append(number) }
-                if let street = placemark.thoroughfare { parts.append(street) }
-                if let city = placemark.locality { parts.append(city) }
-                if let state = placemark.administrativeArea { parts.append(state) }
-                if let zip = placemark.postalCode { parts.append(zip) }
-                let address = parts.joined(separator: " ")
-                await MainActor.run {
-                    resolvedAddress = address.isEmpty ? client.address : address
-                    isGeocoding = false
-                }
+    /// Looks up the address at `spot`. A newer move cancels an older lookup,
+    /// and the suggestion ignores an answer for a spot the pin has left.
+    private func lookUpAddress(at spot: PinPlacement.Pin) {
+        lookup?.cancel()
+        suggestion.moved(to: spot)
+        lookup = Task {
+            let address = await Self.address(at: spot)
+            guard !Task.isCancelled else { return }
+            if let address {
+                suggestion.found(address, at: spot)
             } else {
-                await MainActor.run { isGeocoding = false }
+                suggestion.failed(at: spot)
             }
         }
+    }
+
+    /// The map's address for `spot`, "12 Old Rd, Claremont, NH  03743"
+    /// (seen on macOS 26, 2026-09-29), or nil. It used CLGeocoder,
+    /// deprecated in iOS 26, as AddressPin.lookUp did.
+    private static func address(at spot: PinPlacement.Pin) async -> String? {
+        let location = CLLocation(latitude: spot.latitude, longitude: spot.longitude)
+        guard let request = MKReverseGeocodingRequest(location: location) else { return nil }
+        let items = try? await request.mapItems
+        return items?.first?.addressRepresentations?.fullAddress(includingRegion: false, singleLine: true)
     }
 
     private var hint: String {
@@ -177,18 +219,17 @@ struct LocationAdjustView: View {
 
     private func saveAndDismiss() {
         guard PinPlacement.saves(moved: moved, hadPin: hadPin) else { return dismiss() }
+        let address = PinPlacement.addressToSave(hadPin: hadPin, suggestion: suggestion, current: keptAddress)
+        if let address { onAddressChosen?(address) }
         if let onSave {
-            // Caller handles the update (e.g. PropertyScannerView before zones are saved)
-            onSave(centerCoordinate, resolvedAddress)
+            // Caller handles the update (e.g. PropertyScannerView before zones
+            // are saved); it keeps the client's address when given none.
+            onSave(centerCoordinate, address ?? "")
         } else {
             // Direct SwiftData model update (EditClientView path)
             client.latitude = centerCoordinate.latitude
             client.longitude = centerCoordinate.longitude
-            // A pin set by hand is for an address the map couldn't find: the
-            // nearest address it knows would replace the one the user typed.
-            if hadPin, !resolvedAddress.isEmpty {
-                client.address = resolvedAddress
-            }
+            if let address { client.address = address }
             ClientStops.update(for: client)
         }
         dismiss()
