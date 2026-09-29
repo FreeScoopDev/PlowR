@@ -33,6 +33,8 @@ struct WidgetDataTests {
         #expect(data.nextStopName.isEmpty)
         #expect(data.progress == 1)
         #expect(!data.isComplete)
+        // Never past full, even if a count runs ahead.
+        #expect(TodayRouteWidgetData(totalStops: 2, completedStops: 3, isActive: true).progress == 1)
     }
 
     @Test func anEndedRouteIsComplete() {
@@ -45,12 +47,16 @@ struct WidgetDataTests {
         #expect(TodayRouteWidgetData(isActive: true).stopLine == "No stops")
     }
 
-    // The widget decodes the same type from the same suite and key.
-    @Test func theWidgetReadsWhatTheAppWrites() {
+    // What's written reads back the same. That the widget reads it is now
+    // guaranteed by both targets compiling this one type, not by this test.
+    // Whatever the simulator's app had there is put back afterwards.
+    @Test func writingThenReadingRoundTrips() {
+        let defaults = UserDefaults(suiteName: WidgetDataStore.suiteName)
+        let before = defaults?.data(forKey: WidgetDataStore.key)
+        defer { defaults?.set(before, forKey: WidgetDataStore.key) }
         let written = SystemRouteSurfaces.widgetData(progress(done: 2, of: 5), isActive: true,
                                                      now: Date(timeIntervalSince1970: 1_800_000_000))
         WidgetDataStore.write(written)
-        defer { WidgetDataStore.clear() }
         #expect(WidgetDataStore.read() == written)
     }
 }

@@ -15,6 +15,11 @@ extension TodayRouteWidgetData {
         isActive: true,
         lastUpdated: Date()
     )
+
+    /// Every stop done, the route not ended yet.
+    static let allDone = TodayRouteWidgetData(routeName: "Monday Route", totalStops: 8, completedStops: 8, isActive: true)
+    /// Ended.
+    static let ended = TodayRouteWidgetData(routeName: "Monday Route", totalStops: 8, completedStops: 8, isActive: false)
 }
 
 // MARK: - Timeline Entry
@@ -84,9 +89,11 @@ struct PlowRWidgetEntryView: View {
                 ProgressView(value: entry.data.progress)
                     .tint(.blue)
                     .padding(.vertical, 5)
-                Text(entry.data.nextStopName)
-                    .font(.caption.weight(.medium))
-                    .lineLimit(1)
+                if !entry.data.nextStopName.isEmpty {
+                    Text(entry.data.nextStopName)
+                        .font(.caption.weight(.medium))
+                        .lineLimit(1)
+                }
             } else if entry.data.isComplete {
                 Spacer()
                 Image(systemName: "checkmark.circle.fill")
@@ -207,7 +214,7 @@ struct PlowRWidgetEntryView: View {
 // MARK: - Widget Definition
 
 struct PlowRTodayRouteWidget: Widget {
-    let kind: String = "PlowRTodayRoute"
+    let kind: String = WidgetDataStore.widgetKind
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: PlowRWidgetProvider()) { entry in
@@ -232,6 +239,24 @@ struct PlowRTodayRouteWidget: Widget {
     PlowRTodayRouteWidget()
 } timeline: {
     RouteEntry(date: .now, data: TodayRouteWidgetData())
+}
+
+#Preview("Small — All done", as: .systemSmall) {
+    PlowRTodayRouteWidget()
+} timeline: {
+    RouteEntry(date: .now, data: .allDone)
+}
+
+#Preview("Small — Route complete", as: .systemSmall) {
+    PlowRTodayRouteWidget()
+} timeline: {
+    RouteEntry(date: .now, data: .ended)
+}
+
+#Preview("Medium — All done", as: .systemMedium) {
+    PlowRTodayRouteWidget()
+} timeline: {
+    RouteEntry(date: .now, data: .allDone)
 }
 
 #Preview("Medium — Active", as: .systemMedium) {

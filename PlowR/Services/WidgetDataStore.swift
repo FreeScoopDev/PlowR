@@ -17,7 +17,6 @@ nonisolated struct TodayRouteWidgetData: Codable, Equatable {
     var isActive: Bool = false
     var lastUpdated: Date = .distantPast
 
-    var hasData: Bool { totalStops > 0 }
     /// The route was ended with every stop done.
     var isComplete: Bool { !isActive && completedStops == totalStops && totalStops > 0 }
     var progress: Double { totalStops > 0 ? min(1, Double(completedStops) / Double(totalStops)) : 0 }
@@ -32,14 +31,17 @@ nonisolated struct TodayRouteWidgetData: Codable, Equatable {
 }
 
 enum WidgetDataStore {
-    private static let suiteName = "group.com.Scoops.PlowR"
-    private static let key = "todayRoute"
+    static let suiteName = "group.com.Scoops.PlowR"
+    static let key = "todayRoute"
+    /// The widget's kind. The widget declares itself with it and the app
+    /// reloads it by it, so the two can't drift apart.
+    static let widgetKind = "PlowRTodayRoute"
 
     static func write(_ data: TodayRouteWidgetData) {
         if let encoded = try? JSONEncoder().encode(data) {
             UserDefaults(suiteName: suiteName)?.set(encoded, forKey: key)
         }
-        WidgetCenter.shared.reloadTimelines(ofKind: "PlowRTodayRoute")
+        WidgetCenter.shared.reloadTimelines(ofKind: widgetKind)
     }
 
     static func read() -> TodayRouteWidgetData? {
@@ -49,6 +51,6 @@ enum WidgetDataStore {
 
     static func clear() {
         UserDefaults(suiteName: suiteName)?.removeObject(forKey: key)
-        WidgetCenter.shared.reloadTimelines(ofKind: "PlowRTodayRoute")
+        WidgetCenter.shared.reloadTimelines(ofKind: widgetKind)
     }
 }
