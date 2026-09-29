@@ -100,7 +100,8 @@ struct RouteListView: View {
                 stopCopy.targetMinutes = stop.targetMinutes
                 stopCopy.route = copy
                 modelContext.insert(stopCopy)
-            } else if let client = allClients.first(where: { $0.id == stop.clientID }) {
+            } else if let client = allClients.first(where: { $0.id == stop.clientID }), client.isActive {
+                // A copy is a new route: inactive clients stay off it, as off every new route.
                 let stopCopy = RouteStop(order: index, client: client)
                 stopCopy.stopNotes = stop.stopNotes
                 stopCopy.equipmentNotes = stop.equipmentNotes
