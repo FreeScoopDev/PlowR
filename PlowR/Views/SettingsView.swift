@@ -17,6 +17,23 @@ struct SettingsView: View {
     @State private var showingDeleteConfirmation = false
     /// What Delete Account & Data couldn't remove, shown under the button.
     @State private var deleteFailures: [AccountEraser.Failure] = []
+    private let iCloud = ICloudStatus.shared
+
+    private var iCloudSymbol: String {
+        switch iCloud.summary.kind {
+        case .backedUp: return "icloud.fill"
+        case .unknown: return "icloud"
+        case .problem: return "icloud.slash"
+        }
+    }
+
+    private var iCloudTint: Color {
+        switch iCloud.summary.kind {
+        case .backedUp: return .blue
+        case .unknown: return .secondary
+        case .problem: return .orange
+        }
+    }
 
     var body: some View {
         Form {
@@ -52,14 +69,15 @@ struct SettingsView: View {
             }
 
             Section {
+                // It said "Backed Up" whatever iCloud's state (ICloudStatus).
                 HStack(alignment: .top, spacing: 12) {
-                    Image(systemName: "icloud.fill")
+                    Image(systemName: iCloudSymbol)
                         .font(.title2)
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(iCloudTint)
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Data Backed Up to iCloud")
+                        Text(iCloud.summary.title)
                             .font(.subheadline.weight(.semibold))
-                        Text("Your clients, routes, and documents sync automatically across your devices and are stored securely in your private iCloud account.")
+                        Text(iCloud.summary.message)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

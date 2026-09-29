@@ -39,7 +39,9 @@ struct PlowRApp: App {
         }
     }
 
-    // Readable by DashboardView to show a sync-unavailable warning banner.
+    // Whether the iCloud database opened at launch (ICloudStatus reads it).
+    // It opens fine for a user not signed in to iCloud: that's the account's
+    // status, which ICloudStatus asks CloudKit for.
     static private(set) var isCloudKitAvailable = true
 
     // True when the process is running under XCTest. Unit tests inject into the
@@ -60,10 +62,12 @@ struct PlowRApp: App {
             || NSClassFromString("XCTestCase") != nil
     }
 
+    static let iCloudContainer = "iCloud.com.Scoops.PlowR"
+
     /// The store, synced to iCloud. Unnamed like the local one, so both open
     /// the same file: the app-group container on a signed build.
     static func cloudConfiguration(for schema: Schema) -> ModelConfiguration {
-        ModelConfiguration(schema: schema, cloudKitDatabase: .private("iCloud.com.Scoops.PlowR"))
+        ModelConfiguration(schema: schema, cloudKitDatabase: .private(iCloudContainer))
     }
 
     /// The same store without an explicit iCloud database.
