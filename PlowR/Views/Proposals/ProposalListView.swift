@@ -230,7 +230,7 @@ struct ProposalListView: View {
             }
         } else if proposal.invoiceStatus == .sent || proposal.invoiceStatus == .overdue {
             Button {
-                proposal.invoicePaidAt = Date()
+                DocumentSent.markPaid(proposal, in: modelContext)
             } label: {
                 Label("Mark Paid", systemImage: "checkmark.seal.fill")
             }

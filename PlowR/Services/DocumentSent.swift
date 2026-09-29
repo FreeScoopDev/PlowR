@@ -24,10 +24,55 @@ enum DocumentSent {
     }
 
     /// A document shared to someone (`isSend`): its client is awaiting a
-    /// response. Not for a paid invoice: that's a receipt, nothing is owed.
+    /// response. A draft invoice shared is sent (Joe's call: it used to stay
+    /// a draft, with no due date). Not for a paid invoice: that's a receipt,
+    /// nothing is owed.
     static func shared(_ proposal: Proposal, in context: ModelContext, now: Date = .now) {
-        guard proposal.invoiceStatus != .paid else { return }
-        awaitResponse(clientID: proposal.clientID, in: context, now: now)
+        switch proposal.invoiceStatus {
+        case .paid: return
+        case .draft: markSent(proposal, in: context, now: now)
+        default: awaitResponse(clientID: proposal.clientID, in: context, now: now)
+        }
+    }
+
+    /// Marks an invoice paid now. A payment is the client's response, so it
+    /// ends "Awaiting Response" (Joe's call).
+    static func markPaid(_ proposal: Proposal, in context: ModelContext, now: Date = .now) {
+        proposal.invoicePaidAt = now
+        let id = proposal.clientID
+        guard let client = try? context.fetch(FetchDescriptor<Client>()).first(where: { $0.id.uuidString == id }),
+              client.lastMessageSentAt != nil else { return }
+        client.clientRespondedAt = now
+    }
+
+    /// Whether a document the builder saves is the one its preview shared:
+    /// the same document (going back to the form builds a new one), still
+    /// with the number the client saw (saving renumbers it if another
+    /// invoice took that number meanwhile). Only then is it saved as shared.
+    static func wasSharedBeforeSave(_ proposal: Proposal, sharedID: UUID?, sharedNumber: String) -> Bool {
+        proposal.id == sharedID && proposal.invoiceNumber == sharedNumber
+    }
+
+    /// Saves a document the builder made; `sharedID` and `sharedNumber` are
+    /// what its preview shared, if anything. In this order: the invoice's
+    /// number is confirmed before it's inserted (inserted, it would count as
+    /// taking its own number), and whether it's the one shared is decided
+    /// after, since a renumbered invoice isn't the one the client has.
+    static func saveBuilt(_ proposal: Proposal, sharedID: UUID?, sharedNumber: String,
+                          in context: ModelContext, now: Date = .now) {
+        // Numbered when built, so the preview shows it. If another invoice has
+        // taken that number since (synced from another device), take the next.
+        if proposal.isInvoice {
+            proposal.invoiceNumber = InvoiceNumbering.confirmed(proposal.invoiceNumber,
+                                                                operatorID: proposal.operatorID, in: context)
+        }
+        // Insert items first so the cascade inverse relationship doesn't double-insert them
+        for item in (proposal.lineItems ?? []) { context.insert(item) }
+        proposal.lineItems = proposal.lineItems   // re-affirm relationship after explicit inserts
+        context.insert(proposal)
+        if wasSharedBeforeSave(proposal, sharedID: sharedID, sharedNumber: sharedNumber) {
+            shared(proposal, in: context, now: now)
+        }
     }
 
     /// Whether finishing the share sheet with `activity` sent the document

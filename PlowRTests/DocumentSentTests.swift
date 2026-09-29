@@ -65,6 +65,109 @@ struct DocumentSentTests {
         #expect(pat.lastMessageSentAt == nil)
     }
 
+    // Joe's call: a draft invoice shared to someone is sent, due date and all.
+    @Test func sharingADraftInvoiceMarksItSent() {
+        let invoice = Proposal(operatorID: "op", client: pat)
+        invoice.invoiceNumber = "INV-1001"
+        context.insert(invoice)
+        DocumentSent.shared(invoice, in: context, now: now)
+        #expect(invoice.invoiceSentAt == now)
+        #expect(invoice.invoiceDueDate == now.addingTimeInterval(30 * 86_400))
+        #expect(pat.lastMessageSentAt == now)
+    }
+
+    @Test func sharingASentInvoiceAgainKeepsItsDates() {
+        let invoice = Proposal(operatorID: "op", client: pat)
+        invoice.invoiceNumber = "INV-1001"
+        let sent = now.addingTimeInterval(-5 * 86_400)
+        invoice.invoiceSentAt = sent
+        invoice.invoiceDueDate = sent.addingTimeInterval(30 * 86_400)
+        context.insert(invoice)
+        DocumentSent.shared(invoice, in: context, now: now)
+        #expect(invoice.invoiceSentAt == sent)
+        #expect(invoice.invoiceDueDate == sent.addingTimeInterval(30 * 86_400))
+        #expect(pat.lastMessageSentAt == now)
+    }
+
+    // A payment is the client's response to the invoice they were awaiting on.
+    @Test func payingTheInvoiceTheyWereAwaitingEndsIt() {
+        let invoice = Proposal(operatorID: "op", client: pat)
+        invoice.invoiceNumber = "INV-1001"
+        context.insert(invoice)
+        let sent = now.addingTimeInterval(-2 * 86_400)
+        DocumentSent.markSent(invoice, in: context, now: sent)
+        DocumentSent.markPaid(invoice, in: context, now: now)
+        #expect(invoice.invoicePaidAt == now)
+        #expect(pat.clientRespondedAt == now)
+    }
+
+    // The usual way out: Mark Sent, then the PDF shared, then paid.
+    @Test func payingAfterMarkSentAndShareEndsIt() {
+        let invoice = Proposal(operatorID: "op", client: pat)
+        invoice.invoiceNumber = "INV-1001"
+        context.insert(invoice)
+        DocumentSent.markSent(invoice, in: context, now: now.addingTimeInterval(-5 * 86_400))
+        DocumentSent.shared(invoice, in: context, now: now.addingTimeInterval(-86_400))
+        DocumentSent.markPaid(invoice, in: context, now: now)
+        #expect(pat.clientRespondedAt == now)
+    }
+
+    // A proposal shared isn't an invoice sent: no sent date or due date.
+    @Test func sharingAProposalLeavesItAProposal() {
+        let proposal = Proposal(operatorID: "op", client: pat)
+        context.insert(proposal)
+        DocumentSent.shared(proposal, in: context, now: now)
+        #expect(proposal.invoiceSentAt == nil)
+        #expect(proposal.invoiceDueDate == nil)
+        #expect(pat.lastMessageSentAt == now)
+    }
+
+    // The builder saves a document as shared only if it's the one its
+    // preview shared, with the number the client saw.
+    @Test func onlyTheDocumentThePreviewSharedIsSavedAsShared() {
+        let shared = Proposal(operatorID: "op", client: pat)
+        shared.invoiceNumber = "INV-0012"
+        #expect(DocumentSent.wasSharedBeforeSave(shared, sharedID: shared.id, sharedNumber: "INV-0012"))
+        let rebuilt = Proposal(operatorID: "op", client: pat)   // Back, edits, Save Draft
+        rebuilt.invoiceNumber = "INV-0012"
+        #expect(!DocumentSent.wasSharedBeforeSave(rebuilt, sharedID: shared.id, sharedNumber: "INV-0012"))
+        shared.invoiceNumber = "INV-0013"                      // renumbered at save
+        #expect(!DocumentSent.wasSharedBeforeSave(shared, sharedID: shared.id, sharedNumber: "INV-0012"))
+        #expect(!DocumentSent.wasSharedBeforeSave(shared, sharedID: nil, sharedNumber: ""))
+    }
+
+    // Saved from the builder: an invoice whose number another took while
+    // its preview was up is saved with the next number, as a draft (the
+    // client has the old number); otherwise the shared invoice is saved sent.
+    @Test func aSharedInvoiceRenumberedAtSaveStaysADraft() throws {
+        let built = Proposal(operatorID: "op", client: pat)   // built for the preview, not inserted
+        built.invoiceNumber = "INV-0012"
+        let other = Proposal(operatorID: "op", client: sam)   // synced in meanwhile, with that number
+        other.invoiceNumber = "INV-0012"
+        context.insert(other)
+        DocumentSent.saveBuilt(built, sharedID: built.id, sharedNumber: "INV-0012", in: context, now: now)
+        #expect(built.invoiceNumber == "INV-0013")
+        #expect(built.invoiceSentAt == nil)
+        #expect(built.modelContext != nil)
+
+        let next = Proposal(operatorID: "op", client: pat)
+        next.invoiceNumber = "INV-0014"
+        DocumentSent.saveBuilt(next, sharedID: next.id, sharedNumber: "INV-0014", in: context, now: now)
+        #expect(next.invoiceNumber == "INV-0014")
+        #expect(next.invoiceSentAt == now)
+    }
+
+    @Test func payingWithNothingAwaitedChangesOnlyTheInvoice() {
+        let invoice = Proposal(operatorID: "op", client: pat)
+        invoice.invoiceNumber = "INV-1001"
+        invoice.invoiceSentAt = now.addingTimeInterval(-86_400)
+        context.insert(invoice)
+        DocumentSent.markPaid(invoice, in: context, now: now)
+        #expect(invoice.invoicePaidAt == now)
+        #expect(pat.clientRespondedAt == nil)
+        #expect(pat.lastMessageSentAt == nil)
+    }
+
     // A paid invoice shared is a receipt: nothing is owed or awaited.
     @Test func aPaidInvoiceSharedAwaitsNothing() {
         let invoice = Proposal(operatorID: "op", client: pat)

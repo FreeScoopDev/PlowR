@@ -154,7 +154,7 @@ struct ProposalDetailView: View {
                 }
 
                 Button {
-                    proposal.invoicePaidAt = Date()
+                    DocumentSent.markPaid(proposal, in: modelContext)
                     generatePDF()
                 } label: {
                     Label("Mark Paid", systemImage: "checkmark.seal.fill")
