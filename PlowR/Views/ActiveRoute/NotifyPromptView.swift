@@ -107,7 +107,13 @@ struct NotifyPromptView: View {
             estimatedMinutes = await locationManager.calculateETA(to: stop)
         }
         .sheet(isPresented: $showingMessageComposer) {
-            MessageComposer(recipients: [stop.clientPhone], body: fullMessage) {
+            MessageComposer(recipients: [stop.clientPhone], body: fullMessage) { outcome in
+                // Cancelled or failed: back to this prompt, where Skip moves on
+                // without a text. It used to move on as if the text had gone.
+                guard outcome == .sent else {
+                    showingMessageComposer = false
+                    return
+                }
                 onAdvance()
                 dismiss()
             }

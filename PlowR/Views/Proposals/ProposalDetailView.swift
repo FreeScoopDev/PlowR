@@ -80,7 +80,7 @@ struct ProposalDetailView: View {
         .onChange(of: allProfiles) { _, _ in generatePDF() }
         .sheet(isPresented: $showingReminder) {
             if let phone = proposalClient?.phone, !phone.isEmpty {
-                MessageComposer(recipients: [phone], body: reminderMessage) { }
+                MessageComposer(recipients: [phone], body: reminderMessage) { _ in }
             }
         }
         .sheet(isPresented: $showingEditView, onDismiss: { generatePDF() }) {

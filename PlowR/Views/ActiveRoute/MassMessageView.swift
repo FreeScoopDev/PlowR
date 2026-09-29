@@ -9,11 +9,13 @@ struct MassMessageView: View {
 
     @State private var includedIDs: Set<UUID>
     @State private var messageText = ""
-    @State private var sendQueue: [RouteStop] = []
+    /// Texting the selected clients one at a time.
+    @State private var run: MessageRun?
     @State private var groupPhones: [String] = []
     @State private var showingComposer = false
-    @State private var sendStarted = false
     @State private var showingGroupWarning = false
+    /// Why sending one at a time stopped, and who's left.
+    @State private var stoppedNote: String?
 
     private let presets: [(String, String)] = [
         ("On My Way",     "I'll be at your property soon."),
@@ -75,12 +77,25 @@ struct MassMessageView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingComposer, onDismiss: advanceSendQueue) {
-            if !groupPhones.isEmpty {
-                MessageComposer(recipients: groupPhones, body: messageText) { }
-            } else if let stop = sendQueue.first {
-                MessageComposer(recipients: [stop.clientPhone], body: messageText) { }
+        // Send or Cancel is the only way out: each text's outcome decides
+        // what happens next, and a swipe would give none.
+        .sheet(isPresented: $showingComposer) {
+            Group {
+                if !groupPhones.isEmpty {
+                    MessageComposer(recipients: groupPhones, body: messageText) { groupFinished($0) }
+                } else if let id = run?.current, let stop = stops.first(where: { $0.id == id }) {
+                    MessageComposer(recipients: [stop.clientPhone], body: messageText) { textFinished($0) }
+                }
             }
+            .interactiveDismissDisabled()
+        }
+        .alert("Sending Stopped", isPresented: Binding(
+            get: { stoppedNote != nil },
+            set: { if !$0 { stoppedNote = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(stoppedNote ?? "")
         }
         .confirmationDialog(
             "Recipient Warning",
@@ -226,35 +241,81 @@ struct MassMessageView: View {
     // MARK: - Send Logic
 
     private func startSequentialSend() {
-        sendQueue = selectedStops
-        sendStarted = true
+        run = MessageRun(selectedStops.map(\.id))
         showingComposer = true
     }
 
     private func startGroupSend() {
         groupPhones = selectedStops.map { $0.clientPhone }
-        sendStarted = true
         showingComposer = true
     }
 
-    private func advanceSendQueue() {
-        guard sendStarted else { return }
+    /// The group text closed: done if it went, otherwise back to this screen.
+    private func groupFinished(_ outcome: MessageOutcome) {
+        groupPhones = []
+        showingComposer = false
+        if outcome == .sent { dismiss() }
+    }
 
-        // Group text path — single compose window; we're done
-        if !groupPhones.isEmpty {
-            groupPhones = []
-            dismiss()
-            return
-        }
-
-        // Individual path — advance to next stop
-        if !sendQueue.isEmpty { sendQueue.removeFirst() }
-        if sendQueue.isEmpty {
-            dismiss()
-        } else {
+    /// One client's text closed. Sent: on to the next. Cancelled or failed:
+    /// the run stops, and the clients not texted yet stay selected, so Send
+    /// carries on with them. Cancel used to open the next client's text,
+    /// with no way to stop and no record of who had been sent it.
+    private func textFinished(_ outcome: MessageOutcome) {
+        showingComposer = false
+        guard var current = run else { return }
+        switch current.finish(outcome) {
+        case .compose:
+            run = current
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                 showingComposer = true
             }
+        case .finished:
+            run = nil
+            dismiss()
+        case .stopped(let unsent):
+            run = nil
+            includedIDs = Set(unsent)
+            stoppedNote = current.stoppedNote(failed: outcome == .failed)
         }
+    }
+}
+
+/// Texting clients one at a time, each in its own composer: who's next, and
+/// who has been sent it. A text that isn't sent stops the run.
+struct MessageRun: Equatable {
+    private(set) var queue: [UUID]
+    private(set) var sent: [UUID] = []
+
+    init(_ ids: [UUID]) {
+        queue = ids
+    }
+
+    /// The client whose text is up.
+    var current: UUID? { queue.first }
+
+    enum Next: Equatable {
+        /// Show the composer for this client.
+        case compose(UUID)
+        /// Everyone was texted.
+        case finished
+        /// A text wasn't sent: these clients haven't been texted.
+        case stopped(unsent: [UUID])
+    }
+
+    /// The current client's text closed with `outcome`.
+    mutating func finish(_ outcome: MessageOutcome) -> Next {
+        guard let current = queue.first else { return .finished }
+        guard outcome == .sent else { return .stopped(unsent: queue) }
+        sent.append(current)
+        queue.removeFirst()
+        return queue.first.map(Next.compose) ?? .finished
+    }
+
+    /// What the screen says when the run stopped.
+    func stoppedNote(failed: Bool) -> String {
+        let total = sent.count + queue.count
+        let why = failed ? "A text didn't send." : "A text was cancelled."
+        return "\(why) Sent to \(sent.count) of \(total). The \(queue.count) not sent yet are still selected: tap Send to carry on."
     }
 }
