@@ -34,6 +34,8 @@ struct RouteOptimizerTests {
         #expect(RouteOptimizer.nearestNeighborOrder(of: waypoints) == [0, 1, 3, 2])
     }
 
+    // A crash check: with no stops there is nothing to return, so the
+    // expectation can't fail. What it catches is a crash on empty input.
     @Test func nearestNeighborOrder_emptyInput_returnsEmpty() {
         #expect(RouteOptimizer.nearestNeighborOrder(of: []).isEmpty)
     }
@@ -53,6 +55,17 @@ struct RouteOptimizerTests {
         let order = RouteOptimizer.nearestNeighborOrder(of: waypoints)
         #expect(order.last == 0)
         #expect(Set(order.dropLast()) == [1, 2])
+    }
+
+    // Fewer than two stops with GPS skips the ordering. The stops without GPS
+    // must still come back, after the one with it (found by a test audit).
+    @Test func nearestNeighborOrder_oneGPSStop_keepsTheStopsWithout() {
+        let waypoints = [
+            WP(latitude: 0, longitude: 0),  // index 0 – no GPS
+            WP(latitude: 1, longitude: 1),  // index 1 – GPS
+            WP(latitude: 0, longitude: 0),  // index 2 – no GPS
+        ]
+        #expect(RouteOptimizer.nearestNeighborOrder(of: waypoints) == [1, 0, 2])
     }
 
     // MARK: - haversineKm

@@ -12,7 +12,8 @@ struct DesignSystemTests {
     // The brand navy exists twice in DesignSystem.swift: as a hex string
     // (what BusinessProfile stores and the PDF reads) and as RGB components
     // (what the app tints with). Editing one without the other would make the
-    // PDF and the app disagree, silently. Within one step of 255.
+    // PDF and the app disagree, silently. Within half a step of 255, so a
+    // one-step change to either fails (a whole step let one direction pass).
     @Test func navyHexAndRGBAreTheSameColour() throws {
         let hex = try #require(UInt32(PlowRColor.navyHex, radix: 16))
         let expected = [
@@ -23,7 +24,7 @@ struct DesignSystemTests {
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         #expect(PlowRColor.navyUIColor.getRed(&r, green: &g, blue: &b, alpha: &a))
         for (actual, want) in zip([r, g, b], expected) {
-            #expect(abs(actual - want) <= 1.0 / 255)
+            #expect(abs(actual - want) < 0.5 / 255)
         }
     }
 
