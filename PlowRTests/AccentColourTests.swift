@@ -19,9 +19,13 @@ struct AccentColourTests {
         #expect(Color(hex: PlowRColor.navyHex)?.hexString == PlowRColor.navyHex)
     }
 
-    // A new profile saved without touching the colour keeps the app's navy.
-    @Test func aNewProfileStartsNavy() {
-        #expect(BusinessProfileView.defaultAccent.hexString == PlowRColor.navyHex)
+    // The form's colour for no profile yet, or hex it can't read (as the
+    // wide-gamut bug stored), is the app's navy: a new profile saved without
+    // touching it keeps BusinessProfile's default. A readable hex is kept.
+    @Test func theFormStartsNavy() {
+        #expect(BusinessProfileView.accent(for: nil).hexString == PlowRColor.navyHex)
+        #expect(BusinessProfileView.accent(for: "117FFFFFFC6FFFFFFDA").hexString == PlowRColor.navyHex)
+        #expect(BusinessProfileView.accent(for: "05FA23").hexString == "05FA23")
         #expect(BusinessProfile(operatorID: "op").accentColorHex == PlowRColor.navyHex)
     }
 
