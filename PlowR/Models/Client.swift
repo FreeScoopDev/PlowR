@@ -52,3 +52,14 @@ final class Client {
         self.operatorID = operatorID
     }
 }
+
+extension Client {
+    /// The clients a route can be built from: this operator's active clients,
+    /// by name. The 1.1.0 notes promised inactive clients are hidden from route
+    /// building; both route pickers listed them anyway, with no marker.
+    static func routable(from clients: [Client], operatorID: String) -> [Client] {
+        clients
+            .filter { $0.operatorID == operatorID && $0.isActive }
+            .sorted { $0.name < $1.name }
+    }
+}
