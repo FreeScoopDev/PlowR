@@ -122,6 +122,26 @@ struct ClientRemovalTests {
         #expect(!ClientRemoval.isAhead(visit(pat, .completed, daysFromNow: 1), now: now))
         #expect(!ClientRemoval.isAhead(visit(pat, .scheduled, daysFromNow: -3), now: now))
         #expect(!ClientRemoval.isAhead(visit(pat, .skipped, daysFromNow: -14), now: now))
+        let atNow = visit(pat, .scheduled)
+        atNow.scheduledDate = now
+        #expect(ClientRemoval.isAhead(atNow, now: now))
+    }
+
+    // A kept visit is history: marking it complete doesn't add the next
+    // visit of its series for a client who's gone.
+    @Test func aKeptVisitDoesntContinueItsSeries() throws {
+        let past = visit(pat, .scheduled, daysFromNow: -7)
+        let next = visit(pat, .scheduled, daysFromNow: 0.5)
+        for weekly in [past, next] {
+            weekly.isRecurring = true
+            weekly.recurrenceType = .weekly
+            weekly.seriesID = "weekly"
+        }
+        #expect(past.continuation(among: [past]) != nil)        // how it would continue
+        ClientRemoval.delete(pat, keepingRecords: true, in: context)
+        let kept = try context.fetch(FetchDescriptor<ScheduledVisit>())
+        #expect(kept.count == 1)
+        #expect(kept.first?.continuation(among: kept) == nil)
     }
 
     @Test func deletingKeepsRecordsWhenAsked() throws {
@@ -190,8 +210,8 @@ struct ClientRemovalTests {
         #expect(ClientRemoval.deleteMessage(for: full, isActive: true, locale: us)
             == "They'll be taken off 2 routes: Monday and Tuesday. "
             + "Their 2 upcoming visits and 4 photos will be deleted with them. "
-            + "Keep their 3 invoices and proposals and 1 past visit for your records, or delete everything? "
-            + "To keep them and their history, mark them Inactive instead.")
+            + "Keep their 3 invoices or proposals and 1 past visit for your records, or delete everything? "
+            + "To keep them and their history, mark them Inactive instead: that takes them off their routes too.")
         let one = ClientRemoval.Footprint(routeNames: ["Monday"], visitsAhead: 1, documents: 1)
         #expect(ClientRemoval.deleteMessage(for: one, isActive: false, locale: us)
             == "They'll be taken off the route Monday. "

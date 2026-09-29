@@ -29,7 +29,7 @@ enum ClientRemoval {
     /// completed. It goes with the client. Anything dated earlier is history
     /// (routes don't mark visits complete, so a visit done from a route is
     /// still "scheduled"), and so is a visit already completed.
-    nonisolated static func isAhead(_ visit: ScheduledVisit, now: Date) -> Bool {
+    static func isAhead(_ visit: ScheduledVisit, now: Date) -> Bool {
         visit.scheduledDate >= now && visit.status != .completed
     }
 
@@ -71,8 +71,14 @@ enum ClientRemoval {
     static func delete(_ client: Client, keepingRecords: Bool, in context: ModelContext, now: Date = .now) {
         let id = client.id.uuidString
         takeOffRoutes(client, in: context)
-        for visit in visits(of: id, in: context) where !keepingRecords || isAhead(visit, now: now) {
-            context.delete(visit)
+        for visit in visits(of: id, in: context) {
+            if !keepingRecords || isAhead(visit, now: now) {
+                context.delete(visit)
+            } else {
+                // History now: marking it complete mustn't continue its series
+                // for a client who's gone.
+                visit.isRecurring = false
+            }
         }
         if !keepingRecords {
             for document in documents(of: id, in: context) { context.delete(document) }
@@ -104,7 +110,7 @@ enum ClientRemoval {
         }
         if footprint.hasRecords {
             let records = [
-                footprint.documents > 0 ? count(footprint.documents, "invoice or proposal", "invoices and proposals") : nil,
+                footprint.documents > 0 ? count(footprint.documents, "invoice or proposal", "invoices or proposals") : nil,
                 footprint.pastVisits > 0 ? count(footprint.pastVisits, "past visit", "past visits") : nil,
             ].compactMap { $0 }
             sentences.append("Keep their \(records.formatted(.list(type: .and).locale(locale))) for your records, "
@@ -112,7 +118,11 @@ enum ClientRemoval {
         } else {
             sentences.append("This can't be undone.")
         }
-        if isActive { sentences.append("To keep them and their history, mark them Inactive instead.") }
+        if isActive {
+            sentences.append(footprint.routeNames.isEmpty
+                ? "To keep them and their history, mark them Inactive instead."
+                : "To keep them and their history, mark them Inactive instead: that takes them off their routes too.")
+        }
         return sentences.joined(separator: " ")
     }
 
