@@ -4,6 +4,7 @@
 //
 
 import Testing
+import CoreData
 import Foundation
 import SwiftData
 @testable import PlowR
@@ -46,7 +47,7 @@ struct ActiveRouteStoreTests {
         init(stopCount: Int = 3) throws {
             container = try ModelContainer(
                 for: Client.self, PlowRoute.self, RouteStop.self,
-                configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+                configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
             )
             context = container.mainContext
             defaults = try #require(UserDefaults(suiteName: "ActiveRouteStoreTests-\(UUID().uuidString)"))
@@ -94,6 +95,24 @@ struct ActiveRouteStoreTests {
         #expect(surfaces.calls.last == "start")
         #expect(surfaces.last?.currentStopNumber == 1)
         #expect(surfaces.last?.totalStops == 3)
+        #expect(surfaces.last?.completedStops == 0)
+    }
+
+    // The widget's "N done" comes from completedStops, which nothing checked.
+    // After the last stop it must read "2 of 2", never "3 of 2".
+    @Test func progressCountsCompletedStops() throws {
+        let h = try Harness(stopCount: 2)
+        let surfaces = FakeRouteSurfaces()
+        let store = h.makeStore(surfaces)
+        store.start(h.route)
+        store.completeShownStop()
+        #expect(surfaces.last?.completedStops == 1)
+        #expect(surfaces.last?.currentStopNumber == 2)
+        store.completeShownStop()
+        #expect(surfaces.last?.completedStops == 2)
+        #expect(surfaces.last?.currentStopNumber == 2)
+        #expect(surfaces.last?.totalStops == 2)
+        #expect(surfaces.last?.currentStopName == "All stops complete")
     }
 
     // Bug #2: a killed app lost the route. A second store built from the same
@@ -104,6 +123,10 @@ struct ActiveRouteStoreTests {
         first.start(h.route)
         first.completeShownStop()
         let stopStarted = try #require(first.stopStartedAt)
+        // Time passes before the relaunch. Without it, a restarted timer and
+        // the saved one are the same instant, so the timer check below could
+        // never fail (found by a test audit).
+        h.clock += 20 * 60
 
         let surfaces = FakeRouteSurfaces()
         let relaunched = h.makeStore(surfaces)
@@ -259,10 +282,61 @@ struct ActiveRouteStoreTests {
     @Test func eraseAllRemovesACheckpointEvenWithNoActiveRoute() throws {
         let h = try Harness()
         h.makeStore().start(h.route)
-        let other = ActiveRouteStore(defaults: h.defaults, surfaces: FakeRouteSurfaces(), now: { Date() })
+        let surfaces = FakeRouteSurfaces()
+        let other = ActiveRouteStore(defaults: h.defaults, surfaces: surfaces, now: { Date() })
         #expect(!other.isActive)                      // never configured
         other.eraseAll()
         #expect(h.defaults.data(forKey: ActiveRouteStore.checkpointKey) == nil)
+        // A Live Activity or an "active" widget left by that route goes too.
+        #expect(surfaces.calls == ["clear"])
+    }
+
+    @Test func eraseAllEndsAnActiveRoute() throws {
+        let h = try Harness()
+        let surfaces = FakeRouteSurfaces()
+        let store = h.makeStore(surfaces)
+        store.start(h.route)
+        store.eraseAll()
+        #expect(!store.isActive)
+        #expect(surfaces.calls.suffix(2) == ["end", "clear"])
+        #expect(h.defaults.data(forKey: ActiveRouteStore.checkpointKey) == nil)
+    }
+
+    // Another device's changes arrive as a remote-change notification, not as
+    // a save here. In-memory stores never post it, so the test posts it by
+    // hand, with a fetch that reports the route deleted elsewhere.
+    @Test func aRemoteChangeIsCheckedLikeASave() throws {
+        let h = try Harness()
+        let surfaces = FakeRouteSurfaces()
+        var deletedElsewhere = false
+        let store = h.makeStore(surfaces, fetchRoutes: { context in
+            if deletedElsewhere { return [] }
+            return try context.fetch(FetchDescriptor<PlowRoute>())
+        })
+        store.start(h.route)
+        deletedElsewhere = true
+        NotificationCenter.default.post(name: .NSPersistentStoreRemoteChange, object: nil)
+        #expect(!store.isActive)
+        #expect(surfaces.calls.last == "end")
+    }
+
+    // An earlier stop deleted mid-route leaves the same client current but
+    // moves it up. The saved position must move too: a relaunch that later
+    // falls back to it would otherwise skip a client.
+    @Test func deletingAnEarlierStopMovesTheSavedPosition() throws {
+        let h = try Harness(stopCount: 3)
+        let store = h.makeStore()
+        store.start(h.route)
+        store.completeShownStop()                           // on Client 1, position 1
+        let current = try #require(store.currentStopID)
+        h.context.delete(h.route.sortedStops[0])
+        try h.context.save()
+        #expect(store.currentStopID == current)
+        #expect(store.currentStopIndex == 0)
+        let data = try #require(h.defaults.data(forKey: ActiveRouteStore.checkpointKey))
+        let saved = try JSONDecoder().decode(ActiveRouteStore.Checkpoint.self, from: data)
+        #expect(saved.currentStopIndex == 0)
+        #expect(saved.currentStopID == current)
     }
 
     // Which Live Activity a relaunch adopts: only a running one for this route.

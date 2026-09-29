@@ -51,8 +51,25 @@ struct NotificationServiceTests {
         #expect(NotificationService.shared.adverseForecastDay(from: forecasts) == nil)
     }
 
+    // A crash check: an empty forecast has no day to return, so the
+    // expectation can't fail. What it catches is a crash on empty input.
     @Test func adverseForecastDay_emptyForecast_returnsNil() {
         #expect(NotificationService.shared.adverseForecastDay(from: []) == nil)
+    }
+
+    // Only code 75 was ever checked; dropping any other code from the list
+    // would have passed. Rain, freezing rain, snow, showers and storms.
+    @Test(arguments: [61, 63, 65, 66, 67, 71, 73, 75, 77, 85, 86, 80, 81, 82, 95, 96, 99])
+    func adverseForecastDay_everyAdverseCodeAlerts(code: Int) {
+        let forecasts = [makeDay(code: 0, daysFromNow: 0), makeDay(code: code, daysFromNow: 1)]
+        #expect(NotificationService.shared.adverseForecastDay(from: forecasts)?.weatherCode == code)
+    }
+
+    // Clear, cloudy and fog never alert.
+    @Test(arguments: [0, 1, 2, 3, 45, 48])
+    func adverseForecastDay_calmCodesDoNotAlert(code: Int) {
+        let forecasts = [makeDay(code: 0, daysFromNow: 0), makeDay(code: code, daysFromNow: 1)]
+        #expect(NotificationService.shared.adverseForecastDay(from: forecasts) == nil)
     }
 
     // MARK: - overdueBody

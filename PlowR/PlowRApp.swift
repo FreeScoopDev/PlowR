@@ -8,20 +8,25 @@ struct PlowRApp: App {
     @Environment(\.scenePhase) private var scenePhase
     let container: ModelContainer
 
+    /// Every SwiftData model. The schema is built from this list and Delete
+    /// Account & Data deletes every type in it, so a new model can't be left
+    /// out of either.
+    static let models: [any PersistentModel.Type] = [
+        Client.self,
+        PlowRoute.self,
+        RouteStop.self,
+        ServiceItem.self,
+        PropertyZone.self,
+        BusinessProfile.self,
+        Proposal.self,
+        ProposalLineItem.self,
+        PaymentMethod.self,
+        StopPhoto.self,
+        ScheduledVisit.self,
+    ]
+
     init() {
-        let schema = Schema([
-            Client.self,
-            PlowRoute.self,
-            RouteStop.self,
-            ServiceItem.self,
-            PropertyZone.self,
-            BusinessProfile.self,
-            Proposal.self,
-            ProposalLineItem.self,
-            PaymentMethod.self,
-            StopPhoto.self,
-            ScheduledVisit.self,
-        ])
+        let schema = Schema(Self.models)
         container = Self.makeContainer(schema: schema)
         // Before any view: a Siri or Control Center launch acts on the route
         // without the UI, and a killed app should come back mid-route.

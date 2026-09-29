@@ -20,17 +20,21 @@ actor ElevationService {
     nonisolated static let defaultPause: Duration = .seconds(1.1)
 
     typealias Fetch = @Sendable (URL) async throws -> (Data, URLResponse)
+    typealias Sleep = @Sendable (ContinuousClock.Instant) async throws -> Void
     private let fetch: Fetch
+    private let sleep: Sleep
     /// The gap between requests. Readable so a test can check the app's own instance.
     nonisolated let pause: Duration
-    /// When the latest request went, or is booked to go.
+    /// When the latest request actually went.
     private var lastRequest: ContinuousClock.Instant?
 
-    /// `fetch` and `pause` exist for tests; the app uses the defaults.
+    /// `fetch`, `pause` and `sleep` exist for tests; the app uses the defaults.
     init(fetch: @escaping Fetch = { try await URLSession.shared.data(from: $0) },
-         pause: Duration = ElevationService.defaultPause) {
+         pause: Duration = ElevationService.defaultPause,
+         sleep: @escaping Sleep = { try await ContinuousClock().sleep(until: $0) }) {
         self.fetch = fetch
         self.pause = pause
+        self.sleep = sleep
     }
 
     private nonisolated struct Response: Decodable {
@@ -73,7 +77,7 @@ actor ElevationService {
     private func elevations(for points: [CLLocationCoordinate2D]) async -> [Double?]? {
         guard !points.isEmpty else { return [] }
         guard let url = Self.requestURL(for: points) else { return nil }
-        await waitForTurn()
+        guard await waitForTurn() else { return nil }
         guard let (data, response) = try? await fetch(url),
               (response as? HTTPURLResponse)?.statusCode == 200,
               let decoded = try? JSONDecoder().decode(Response.self, from: data),
@@ -81,15 +85,18 @@ actor ElevationService {
         return decoded.results.map(\.elevation)
     }
 
-    /// Books the next free slot, at least `pause` after the previous request,
-    /// and waits for it. The slot is booked before waiting, so a call that
-    /// arrives meanwhile queues behind it instead of going at the same moment.
-    private func waitForTurn() async {
+    /// Waits until `pause` has passed since the previous request actually
+    /// went, then records this one as going now. It used to book a slot and
+    /// measure from that, so a wait that ended late (a busy phone) let the
+    /// next request follow at once. It checks again after every wait, so
+    /// callers that wake together still go one at a time. False if cancelled.
+    private func waitForTurn() async -> Bool {
         let clock = ContinuousClock()
-        let now = clock.now
-        let slot = lastRequest.map { max(now, $0.advanced(by: pause)) } ?? now
-        lastRequest = slot
-        if slot > now { try? await clock.sleep(until: slot) }
+        while let last = lastRequest, clock.now < last.advanced(by: pause) {
+            do { try await sleep(last.advanced(by: pause)) } catch { return false }
+        }
+        lastRequest = clock.now
+        return true
     }
 
     // MARK: - Pure parts, tested
