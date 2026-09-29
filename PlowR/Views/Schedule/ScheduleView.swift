@@ -407,9 +407,7 @@ struct ScheduleView: View {
         // A series is created up front, so its next visit usually exists already;
         // adding another duplicated it on every completion. Only a series with
         // nothing still scheduled after this visit gets one more.
-        if let next = visit.continuation(among: allVisits) {
-            modelContext.insert(next)
-        }
+        ClientVisits.addNext(after: visit, among: allVisits, in: modelContext)
     }
 }
 
