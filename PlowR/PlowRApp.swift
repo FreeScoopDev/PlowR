@@ -100,7 +100,10 @@ struct PlowRApp: App {
         .modelContainer(container)
         .onChange(of: scenePhase) { _, phase in
             // iCloud may have deleted or reordered the route while the app was away.
-            if phase == .active { ActiveRouteStore.shared.validate() }
+            if phase == .active {
+                ActiveRouteStore.shared.validate()
+                authManager.recheckIfSignedOut()
+            }
         }
     }
 }
