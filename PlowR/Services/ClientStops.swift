@@ -45,7 +45,8 @@ enum ClientStops {
     /// Every client's stops in step with the client: stops made before stops
     /// followed their client, a client changed on another device (an older
     /// PlowR there doesn't move the stops), or a stop made there from its
-    /// older copy of the client. Saves only when a stop changed.
+    /// older copy of the client. Their upcoming visits too (ClientVisits).
+    /// Saves only when a stop or a visit changed.
     static func updateAll(in context: ModelContext) {
         guard let clients = try? context.fetch(FetchDescriptor<Client>()),
               let stops = try? context.fetch(FetchDescriptor<RouteStop>()) else { return }

@@ -75,6 +75,60 @@ struct ClientVisitsTests {
         #expect(!context.hasChanges)                          // saved
     }
 
+    // Today's visits follow, done or not (a route doesn't mark them
+    // complete): an address corrected during the day reaches today's visit
+    // and its calendar event. Earlier days, and completed visits, are a record.
+    @Test func todaysVisitsFollowEarlierDaysDont() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "America/New_York"))
+        let today = calendar.startOfDay(for: Date(timeIntervalSinceReferenceDate: 812_000_000))
+        let noon = today.addingTimeInterval(12 * 3_600)
+        func dated(_ date: Date, _ status: VisitStatus = .scheduled) -> ScheduledVisit {
+            let visit = ScheduledVisit(operatorID: "op", clientID: pat.id.uuidString, clientName: pat.name,
+                                       clientAddress: pat.address, scheduledDate: date)
+            visit.status = status
+            context.insert(visit)
+            return visit
+        }
+        let thisMorning = dated(noon.addingTimeInterval(-3_600))
+        let midnight = dated(today)
+        let lateYesterday = dated(today.addingTimeInterval(-60))
+        let doneToday = dated(noon.addingTimeInterval(-7_200), .completed)
+        pat.address = "12 Pleasant St"
+        ClientVisits.update(for: pat, now: noon, calendar: calendar)
+        #expect(thisMorning.clientAddress == "12 Pleasant St")
+        #expect(midnight.clientAddress == "12 Pleasant St")
+        #expect(lateYesterday.clientAddress == "1 Main St")
+        #expect(doneToday.clientAddress == "1 Main St")
+        #expect(ClientVisits.follows(thisMorning, now: noon, calendar: calendar))
+        #expect(!ClientVisits.follows(lateYesterday, now: noon, calendar: calendar))
+        #expect(!ClientVisits.follows(doneToday, now: noon, calendar: calendar))
+        pat.name = "Pat Doe-Smith"                            // the sweep, the same way
+        #expect(ClientVisits.updateAll(in: context, now: noon, calendar: calendar))
+        #expect(thisMorning.clientName == "Pat Doe-Smith")
+        #expect(lateYesterday.clientName == "Pat Doe")
+    }
+
+    // Completing a repeating visit from an earlier day adds the series' next
+    // visit with the client's details now, not the ones the old visit kept.
+    @Test func theNextVisitInASeriesTakesTheClientsDetails() throws {
+        let past = visit(pat, daysFromNow: -3)
+        past.isRecurring = true
+        past.recurrenceType = .weekly
+        past.recurrenceInterval = 1
+        past.recurrenceWeekdays = [Calendar.current.component(.weekday, from: past.scheduledDate)]
+        past.seriesID = "series-a"
+        try context.save()
+        pat.address = "12 Pleasant St"
+        ClientStops.update(for: pat)
+        #expect(past.clientAddress == "1 Main St")            // a record
+        past.status = .completed
+        let next = try #require(ClientVisits.addNext(after: past, among: [past], in: context))
+        #expect(next.clientAddress == "12 Pleasant St")
+        #expect(next.modelContext != nil)
+        #expect(next.seriesID == "series-a")
+    }
+
     @Test func anUnchangedVisitIsntWritten() throws {
         let next = visit(pat, daysFromNow: 3)
         try context.save()
