@@ -21,8 +21,8 @@ struct CompleteStopActionTests {
         CompleteStopAction.siri(in: store, role: UserRole.business)
     }
 
-    /// What Control Center's link does, for a business: what the route
-    /// screen says, if anything.
+    /// What Control Center's intent does in the app, for a business, with
+    /// the stop its control showed: what the route screen says, if anything.
     private func controlCenter(_ store: ActiveRouteStore, stop: UUID) -> String? {
         CompleteStopAction.controlCenter(stopID: stop, in: store, role: UserRole.business)
     }
@@ -222,8 +222,16 @@ struct PlowRLinkTests {
         #expect(PlowRLink(try #require(URL(string: "plowr://somewhereElse"))) == nil)
     }
 
-    // The stop Control Center's button completes: the one the widget shows,
-    // while a route is in progress.
+    // Control Center's intent carries the stop its control showed, not the
+    // one the app has moved to by the time the intent runs in it.
+    @Test func controlCentersIntentCarriesTheStopItShowed() {
+        let stop = UUID()
+        #expect(CompleteStopControlIntent(stopID: stop).stopID == stop.uuidString)
+        #expect(CompleteStopControlIntent(stopID: nil).stopID == nil)
+    }
+
+    // The stop Control Center's button shows and completes: the one the
+    // widget shows, while a route is in progress.
     @Test func controlCenterCompletesTheStopTheWidgetShows() {
         let stop = UUID()
         var data = TodayRouteWidgetData(routeName: "Tuesday", totalStops: 3, completedStops: 1,

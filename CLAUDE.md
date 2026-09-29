@@ -119,7 +119,9 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   screen, and they complete only the stop the user saw: Siri the current one
   unless iCloud changed it unseen (`stopChangedUnseen`, kept in the checkpoint,
   since iOS can end the app before the user looks), Control Center the one its
-  widget showed (`TodayRouteWidgetData.shownStopID`). "Seen" is a stand-in:
+  control showed: the control shows the current stop's client, drawn from the
+  widget data, its intent carries that stop (`stopID`), and the app reloads
+  the control whenever the data changes. "Seen" is a stand-in:
   the route screen was up with the app in front, not proof that anyone
   looked. Only a business (`userRole == "operator"`) completes stops from
   outside. Only Notify Next Client still needs the route screen
@@ -128,9 +130,11 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   Control Center's `CompleteStopControlIntent` is compiled into the app and
   the widget extension, with `openAppWhenRun`, so the system runs it in the
   app, where the route is; each target defines `complete(shownStop:)` for
-  itself (the extension's does nothing). Returning an `OpenURLIntent` from an
-  intent that lived only in the extension opened nothing on iOS 26 ("Failed
-  to fetch metadata for OpenURLIntent", simulator, 2026-09-29).
+  itself (the extension's does nothing). What the user saw has to travel in
+  the intent's parameters: read in the app, it's whatever the app just
+  changed. Returning an `OpenURLIntent` from an intent that lived only in the
+  extension opened nothing on iOS 26 ("Failed to fetch metadata for
+  OpenURLIntent", simulator, 2026-09-29).
 - **Delete Account & Data** (Settings) is an App Review 5.1.1(v) requirement.
   It removes all SwiftData records, the encrypted work-orders file, the route
   checkpoint and Live Activities (`ActiveRouteStore.eraseAll()`), the widget's

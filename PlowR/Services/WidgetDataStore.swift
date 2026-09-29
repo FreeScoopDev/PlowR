@@ -43,12 +43,21 @@ enum WidgetDataStore {
     /// The widget's kind. The widget declares itself with it and the app
     /// reloads it by it, so the two can't drift apart.
     static let widgetKind = "PlowRTodayRoute"
+    /// Control Center's Complete Stop, which shows the current stop and
+    /// completes the one it shows: reloaded with the widget, or it would
+    /// show, and complete, a stop the route has moved past.
+    static let controlKind = "com.Scoops.PlowR.CompleteStop"
 
     static func write(_ data: TodayRouteWidgetData) {
         if let encoded = try? JSONEncoder().encode(data) {
             UserDefaults(suiteName: suiteName)?.set(encoded, forKey: key)
         }
+        reload()
+    }
+
+    private static func reload() {
         WidgetCenter.shared.reloadTimelines(ofKind: widgetKind)
+        ControlCenter.shared.reloadControls(ofKind: controlKind)
     }
 
     static func read() -> TodayRouteWidgetData? {
@@ -58,6 +67,6 @@ enum WidgetDataStore {
 
     static func clear() {
         UserDefaults(suiteName: suiteName)?.removeObject(forKey: key)
-        WidgetCenter.shared.reloadTimelines(ofKind: widgetKind)
+        reload()
     }
 }
