@@ -54,11 +54,17 @@ enum DocumentSent {
 
     /// Once, at the first launch of this version: "Awaiting Response" set by
     /// texts from a client's page would now read as a document sent, so it
-    /// starts clear and only documents set it.
+    /// starts clear and only documents set it. Kept where an invoice marked
+    /// sent explains it: another device with this version already marked it.
     static func clearTextStamps(in context: ModelContext, defaults: UserDefaults = .standard) {
         guard !defaults.bool(forKey: textStampsClearedKey),
-              let clients = try? context.fetch(FetchDescriptor<Client>()) else { return }
+              let clients = try? context.fetch(FetchDescriptor<Client>()),
+              let documents = try? context.fetch(FetchDescriptor<Proposal>()) else { return }
         for client in clients where client.lastMessageSentAt != nil || client.clientRespondedAt != nil {
+            let id = client.id.uuidString
+            if let stamp = client.lastMessageSentAt, documents.contains(where: {
+                $0.clientID == id && $0.invoiceSentAt.map { abs($0.timeIntervalSince(stamp)) < 1 } == true
+            }) { continue }
             client.lastMessageSentAt = nil
             client.clientRespondedAt = nil
         }

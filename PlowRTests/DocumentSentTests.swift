@@ -96,4 +96,20 @@ struct DocumentSentTests {
         DocumentSent.clearTextStamps(in: context, defaults: defaults)
         #expect(pat.lastMessageSentAt == now)
     }
+
+    // A second device updated later: an invoice marked sent on the first,
+    // since its update, isn't cleared with the old text marks.
+    @Test func aStampAnInvoiceExplainsIsKept() throws {
+        let defaults = try #require(UserDefaults(suiteName: "DocumentSentTests-\(UUID().uuidString)"))
+        let invoice = Proposal(operatorID: "op", client: pat)
+        context.insert(invoice)
+        DocumentSent.markSent(invoice, in: context, now: now)
+        let other = Proposal(operatorID: "op", client: sam)        // sent, but not what sam's mark is
+        other.invoiceSentAt = now
+        context.insert(other)
+        sam.lastMessageSentAt = now.addingTimeInterval(-3_600)
+        DocumentSent.clearTextStamps(in: context, defaults: defaults)
+        #expect(pat.lastMessageSentAt == now)
+        #expect(sam.lastMessageSentAt == nil)
+    }
 }
