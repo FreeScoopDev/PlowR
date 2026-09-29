@@ -13,6 +13,8 @@ struct SettingsView: View {
     @State private var workOrderStore = ClientWorkOrderStore()
     @State private var sampleDataInserted = false
     @State private var showingDeleteConfirmation = false
+    /// What Delete Account & Data couldn't remove, shown under the button.
+    @State private var deleteFailures: [AccountEraser.Failure] = []
 
     var body: some View {
         Form {
@@ -84,6 +86,11 @@ struct SettingsView: View {
                 } label: {
                     Text("Delete Account & Data")
                 }
+            } footer: {
+                if !deleteFailures.isEmpty {
+                    Text("Not everything was deleted. Left: \(deleteFailures.map(\.step).joined(separator: ", ")). You're still signed in, so you can try again.")
+                        .foregroundStyle(.red)
+                }
             }
 
             Section("Legal") {
@@ -123,25 +130,13 @@ struct SettingsView: View {
     }
 
     private func deleteAccount() {
-        // Any route: ends it and removes its checkpoint, Live Activities and the
-        // widget's saved route, whether or not one is in progress.
-        activeRoute.eraseAll()
-        try? modelContext.delete(model: StopPhoto.self)
-        try? modelContext.delete(model: RouteStop.self)
-        try? modelContext.delete(model: PropertyZone.self)
-        try? modelContext.delete(model: PlowRoute.self)
-        try? modelContext.delete(model: ProposalLineItem.self)
-        try? modelContext.delete(model: Proposal.self)
-        try? modelContext.delete(model: ScheduledVisit.self)
-        try? modelContext.delete(model: ServiceItem.self)
-        try? modelContext.delete(model: PaymentMethod.self)
-        try? modelContext.delete(model: Client.self)
-        try? modelContext.delete(model: BusinessProfile.self)
-        try? FileManager.default.removeItem(at: ClientWorkOrderStore.fileURL)
-        // The home-screen widget's copy of today's route (route and client names),
-        // including a finished route's summary, which eraseAll() leaves alone.
-        WidgetDataStore.clear()
-        authManager.signOut()
+        // Everything on this device: records, preferences, files, notifications,
+        // geofences, the route in progress and the widget (see AccountEraser).
+        let eraser = AccountEraser(context: modelContext,
+                                   archiveFolders: AccountEraser.archiveFolders(for: modelContext.container),
+                                   routeStore: activeRoute)
+        // Signed out only once everything is gone, so what's left can be retried.
+        deleteFailures = eraser.eraseAll(thenSignOut: authManager.signOut)
     }
 
     #if DEBUG
