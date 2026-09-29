@@ -1,0 +1,2 @@
+### Changed
+- **Upcoming visits follow their client too.** A changed name or address now reaches the client's visits still ahead on the schedule, and their events in the "PlowR" calendar, as it already reaches their route stops. Visits already dated in the past keep the address the work was done at. A visit used to keep the address it was booked with, so a client who moved was still due at their old house.

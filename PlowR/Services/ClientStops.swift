@@ -11,7 +11,8 @@ import SwiftData
 /// They used to be copied once, when the stop was made, and never again. A
 /// corrected phone number or address, or a pin set by hand, never reached
 /// the routes the client was already on. Stop notes and what a run recorded
-/// are the stop's own and aren't touched.
+/// are the stop's own and aren't touched. The client's upcoming visits
+/// follow at the same moments (ClientVisits).
 enum ClientStops {
     /// The client's stops on every route. A custom stop isn't a client's.
     static func of(_ client: Client, in context: ModelContext) throws -> [RouteStop] {
@@ -33,8 +34,10 @@ enum ClientStops {
         return changed
     }
 
-    /// After `client` was changed: all their stops follow.
+    /// After `client` was changed: all their stops follow, and their
+    /// upcoming visits.
     static func update(for client: Client) {
+        ClientVisits.update(for: client)
         guard let context = client.modelContext, let stops = try? of(client, in: context) else { return }
         for stop in stops { follow(stop, client) }
     }
@@ -47,7 +50,7 @@ enum ClientStops {
         guard let clients = try? context.fetch(FetchDescriptor<Client>()),
               let stops = try? context.fetch(FetchDescriptor<RouteStop>()) else { return }
         let byID = Dictionary(clients.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        var changed = false
+        var changed = ClientVisits.updateAll(in: context)
         for stop in stops where !stop.isCustomStop {
             if let client = byID[stop.clientID], follow(stop, client) { changed = true }
         }
