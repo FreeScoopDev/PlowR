@@ -146,9 +146,10 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   and whenever the app comes back to the front, for stops that fell behind
   (a client edited on a device with an older PlowR, or a stop made there
   from an old copy). Upcoming visits follow the same way (`ClientVisits`,
-  called from `ClientStops`); past visits keep where the work was done. A new place that edits a client's details must still
-  call `update(for:)`, or its routes lag until the next sweep. Stop notes
-  and run results are the stop's own.
+  called from `ClientStops`); past visits keep where the work was done. A
+  new place that edits a client's details must still call `update(for:)`,
+  or its routes lag until the next sweep. Stop notes and run results are
+  the stop's own.
 - **Deleting a client or marking them inactive goes through
   `ClientRemoval`**: both take the client's stops off every route (Joe's
   call: inactive clients come off routes, and aren't put back when made
