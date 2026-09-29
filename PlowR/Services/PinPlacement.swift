@@ -25,11 +25,10 @@ nonisolated enum PinPlacement {
             .distance(from: CLLocation(latitude: to.latitude, longitude: to.longitude)) > 2
     }
 
-    /// Whether Confirm can be tapped: never mid-lookup, and for a pin set by
-    /// hand only on a real spot at street zoom.
-    static func canConfirm(hadPin: Bool, center: CLLocationCoordinate2D, distance: Double,
-                                       isLookingUp: Bool) -> Bool {
-        guard !isLookingUp else { return false }
+    /// Whether Confirm can be tapped: for a pin set by hand only on a real
+    /// spot at street zoom. It doesn't wait for the address lookup: its
+    /// answer is only offered, and nothing of it is saved unless chosen.
+    static func canConfirm(hadPin: Bool, center: CLLocationCoordinate2D, distance: Double) -> Bool {
         if hadPin { return true }
         return AddressPin.exists(latitude: center.latitude, longitude: center.longitude) && distance <= streetDistance
     }
@@ -158,8 +157,16 @@ nonisolated enum PinPlacement {
     }
 
     /// `field` after the pin screen, or the property scanner's Move Pin,
-    /// closed with the client at `storedAddress` and `storedPin`.
-    static func field(_ field: Field, afterPinSheetWith storedAddress: String, _ storedPin: Pin) -> Field {
+    /// closed with the client at `storedAddress` and `storedPin`; `chosen`
+    /// is the address the user took there (Use This Address), if any. It's
+    /// passed on rather than read off the client: taken back as the client's
+    /// saved address, it looks like no choice at all.
+    static func field(_ field: Field, afterPinSheetWith storedAddress: String, _ storedPin: Pin,
+                      chosen: String? = nil) -> Field {
+        if let chosen {
+            // Whatever was typed: the user picked the map's address for the pin.
+            return Field(text: chosen, original: storedAddress, originalPin: storedPin)
+        }
         guard storedPin != field.originalPin || storedAddress != field.original else { return field }  // cancelled
         var next = field
         next.originalPin = storedPin

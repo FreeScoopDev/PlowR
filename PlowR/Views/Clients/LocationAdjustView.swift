@@ -5,6 +5,10 @@ import CoreLocation
 
 struct LocationAdjustView: View {
     let client: Client
+    /// The address the user took from the map (Use This Address), told to
+    /// the screen that opened this one, since the client's saved address
+    /// can't show a choice of the one it already had.
+    let onAddressChosen: ((String) -> Void)?
     let onSave: ((CLLocationCoordinate2D, String) -> Void)?
 
     @Environment(\.dismiss) private var dismiss
@@ -34,9 +38,11 @@ struct LocationAdjustView: View {
     /// address suggestion's), so the map opens at the new house, not the
     /// old one.
     init(client: Client, pendingAddress: String? = nil, startingPin: PinPlacement.Pin? = nil,
+         onAddressChosen: ((String) -> Void)? = nil,
          onSave: ((CLLocationCoordinate2D, String) -> Void)? = nil) {
         self.client = client
         self.pendingAddress = pendingAddress
+        self.onAddressChosen = onAddressChosen
         self.onSave = onSave
         hadPin = AddressPin.exists(latitude: client.latitude, longitude: client.longitude)
         let start = startingPin.map(\.coordinate)
@@ -61,8 +67,7 @@ struct LocationAdjustView: View {
     }
 
     private var canConfirm: Bool {
-        PinPlacement.canConfirm(hadPin: hadPin, center: centerCoordinate, distance: cameraDistance,
-                                isLookingUp: suggestion.isLookingUp)
+        PinPlacement.canConfirm(hadPin: hadPin, center: centerCoordinate, distance: cameraDistance)
     }
 
     var body: some View {
@@ -215,6 +220,7 @@ struct LocationAdjustView: View {
     private func saveAndDismiss() {
         guard PinPlacement.saves(moved: moved, hadPin: hadPin) else { return dismiss() }
         let address = PinPlacement.addressToSave(hadPin: hadPin, suggestion: suggestion, current: keptAddress)
+        if let address { onAddressChosen?(address) }
         if let onSave {
             // Caller handles the update (e.g. PropertyScannerView before zones
             // are saved); it keeps the client's address when given none.

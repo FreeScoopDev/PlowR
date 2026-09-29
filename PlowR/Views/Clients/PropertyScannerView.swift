@@ -51,8 +51,20 @@ struct PropertyScannerView: View {
         }
     }
 
-    init(client: Client) {
+    /// Passed to Move Pin's pin screen: an address typed on the client's page
+    /// and not saved yet (until the map's is taken there), its picked pin
+    /// (until a move saves the client's), and who hears of an address chosen
+    /// there (LocationAdjustView).
+    @State private var pendingAddress: String?
+    @State private var startingPin: PinPlacement.Pin?
+    private let onAddressChosen: ((String) -> Void)?
+
+    init(client: Client, pendingAddress: String? = nil, startingPin: PinPlacement.Pin? = nil,
+         onAddressChosen: ((String) -> Void)? = nil) {
         self.client = client
+        _pendingAddress = State(initialValue: pendingAddress)
+        _startingPin = State(initialValue: startingPin)
+        self.onAddressChosen = onAddressChosen
         let center = CLLocationCoordinate2D(latitude: client.latitude, longitude: client.longitude)
         _cameraPosition = State(initialValue: .camera(
             MapCamera(centerCoordinate: center, distance: 120, heading: 0, pitch: 0)
@@ -328,7 +340,12 @@ struct PropertyScannerView: View {
         .padding()
         .sheet(isPresented: $showingLocationAdjust) {
             NavigationStack {
-                LocationAdjustView(client: client) { coord, address in
+                LocationAdjustView(client: client, pendingAddress: pendingAddress, startingPin: startingPin,
+                                   onAddressChosen: { chosen in
+                                       pendingAddress = nil
+                                       onAddressChosen?(chosen)
+                                   }) { coord, address in
+                    startingPin = nil
                     cameraPosition = .camera(MapCamera(centerCoordinate: coord, distance: 80))
                     client.latitude = coord.latitude
                     client.longitude = coord.longitude

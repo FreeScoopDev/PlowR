@@ -25,12 +25,10 @@ struct PinPlacementTests {
 
     @Test func aPinSetByHandNeedsARealSpotAtStreetZoom() {
         let limit = PinPlacement.streetDistance
-        #expect(PinPlacement.canConfirm(hadPin: false, center: home, distance: limit - 1, isLookingUp: false))
-        #expect(!PinPlacement.canConfirm(hadPin: false, center: home, distance: limit + 1, isLookingUp: false))
-        #expect(!PinPlacement.canConfirm(hadPin: false, center: .init(latitude: 0, longitude: 0), distance: 100,
-                                         isLookingUp: false))
-        #expect(PinPlacement.canConfirm(hadPin: true, center: home, distance: 5_000, isLookingUp: false))
-        #expect(!PinPlacement.canConfirm(hadPin: true, center: home, distance: 80, isLookingUp: true))
+        #expect(PinPlacement.canConfirm(hadPin: false, center: home, distance: limit - 1))
+        #expect(!PinPlacement.canConfirm(hadPin: false, center: home, distance: limit + 1))
+        #expect(!PinPlacement.canConfirm(hadPin: false, center: .init(latitude: 0, longitude: 0), distance: 100))
+        #expect(PinPlacement.canConfirm(hadPin: true, center: home, distance: 5_000))
     }
 
     // An adjusted pin that didn't move isn't saved: opening the screen looked
@@ -174,6 +172,21 @@ struct PinPlacementTests {
         let after = PinPlacement.field(typed, afterPinSheetWith: "10 Old Rd", new)
         #expect(after == .init(text: "45 New St", original: "10 Old Rd", originalPin: new, handPin: new))
         #expect(after.pinForSave == new)
+    }
+
+    // The map's address taken on the pin screen goes in the field, whatever
+    // was typed: even the client's saved address, taken back, which the
+    // client's record alone can't tell from no choice at all.
+    @Test func anAddressTakenOnThePinScreenFillsTheField() {
+        let typed = PinPlacement.Field(text: "5 New St", original: "1 Old Rd, Claremont, NH 03743", originalPin: old)
+        let back = PinPlacement.field(typed, afterPinSheetWith: "1 Old Rd, Claremont, NH 03743", new,
+                                      chosen: "1 Old Rd, Claremont, NH 03743")
+        #expect(back == .init(text: "1 Old Rd, Claremont, NH 03743", original: "1 Old Rd, Claremont, NH 03743",
+                              originalPin: new))
+        #expect(back.pinForSave == nil)
+        let neighbour = PinPlacement.field(typed, afterPinSheetWith: "3 Old Rd, Claremont, NH 03743", new,
+                                           chosen: "3 Old Rd, Claremont, NH 03743")
+        #expect(neighbour.text == "3 Old Rd, Claremont, NH 03743" && neighbour.pinForSave == nil)
     }
 
     // A pin only nudged, nothing typed: an address typed afterwards is looked

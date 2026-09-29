@@ -38,6 +38,9 @@ struct EditClientView: View {
     /// A pin from the pin screen that Save pairs with the typed address
     /// (PinPlacement.Field.handPin).
     @State private var handPin: PinPlacement.Pin?
+    /// The address taken from the map on the pin screen, until the sheet
+    /// closes (PinPlacement.field).
+    @State private var addressChosenOnPinScreen: String?
     @State private var isSaving = false
     @State private var showingPropertyScanner = false
     @State private var addressCompleter = AddressCompleter()
@@ -138,16 +141,13 @@ struct EditClientView: View {
             }
         }
         .sheet(isPresented: $showingPropertyScanner, onDismiss: takePinFromClient) {
-            PropertyScannerView(client: client)
+            PropertyScannerView(client: client, pendingAddress: pendingAddress, startingPin: pendingPin,
+                                onAddressChosen: { addressChosenOnPinScreen = $0 })
         }
         .sheet(isPresented: $showingLocationAdjust, onDismiss: takePinFromClient) {
             NavigationStack {
-                // A new address typed here, and its picked pin, if any: the
-                // pin screen shows that address and opens at that pin.
-                LocationAdjustView(
-                    client: client,
-                    pendingAddress: address != originalAddress ? address : nil,
-                    startingPin: geocodedCoordinate.map { .init(latitude: $0.latitude, longitude: $0.longitude) } ?? handPin)
+                LocationAdjustView(client: client, pendingAddress: pendingAddress, startingPin: pendingPin,
+                                   onAddressChosen: { addressChosenOnPinScreen = $0 })
             }
         }
         .sheet(item: $editingProposal) { proposal in
@@ -1059,13 +1059,22 @@ struct EditClientView: View {
     /// to write back the address it opened with, and could look an address
     /// typed before up again over the pin just set by hand. Which pins keep
     /// what was typed: PinPlacement.field.
+    /// A new address typed here and not saved yet, and its pin (picked, or
+    /// set by hand): the pin screens show that address and open at that pin.
+    private var pendingAddress: String? { address != originalAddress ? address : nil }
+    private var pendingPin: PinPlacement.Pin? {
+        geocodedCoordinate.map { .init(latitude: $0.latitude, longitude: $0.longitude) } ?? handPin
+    }
+
     private func takePinFromClient() {
         let before = PinPlacement.Field(
             text: address, original: originalAddress, originalPin: originalPin,
             pickedPin: geocodedCoordinate.map { .init(latitude: $0.latitude, longitude: $0.longitude) },
             handPin: handPin)
         let after = PinPlacement.field(before, afterPinSheetWith: client.address,
-                                       .init(latitude: client.latitude, longitude: client.longitude))
+                                       .init(latitude: client.latitude, longitude: client.longitude),
+                                       chosen: addressChosenOnPinScreen)
+        addressChosenOnPinScreen = nil
         originalPin = after.originalPin
         originalAddress = after.original
         address = after.text
