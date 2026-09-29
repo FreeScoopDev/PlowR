@@ -72,6 +72,65 @@ struct ClientDraftTests {
         }
     }
 
+    // Save writes back every field it edits (but the address, looked up
+    // first, and active, which goes through ClientRemoval).
+    @Test func saveWritesEveryField() {
+        let draft = ClientDraft(
+            name: "Pat Smith", phone: "555-0199", email: "", address: pat.address,
+            skipNotificationPrompt: false, goalMinutes: 15, defaultStopNotes: "",
+            preferredPayment: "cash", isComped: false, defaultDiscountPercent: 10, tags: ["Priority"],
+            notes: "", isActive: pat.isActive, expectedServiceIDs: ["c"])
+        draft.applyExceptAddressAndActive(to: pat)
+        #expect(ClientDraft(pat) == draft)
+        var moved = draft
+        moved.address = "2 Elm St"
+        moved.isActive.toggle()
+        moved.applyExceptAddressAndActive(to: pat)
+        #expect(pat.address == "1 Main St")
+        #expect(pat.isActive == draft.isActive)
+    }
+
+    // A client needs a name and a phone number to be saved, from Back's
+    // prompt as from the toolbar.
+    @Test func saveNeedsANameAndAPhone() {
+        var draft = ClientDraft(pat)
+        #expect(draft.canSave)
+        draft.phone = ""
+        #expect(!draft.canSave)
+        draft.phone = "555-0100"
+        draft.name = ""
+        #expect(!draft.canSave)
+    }
+
+    // The client changed underneath (Schedule reactivating them, a synced
+    // edit): what the screen hadn't touched follows; what it had, stays.
+    @Test func fieldsNotEditedFollowTheClient() {
+        let old = ClientDraft(pat)
+        var new = old
+        new.name = "Pat Smith"; new.phone = "555-0199"; new.email = ""; new.address = "2 Elm St"
+        new.skipNotificationPrompt.toggle(); new.goalMinutes = 30; new.defaultStopNotes = ""
+        new.preferredPayment = "zelle"; new.isComped.toggle(); new.defaultDiscountPercent = 0
+        new.tags = []; new.notes = ""; new.isActive.toggle(); new.expectedServiceIDs = ["z"]
+        #expect(old.rebased(from: old, to: new) == new)        // untouched: no false prompt
+        var edited = old
+        edited.notes = "Mine"
+        let rebased = edited.rebased(from: old, to: new)
+        #expect(rebased.notes == "Mine")                         // kept, still to save
+        #expect(rebased.isActive == new.isActive)                // followed
+        #expect(rebased != new)
+    }
+
+    // After a failed lookup everything but the new address is saved, and
+    // Back's prompt says so.
+    @Test func thePromptSaysWhatIsntSaved() {
+        let saved = ClientDraft(pat)
+        var draft = saved
+        draft.address = "2 Elm St"
+        #expect(draft.unsavedMessage(comparedWith: saved) == "The new address hasn't been saved.")
+        draft.notes = ""
+        #expect(draft.unsavedMessage(comparedWith: saved) == "Your changes to this client haven't been saved.")
+    }
+
     // Services ticked in another order aren't a change, and neither is an
     // edit once saved.
     @Test func reorderedOrSavedIsNoChange() {
