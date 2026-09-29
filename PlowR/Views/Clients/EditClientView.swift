@@ -51,6 +51,8 @@ struct EditClientView: View {
     @State private var editingProposal: Proposal?
     @State private var notes: String
     @State private var isActive: Bool
+    /// Save marks the client inactive, which takes them off these routes.
+    @State private var deactivatingFootprint: ClientRemoval.Footprint?
     @State private var expectedServiceIDs: Set<String>
     @State private var showingProposalBuilder = false
     @State private var showingInvoiceBuilder = false
@@ -102,7 +104,7 @@ struct EditClientView: View {
                 if isSaving {
                     ProgressView().scaleEffect(0.8)
                 } else {
-                    Button("Save") { saveChanges() }
+                    Button("Save") { save() }
                         .disabled(name.isEmpty || phone.isEmpty)
                 }
             }
@@ -142,6 +144,24 @@ struct EditClientView: View {
             Button("OK", role: .cancel) { }
         } message: {
             Text("Apple Maps doesn't have Street View coverage for this location.")
+        }
+        .confirmationDialog(
+            "Mark \(name) Inactive?",
+            isPresented: Binding(
+                get: { deactivatingFootprint != nil },
+                set: { if !$0 { deactivatingFootprint = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Save and Mark Inactive", role: .destructive) {
+                deactivatingFootprint = nil
+                saveChanges()
+            }
+            Button("Cancel", role: .cancel) { deactivatingFootprint = nil }
+        } message: {
+            if let footprint = deactivatingFootprint {
+                Text(ClientRemoval.deactivateMessage(for: footprint))
+            }
         }
         .confirmationDialog(
             "Revise Paid Invoice",
@@ -297,7 +317,7 @@ struct EditClientView: View {
             Toggle(isOn: $isActive) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Active client")
-                    Text("Inactive clients appear separately in the list")
+                    Text("Inactive clients are listed separately and taken off their routes")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -999,6 +1019,18 @@ struct EditClientView: View {
         geocodedCoordinate = nil
     }
 
+    /// Asks first when Save marks the client inactive and they're on a route.
+    private func save() {
+        if client.isActive, !isActive {
+            let footprint = ClientRemoval.footprint(of: client, in: modelContext)
+            if !footprint.routeNames.isEmpty {
+                deactivatingFootprint = footprint
+                return
+            }
+        }
+        saveChanges()
+    }
+
     private func saveChanges() {
         isSaving = true
         client.name = name
@@ -1012,6 +1044,7 @@ struct EditClientView: View {
         client.defaultDiscountPercent = defaultDiscountPercent
         client.tags = tags
         client.notes = notes
+        if client.isActive, !isActive { ClientRemoval.takeOffRoutes(client, in: modelContext) }
         client.isActive = isActive
         client.expectedServiceIDs = Array(expectedServiceIDs)
 
