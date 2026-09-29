@@ -29,13 +29,15 @@ jobs:
       # the service catalog ("Snow Plowing"), weather, and icons chosen from a
       # service's own category. Put new snow-only features in their own files.
       #
-      # An icon is caught wherever its name appears, so one returned from a
-      # function counts too, and a listed path that's gone fails the job:
-      # grep used to exit 2 for it and the job passed, checking nothing.
+      # An icon is caught wherever its name appears ("snowflake", "cloud.snow",
+      # and their variants), so one returned from a function counts too; the
+      # word "snow" on its own is weather code. A listed path that's gone
+      # fails the job: grep used to exit 2 for it and the job passed,
+      # checking nothing.
       - name: Service-language guard
         run: |
           SHARED="PlowR/Views/DashboardView.swift PlowR/Views/MainTabView.swift PlowR/Views/ActiveRoute PlowR/Views/Routes PlowR/Activity PlowR/Intents PlowRWidgets PlowR/Views/Schedule PlowR/Views/Clients PlowR/Views/Proposals PlowR/Views/SettingsView.swift PlowR/Views/Settings"
-          ICON='"(cloud\.)?snow(flake)?(\.fill)?"'
+          ICON='"(cloud\.snow|snowflake)(\.[a-z]+)*"'
           COPY='"(Start|Begin|End|Finish|Next|Resume|Complete) (Plow|Snow)|"Plow(ing|ed)? (Route|Stop|Job|Complete|History|Day|Done)|"Snow (Route|Stop|Job|Day|Done)|"(Plowed|Plowing)[" !.]|"(Snow Plowing|Salting / Ice Melt|Walkway Shoveling|Roof Snow Removal)"'
           found=0
           for path in $SHARED; do
