@@ -20,7 +20,7 @@ struct MassMessageView: View {
         ("Move Vehicles", "Please move any vehicles from the driveway when you get a chance."),
         ("Running Late",  "Running slightly behind schedule — I'll be there shortly, thank you for your patience."),
         ("Weather Delay", "Weather is slowing things down a bit. I'm working safely and will be there soon."),
-        ("Done Soon",     "I'll be finished before you need to leave."),
+        ("Done Soon",     "I'll be finished before you need to leave.")
     ]
 
     init(stops: [RouteStop], allClients: [Client]) {
