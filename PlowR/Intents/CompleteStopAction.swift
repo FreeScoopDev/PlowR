@@ -17,15 +17,12 @@ enum CompleteStopAction {
         var completed: Bool
     }
 
-    /// The role chosen at first launch that runs routes (`userRole`: "operator"
-    /// or "client", empty until chosen).
-    static let businessRole = "operator"
 
     /// Siri's "Complete current stop in PlowR": the stop the route has as
     /// current, read before `run` re-checks the route, so a change iCloud
     /// brings in meanwhile is caught.
     static func siri(in store: ActiveRouteStore, role: String?) -> Reply {
-        guard role == businessRole else { return noRoute }
+        guard role == UserRole.business else { return noRoute }
         return run(in: store, expecting: store.currentStopID)
     }
 
@@ -38,7 +35,7 @@ enum CompleteStopAction {
     /// tap would be lost. A route in progress was started by the business
     /// signed in on this device.
     static func controlCenter(stopID: UUID, in store: ActiveRouteStore, role: String?) -> String? {
-        guard role == businessRole else { return nil }
+        guard role == UserRole.business else { return nil }
         let reply = run(in: store, expecting: stopID)
         return reply.completed || !store.isActive ? nil : reply.text
     }

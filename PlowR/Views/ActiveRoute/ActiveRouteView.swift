@@ -67,7 +67,8 @@ struct ActiveRouteView: View {
         currentStop.flatMap(client(for:))
     }
 
-    /// A sheet, dialog or other alert is up on this screen.
+    /// A sheet, dialog or other alert is up on this screen. A new one must be
+    /// added here, or Control Center's message can try to show over it.
     private var isPresentingSomething: Bool {
         showingFirstStopPrompt || showingNotifyPrompt || recorderStop != nil || showingMassMessage
             || showingRouteRecap || showingNavPicker || showingRouteChangedAlert || showingLocationDeniedAlert
@@ -159,6 +160,7 @@ struct ActiveRouteView: View {
             locationManager.lastExitedRegionID = nil
             triggerNotifyPrompt()
         }
+        // Each sheet, dialog and alert on this screen is in isPresentingSomething.
         .sheet(isPresented: $showingFirstStopPrompt) {
             if let first = sortedStops.first {
                 NotifyPromptView(

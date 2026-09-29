@@ -2,14 +2,14 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(AuthManager.self) private var authManager
-    @AppStorage("userRole") private var userRole = ""
+    @AppStorage(UserRole.key) private var userRole = ""
     @State private var selectedTab = 0
 
     var body: some View {
         Group {
             if userRole.isEmpty {
                 RoleSelectionView()
-            } else if userRole == "client" {
+            } else if userRole == UserRole.client {
                 ClientHomeView()
             } else {
                 if authManager.isSignedIn {

@@ -18,13 +18,13 @@ struct CompleteStopActionTests {
 
     /// What Siri does, for a business.
     private func siri(_ store: ActiveRouteStore) -> CompleteStopAction.Reply {
-        CompleteStopAction.siri(in: store, role: "operator")
+        CompleteStopAction.siri(in: store, role: UserRole.business)
     }
 
     /// What Control Center's link does, for a business: what the route
     /// screen says, if anything.
     private func controlCenter(_ store: ActiveRouteStore, stop: UUID) -> String? {
-        CompleteStopAction.controlCenter(stopID: stop, in: store, role: "operator")
+        CompleteStopAction.controlCenter(stopID: stop, in: store, role: UserRole.business)
     }
 
     @Test func withNoRouteItSaysSo() throws {
@@ -109,6 +109,13 @@ struct CompleteStopActionTests {
         }
         #expect(store.currentStopIndex == 0)
         #expect(h.clients.allSatisfy { $0.totalVisits == 0 })
+    }
+
+    // What a business's device has stored since the first version. Siri
+    // and Control Center check it, and a new value would lock them out.
+    @Test func theBusinessRoleIsWhatDevicesHaveStored() {
+        #expect(UserRole.key == "userRole")
+        #expect(UserRole.business == "operator")
     }
 
     // With no route in progress there's no route screen to say anything on

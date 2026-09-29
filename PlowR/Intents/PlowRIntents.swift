@@ -11,7 +11,7 @@ struct CompleteCurrentStopIntent: AppIntent {
     // meant is the current one, unless iCloud has changed it unseen.
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let role = UserDefaults.standard.string(forKey: "userRole")
+        let role = UserDefaults.standard.string(forKey: UserRole.key)
         let reply = CompleteStopAction.siri(in: .shared, role: role)
         return .result(dialog: "\(reply.text)")
     }
