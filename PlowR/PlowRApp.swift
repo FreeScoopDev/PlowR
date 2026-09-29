@@ -29,6 +29,8 @@ struct PlowRApp: App {
     init() {
         let schema = Schema(Self.models)
         container = Self.makeContainer(schema: schema)
+        // "Awaiting Response" is for documents sent now; texts set it before.
+        DocumentSent.clearTextStamps(in: container.mainContext)
         // Before any view: a Siri or Control Center launch acts on the route
         // without the UI, and a killed app should come back mid-route.
         ActiveRouteStore.shared.configure(context: container.mainContext)

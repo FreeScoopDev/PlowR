@@ -11,6 +11,7 @@ struct ProposalDetailView: View {
 
     @State private var pdfData: Data? = nil
     @State private var shareURL: URL? = nil
+    @State private var showingShare = false
     @State private var showingEditView = false
     @State private var showingReviseDialog = false
     @State private var showingReminder = false
@@ -56,11 +57,8 @@ struct ProposalDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                if let url = shareURL {
-                    ShareLink(
-                        item: url,
-                        preview: SharePreview(navTitle, icon: Image(systemName: "doc.fill"))
-                    ) {
+                if shareURL != nil {
+                    Button { showingShare = true } label: {
                         Image(systemName: "square.and.arrow.up")
                     }
                 } else {
@@ -78,6 +76,14 @@ struct ProposalDetailView: View {
         .onChange(of: proposal.invoicePaidAt) { _, _ in generatePDF() }
         .onChange(of: proposal.invoiceSentAt) { _, _ in generatePDF() }
         .onChange(of: allProfiles) { _, _ in generatePDF() }
+        // Sent to the client from the share sheet: they're awaiting a response.
+        .sheet(isPresented: $showingShare) {
+            if let url = shareURL {
+                DocumentShareSheet(url: url) {
+                    DocumentSent.awaitResponse(clientID: proposal.clientID, in: modelContext)
+                }
+            }
+        }
         .sheet(isPresented: $showingReminder) {
             if let phone = proposalClient?.phone, !phone.isEmpty {
                 MessageComposer(recipients: [phone], body: reminderMessage) { _ in }
@@ -199,11 +205,7 @@ struct ProposalDetailView: View {
     }
 
     private func markSent() {
-        proposal.invoiceSentAt = Date()
-        DocumentSent.awaitResponse(to: proposal, in: modelContext)
-        if proposal.invoiceDueDate == nil {
-            proposal.invoiceDueDate = Date().addingTimeInterval(30 * 86400)
-        }
+        DocumentSent.markSent(proposal, in: modelContext)
         generatePDF()
     }
 

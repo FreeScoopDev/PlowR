@@ -341,8 +341,7 @@ struct StopServiceRecorderView: View {
         proposal.lineItems = lineItems
         modelContext.insert(proposal)
         if markSent {
-            proposal.invoiceSentAt = Date()
-            DocumentSent.awaitResponse(to: proposal, in: modelContext)
+            DocumentSent.markSent(proposal, in: modelContext)
         }
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         dismiss()

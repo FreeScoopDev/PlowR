@@ -892,6 +892,14 @@ struct EditClientView: View {
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let window = windowScene.windows.first else { return }
         let vc = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        // Sent to the client from the share sheet: they're awaiting a response.
+        let clientID = proposal.clientID
+        vc.completionWithItemsHandler = { activity, completed, _, _ in
+            guard completed, DocumentSent.isSend(activity) else { return }
+            DispatchQueue.main.async {
+                DocumentSent.awaitResponse(clientID: clientID, in: modelContext)
+            }
+        }
         vc.popoverPresentationController?.sourceView = window
         var topVC = window.rootViewController
         while let presented = topVC?.presentedViewController { topVC = presented }

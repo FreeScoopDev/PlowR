@@ -6,19 +6,24 @@
 import Foundation
 import SwiftData
 import Testing
+import UIKit
 @testable import PlowR
 
 /// "Awaiting Response" on a client's page follows invoices and proposals
-/// marked sent. A text from the client's page used to set it, and marking a
-/// document sent didn't.
+/// sent. A text from the client's page used to set it, and sending a
+/// document didn't.
 @MainActor
 struct DocumentSentTests {
+    /// Kept: a container that goes away resets its context, and every model
+    /// in it is destroyed.
+    let container: ModelContainer
     let context: ModelContext
     let pat: Client
     let sam: Client
+    let now = Date(timeIntervalSinceReferenceDate: 812_000_000)
 
     init() throws {
-        let container = try ModelContainer(
+        container = try ModelContainer(
             for: Client.self, Proposal.self, ProposalLineItem.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
         context = container.mainContext
@@ -28,23 +33,67 @@ struct DocumentSentTests {
         context.insert(sam)
     }
 
-    @Test func aDocumentSentMakesItsClientAwaitAResponse() {
-        let when = Date(timeIntervalSinceReferenceDate: 812_000_000)
-        pat.clientRespondedAt = when.addingTimeInterval(-86_400)      // answered an earlier one
+    // Mark Sent, from any of its four places: sent now, due in 30 days, and
+    // the client awaiting a response.
+    @Test func markingAnInvoiceSentMakesItsClientAwaitAResponse() {
+        pat.clientRespondedAt = now.addingTimeInterval(-86_400)       // answered an earlier one
         let invoice = Proposal(operatorID: "op", client: pat)
         context.insert(invoice)
-        DocumentSent.awaitResponse(to: invoice, in: context, now: when)
-        #expect(pat.lastMessageSentAt == when)
+        DocumentSent.markSent(invoice, in: context, now: now)
+        #expect(invoice.invoiceSentAt == now)
+        #expect(invoice.invoiceDueDate == now.addingTimeInterval(30 * 86_400))
+        #expect(pat.lastMessageSentAt == now)
         #expect(pat.clientRespondedAt == nil)
         #expect(sam.lastMessageSentAt == nil)
     }
 
+    @Test func aDueDateAlreadySetIsKept() {
+        let invoice = Proposal(operatorID: "op", client: pat)
+        let due = now.addingTimeInterval(7 * 86_400)
+        invoice.invoiceDueDate = due
+        context.insert(invoice)
+        DocumentSent.markSent(invoice, in: context, now: now)
+        #expect(invoice.invoiceDueDate == due)
+    }
+
+    // A proposal (or invoice) shared to someone from the share sheet.
+    @Test func aDocumentSharedToSomeoneMakesItsClientAwait() {
+        DocumentSent.awaitResponse(clientID: sam.id.uuidString, in: context, now: now)
+        #expect(sam.lastMessageSentAt == now)
+        #expect(pat.lastMessageSentAt == nil)
+    }
+
+    @Test func onlyAShareThatSendsCounts() {
+        #expect(DocumentSent.isSend(.message))
+        #expect(DocumentSent.isSend(.mail))
+        #expect(DocumentSent.isSend(.airDrop))
+        #expect(DocumentSent.isSend(UIActivity.ActivityType("net.whatsapp.WhatsApp.ShareExtension")))
+        #expect(!DocumentSent.isSend(nil))
+        #expect(!DocumentSent.isSend(.copyToPasteboard))
+        #expect(!DocumentSent.isSend(.print))
+        #expect(!DocumentSent.isSend(.saveToCameraRoll))
+        #expect(!DocumentSent.isSend(UIActivity.ActivityType("com.apple.DocumentManagerUICore.SaveToFiles")))
+    }
+
     @Test func aDocumentWhoseClientIsGoneChangesNothing() {
-        let orphan = Proposal(operatorID: "op", client: pat)
-        orphan.clientID = UUID().uuidString
-        context.insert(orphan)
-        DocumentSent.awaitResponse(to: orphan, in: context)
+        DocumentSent.awaitResponse(clientID: UUID().uuidString, in: context, now: now)
         #expect(pat.lastMessageSentAt == nil)
         #expect(sam.lastMessageSentAt == nil)
+    }
+
+    // Stamps set by texts before this version would read as a document sent:
+    // cleared once, and only once.
+    @Test func textStampsAreClearedOnce() throws {
+        let defaults = try #require(UserDefaults(suiteName: "DocumentSentTests-\(UUID().uuidString)"))
+        pat.lastMessageSentAt = now
+        sam.clientRespondedAt = now
+        DocumentSent.clearTextStamps(in: context, defaults: defaults)
+        #expect(pat.lastMessageSentAt == nil)
+        #expect(sam.clientRespondedAt == nil)
+        let invoice = Proposal(operatorID: "op", client: pat)
+        context.insert(invoice)
+        DocumentSent.markSent(invoice, in: context, now: now)
+        DocumentSent.clearTextStamps(in: context, defaults: defaults)
+        #expect(pat.lastMessageSentAt == now)
     }
 }
