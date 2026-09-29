@@ -138,9 +138,12 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
 - **A route stop keeps its own copy of the client's name, phone, address and
   pin** (`RouteStop`), and `ClientStops` keeps it in step: every screen that
   changes those on a client calls `ClientStops.update(for:)`, and
-  `ClientStops.updateAll(in:)` runs at launch for stops that fell behind. A
-  new place that edits a client's details must call it too, or its routes
-  keep the old ones. Stop notes and run results are the stop's own.
+  `ClientStops.updateAll(in:)` runs at launch, whenever iCloud brings changes
+  and whenever the app comes back to the front, for stops that fell behind
+  (a client edited on a device with an older PlowR, or a stop made there
+  from an old copy). A new place that edits a client's details must still
+  call `update(for:)`, or its routes lag until the next sweep. Stop notes
+  and run results are the stop's own.
 - **Delete Account & Data** (Settings) is an App Review 5.1.1(v) requirement.
   It removes all SwiftData records, the encrypted work-orders file, the route
   checkpoint and Live Activities (`ActiveRouteStore.eraseAll()`), the widget's

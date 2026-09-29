@@ -207,6 +207,12 @@ struct ActiveRouteView: View {
             if let stop = currentStop { locationManager.startMonitoringStop(stop) }
             if scenePhase == .active { store.markCurrentStopSeen() }
         }
+        // The current stop's pin moved with its client's, say corrected on
+        // another device: the job-site zone moves too.
+        .onChange(of: currentStop.map { [$0.latitude, $0.longitude] }) { _, _ in
+            locationManager.clearAllGeofences()
+            if let stop = currentStop { locationManager.startMonitoringStop(stop) }
+        }
         // Back in the app with this screen up: whatever stop it shows is seen.
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { store.markCurrentStopSeen() }

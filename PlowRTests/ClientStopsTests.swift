@@ -3,6 +3,7 @@
 //  PlowRTests
 //
 
+import CoreData
 import Foundation
 import SwiftData
 import Testing
@@ -96,12 +97,19 @@ struct ClientStopsTests {
         #expect(stop.clientPhone == "555-0111")
     }
 
+    // Nothing is written, so nothing is sent to iCloud, for a stop already
+    // in step.
     @Test func anUnchangedStopIsntWritten() throws {
         let stop = try #require(try stops(of: pat).first)
         #expect(!ClientStops.follow(stop, pat))
+        #expect(!context.hasChanges)
         pat.phone = "555-0111"
         #expect(ClientStops.follow(stop, pat))
+        try context.save()
         #expect(!ClientStops.follow(stop, pat))
+        ClientStops.update(for: pat)
+        ClientStops.updateAll(in: context)
+        #expect(!context.hasChanges)
     }
 
     // At launch: stops that fell behind (made before stops followed their
@@ -115,6 +123,21 @@ struct ClientStopsTests {
         #expect(stale.clientPhone == "555-0200")
         #expect(stale.clientAddress == "2 Elm St")
         #expect(try stops(of: pat).allSatisfy { $0.clientAddress == "12 Pleasant St" })
+        #expect(!context.hasChanges)             // saved
+    }
+
+    // A client changed on another device arrives through iCloud: the stops
+    // follow then, not only at the next launch. A route app stays open for
+    // days.
+    @Test func stopsFollowWhenICloudBringsChanges() throws {
+        let center = NotificationCenter()
+        let observer = ClientStops.followRemoteChanges(of: container, center: center)
+        defer { center.removeObserver(observer) }
+        pat.phone = "555-0111"                    // changed without update(for:)
+        try context.save()
+        #expect(try stops(of: pat).allSatisfy { $0.clientPhone == "555-0100" })
+        center.post(name: .NSPersistentStoreRemoteChange, object: nil)
+        #expect(try stops(of: pat).allSatisfy { $0.clientPhone == "555-0111" })
         #expect(!context.hasChanges)             // saved
     }
 }

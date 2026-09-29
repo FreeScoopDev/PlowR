@@ -1,10 +1,12 @@
+import CoreData
 import Foundation
 import SwiftData
 
 /// A client's stops on routes. A stop keeps its own copy of the client's
 /// name, phone, address and map pin (a route is shown and run from its
-/// stops), so the stops follow the client: whenever the client is changed,
-/// and once at launch.
+/// stops), so the stops follow the client: whenever the client is changed
+/// here, whenever iCloud brings changes, at launch and whenever the app
+/// comes back to the front.
 ///
 /// They used to be copied once, when the stop was made, and never again. A
 /// corrected phone number or address, or a pin set by hand, never reached
@@ -37,9 +39,10 @@ enum ClientStops {
         for stop in stops { follow(stop, client) }
     }
 
-    /// Every client's stops in step with the client. At launch: stops made
-    /// before stops followed their client, and ones a device running an
-    /// older PlowR changed through iCloud.
+    /// Every client's stops in step with the client: stops made before stops
+    /// followed their client, a client changed on another device (an older
+    /// PlowR there doesn't move the stops), or a stop made there from its
+    /// older copy of the client. Saves only when a stop changed.
     static func updateAll(in context: ModelContext) {
         guard let clients = try? context.fetch(FetchDescriptor<Client>()),
               let stops = try? context.fetch(FetchDescriptor<RouteStop>()) else { return }
@@ -49,5 +52,15 @@ enum ClientStops {
             if let client = byID[stop.clientID], follow(stop, client) { changed = true }
         }
         if changed { try? context.save() }
+    }
+
+    /// From now on, `updateAll` whenever iCloud brings changes. A route app
+    /// can stay open for days, so launch alone isn't enough.
+    @discardableResult
+    static func followRemoteChanges(of container: ModelContainer,
+                                    center: NotificationCenter = .default) -> NSObjectProtocol {
+        center.addObserver(forName: .NSPersistentStoreRemoteChange, object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated { updateAll(in: container.mainContext) }
+        }
     }
 }
