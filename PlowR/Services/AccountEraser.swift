@@ -49,8 +49,9 @@ struct AccountEraser {
     var workOrdersFile: URL = ClientWorkOrderStore.fileURL
     /// Where shared invoices, proposals and reports are written as PDFs.
     var temporaryDirectory: URL = FileManager.default.temporaryDirectory
-    /// Where `default.store…bak` archives can be: the store's own folder, and
-    /// Application Support, where the archive step has been putting them.
+    /// Where `default.store…bak` archives, and archived photo folders, can be:
+    /// the store's own folder, and Application Support, where the archive step
+    /// used to put them.
     var archiveFolders: [URL]
     var notifications: any NotificationClearing = UNUserNotificationCenter.current()
     var regions: any RegionMonitoring = CLLocationManager()
@@ -86,9 +87,7 @@ struct AccountEraser {
         }
         for folder in archiveFolders {
             attempt("database archives in \(folder.lastPathComponent)") {
-                let archives = try files(in: folder) {
-                    $0.lastPathComponent.hasPrefix("default.store") && $0.pathExtension == "bak"
-                }
+                let archives = try files(in: folder) { Self.isArchive($0) }
                 for file in archives {
                     attempt("database archive \(file.lastPathComponent)") { try removeIfPresent(file) }
                 }
@@ -124,6 +123,13 @@ struct AccountEraser {
             }
         }
         return folders
+    }
+
+    /// A `.bak` archive that StoreArchive made: one of the database's files,
+    /// or the folder of photos kept beside it.
+    nonisolated static func isArchive(_ url: URL) -> Bool {
+        let name = url.lastPathComponent
+        return url.pathExtension == "bak" && (name.hasPrefix("default.store") || name.hasPrefix(".default_SUPPORT."))
     }
 
     private func deleteAll<T: PersistentModel>(_ model: T.Type) throws {

@@ -73,9 +73,13 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   with signal trap before establishing connection." That kept CI red from
   2026-08-27 until #1 (2026-09-26).
 - **The `ModelContainer` fallback chain archives the store rather than
-  deleting it** (`default.store.<timestamp>.bak` in Application Support) when
-  the schema is incompatible. That is deliberate: a user's data survives a bad
-  migration. Don't "simplify" it to a delete.
+  deleting it** (`default.store.<timestamp>.bak` and the photo folder, beside
+  the store: the app-group container on a signed build), and only when the
+  store can't be migrated even with iCloud off (`StoreArchive.verdict`). Any
+  other failure stops the app with the data in place. That is deliberate: a
+  user's data survives a bad migration, and a store that merely failed to open
+  is never hidden behind an empty app. Don't "simplify" it to a delete, or to
+  archiving on any failure.
 - **SwiftLint gates merges.** The `SwiftLint` job in `guards.yml` fails on any
   error-severity violation (force unwrap, force cast, `try!`) and is a required
   check on `main`. It was report-only until the 35 force-unwraps were removed
