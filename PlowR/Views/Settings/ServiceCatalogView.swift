@@ -26,6 +26,27 @@ struct ServiceCatalogView: View {
         ServiceCatalog.offered(from: allServices, operatorID: authManager.userID)
     }
 
+    /// Offered, not added by themselves: see ServiceCatalog.
+    @ViewBuilder
+    private var standardServicesSection: some View {
+        if !offered.isEmpty {
+            Section {
+                ForEach(offered) { category in
+                    Button {
+                        ServiceCatalog.addStandard(category, operatorID: authManager.userID,
+                                                   existing: allServices, to: modelContext)
+                    } label: {
+                        Label(category.label, systemImage: "plus.circle")
+                    }
+                }
+            } header: {
+                Text("Add Standard Services")
+            } footer: {
+                Text("Common services with typical prices, to edit or delete as you like.")
+            }
+        }
+    }
+
     var body: some View {
         List {
             ForEach(grouped, id: \.category) { group in
@@ -41,6 +62,9 @@ struct ServiceCatalogView: View {
                 }
             }
 
+            // An empty catalog starts with the standard services on top.
+            if myServices.isEmpty { standardServicesSection }
+
             Section {
                 Button {
                     showingAddService = true
@@ -49,23 +73,7 @@ struct ServiceCatalogView: View {
                 }
             }
 
-            // Offered, not added by themselves: see ServiceCatalog.
-            if !offered.isEmpty {
-                Section {
-                    ForEach(offered) { category in
-                        Button {
-                            ServiceCatalog.addStandard(category, operatorID: authManager.userID,
-                                                       existing: allServices, to: modelContext)
-                        } label: {
-                            Label(category.label, systemImage: "plus.circle")
-                        }
-                    }
-                } header: {
-                    Text("Add Standard Services")
-                } footer: {
-                    Text("Common services with typical prices, to edit or delete as you like.")
-                }
-            }
+            if !myServices.isEmpty { standardServicesSection }
         }
         .navigationTitle("Service Catalog")
         .navigationBarTitleDisplayMode(.inline)
@@ -202,7 +210,7 @@ struct ServiceItemEditView: View {
         } else {
             let new = ServiceItem(
                 name: name,
-                category: "custom",
+                category: ServiceCatalog.custom.key,
                 unitType: unitType,
                 pricePerUnit: priceValue,
                 operatorID: operatorID,

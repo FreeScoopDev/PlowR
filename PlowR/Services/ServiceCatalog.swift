@@ -21,9 +21,24 @@ enum ServiceCatalog {
     static let standardCategories = [
         Category(key: "snow", label: "Snow Removal"),
         Category(key: "lawn", label: "Lawn Care"),
-        Category(key: "cleanup", label: "Cleanup"),
+        Category(key: "cleanup", label: "Cleanup")
     ]
     static let custom = Category(key: "custom", label: "Custom Services")
+
+    /// What a business has to pick from.
+    enum Coverage: Equatable {
+        /// No services at all: offer the standard ones.
+        case none
+        /// Services, all turned off in the catalog.
+        case allOff
+        case some
+    }
+
+    static func coverage(of services: [ServiceItem], operatorID: String) -> Coverage {
+        let mine = services.filter { $0.operatorID == operatorID }
+        if mine.isEmpty { return .none }
+        return mine.contains(where: \.isActive) ? .some : .allOff
+    }
 
     /// The standard categories to offer: those this business has no service in.
     static func offered(from services: [ServiceItem], operatorID: String) -> [Category] {

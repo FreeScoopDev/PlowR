@@ -49,29 +49,6 @@ struct StopServiceRecorderView: View {
                                    zones: pricingZones)
     }
 
-    /// A business that went straight to a route had no services here, and
-    /// had to leave the route for Settings to get any.
-    @ViewBuilder
-    private var emptyCatalog: some View {
-        if allServices.contains(where: { $0.operatorID == operatorID }) {
-            Text("All your services are turned off. Turn them on in Settings → Service Catalog.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        } else {
-            Text("Your service catalog is empty. Add the standard services for your work, or your own in Settings → Service Catalog.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            ForEach(ServiceCatalog.standardCategories) { category in
-                Button {
-                    ServiceCatalog.addStandard(category, operatorID: operatorID, existing: allServices,
-                                               to: modelContext)
-                } label: {
-                    Label(category.label, systemImage: "plus.circle")
-                }
-            }
-        }
-    }
-
     var body: some View {
         NavigationStack {
             Form {
@@ -89,7 +66,9 @@ struct StopServiceRecorderView: View {
 
                 Section("Services Performed") {
                     if myServices.isEmpty {
-                        emptyCatalog
+                        // A business that went straight to a route had none, and had
+                        // to leave the route for Settings to get any.
+                        StandardServicesOffer(operatorID: operatorID)
                     } else {
                         ForEach(myServices) { service in
                             let key = service.id.uuidString

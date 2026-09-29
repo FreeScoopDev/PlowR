@@ -70,6 +70,17 @@ struct ServiceCatalogTests {
         #expect(added.first?.sortOrder == 0)
     }
 
+    // An empty catalog offers the standard services where they'd be listed;
+    // one with every service turned off says so instead.
+    @Test func whatABusinessHasToPickFrom() {
+        let off = service("Patio", category: "custom")
+        off.isActive = false
+        #expect(ServiceCatalog.coverage(of: [], operatorID: "op") == .none)
+        #expect(ServiceCatalog.coverage(of: [service("Theirs", category: "lawn", operatorID: "x")], operatorID: "op") == .none)
+        #expect(ServiceCatalog.coverage(of: [off], operatorID: "op") == .allOff)
+        #expect(ServiceCatalog.coverage(of: [off, service("Mowing", category: "lawn")], operatorID: "op") == .some)
+    }
+
     @Test func everyStandardServiceIsInAnOfferedCategory() {
         let keys = Set(ServiceCatalog.standardCategories.map(\.key))
         #expect(ServiceItem.defaultServices.allSatisfy { keys.contains($0.category) })

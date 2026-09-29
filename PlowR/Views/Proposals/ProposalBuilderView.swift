@@ -136,6 +136,9 @@ struct ProposalBuilderView: View {
 
     private var servicesSection: some View {
         Section {
+            if myServices.isEmpty {
+                StandardServicesOffer(operatorID: authManager.userID)
+            }
             ForEach(myServices) { service in
                 if hasZones && service.unitType == "perSqFt" {
                     DisclosureGroup {
