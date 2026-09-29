@@ -14,14 +14,23 @@ extension Color {
         )
     }
 
+    /// "1E3A8A". Rounded: truncating lost a step on some values, so the
+    /// profile's colour could darken a little on every save. Clamped: a
+    /// colour picked outside sRGB (Display P3) has components beyond 0...1,
+    /// which made hex no colour could be read back from.
     var hexString: String {
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         UIColor(self).getRed(&r, green: &g, blue: &b, alpha: &a)
-        return String(format: "%02X%02X%02X", Int(r * 255), Int(g * 255), Int(b * 255))
+        func byte(_ c: CGFloat) -> Int { Int((min(max(c, 0), 1) * 255).rounded()) }
+        return String(format: "%02X%02X%02X", byte(r), byte(g), byte(b))
     }
 }
 
 struct BusinessProfileView: View {
+    /// A new profile's accent: the app's navy, BusinessProfile's default. It
+    /// was system blue, so the first save wrote blue over the navy default.
+    static let defaultAccent = PlowRColor.navy
+
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Environment(AuthManager.self) private var authManager
@@ -33,7 +42,7 @@ struct BusinessProfileView: View {
     @State private var tagline = ""
     @State private var licenseNumber = ""
     @State private var defaultDisclaimer = ""
-    @State private var accentColor: Color = .blue
+    @State private var accentColor: Color = Self.defaultAccent
     @State private var colorPDFs = true
     @State private var compactHeader = false
     @State private var logoItem: PhotosPickerItem?
@@ -140,7 +149,7 @@ struct BusinessProfileView: View {
         defaultDisclaimer = p.defaultDisclaimer
         colorPDFs = p.colorPDFs
         compactHeader = p.compactHeader
-        accentColor = Color(hex: p.accentColorHex) ?? .blue
+        accentColor = Color(hex: p.accentColorHex) ?? Self.defaultAccent
         if let data = p.logoData, let uiImage = UIImage(data: data) {
             logoImage = Image(uiImage: uiImage)
             logoData = data
