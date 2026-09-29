@@ -1,0 +1,2 @@
+### Fixed
+- **Routes show their progress.** Completing a stop never recorded its time, so the route list and the dashboard never showed how many stops were done, the route map never marked a stop done, and the recap called every stop without recorded services "Not Serviced". Each stop now records its time when it's completed, at least a minute. Starting a route clears the last run's times and recorded services, so last week's work doesn't show as done; picking a route back up after a relaunch keeps them.
