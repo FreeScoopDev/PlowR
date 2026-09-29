@@ -86,15 +86,22 @@ final class SystemRouteSurfaces: RouteSurfaces {
     }
 
     private func writeWidget(_ p: RouteProgress, isActive: Bool) {
-        WidgetDataStore.write(TodayRouteWidgetData(
+        WidgetDataStore.write(Self.widgetData(p, isActive: isActive))
+    }
+
+    /// What the widget is given for `p`. Once every stop is done there is no
+    /// next stop: the widget showed "All stops complete" as the next client.
+    static func widgetData(_ p: RouteProgress, isActive: Bool, now: Date = Date()) -> TodayRouteWidgetData {
+        let working = isActive && p.completedStops < p.totalStops
+        return TodayRouteWidgetData(
             routeName: p.routeName,
             totalStops: p.totalStops,
             completedStops: isActive ? p.completedStops : p.totalStops,
-            nextStopName: isActive ? p.currentStopName : "",
-            nextStopAddress: isActive ? p.currentStopAddress : "",
+            nextStopName: working ? p.currentStopName : "",
+            nextStopAddress: working ? p.currentStopAddress : "",
             isActive: isActive,
-            lastUpdated: Date()
-        ))
+            lastUpdated: now
+        )
     }
 }
 
