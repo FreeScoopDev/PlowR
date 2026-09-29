@@ -25,12 +25,10 @@ struct ContentView: View {
                 selectedTab = 2
             case .completeStop(let stopID):
                 // Control Center's Complete Stop, for the stop its widget
-                // showed. Only a signed-in business has a route of its own. The
-                // route screen, up while a route is in progress, shows the next
-                // stop, or why this one wasn't completed.
-                guard userRole != "client", authManager.isSignedIn else { return }
-                let reply = CompleteStopAction.run(in: .shared, expecting: stopID)
-                if !reply.completed { RouteSessionManager.shared.completeStopMessage = reply.text }
+                // showed. The route screen, up while a route is in progress,
+                // shows the next stop, or why this one wasn't completed.
+                RouteSessionManager.shared.completeStopMessage =
+                    CompleteStopAction.controlCenter(stopID: stopID, in: .shared, role: userRole)
             case nil:
                 break
             }

@@ -67,6 +67,12 @@ struct ActiveRouteView: View {
         currentStop.flatMap(client(for:))
     }
 
+    /// A sheet, dialog or other alert is up on this screen.
+    private var isPresentingSomething: Bool {
+        showingFirstStopPrompt || showingNotifyPrompt || recorderStop != nil || showingMassMessage
+            || showingRouteRecap || showingNavPicker || showingRouteChangedAlert || showingLocationDeniedAlert
+    }
+
     private func client(for stop: RouteStop) -> Client? {
         guard !stop.isCustomStop else { return nil }
         return allClients.first { $0.id == stop.clientID }
@@ -112,7 +118,9 @@ struct ActiveRouteView: View {
         }
         .onAppear {
             beginTracking()
-            store.markCurrentStopSeen()
+            // Built with the app in the background (a location relaunch), it
+            // hasn't been seen: that waits for the app to come to the front.
+            if scenePhase == .active { store.markCurrentStopSeen() }
             RouteSessionManager.shared.onNotifyNext = { openNotifyPrompt() }
         }
         .onDisappear {
@@ -120,6 +128,8 @@ struct ActiveRouteView: View {
             // End Route (store.end()) finishes it.
             locationManager.stopTracking()
             RouteSessionManager.shared.onNotifyNext = nil
+            // Said about this route: not for the next one.
+            RouteSessionManager.shared.completeStopMessage = nil
         }
         .task(id: currentStopIndex) {
             etaMinutes = nil
@@ -200,8 +210,10 @@ struct ActiveRouteView: View {
             if phase == .active { store.markCurrentStopSeen() }
         }
         // Control Center's Complete Stop, when it couldn't complete the stop.
+        // Held while something else is up: iOS won't present an alert over a
+        // sheet, and shows it once the sheet has closed.
         .alert("Complete Stop", isPresented: Binding(
-            get: { RouteSessionManager.shared.completeStopMessage != nil },
+            get: { RouteSessionManager.shared.completeStopMessage != nil && !isPresentingSomething },
             set: { if !$0 { RouteSessionManager.shared.completeStopMessage = nil } }
         )) {
             Button("OK", role: .cancel) {}

@@ -16,9 +16,15 @@ import Testing
 struct CompleteStopActionTests {
     typealias Harness = ActiveRouteStoreTests.Harness
 
-    /// What Siri does: the store's current stop.
+    /// What Siri does, for a business.
     private func siri(_ store: ActiveRouteStore) -> CompleteStopAction.Reply {
-        CompleteStopAction.run(in: store, expecting: store.currentStopID)
+        CompleteStopAction.siri(in: store, role: "operator")
+    }
+
+    /// What Control Center's link does, for a business: what the route
+    /// screen says, if anything.
+    private func controlCenter(_ store: ActiveRouteStore, stop: UUID) -> String? {
+        CompleteStopAction.controlCenter(stopID: stop, in: store, role: "operator")
     }
 
     @Test func withNoRouteItSaysSo() throws {
@@ -60,16 +66,57 @@ struct CompleteStopActionTests {
     }
 
     // Control Center names the stop its widget showed. If the route has moved
-    // on since (a second tap), nothing more is completed.
+    // on since (a second tap), nothing more is completed, and the route screen
+    // says that stop is done, not that the route changed.
     @Test func aStopThatIsntCurrentAnyMoreIsntCompleted() throws {
         let h = try Harness()
         let store = h.makeStore()
         store.start(h.route)
         let shown = try #require(store.currentStopID)
-        #expect(CompleteStopAction.run(in: store, expecting: shown).completed)
-        #expect(!CompleteStopAction.run(in: store, expecting: shown).completed)
+        #expect(controlCenter(store, stop: shown) == nil)            // completed: nothing to say
+        #expect(controlCenter(store, stop: shown) == "Client 0 is already done.")
         #expect(store.currentStopIndex == 1)
+        #expect(h.clients[0].totalVisits == 1)
         #expect(h.clients[1].totalVisits == 0)
+    }
+
+    // A stop the widget showed that the route no longer has (removed on
+    // another device, and the route screen has since shown the new stop).
+    @Test func aStopTheRouteNoLongerHasIsntCompleted() throws {
+        let h = try Harness()
+        let store = h.makeStore()
+        store.start(h.route)
+        let shown = try #require(store.currentStopID)
+        h.context.delete(h.route.sortedStops[0])
+        try h.context.save()
+        store.validate()
+        store.markCurrentStopSeen()
+        #expect(controlCenter(store, stop: shown)?.contains("changed on another device") == true)
+        #expect(h.clients.allSatisfy { $0.totalVisits == 0 })
+    }
+
+    // Only a business runs routes: in client mode, or before a role is
+    // chosen, neither Siri nor Control Center completes anything.
+    @Test func onlyABusinessCompletesStops() throws {
+        let h = try Harness()
+        let store = h.makeStore()
+        store.start(h.route)
+        let shown = try #require(store.currentStopID)
+        for role in ["client", "", nil] as [String?] {
+            #expect(CompleteStopAction.siri(in: store, role: role) == .init(text: "No route is in progress.",
+                                                                          completed: false))
+            #expect(CompleteStopAction.controlCenter(stopID: shown, in: store, role: role) == nil)
+        }
+        #expect(store.currentStopIndex == 0)
+        #expect(h.clients.allSatisfy { $0.totalVisits == 0 })
+    }
+
+    // With no route in progress there's no route screen to say anything on
+    // (it would pop up on the next route).
+    @Test func withNoRouteControlCenterSaysNothing() throws {
+        let h = try Harness()
+        let store = h.makeStore()
+        #expect(controlCenter(store, stop: UUID()) == nil)
     }
 
     // The office removes the stop the driver is at while the app is closed.
@@ -92,6 +139,26 @@ struct CompleteStopActionTests {
         store.markCurrentStopSeen()
         #expect(siri(store).completed)
         #expect(h.clients[1].totalVisits == 1)
+    }
+
+    // iCloud moves the route on while PlowR is in the background, and iOS
+    // then ends it. After the relaunch the new stop is still unseen: the
+    // checkpoint already points at it, so the relaunch alone can't tell.
+    @Test func anUnseenStopStaysUnseenAfterTheAppIsEnded() throws {
+        let h = try Harness()
+        let running = h.makeStore()
+        running.start(h.route)
+        h.context.delete(h.route.sortedStops[0])
+        try h.context.save()
+        running.validate()
+        #expect(running.stopChangedUnseen)
+        let relaunched = h.makeStore()
+        #expect(relaunched.stopChangedUnseen)
+        #expect(!siri(relaunched).completed)
+        #expect(h.clients[1].totalVisits == 0)
+        // Seen after the relaunch, and that's kept too.
+        relaunched.markCurrentStopSeen()
+        #expect(!h.makeStore().stopChangedUnseen)
     }
 
     // The same while the app is running: iCloud removes the current stop.

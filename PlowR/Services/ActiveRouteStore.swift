@@ -27,6 +27,10 @@ final class ActiveRouteStore {
         /// client. nil once every stop is done.
         var currentStopID: UUID?
         var stopStartedAt: Date
+        /// `stopChangedUnseen`, kept: iCloud can move the route on while the
+        /// app is in the background, and iOS can end the app before the user
+        /// has seen the new stop. nil in a checkpoint from before it existed.
+        var stopChangedUnseen: Bool?
     }
 
     /// What completing the current stop did, so callers (the screen, Siri,
@@ -170,9 +174,11 @@ final class ActiveRouteStore {
         return currentStop == nil ? .finishedLastStop : .advanced(nextStopIndex: currentStopIndex)
     }
 
-    /// The route screen showed the current stop.
+    /// The route screen showed the current stop, with the app in front.
     func markCurrentStopSeen() {
+        guard stopChangedUnseen else { return }
         stopChangedUnseen = false
+        saveCheckpoint()
     }
 
     /// Whether `stopID` is behind the current stop: completed on this run.
@@ -291,6 +297,7 @@ final class ActiveRouteStore {
         currentStopID = nil
         stopStartedAt = nil
         isFirstStopPromptPending = false
+        stopChangedUnseen = false
         defaults.removeObject(forKey: Self.checkpointKey)
     }
 
@@ -307,7 +314,8 @@ final class ActiveRouteStore {
     private func saveCheckpoint() {
         guard let routeID, let stopStartedAt else { return }
         let checkpoint = Checkpoint(routeID: routeID, currentStopIndex: currentStopIndex,
-                                    currentStopID: currentStopID, stopStartedAt: stopStartedAt)
+                                    currentStopID: currentStopID, stopStartedAt: stopStartedAt,
+                                    stopChangedUnseen: stopChangedUnseen)
         if let data = try? JSONEncoder().encode(checkpoint) {
             defaults.set(data, forKey: Self.checkpointKey)
         }
@@ -343,7 +351,8 @@ final class ActiveRouteStore {
         let stopChanged = reconcile(stopID: checkpoint.currentStopID, index: checkpoint.currentStopIndex)
         // The saved timer belongs to the saved stop only.
         stopStartedAt = stopChanged ? now() : checkpoint.stopStartedAt
-        stopChangedUnseen = stopChanged
+        // Changed now, or before the app was ended and not seen since.
+        stopChangedUnseen = stopChanged || (checkpoint.stopChangedUnseen ?? false)
         isFirstStopPromptPending = false
         lastProgress = progress
         surfaces.resume(progress)

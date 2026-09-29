@@ -17,15 +17,48 @@ enum CompleteStopAction {
         var completed: Bool
     }
 
+    /// The role chosen at first launch that runs routes (`userRole`: "operator"
+    /// or "client", empty until chosen).
+    static let businessRole = "operator"
+
+    /// Siri's "Complete current stop in PlowR": the stop the route has as
+    /// current, read before `run` re-checks the route, so a change iCloud
+    /// brings in meanwhile is caught.
+    static func siri(in store: ActiveRouteStore, role: String?) -> Reply {
+        guard role == businessRole else { return noRoute }
+        return run(in: store, expecting: store.currentStopID)
+    }
+
+    /// Control Center's Complete Stop, arriving as a PlowRLink with the stop
+    /// its widget showed. What the route screen should say, or nil: the stop
+    /// was completed, or there's no route screen to say it on.
+    ///
+    /// Not held back until sign-in is confirmed: opened from Control Center
+    /// with PlowR closed, Apple hasn't answered the sign-in check yet, and the
+    /// tap would be lost. A route in progress was started by the business
+    /// signed in on this device.
+    static func controlCenter(stopID: UUID, in store: ActiveRouteStore, role: String?) -> String? {
+        guard role == businessRole else { return nil }
+        let reply = run(in: store, expecting: stopID)
+        return reply.completed || !store.isActive ? nil : reply.text
+    }
+
     /// Completes the current stop if it's `stopID`, the one the caller saw
     /// (Siri: the store's current stop; Control Center: the one the widget
     /// showed), and says what happened, for Siri to read out.
     static func run(in store: ActiveRouteStore, expecting stopID: UUID?) -> Reply {
         store.validate()
-        guard store.isActive else { return Reply(text: "No route is in progress.", completed: false) }
+        guard store.isActive else { return noRoute }
         // Moved on another device since the user last looked: completing now
         // would credit whoever is current, maybe not the client they're at.
         guard !store.stopChangedUnseen else { return changed }
+        // Completed already: a second tap on Control Center, whose widget
+        // still showed it. Not "changed on another device".
+        if let stopID, store.isBehindCurrentStop(stopID) {
+            let name = store.sortedStops.first { $0.id == stopID }?.clientName ?? ""
+            return Reply(text: name.isEmpty ? "That stop is already done." : "\(name) is already done.",
+                         completed: false)
+        }
         guard let stopID, let stop = store.currentStop else {
             return Reply(text: "Every stop on this route is already done.", completed: false)
         }
@@ -40,11 +73,13 @@ enum CompleteStopAction {
         case .allStopsAlreadyDone:
             return Reply(text: "Every stop on this route is already done.", completed: false)
         case .noActiveRoute:
-            return Reply(text: "No route is in progress.", completed: false)
+            return noRoute
         case .stopChanged:
             return changed
         }
     }
+
+    private static let noRoute = Reply(text: "No route is in progress.", completed: false)
 
     private static let changed = Reply(
         text: "The route changed on another device, so no stop was marked complete. Open PlowR to see the stop you're at.",
