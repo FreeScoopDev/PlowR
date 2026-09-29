@@ -404,9 +404,7 @@ struct EditClientView: View {
     private var expectedServicesSection: some View {
         Section {
             if clientServices.isEmpty {
-                Text("No services in catalog yet.")
-                    .foregroundStyle(.secondary)
-                    .font(.subheadline)
+                StandardServicesOffer(operatorID: authManager.userID)
             } else {
                 NavigationLink {
                     expectedServicePickerView

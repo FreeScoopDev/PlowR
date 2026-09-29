@@ -66,9 +66,9 @@ struct StopServiceRecorderView: View {
 
                 Section("Services Performed") {
                     if myServices.isEmpty {
-                        Text("No services in your catalog. Add services in Settings → Service Catalog.")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                        // A business that went straight to a route had none, and had
+                        // to leave the route for Settings to get any.
+                        StandardServicesOffer(operatorID: operatorID)
                     } else {
                         ForEach(myServices) { service in
                             let key = service.id.uuidString

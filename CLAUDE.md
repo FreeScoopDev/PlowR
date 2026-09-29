@@ -72,6 +72,14 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   skips CloudKit mirroring; without it the host app dies with "Test crashed
   with signal trap before establishing connection." That kept CI red from
   2026-08-27 until #1 (2026-09-26).
+- **`ICloudStatus` asks CloudKit for the account's status** (the Dashboard
+  card, Settings > Data & Backup). `PlowRApp.isCloudKitAvailable` only says
+  whether the iCloud database opened, and it opens fine for a user who isn't
+  signed in to iCloud. `ICloudStatus.accountStatus()` never asks CloudKit
+  under tests, for the reason above; tests pass in a stand-in `check` and
+  their own `NotificationCenter`. Unverified: whether the "local" fallback
+  (`localConfiguration`, CloudKit setting left automatic) really stays off
+  iCloud on a signed build, so the card says sync "may be off".
 - **The `ModelContainer` fallback chain archives the store rather than
   deleting it** (`default.store.<timestamp>.bak` and the photo folder, beside
   the store: the app-group container on a signed build), and only when the
