@@ -225,6 +225,7 @@ struct ProposalListView: View {
         } else if proposal.invoiceStatus == .draft {
             Button {
                 proposal.invoiceSentAt = Date()
+                DocumentSent.awaitResponse(to: proposal, in: modelContext)
                 if proposal.invoiceDueDate == nil {
                     proposal.invoiceDueDate = Date().addingTimeInterval(30 * 86400)
                 }

@@ -125,12 +125,9 @@ struct EditClientView: View {
         }
         .sheet(isPresented: $showingMessageComposer) {
             if !phone.isEmpty {
-                MessageComposer(recipients: [phone], body: "") { outcome in
-                    // Only a text that went counts as the last one sent.
-                    guard outcome == .sent else { return }
-                    client.lastMessageSentAt = Date()
-                    client.clientRespondedAt = nil
-                }
+                // A plain text doesn't make the client "Awaiting Response":
+                // that's for invoices and proposals (DocumentSent).
+                MessageComposer(recipients: [phone], body: "") { _ in }
             }
         }
         .lookAroundViewer(isPresented: $showingLookAround, initialScene: lookAroundScene)
@@ -591,7 +588,7 @@ struct EditClientView: View {
                         Text(awaitingResponse ? "Awaiting Response" : "Client Responded")
                             .font(.subheadline)
                             .foregroundStyle(awaitingResponse ? .orange : .green)
-                        Text("Last message sent \(sent, format: .relative(presentation: .named))")
+                        Text("Invoice or proposal sent \(sent, format: .relative(presentation: .named))")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

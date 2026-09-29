@@ -1,0 +1,2 @@
+### Changed
+- **"Awaiting Response" on a client's page now follows invoices and proposals.** Marking an invoice or proposal sent (from the document, the documents list, the edit screen or the route's service recorder) shows the client as awaiting a response until you tap Mark Responded. It used to be set by a text sent from the client's page, and marking a document sent didn't set it. Texts, including the route's, no longer set it.

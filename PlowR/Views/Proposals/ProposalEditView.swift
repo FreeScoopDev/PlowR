@@ -129,6 +129,9 @@ struct ProposalEditView: View {
                 // Keep the discount and tax typed on this screen: only Done saved them.
                 applyEdits()
                 proposal.invoiceSentAt = Date()
+                if let context = proposal.modelContext {
+                    DocumentSent.awaitResponse(to: proposal, in: context)
+                }
                 dismiss()
             } label: {
                 Label("Mark as Sent", systemImage: "paperplane.fill")
