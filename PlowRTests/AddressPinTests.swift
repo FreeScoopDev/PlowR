@@ -39,7 +39,7 @@ struct AddressPinTests {
         #expect(AddressPin.Problem.notFound.title == "Address Not Found")
         #expect(AddressPin.Problem.unreachable.title == "Couldn't Reach the Map")
         #expect(AddressPin.Problem.notFound.message.hasPrefix("PlowR couldn't find this address on the map."))
-        #expect(AddressPin.Problem.unreachable.message.contains("try again"))
+        #expect(AddressPin.Problem.unreachable.message.contains("Try again"))
         for problem in [AddressPin.Problem.notFound, .unreachable] {
             #expect(problem.message.contains("set the pin on their page"))
         }

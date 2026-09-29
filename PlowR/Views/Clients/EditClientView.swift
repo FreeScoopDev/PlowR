@@ -35,6 +35,8 @@ struct EditClientView: View {
     @State private var tags: [String]
     @State private var newTag = ""
     @State private var geocodedCoordinate: CLLocationCoordinate2D?
+    /// A pin set by hand for a client who had none (PinPlacement.Field).
+    @State private var handPin: PinPlacement.Pin?
     @State private var isSaving = false
     @State private var showingPropertyScanner = false
     @State private var addressCompleter = AddressCompleter()
@@ -1025,13 +1027,15 @@ struct EditClientView: View {
     private func takePinFromClient() {
         let before = PinPlacement.Field(
             text: address, original: originalAddress, originalPin: originalPin,
-            pinForText: geocodedCoordinate.map { .init(latitude: $0.latitude, longitude: $0.longitude) })
+            pickedPin: geocodedCoordinate.map { .init(latitude: $0.latitude, longitude: $0.longitude) },
+            handPin: handPin)
         let after = PinPlacement.field(before, afterPinSheetWith: client.address,
                                        .init(latitude: client.latitude, longitude: client.longitude))
         originalPin = after.originalPin
         originalAddress = after.original
         address = after.text
-        geocodedCoordinate = after.pinForText.map { CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude) }
+        geocodedCoordinate = after.pickedPin.map { CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude) }
+        handPin = after.handPin
     }
 
     private func saveChanges() {
@@ -1052,7 +1056,9 @@ struct EditClientView: View {
 
         // Every path ends with the client's stops following (ClientStops): a
         // new name, phone, address or pin reaches their routes.
-        if let coord = geocodedCoordinate, address != originalAddress {
+        // A picked suggestion's pin, or one set by hand (typing keeps it).
+        let pinForSave = geocodedCoordinate ?? handPin.map { CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude) }
+        if let coord = pinForSave, address != originalAddress {
             client.address = address
             client.latitude = coord.latitude
             client.longitude = coord.longitude

@@ -48,26 +48,45 @@ struct PinPlacementTests {
     private let new = PinPlacement.Pin(latitude: 43.3639, longitude: -72.3438)
 
     @Test func aCancelledPinScreenChangesNothing() {
-        let field = PinPlacement.Field(text: "10 Olde Rd", original: "10 Old Rd", originalPin: old, pinForText: nil)
+        let field = PinPlacement.Field(text: "10 Olde Rd", original: "10 Old Rd", originalPin: old)
         #expect(PinPlacement.field(field, afterPinSheetWith: "10 Old Rd", old) == field)
     }
 
     // A pin set by hand for a client with none keeps the address being typed,
     // and Save writes the two together. The field used to snap back.
     @Test func aPinSetByHandKeepsTheTypedAddress() {
-        let typed = PinPlacement.Field(text: "10 Olde Rd", original: "10 Old Rd", originalPin: none, pinForText: nil)
-        #expect(PinPlacement.field(typed, afterPinSheetWith: "10 Old Rd", new)
-                == .init(text: "10 Olde Rd", original: "10 Old Rd", originalPin: new, pinForText: new))
-        let untouched = PinPlacement.Field(text: "10 Old Rd", original: "10 Old Rd", originalPin: none, pinForText: nil)
-        #expect(PinPlacement.field(untouched, afterPinSheetWith: "10 Old Rd", new)
-                == .init(text: "10 Old Rd", original: "10 Old Rd", originalPin: new, pinForText: nil))
+        let typed = PinPlacement.Field(text: "10 Olde Rd", original: "10 Old Rd", originalPin: none)
+        let after = PinPlacement.field(typed, afterPinSheetWith: "10 Old Rd", new)
+        #expect(after == .init(text: "10 Olde Rd", original: "10 Old Rd", originalPin: new, handPin: new))
+        #expect(after.pinForSave == new)
+    }
+
+    // The address the map couldn't find is often still being fixed: typing
+    // keeps a pin set by hand, and drops a picked suggestion's.
+    @Test func typingKeepsAHandPinButNotAPickedOne() {
+        let hand = PinPlacement.Field(text: "10 Olde Rd", original: "10 Old Rd", originalPin: new, handPin: new)
+        #expect(hand.typed("10 Olde Rd, Lot 14").pinForSave == new)
+        let picked = PinPlacement.Field(text: "12 Elm St", original: "10 Old Rd", originalPin: old, pickedPin: new)
+        #expect(picked.typed("12 Elm St, Apt 2").pinForSave == nil)
+        let both = PinPlacement.Field(text: "12 Elm St", original: "10 Old Rd", originalPin: new,
+                                      pickedPin: old, handPin: new)
+        #expect(both.pinForSave == old)                        // a pick wins
     }
 
     // A pin moved takes the address the pin screen saved with it.
     @Test func aMovedPinBringsItsAddress() {
-        let field = PinPlacement.Field(text: "10 Olde Rd", original: "10 Old Rd", originalPin: old, pinForText: old)
+        let field = PinPlacement.Field(text: "10 Olde Rd", original: "10 Old Rd", originalPin: old, pickedPin: old)
         #expect(PinPlacement.field(field, afterPinSheetWith: "12 Old Rd Claremont NH 03743", new)
                 == .init(text: "12 Old Rd Claremont NH 03743", original: "12 Old Rd Claremont NH 03743",
-                         originalPin: new, pinForText: nil))
+                         originalPin: new))
+    }
+
+    // Moved, but the pin screen couldn't look the new spot's address up: the
+    // field still takes the client's (a typed address isn't paired with the
+    // old house's nudged pin).
+    @Test func aMovedPinWithTheSameAddressResetsTheField() {
+        let field = PinPlacement.Field(text: "5 Elm St", original: "10 Old Rd", originalPin: old)
+        #expect(PinPlacement.field(field, afterPinSheetWith: "10 Old Rd", new)
+                == .init(text: "10 Old Rd", original: "10 Old Rd", originalPin: new))
     }
 }
