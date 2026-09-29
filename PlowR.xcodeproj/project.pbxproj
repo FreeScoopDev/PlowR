@@ -73,6 +73,7 @@
 			membershipExceptions = (
 				Activity/RouteActivityAttributes.swift,
 				DesignSystem.swift,
+				Intents/CompleteStopControlIntent.swift,
 				Intents/PlowRLink.swift,
 				Services/WidgetDataStore.swift,
 			);

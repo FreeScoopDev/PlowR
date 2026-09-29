@@ -209,33 +209,32 @@ struct CompleteStopActionTests {
 
 /// PlowR's links, shared by the app and the widget extension.
 struct PlowRLinkTests {
-    @Test func linksRoundTrip() throws {
-        for link in [PlowRLink.activeRoute, .completeStop(UUID())] {
-            #expect(PlowRLink(try #require(link.url)) == link)
-        }
+    @Test func theRouteLinkRoundTrips() throws {
+        #expect(PlowRLink(try #require(PlowRLink.activeRoute.url)) == .activeRoute)
         #expect(PlowRLink.activeRoute.url?.absoluteString == "plowr://activeRoute")
     }
 
+    // Control Center completes through its intent in the app, not a link:
+    // a link from anywhere could otherwise complete a stop.
     @Test func otherLinksArentPlowRs() throws {
-        #expect(PlowRLink(try #require(URL(string: "https://example.com/completeStop"))) == nil)
-        #expect(PlowRLink(try #require(URL(string: "plowr://completeStop"))) == nil)       // no stop named
-        #expect(PlowRLink(try #require(URL(string: "plowr://completeStop?stop=nope"))) == nil)
+        #expect(PlowRLink(try #require(URL(string: "https://example.com/activeRoute"))) == nil)
+        #expect(PlowRLink(try #require(URL(string: "plowr://completeStop?stop=\(UUID().uuidString)"))) == nil)
         #expect(PlowRLink(try #require(URL(string: "plowr://somewhereElse"))) == nil)
     }
 
-    // What Control Center's button opens, from what the widget shows.
-    @Test func controlCenterNamesTheStopTheWidgetShows() {
+    // The stop Control Center's button completes: the one the widget shows,
+    // while a route is in progress.
+    @Test func controlCenterCompletesTheStopTheWidgetShows() {
         let stop = UUID()
         var data = TodayRouteWidgetData(routeName: "Tuesday", totalStops: 3, completedStops: 1,
                                         nextStopName: "B", nextStopAddress: "", isActive: true,
                                         lastUpdated: .now, currentStopID: stop)
-        #expect(PlowRLink.completeStopControl(showing: data) == .completeStop(stop))
-        data.currentStopID = nil
-        #expect(PlowRLink.completeStopControl(showing: data) == .activeRoute)
-        data.currentStopID = stop
+        #expect(data.shownStopID == stop)
         data.isActive = false
-        #expect(PlowRLink.completeStopControl(showing: data) == .activeRoute)
-        #expect(PlowRLink.completeStopControl(showing: nil) == .activeRoute)
+        #expect(data.shownStopID == nil)
+        data.isActive = true
+        data.currentStopID = nil
+        #expect(data.shownStopID == nil)
     }
 
     // The app writes the stop it shows for the widget, and none once every

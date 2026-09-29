@@ -16,10 +16,13 @@ nonisolated struct TodayRouteWidgetData: Codable, Equatable {
     var nextStopAddress: String = ""
     var isActive: Bool = false
     var lastUpdated: Date = .distantPast
-    /// The stop the widget shows, for Control Center's Complete Stop to name
-    /// (PlowRLink.completeStop). Optional, so data an older version wrote
+    /// The stop the widget shows. Optional, so data an older version wrote
     /// still reads.
     var currentStopID: UUID?
+
+    /// The stop Control Center's Complete Stop completes: the one shown,
+    /// while a route is in progress. None once every stop is done.
+    var shownStopID: UUID? { isActive ? currentStopID : nil }
 
     /// The route was ended with every stop done.
     var isComplete: Bool { !isActive && completedStops == totalStops && totalStops > 0 }

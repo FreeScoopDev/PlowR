@@ -17,7 +17,6 @@ enum CompleteStopAction {
         var completed: Bool
     }
 
-
     /// Siri's "Complete current stop in PlowR": the stop the route has as
     /// current, read before `run` re-checks the route, so a change iCloud
     /// brings in meanwhile is caught.
@@ -26,9 +25,10 @@ enum CompleteStopAction {
         return run(in: store, expecting: store.currentStopID)
     }
 
-    /// Control Center's Complete Stop, arriving as a PlowRLink with the stop
-    /// its widget showed. What the route screen should say, or nil: the stop
-    /// was completed, or there's no route screen to say it on.
+    /// Control Center's Complete Stop (CompleteStopControlIntent, run in the
+    /// app), with the stop its widget showed. What the route screen should
+    /// say, or nil: the stop was completed, or there's no route screen to say
+    /// it on.
     ///
     /// Not held back until sign-in is confirmed: opened from Control Center
     /// with PlowR closed, Apple hasn't answered the sign-in check yet, and the
@@ -79,6 +79,6 @@ enum CompleteStopAction {
     private static let noRoute = Reply(text: "No route is in progress.", completed: false)
 
     private static let changed = Reply(
-        text: "The route changed on another device, so no stop was marked complete. Open PlowR to see the stop you're at.",
+        text: "The route changed on another device, so no stop was marked complete. Check the stop you're at in PlowR.",
         completed: false)
 }
