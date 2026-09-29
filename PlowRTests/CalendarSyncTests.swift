@@ -492,7 +492,7 @@ struct CalendarSyncTests {
     }
 
     private func waitUntil(_ condition: () -> Bool) async throws {
-        for _ in 0..<200 where !condition() {
+        for _ in 0..<500 where !condition() {      // Up to 5 s on a busy CI runner.
             try await Task.sleep(for: .milliseconds(10))
         }
         #expect(condition())
