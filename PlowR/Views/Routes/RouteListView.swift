@@ -114,12 +114,15 @@ struct RouteListView: View {
 
 struct RouteRowView: View {
     let route: PlowRoute
+    @Environment(ActiveRouteStore.self) private var activeRoute
 
-    private var completedCount: Int {
-        route.sortedStops.filter { $0.actualMinutes > 0 }.count
+    private var run: RouteRunSummary {
+        RouteRunSummary(stops: route.sortedStops, isRunning: activeRoute.route?.id == route.id)
     }
 
-    private var totalCount: Int { route.sortedStops.count }
+    private var completedCount: Int { run.done }
+
+    private var totalCount: Int { run.total }
 
     private var subtitleText: String {
         guard totalCount > 0 else { return "No stops" }
@@ -135,7 +138,7 @@ struct RouteRowView: View {
                 .font(.headline)
             Text(subtitleText)
                 .font(.subheadline)
-                .foregroundStyle(completedCount > 0 && completedCount < totalCount ? .orange : .secondary)
+                .foregroundStyle(run.isRunning ? .orange : .secondary)
         }
         .padding(.vertical, 4)
     }

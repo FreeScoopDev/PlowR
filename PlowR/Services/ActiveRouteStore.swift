@@ -117,6 +117,7 @@ final class ActiveRouteStore {
         for stop in route.stops ?? [] {
             stop.actualMinutes = 0
             stop.completedServiceIDs = []
+            stop.completedNotes = ""
         }
         self.route = route
         routeID = route.id

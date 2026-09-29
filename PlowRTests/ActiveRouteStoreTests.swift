@@ -488,6 +488,9 @@ struct ActiveRouteStoreTests {
         h.clock += 10                                       // ten seconds
         store.completeShownStop()
         #expect(h.route.sortedStops[0].actualMinutes == 1)
+        h.clock += 90                                       // a minute and a half
+        store.completeShownStop()
+        #expect(h.route.sortedStops[1].actualMinutes == 2)  // rounded, not cut down
     }
 
     @Test func aCustomStopRecordsItsTimeToo() throws {
@@ -510,21 +513,26 @@ struct ActiveRouteStoreTests {
         for stop in h.route.sortedStops {
             stop.actualMinutes = 7
             stop.completedServiceIDs = ["plow"]
+            stop.completedNotes = "Gate locked, salted walk only"
         }
         let store = h.makeStore()
         store.start(h.route)
-        #expect(h.route.sortedStops.allSatisfy { $0.actualMinutes == 0 && $0.completedServiceIDs.isEmpty })
+        #expect(h.route.sortedStops.allSatisfy {
+            $0.actualMinutes == 0 && $0.completedServiceIDs.isEmpty && $0.completedNotes.isEmpty
+        })
     }
 
     // Picking the run back up after a relaunch keeps its times so far.
     @Test func aRelaunchKeepsTheRunsTimes() throws {
         let h = try Harness()
-        let first = h.makeStore()
+        let first = h.makeClosedAppStore()
         first.start(h.route)
         h.clock += 9 * 60
         first.completeShownStop()
         h.route.sortedStops[1].completedServiceIDs = ["salt"]
-        _ = h.makeStore()
+        let relaunched = h.makeStore()
+        #expect(relaunched.isActive)
+        #expect(relaunched.currentStopIndex == 1)
         #expect(h.route.sortedStops[0].actualMinutes == 9)
         #expect(h.route.sortedStops[1].completedServiceIDs == ["salt"])
     }
