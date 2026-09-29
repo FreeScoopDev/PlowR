@@ -10,7 +10,7 @@ struct PlowRWidgetsControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(kind: WidgetDataStore.controlKind, provider: ShownStopProvider()) { stop in
             ControlWidgetButton(action: CompleteStopControlIntent(stopID: stop.id)) {
-                Label(stop.name.isEmpty ? "Complete Stop" : stop.name, systemImage: "checkmark.circle.fill")
+                Label(stop.name.isEmpty ? "Complete Stop" : "Done: \(stop.name)", systemImage: "checkmark.circle.fill")
             }
         }
         .displayName("Complete Current Stop")
@@ -28,8 +28,7 @@ struct ShownStopProvider: ControlValueProvider {
     var previewValue: ShownStop { ShownStop(id: nil, name: "") }
 
     func currentValue() async throws -> ShownStop {
-        let data = WidgetDataStore.read()
-        guard let id = data?.shownStopID else { return ShownStop(id: nil, name: "") }
-        return ShownStop(id: id, name: data?.nextStopName ?? "")
+        guard let stop = WidgetDataStore.read()?.shownStop else { return ShownStop(id: nil, name: "") }
+        return ShownStop(id: stop.id, name: stop.name)
     }
 }

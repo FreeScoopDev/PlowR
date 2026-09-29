@@ -12,6 +12,8 @@ nonisolated struct TodayRouteWidgetData: Codable, Equatable {
     var routeName: String = ""
     var totalStops: Int = 0
     var completedStops: Int = 0
+    /// The current stop's client: the one being driven to or worked at, not
+    /// the one after. Kept under this name so data already written reads.
     var nextStopName: String = ""
     var nextStopAddress: String = ""
     var isActive: Bool = false
@@ -20,9 +22,14 @@ nonisolated struct TodayRouteWidgetData: Codable, Equatable {
     /// still reads.
     var currentStopID: UUID?
 
-    /// The stop Control Center's Complete Stop completes: the one shown,
-    /// while a route is in progress. None once every stop is done.
-    var shownStopID: UUID? { isActive ? currentStopID : nil }
+    /// The stop Control Center's Complete Stop shows and completes, with its
+    /// client's name: the current stop, while a route is in progress. None
+    /// once every stop is done. One value, so the name shown and the stop
+    /// completed can't disagree.
+    var shownStop: (id: UUID, name: String)? {
+        guard isActive, let currentStopID else { return nil }
+        return (currentStopID, nextStopName)
+    }
 
     /// The route was ended with every stop done.
     var isComplete: Bool { !isActive && completedStops == totalStops && totalStops > 0 }

@@ -230,19 +230,21 @@ struct PlowRLinkTests {
         #expect(CompleteStopControlIntent(stopID: nil).stopID == nil)
     }
 
-    // The stop Control Center's button shows and completes: the one the
-    // widget shows, while a route is in progress.
-    @Test func controlCenterCompletesTheStopTheWidgetShows() {
+    // The stop Control Center's button shows and completes, with its
+    // client's name: the one the widget shows, while a route is in progress.
+    @Test func controlCenterShowsAndCompletesTheWidgetsStop() throws {
         let stop = UUID()
         var data = TodayRouteWidgetData(routeName: "Tuesday", totalStops: 3, completedStops: 1,
                                         nextStopName: "B", nextStopAddress: "", isActive: true,
                                         lastUpdated: .now, currentStopID: stop)
-        #expect(data.shownStopID == stop)
+        let shown = try #require(data.shownStop)
+        #expect(shown.id == stop)
+        #expect(shown.name == "B")
         data.isActive = false
-        #expect(data.shownStopID == nil)
+        #expect(data.shownStop == nil)
         data.isActive = true
         data.currentStopID = nil
-        #expect(data.shownStopID == nil)
+        #expect(data.shownStop == nil)
     }
 
     // The app writes the stop it shows for the widget, and none once every
