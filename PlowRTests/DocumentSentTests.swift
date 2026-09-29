@@ -113,6 +113,18 @@ struct DocumentSentTests {
         #expect(pat.clientRespondedAt == nil)
     }
 
+    // An invoice paid without ever being marked sent (paid on the spot,
+    // say) isn't what they were awaiting: a proposal shared earlier still is.
+    @Test func payingAnUnsentInvoiceKeepsThemAwaiting() {
+        DocumentSent.awaitResponse(clientID: pat.id.uuidString, in: context, now: now.addingTimeInterval(-86_400))
+        let invoice = Proposal(operatorID: "op", client: pat)
+        invoice.invoiceNumber = "INV-1001"
+        context.insert(invoice)
+        DocumentSent.markPaid(invoice, in: context, now: now)
+        #expect(invoice.invoicePaidAt == now)
+        #expect(pat.clientRespondedAt == nil)
+    }
+
     @Test func payingWithNothingAwaitedChangesOnlyTheInvoice() {
         let invoice = Proposal(operatorID: "op", client: pat)
         invoice.invoiceNumber = "INV-1001"
