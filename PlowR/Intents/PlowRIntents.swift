@@ -19,13 +19,16 @@ struct CompleteCurrentStopIntent: AppIntent {
 
 struct NotifyNextClientIntent: AppIntent {
     static var title: LocalizedStringResource = "Notify Next Client"
-    static var description = IntentDescription("Open PlowR to notify the next client on your route.")
+    static var description = IntentDescription("Open PlowR to text the client you're driving to. Nothing is marked complete.")
     static var openAppWhenRun = true
 
+    // A text only (NotifyNextAction). The route screen opens it when it can,
+    // so it doesn't matter whether the screen was up when Siri ran this.
     @MainActor
-    func perform() async throws -> some IntentResult {
-        RouteSessionManager.shared.onNotifyNext?()
-        return .result(dialog: "Opening notification prompt.")
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        let reply = NotifyNextAction.siri(in: .shared, role: UserDefaults.standard.string(forKey: UserRole.key))
+        RouteSessionManager.shared.textRequest = reply.stopID.map { .init(stopID: $0, at: .now) }
+        return .result(dialog: "\(reply.text)")
     }
 }
 
