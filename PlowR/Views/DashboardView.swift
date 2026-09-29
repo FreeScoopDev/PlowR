@@ -13,7 +13,7 @@ struct DashboardView: View {
     @Query private var allProposals: [Proposal]
 
     @State private var dashWeather: WeatherCondition?
-    @State private var showingICloudWarning = false
+    private let iCloud = ICloudStatus.shared
 
     @State private var showingSettings = false
     @State private var showingAddClient = false
@@ -71,6 +71,7 @@ struct DashboardView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
+                    iCloudBanner
                     profileCard
                     if let w = dashWeather { dashWeatherStrip(w) }
                     todayCard
@@ -100,20 +101,46 @@ struct DashboardView: View {
         .sheet(isPresented: $showingCreateRoute) { CreateRouteView() }
         .sheet(isPresented: $showingAddVisit)   { AddVisitView() }
         .task {
+            iCloud.watch()
             NotificationService.shared.requestAuthorization()
             NotificationService.shared.scheduleOverdueReminder(count: overdueCount)
             await fetchDashboardWeather()
-            showingICloudWarning = !PlowRApp.isCloudKitAvailable
         }
-        .alert("iCloud Sync Unavailable", isPresented: $showingICloudWarning) {
-            Button("Open Settings") {
-                if let url = URL(string: UIApplication.openSettingsURLString) {
-                    UIApplication.shared.open(url)
+    }
+
+    // MARK: - iCloud
+
+    /// Said once, in place, and closable. It used to be an alert that came
+    /// back every time the Dashboard appeared, and only when the iCloud
+    /// database failed to open, never for a user not signed in to iCloud.
+    @ViewBuilder
+    private var iCloudBanner: some View {
+        if let banner = iCloud.banner {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "icloud.slash")
+                    .font(.title3)
+                    .foregroundStyle(.orange)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(banner.title)
+                        .font(.subheadline.weight(.semibold))
+                    Text(banner.message)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
+                Spacer(minLength: 0)
+                Button {
+                    iCloud.dismissBanner()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.secondary)
+                        .padding(4)
+                }
+                .accessibilityLabel("Hide")
             }
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("PlowR couldn't connect to iCloud. Your data is being saved locally on this device only. Sign in to iCloud in Settings to re-enable sync.")
+            .padding(14)
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
         }
     }
 

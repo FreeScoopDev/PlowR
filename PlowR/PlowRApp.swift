@@ -55,10 +55,12 @@ struct PlowRApp: App {
             || NSClassFromString("XCTestCase") != nil
     }
 
+    static let iCloudContainer = "iCloud.com.Scoops.PlowR"
+
     /// The store, synced to iCloud. Unnamed like the local one, so both open
     /// the same file: the app-group container on a signed build.
     static func cloudConfiguration(for schema: Schema) -> ModelConfiguration {
-        ModelConfiguration(schema: schema, cloudKitDatabase: .private("iCloud.com.Scoops.PlowR"))
+        ModelConfiguration(schema: schema, cloudKitDatabase: .private(iCloudContainer))
     }
 
     /// The same store without an explicit iCloud database.
