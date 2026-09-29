@@ -33,7 +33,7 @@ nonisolated enum StoreArchive {
     /// a migration that couldn't write reports (seen with read-only files).
     static let migrationErrorCodes: Set<Int> = [
         NSPersistentStoreIncompatibleVersionHashError, NSMigrationMissingSourceModelError,
-        NSMigrationMissingMappingModelError, NSInferredMappingModelError,
+        NSMigrationMissingMappingModelError, NSInferredMappingModelError
     ]
 
     /// The parts of the store at `url`, the database first: it, its write-ahead
