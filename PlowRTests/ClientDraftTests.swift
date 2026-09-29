@@ -131,6 +131,15 @@ struct ClientDraftTests {
         #expect(draft.unsavedMessage(comparedWith: saved) == "Your changes to this client haven't been saved.")
     }
 
+    // A tripwire: a new field needs init(_:), rebased, applyExceptAddressAndActive
+    // and these tests, and only init(_:) is checked by the compiler.
+    @Test func theFieldsAreTheOnesListed() {
+        let fields = Mirror(reflecting: ClientDraft(pat)).children.compactMap(\.label)
+        #expect(fields == ["name", "phone", "email", "address", "skipNotificationPrompt", "goalMinutes",
+                           "defaultStopNotes", "preferredPayment", "isComped", "defaultDiscountPercent",
+                           "tags", "notes", "isActive", "expectedServiceIDs"])
+    }
+
     // Services ticked in another order aren't a change, and neither is an
     // edit once saved.
     @Test func reorderedOrSavedIsNoChange() {
