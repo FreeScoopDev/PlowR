@@ -996,10 +996,13 @@ struct EditClientView: View {
         client.isActive = isActive
         client.expectedServiceIDs = Array(expectedServiceIDs)
 
+        // Every path ends with the client's stops following (ClientStops): a
+        // new name, phone, address or pin reaches their routes.
         if let coord = geocodedCoordinate, address != originalAddress {
             client.address = address
             client.latitude = coord.latitude
             client.longitude = coord.longitude
+            ClientStops.update(for: client)
             isSaving = false
             dismiss()
             return
@@ -1014,10 +1017,15 @@ struct EditClientView: View {
                     client.latitude = location.coordinate.latitude
                     client.longitude = location.coordinate.longitude
                 }
-                await MainActor.run { isSaving = false; dismiss() }
+                await MainActor.run {
+                    ClientStops.update(for: client)
+                    isSaving = false
+                    dismiss()
+                }
             }
         } else {
             client.address = address
+            ClientStops.update(for: client)
             isSaving = false
             dismiss()
         }

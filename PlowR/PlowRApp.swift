@@ -29,6 +29,10 @@ struct PlowRApp: App {
     init() {
         let schema = Schema(Self.models)
         container = Self.makeContainer(schema: schema)
+        // Stops that fell behind their client (made before stops followed
+        // their client, or changed on a device with an older PlowR), before
+        // the route in progress is restored from them.
+        ClientStops.updateAll(in: container.mainContext)
         // Before any view: a Siri or Control Center launch acts on the route
         // without the UI, and a killed app should come back mid-route.
         ActiveRouteStore.shared.configure(context: container.mainContext)

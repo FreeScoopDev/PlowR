@@ -135,6 +135,12 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   changed. Returning an `OpenURLIntent` from an intent that lived only in the
   extension opened nothing on iOS 26 ("Failed to fetch metadata for
   OpenURLIntent", simulator, 2026-09-29).
+- **A route stop keeps its own copy of the client's name, phone, address and
+  pin** (`RouteStop`), and `ClientStops` keeps it in step: every screen that
+  changes those on a client calls `ClientStops.update(for:)`, and
+  `ClientStops.updateAll(in:)` runs at launch for stops that fell behind. A
+  new place that edits a client's details must call it too, or its routes
+  keep the old ones. Stop notes and run results are the stop's own.
 - **Delete Account & Data** (Settings) is an App Review 5.1.1(v) requirement.
   It removes all SwiftData records, the encrypted work-orders file, the route
   checkpoint and Live Activities (`ActiveRouteStore.eraseAll()`), the widget's

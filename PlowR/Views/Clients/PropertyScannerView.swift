@@ -333,6 +333,7 @@ struct PropertyScannerView: View {
                     client.latitude = coord.latitude
                     client.longitude = coord.longitude
                     if !address.isEmpty { client.address = address }
+                    ClientStops.update(for: client)
                 }
             }
         }
