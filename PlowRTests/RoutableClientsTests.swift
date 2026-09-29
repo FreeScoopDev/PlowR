@@ -3,6 +3,7 @@
 //  PlowRTests
 //
 
+import Foundation
 import Testing
 @testable import PlowR
 
@@ -20,6 +21,20 @@ struct RoutableClientsTests {
     @Test func inactiveClientsAreNotOffered() {
         let clients = [client("Avery"), client("Blake", active: false), client("Casey")]
         #expect(Client.routable(from: clients, operatorID: "op").map(\.name) == ["Avery", "Casey"])
+    }
+
+    // Schedule > Create Route: a visit still scheduled for a client marked
+    // inactive afterwards put them on the new route.
+    @Test func aScheduledVisitForAnInactiveClientIsLeftOffAndCounted() {
+        let avery = client("Avery"), blake = client("Blake", active: false), casey = client("Casey")
+        let other = client("Drew", operatorID: "someone-else")
+        let visits = [casey, blake, avery, other].map {
+            ScheduledVisit(operatorID: "op", clientID: $0.id.uuidString, clientName: $0.name,
+                           clientAddress: "", scheduledDate: Date())
+        }
+        let (chosen, skipped) = Client.routeClients(for: visits, from: [avery, blake, casey, other], operatorID: "op")
+        #expect(chosen.map(\.name) == ["Casey", "Avery"])      // the visits' order
+        #expect(skipped == 1)
     }
 
     @Test func onlyThisOperatorsClientsByName() {

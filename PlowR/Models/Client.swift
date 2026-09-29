@@ -62,4 +62,19 @@ extension Client {
             .filter { $0.operatorID == operatorID && $0.isActive }
             .sorted { $0.name < $1.name }
     }
+
+    /// The clients to stop at for these visits, in the visits' order: each
+    /// visit's client if it's this operator's and active. Also how many visits
+    /// were left out because their client is inactive, so the user can be told.
+    static func routeClients(for visits: [ScheduledVisit], from clients: [Client],
+                             operatorID: String) -> (clients: [Client], skippedInactive: Int) {
+        var chosen: [Client] = []
+        var skipped = 0
+        for visit in visits {
+            guard let client = clients.first(where: { $0.id.uuidString == visit.clientID && $0.operatorID == operatorID })
+            else { continue }
+            if client.isActive { chosen.append(client) } else { skipped += 1 }
+        }
+        return (chosen, skipped)
+    }
 }

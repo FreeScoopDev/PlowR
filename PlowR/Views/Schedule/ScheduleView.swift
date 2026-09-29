@@ -16,6 +16,8 @@ struct ScheduleView: View {
     @State private var invoicingVisit: ScheduledVisit?
     @State private var showingRouteCreated = false
     @State private var createdRouteName = ""
+    /// Scheduled visits left off the new route because their client is inactive.
+    @State private var skippedInactiveVisits = 0
 
     // MARK: - Computed Properties
 
@@ -105,7 +107,10 @@ struct ScheduleView: View {
             .alert("Route Created", isPresented: $showingRouteCreated) {
                 Button("OK", role: .cancel) { }
             } message: {
-                Text("\"\(createdRouteName)\" has been added to your Routes tab.")
+                Text("\"\(createdRouteName)\" has been added to your Routes tab."
+                     + (skippedInactiveVisits == 0 ? "" : skippedInactiveVisits == 1
+                        ? " 1 visit was left off because that client is inactive."
+                        : " \(skippedInactiveVisits) visits were left off because those clients are inactive."))
             }
         }
     }
@@ -364,16 +369,16 @@ struct ScheduleView: View {
         modelContext.insert(route)
 
         let scheduled = visitsForSelectedDate.filter { $0.status == .scheduled }
-        var order = 0
-        for visit in scheduled {
-            if let client = allClients.first(where: { $0.id.uuidString == visit.clientID && $0.operatorID == authManager.userID }) {
-                let stop = RouteStop(order: order, client: client)
-                stop.route = route
-                modelContext.insert(stop)
-                order += 1
-            }
+        // Inactive clients are hidden from route building, even with a visit
+        // still scheduled from before they were marked inactive.
+        let (clients, skipped) = Client.routeClients(for: scheduled, from: allClients, operatorID: authManager.userID)
+        for (order, client) in clients.enumerated() {
+            let stop = RouteStop(order: order, client: client)
+            stop.route = route
+            modelContext.insert(stop)
         }
 
+        skippedInactiveVisits = skipped
         createdRouteName = name
         showingRouteCreated = true
     }
