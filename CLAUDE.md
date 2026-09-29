@@ -117,9 +117,12 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
 - **Service language is industry-agnostic** (since 1.1.0): snow, lawn, and
   landscaping share the same screens. Don't reintroduce "plow" into user-facing
   copy for a generic action. The `Service-language guard` job in
-  `.github/workflows/guards.yml` fails a PR that puts snow-only wording or a fixed
-  snowflake icon on a shared screen (dashboard, active route, routes, Live
-  Activity, intents, widgets, tab bar). Snow-only features go in their own files.
+  `.github/workflows/guards.yml` fails a PR that puts snow-only wording or a
+  snowflake icon on a shared screen (dashboard, active route, routes,
+  schedule, clients, documents, settings except the service catalog, Live
+  Activity, intents, widgets, tab bar), and fails if a path it lists is gone.
+  Run it locally under bash: zsh doesn't split its path list. Snow-only
+  features go in their own files.
 - **Colours come from `PlowR/DesignSystem.swift`** (`PlowRColor`). The accent is
   adaptive navy (`PlowRColor.accent`, applied once with `.tint()` in
   `PlowRApp`); the fixed navy is `navyUIColor` (PDFs) and `navy` (SwiftUI,

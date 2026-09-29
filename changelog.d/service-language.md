@@ -1,0 +1,6 @@
+### Changed
+- **Add Visit offers the business's own services as reasons.** The reason list was four snow services ("Snow Plowing", "Salting / Ice Melt", "Walkway Shoveling", "Roof Snow Removal") plus "Inspection" and "Routine Visit", whatever the business did, so a lawn or landscaping crew had nothing of theirs to pick. It's now the business's active services from the catalog, then "Inspection" and "Routine Visit", then its saved reasons. A visit whose reason isn't in the list any more keeps it, shown as Other.
+- The route's mass-message preset "All Clear" ("Everything will be cleared before you need to leave") is now "Done Soon" ("I'll be finished before you need to leave"), which reads right for any trade.
+
+### Internal
+- **The service-language guard covers more screens and can't pass by accident.** It now also checks the Schedule, Clients, Documents and Settings screens (not the service catalog, where snow services belong), catches a snowflake icon wherever its name is written (an icon returned from a function slipped past), and flags the standard snow services' names written into a shared screen. A path it lists that no longer exists now fails the job: grep used to exit 2 for it, and the job passed without checking anything.
