@@ -22,17 +22,9 @@ struct EditClientView: View {
     @Query(sort: \ScheduledVisit.scheduledDate) private var allVisits: [ScheduledVisit]
     @Query private var allServiceItems: [ServiceItem]
 
-    @State private var name: String
-    @State private var phone: String
-    @State private var email: String
-    @State private var address: String
-    @State private var skipNotificationPrompt: Bool
-    @State private var goalMinutes: Int
-    @State private var defaultStopNotes: String
-    @State private var preferredPayment: String
-    @State private var isComped: Bool
-    @State private var defaultDiscountPercent: Double
-    @State private var tags: [String]
+    /// What the screen edits (ClientDraft): compared with the client as saved
+    /// when leaving, written back by Save.
+    @State private var draft: ClientDraft
     @State private var newTag = ""
     @State private var geocodedCoordinate: CLLocationCoordinate2D?
     /// A pin from the pin screen that Save pairs with the typed address
@@ -60,11 +52,8 @@ struct EditClientView: View {
     // Documents
     @State private var revisePaidDoc: Proposal?
     @State private var editingProposal: Proposal?
-    @State private var notes: String
-    @State private var isActive: Bool
     /// Save marks the client inactive, which takes them off these routes.
     @State private var deactivatingFootprint: ClientRemoval.Footprint?
-    @State private var expectedServiceIDs: Set<String>
     @State private var showingProposalBuilder = false
     @State private var showingInvoiceBuilder = false
     @State private var showingAddVisit = false
@@ -74,21 +63,10 @@ struct EditClientView: View {
         self.client = client
         _originalAddress = State(initialValue: client.address)
         _originalPin = State(initialValue: .init(latitude: client.latitude, longitude: client.longitude))
-        _name = State(initialValue: client.name)
-        _phone = State(initialValue: client.phone)
-        _email = State(initialValue: client.email)
-        _address = State(initialValue: client.address)
-        _skipNotificationPrompt = State(initialValue: client.skipNotificationPrompt)
-        _goalMinutes = State(initialValue: client.goalMinutes)
-        _defaultStopNotes = State(initialValue: client.defaultStopNotes)
-        _preferredPayment = State(initialValue: client.preferredPayment)
-        _isComped = State(initialValue: client.isComped)
-        _defaultDiscountPercent = State(initialValue: client.defaultDiscountPercent)
-        _tags = State(initialValue: client.tags)
-        _notes = State(initialValue: client.notes)
-        _isActive = State(initialValue: client.isActive)
-        _expectedServiceIDs = State(initialValue: Set(client.expectedServiceIDs))
+        _draft = State(initialValue: ClientDraft(client))
     }
+
+    private var hasUnsavedChanges: Bool { draft != ClientDraft(client) }
 
     // MARK: - Body
 
@@ -111,9 +89,17 @@ struct EditClientView: View {
         // Nothing changes, and nothing opens over the alert, while the new
         // address is looked up; and the screen can't be left mid-lookup.
         .disabled(isSaving)
-        .navigationTitle(name.isEmpty ? "Client" : name)
+        .navigationTitle(draft.name.isEmpty ? "Client" : draft.name)
         .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(isSaving)
+        .asksBeforeLeaving(hasChanges: hasUnsavedChanges, isBusy: isSaving, canSave: draft.canSave,
+                           message: draft.unsavedMessage(comparedWith: ClientDraft(client)),
+                           save: save, discard: { dismiss() })
+        // The client changed underneath (Schedule making them active again, an
+        // edit synced from another device): fields not edited here follow.
+        .onChange(of: ClientDraft(client)) { old, new in
+            if originalAddress == old.address { originalAddress = new.address }
+            draft = draft.rebased(from: old, to: new)
+        }
         .addressLookupAlert($lookupProblem, saveWithoutPin: {
             // A client with no pin yet: saved without one.
             client.address = lookedUpAddress
@@ -136,7 +122,7 @@ struct EditClientView: View {
                     ProgressView().scaleEffect(0.8)
                 } else {
                     Button("Save") { save() }
-                        .disabled(name.isEmpty || phone.isEmpty)
+                        .disabled(!draft.canSave)
                 }
             }
         }
@@ -163,10 +149,10 @@ struct EditClientView: View {
             AddVisitView(client: client)
         }
         .sheet(isPresented: $showingMessageComposer) {
-            if !phone.isEmpty {
+            if !draft.phone.isEmpty {
                 // A plain text doesn't make the client "Awaiting Response":
                 // that's for invoices and proposals (DocumentSent).
-                MessageComposer(recipients: [phone], body: "") { _ in }
+                MessageComposer(recipients: [draft.phone], body: "") { _ in }
             }
         }
         .lookAroundViewer(isPresented: $showingLookAround, initialScene: lookAroundScene)
@@ -176,7 +162,7 @@ struct EditClientView: View {
             Text("Apple Maps doesn't have Street View coverage for this location.")
         }
         .confirmationDialog(
-            "Mark \(name) Inactive?",
+            "Mark \(draft.name) Inactive?",
             isPresented: Binding(
                 get: { deactivatingFootprint != nil },
                 set: { if !$0 { deactivatingFootprint = nil } }
@@ -226,9 +212,9 @@ struct EditClientView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
                     Menu {
-                        if !phone.isEmpty {
+                        if !draft.phone.isEmpty {
                             Button {
-                                if let url = URL(string: "tel:\(phone.filter { $0.isNumber })") { openURL(url) }
+                                if let url = URL(string: "tel:\(draft.phone.filter { $0.isNumber })") { openURL(url) }
                             } label: { Label("Call", systemImage: "phone.fill") }
                             // Presenting the composer where texting isn't set up
                             // (an iPad without Messages) fails; every other
@@ -239,9 +225,9 @@ struct EditClientView: View {
                                 }
                             }
                         }
-                        if !email.isEmpty {
+                        if !draft.email.isEmpty {
                             Button {
-                                if let url = URL(string: "mailto:\(email)") { openURL(url) }
+                                if let url = URL(string: "mailto:\(draft.email)") { openURL(url) }
                             } label: { Label("Email", systemImage: "envelope.fill") }
                         }
                     } label: {
@@ -296,14 +282,14 @@ struct EditClientView: View {
 
     private var contactSection: some View {
         Section("Contact") {
-            TextField("Full Name", text: $name)
+            TextField("Full Name", text: $draft.name)
                 .textContentType(.name)
             HStack {
-                TextField("Phone Number", text: $phone)
+                TextField("Phone Number", text: $draft.phone)
                     .textContentType(.telephoneNumber)
                     .keyboardType(.phonePad)
-                if !phone.isEmpty,
-                   let url = URL(string: "tel:\(phone.filter { $0.isNumber })") {
+                if !draft.phone.isEmpty,
+                   let url = URL(string: "tel:\(draft.phone.filter { $0.isNumber })") {
                     Button {
                         openURL(url)
                     } label: {
@@ -314,11 +300,11 @@ struct EditClientView: View {
                 }
             }
             HStack {
-                TextField("Email (optional)", text: $email)
+                TextField("Email (optional)", text: $draft.email)
                     .textContentType(.emailAddress)
                     .keyboardType(.emailAddress)
                     .textInputAutocapitalization(.never)
-                if !email.isEmpty, let url = URL(string: "mailto:\(email)") {
+                if !draft.email.isEmpty, let url = URL(string: "mailto:\(draft.email)") {
                     Button {
                         openURL(url)
                     } label: {
@@ -328,7 +314,7 @@ struct EditClientView: View {
                     .buttonStyle(.borderless)
                 }
             }
-            Toggle(isOn: $skipNotificationPrompt) {
+            Toggle(isOn: $draft.skipNotificationPrompt) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Skip arrival message prompt")
                     Text("Won't ask to notify when you arrive")
@@ -336,15 +322,15 @@ struct EditClientView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            Stepper(value: $goalMinutes, in: 0...180, step: 5) {
+            Stepper(value: $draft.goalMinutes, in: 0...180, step: 5) {
                 HStack {
                     Text("Stop goal time")
                     Spacer()
-                    Text(goalMinutes == 0 ? "Not set" : "\(goalMinutes) min")
-                        .foregroundStyle(goalMinutes == 0 ? .secondary : .primary)
+                    Text(draft.goalMinutes == 0 ? "Not set" : "\(draft.goalMinutes) min")
+                        .foregroundStyle(draft.goalMinutes == 0 ? .secondary : .primary)
                 }
             }
-            Toggle(isOn: $isActive) {
+            Toggle(isOn: $draft.isActive) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Active client")
                     Text("Inactive clients are listed separately and taken off their routes")
@@ -364,15 +350,15 @@ struct EditClientView: View {
 
     private var tagsSection: some View {
         Section {
-            if !tags.isEmpty {
+            if !draft.tags.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
-                        ForEach(tags, id: \.self) { tag in
+                        ForEach(draft.tags, id: \.self) { tag in
                             HStack(spacing: 4) {
                                 Text(tag)
                                     .font(.caption.weight(.semibold))
                                 Button {
-                                    tags.removeAll { $0 == tag }
+                                    draft.tags.removeAll { $0 == tag }
                                 } label: {
                                     Image(systemName: "xmark.circle.fill")
                                         .font(.caption)
@@ -397,13 +383,13 @@ struct EditClientView: View {
                 Button("Add") { addTag() }
                     .disabled(newTag.trimmingCharacters(in: .whitespaces).isEmpty)
             }
-            let suggestions = Self.tagSuggestions.filter { !tags.contains($0) }
+            let suggestions = Self.tagSuggestions.filter { !draft.tags.contains($0) }
             if !suggestions.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
                         ForEach(suggestions, id: \.self) { suggestion in
                             Button {
-                                tags.append(suggestion)
+                                draft.tags.append(suggestion)
                             } label: {
                                 Text("+ \(suggestion)")
                                     .font(.caption.weight(.medium))
@@ -430,8 +416,8 @@ struct EditClientView: View {
 
     private func addTag() {
         let trimmed = newTag.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty, !tags.contains(trimmed) else { return }
-        tags.append(trimmed)
+        guard !trimmed.isEmpty, !draft.tags.contains(trimmed) else { return }
+        draft.tags.append(trimmed)
         newTag = ""
     }
 
@@ -439,7 +425,7 @@ struct EditClientView: View {
 
     private var notesSection: some View {
         Section {
-            TextField("Internal notes…", text: $notes, axis: .vertical)
+            TextField("Internal notes…", text: $draft.notes, axis: .vertical)
                 .lineLimit(3...8)
         } header: {
             Text("Notes")
@@ -468,7 +454,7 @@ struct EditClientView: View {
                     HStack {
                         Text("Expected Services")
                         Spacer()
-                        Text(expectedServiceIDs.isEmpty ? "None" : "\(expectedServiceIDs.count) selected")
+                        Text(draft.expectedServiceIDs.isEmpty ? "None" : "\(draft.expectedServiceIDs.count) selected")
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -484,10 +470,10 @@ struct EditClientView: View {
     private var expectedServicePickerView: some View {
         List {
             ForEach(clientServices) { service in
-                let isSelected = expectedServiceIDs.contains(service.id.uuidString)
+                let isSelected = draft.expectedServiceIDs.contains(service.id.uuidString)
                 Button {
-                    if isSelected { expectedServiceIDs.remove(service.id.uuidString) }
-                    else          { expectedServiceIDs.insert(service.id.uuidString) }
+                    if isSelected { draft.expectedServiceIDs.remove(service.id.uuidString) }
+                    else          { draft.expectedServiceIDs.insert(service.id.uuidString) }
                 } label: {
                     HStack(spacing: 12) {
                         Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
@@ -509,7 +495,7 @@ struct EditClientView: View {
 
     private var billingSection: some View {
         Section("Billing & Preferences") {
-            Picker("Preferred Payment", selection: $preferredPayment) {
+            Picker("Preferred Payment", selection: $draft.preferredPayment) {
                 Text("Not set").tag("")
                 Text("Cash").tag("cash")
                 Text("Check").tag("check")
@@ -517,13 +503,13 @@ struct EditClientView: View {
                 Text("Card").tag("card")
             }
 
-            Toggle("Comped / No Charge", isOn: $isComped)
+            Toggle("Comped / No Charge", isOn: $draft.isComped)
 
-            if !isComped {
+            if !draft.isComped {
                 HStack {
                     Text("Default Discount")
                     Spacer()
-                    Picker("Discount", selection: $defaultDiscountPercent) {
+                    Picker("Discount", selection: $draft.defaultDiscountPercent) {
                         Text("None").tag(0.0)
                         Text("5%").tag(5.0)
                         Text("10%").tag(10.0)
@@ -542,7 +528,7 @@ struct EditClientView: View {
 
     private var stopNotesSection: some View {
         Section {
-            TextField("Notes shown during active route (gate codes, special instructions…)", text: $defaultStopNotes, axis: .vertical)
+            TextField("Notes shown during active route (gate codes, special instructions…)", text: $draft.defaultStopNotes, axis: .vertical)
                 .lineLimit(3)
         } header: {
             Text("Route Notes")
@@ -556,9 +542,9 @@ struct EditClientView: View {
 
     private var serviceAddressSection: some View {
         Section("Service Address") {
-            TextField("Street Address", text: $address)
+            TextField("Street Address", text: $draft.address)
                 .textContentType(.fullStreetAddress)
-                .onChange(of: address) { _, v in
+                .onChange(of: draft.address) { _, v in
                     // Not typed: the address a new pin brought.
                     guard v != originalAddress else {
                         geocodedCoordinate = nil
@@ -573,7 +559,7 @@ struct EditClientView: View {
                     Button {
                         Task {
                             let result = await addressCompleter.resolve(completion)
-                            address = result.address
+                            draft.address = result.address
                             geocodedCoordinate = result.coordinate
                             addressCompleter.clear()
                         }
@@ -613,9 +599,9 @@ struct EditClientView: View {
                         Text(String(format: "~%.0f min", client.averageServiceMinutes))
                     }
                 }
-                if goalMinutes > 0 && client.averageServiceMinutes > 0 {
-                    let diff = client.averageServiceMinutes - Double(goalMinutes)
-                    LabeledContent("vs. Goal (\(goalMinutes)m)") {
+                if draft.goalMinutes > 0 && client.averageServiceMinutes > 0 {
+                    let diff = client.averageServiceMinutes - Double(draft.goalMinutes)
+                    LabeledContent("vs. Goal (\(draft.goalMinutes)m)") {
                         let label = abs(diff) < 1
                             ? "On target"
                             : (diff > 0 ? "\(Int(diff))m over" : "\(Int(-diff))m under")
@@ -1056,7 +1042,7 @@ struct EditClientView: View {
 
     /// A new address typed here and not saved yet, and its pin (picked, or
     /// set by hand): the pin screens show that address and open at that pin.
-    private var pendingAddress: String? { address != originalAddress ? address : nil }
+    private var pendingAddress: String? { draft.address != originalAddress ? draft.address : nil }
     private var pendingPin: PinPlacement.Pin? {
         geocodedCoordinate.map { .init(latitude: $0.latitude, longitude: $0.longitude) } ?? handPin
     }
@@ -1068,7 +1054,7 @@ struct EditClientView: View {
     /// what was typed: PinPlacement.field.
     private func takePinFromClient() {
         let before = PinPlacement.Field(
-            text: address, original: originalAddress, originalPin: originalPin,
+            text: draft.address, original: originalAddress, originalPin: originalPin,
             pickedPin: geocodedCoordinate.map { .init(latitude: $0.latitude, longitude: $0.longitude) },
             handPin: handPin)
         let after = PinPlacement.field(before, afterPinSheetWith: client.address,
@@ -1077,14 +1063,14 @@ struct EditClientView: View {
         addressChosenOnPinScreen = nil
         originalPin = after.originalPin
         originalAddress = after.original
-        address = after.text
+        draft.address = after.text
         geocodedCoordinate = after.pickedPin.map { CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude) }
         handPin = after.handPin
     }
 
     /// Asks first when Save marks the client inactive and they're on a route.
     private func save() {
-        if client.isActive, !isActive {
+        if client.isActive, !draft.isActive {
             let footprint = ClientRemoval.footprint(of: client, in: modelContext)
             if !footprint.routeNames.isEmpty {
                 deactivatingFootprint = footprint
@@ -1096,26 +1082,15 @@ struct EditClientView: View {
 
     private func saveChanges() {
         isSaving = true
-        client.name = name
-        client.phone = phone
-        client.email = email
-        client.skipNotificationPrompt = skipNotificationPrompt
-        client.goalMinutes = goalMinutes
-        client.defaultStopNotes = defaultStopNotes
-        client.preferredPayment = preferredPayment
-        client.isComped = isComped
-        client.defaultDiscountPercent = defaultDiscountPercent
-        client.tags = tags
-        client.notes = notes
-        ClientRemoval.setActive(isActive, for: client, in: modelContext)
-        client.expectedServiceIDs = Array(expectedServiceIDs)
+        draft.applyExceptAddressAndActive(to: client)
+        ClientRemoval.setActive(draft.isActive, for: client, in: modelContext)
 
         // Every path ends with the client's stops following (ClientStops): a
         // new name, phone, address or pin reaches their routes.
         // A picked suggestion's pin, or one set by hand (typing keeps it).
         let pinForSave = geocodedCoordinate ?? handPin.map { CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude) }
-        if let coord = pinForSave, address != originalAddress {
-            client.address = address
+        if let coord = pinForSave, draft.address != originalAddress {
+            client.address = draft.address
             client.latitude = coord.latitude
             client.longitude = coord.longitude
             ClientStops.update(for: client)
@@ -1124,9 +1099,9 @@ struct EditClientView: View {
             return
         }
 
-        if address != originalAddress, !address.isEmpty {
+        if draft.address != originalAddress, !draft.address.isEmpty {
             // Taken now: the lookup waits on the network.
-            let typed = address
+            let typed = draft.address
             lookedUpAddress = typed
             lookupProblem = nil
             Task {
@@ -1145,7 +1120,7 @@ struct EditClientView: View {
                 }
             }
         } else {
-            client.address = address
+            client.address = draft.address
             ClientStops.update(for: client)
             isSaving = false
             dismiss()
