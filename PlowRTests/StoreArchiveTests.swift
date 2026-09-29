@@ -131,6 +131,13 @@ struct StoreArchiveTests {
         #expect(!StoreArchive.isMigrationFailure(cocoa(NSMigrationMissingMappingModelError, cocoa(NSFileWriteOutOfSpaceError, nil))))
         #expect(!StoreArchive.isMigrationFailure(cocoa(NSMigrationMissingMappingModelError, cocoa(NSSQLiteError, nil))))
         #expect(!StoreArchive.isMigrationFailure(NSError(domain: "other", code: NSMigrationMissingMappingModelError)))
+        // Faults listed under detailed or multiple underlying errors count too.
+        let detailed = NSError(domain: NSCocoaErrorDomain, code: NSMigrationMissingMappingModelError,
+                               userInfo: [NSDetailedErrorsKey: [sqlite]])
+        #expect(!StoreArchive.isMigrationFailure(detailed))
+        let multiple = NSError(domain: NSCocoaErrorDomain, code: NSMigrationMissingMappingModelError,
+                               userInfo: [NSMultipleUnderlyingErrorsKey: [cocoa(NSFileWriteOutOfSpaceError, nil)]])
+        #expect(!StoreArchive.isMigrationFailure(multiple))
     }
 
     // A store the check can't write to (its files are read-only) fails to
@@ -147,6 +154,36 @@ struct StoreArchiveTests {
         // Core Data reports this as a failed migration with an SQLite error in
         // it ("attempt to write a readonly database"), not as a model problem.
         #expect(verdict(url, [StoreV2.Item.self]) == .failedForAnotherReason(code: NSMigrationError))
+    }
+
+    // Every verdict compares against the model built from PlowR's own models.
+    // If that model didn't match what SwiftData writes for them, a good store
+    // would look like one from another model. A store with one of each record
+    // must match.
+    @Test func aStoreOfPlowRsOwnModelsMatchesTheCheck() throws {
+        let dir = try folder()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let url = dir.appending(path: "default.store")
+        do {
+            let container = try ModelContainer(for: Schema(PlowRApp.models),
+                                               configurations: ModelConfiguration(url: url, cloudKitDatabase: .none))
+            let context = container.mainContext
+            let client = Client(name: "Pat Doe", phone: "", address: "", operatorID: "op")
+            let route = PlowRoute(name: "Tuesday", operatorID: "op")
+            let proposal = Proposal(operatorID: "op", client: client)
+            let records: [any PersistentModel] = [
+                client, route, RouteStop(order: 0, client: client), proposal, PropertyZone(label: "Front"),
+                ProposalLineItem(serviceName: "Mowing", zoneLabel: "", quantity: 1, unitType: "flat", unitPrice: 40),
+                ServiceItem(name: "Mowing", category: "Lawn", unitType: "flat", pricePerUnit: 40, operatorID: "op"),
+                BusinessProfile(operatorID: "op"),
+                PaymentMethod(operatorID: "op", label: "Venmo", value: "@pat", methodType: "venmo"),
+                StopPhoto(operatorID: "op", clientID: "c", routeID: "r", isBefore: true, imageData: Data(repeating: 1, count: 200_000)),
+                ScheduledVisit(operatorID: "op", clientID: "c", clientName: "Pat Doe", clientAddress: "", scheduledDate: Date()),
+            ]
+            records.forEach { context.insert($0) }
+            try context.save()
+        }
+        #expect(verdict(url, PlowRApp.models) == .matchesModel)
     }
 
     @Test func aMissingStoreIsNotJudged() throws {

@@ -66,11 +66,15 @@ nonisolated enum StoreArchive {
     static func isMigrationFailure(_ error: NSError) -> Bool {
         var codes: [Int] = []
         var databaseFault = false
-        var next: NSError? = error
-        while let current = next {
+        // Core Data nests errors three ways: one underlying error, or a list
+        // under "detailed" or "multiple underlying" errors. Walk them all.
+        var pending: [NSError] = [error]
+        while let current = pending.popLast() {
             if current.domain == NSCocoaErrorDomain { codes.append(current.code) }
             if current.userInfo[NSSQLiteErrorDomain] != nil { databaseFault = true }
-            next = current.userInfo[NSUnderlyingErrorKey] as? NSError
+            if let under = current.userInfo[NSUnderlyingErrorKey] as? NSError { pending.append(under) }
+            pending += current.userInfo[NSDetailedErrorsKey] as? [NSError] ?? []
+            pending += current.userInfo[NSMultipleUnderlyingErrorsKey] as? [NSError] ?? []
         }
         let fileProblem = codes.contains { (NSFileErrorMinimum...NSFileErrorMaximum).contains($0) && $0 != 0 }
         if databaseFault || fileProblem || codes.contains(NSSQLiteError) { return false }
