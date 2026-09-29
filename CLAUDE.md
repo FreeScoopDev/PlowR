@@ -148,6 +148,14 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   from an old copy). A new place that edits a client's details must still
   call `update(for:)`, or its routes lag until the next sweep. Stop notes
   and run results are the stop's own.
+- **Deleting a client or marking them inactive goes through
+  `ClientRemoval`**: both take the client's stops off every route (Joe's
+  call: inactive clients come off routes, and aren't put back when made
+  active again). A delete also removes their visits still ahead and their
+  photos (only the client's page shows photos), and keeps or deletes their
+  invoices, proposals and past visits as the user chooses. "Past" goes by
+  date, not status: running a route doesn't mark a visit complete. Kept
+  documents and visits carry the client's ID and a copy of their name.
 - **Delete Account & Data** (Settings) is an App Review 5.1.1(v) requirement.
   It removes all SwiftData records, the encrypted work-orders file, the route
   checkpoint and Live Activities (`ActiveRouteStore.eraseAll()`), the widget's
