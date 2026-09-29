@@ -6,7 +6,8 @@ import UIKit
 /// An invoice or proposal sent to its client: from then the client shows
 /// "Awaiting Response" on their page, until the business taps Mark
 /// Responded. An invoice is sent with Mark Sent; any document, by sharing
-/// its PDF to someone from the share sheet (Messages, Mail, AirDrop...).
+/// its PDF to someone from the share sheet (Messages, Mail, AirDrop...)
+/// with its Mark as Sent switch on (DocumentShareView).
 ///
 /// A text sent from the client's page used to set it, and sending a
 /// document didn't. Texts don't set it now.
@@ -23,16 +24,53 @@ enum DocumentSent {
         awaitResponse(clientID: proposal.clientID, in: context, now: now)
     }
 
-    /// A document shared to someone (`isSend`): its client is awaiting a
-    /// response. A draft invoice shared is sent (Joe's call: it used to stay
-    /// a draft, with no due date). Not for a paid invoice: that's a receipt,
-    /// nothing is owed.
-    static func shared(_ proposal: Proposal, in context: ModelContext, now: Date = .now) {
-        switch proposal.invoiceStatus {
-        case .paid: return
-        case .draft: markSent(proposal, in: context, now: now)
-        default: awaitResponse(clientID: proposal.clientID, in: context, now: now)
+    /// A document shared to someone (`isSend`) with the share sheet's Mark as
+    /// Sent switch on (`toClient`): its client is awaiting a response, and a
+    /// draft invoice is sent (Joe's call: it used to stay a draft, with no
+    /// due date). With the switch off, a copy that isn't going to the client
+    /// (to a partner, an accountant, the business's own files), nothing
+    /// changes (Joe's call too). Nor for a paid invoice (shareCanMark).
+    static func shared(_ proposal: Proposal, toClient: Bool, in context: ModelContext, now: Date = .now) {
+        guard toClient, shareCanMark(proposal.invoiceStatus) else { return }
+        if proposal.invoiceStatus == .draft {
+            markSent(proposal, in: context, now: now)
+        } else {
+            awaitResponse(clientID: proposal.clientID, in: context, now: now)
         }
+    }
+
+    /// What a saved document's share sheet does when the PDF was sent to
+    /// someone, given its Mark as Sent switch: `shared`. The one place the
+    /// document's page and a client's document list wire it.
+    static func shareHandler(for proposal: Proposal, in context: ModelContext) -> (_ toClient: Bool) -> Void {
+        { toClient in shared(proposal, toClient: toClient, in: context) }
+    }
+
+    /// The builder's preview shared a document not saved yet. Sent to the
+    /// client (`toClient`), its client is awaiting a response now, and the
+    /// builder saves it as shared (true; saveBuilt), which marks an invoice
+    /// sent. A copy that isn't going to the client changes nothing.
+    static func sharedBeforeSave(clientID: String, toClient: Bool, in context: ModelContext,
+                                 now: Date = .now) -> Bool {
+        guard toClient else { return false }
+        awaitResponse(clientID: clientID, in: context, now: now)
+        return true
+    }
+
+    /// Whether sharing a document with `status` can mark anything: every one
+    /// but a paid invoice, a receipt, with nothing owed or awaited. The share
+    /// sheet shows its Mark as Sent switch only then.
+    nonisolated static func shareCanMark(_ status: InvoiceStatus) -> Bool {
+        status != .paid
+    }
+
+    /// What the share sheet says its Mark as Sent switch does, for a document
+    /// with `status` going (or, switched off, not going) to `clientName`.
+    nonisolated static func shareNote(status: InvoiceStatus, clientName: String, toClient: Bool) -> String {
+        let who = clientName.isEmpty ? "the client" : clientName
+        guard toClient else { return "For a copy that isn't going to \(who): nothing is marked" }
+        return status == .draft ? "Sharing it marks the invoice sent and \(who) as Awaiting Response"
+                                : "Sharing it marks \(who) as Awaiting Response"
     }
 
     /// Marks an invoice paid now. A payment is the client's response, so it
@@ -54,7 +92,8 @@ enum DocumentSent {
     }
 
     /// Saves a document the builder made; `sharedID` and `sharedNumber` are
-    /// what its preview shared, if anything. In this order: the invoice's
+    /// what its preview shared to the client (sharedBeforeSave), if anything.
+    /// In this order: the invoice's
     /// number is confirmed before it's inserted (inserted, it would count as
     /// taking its own number), and whether it's the one shared is decided
     /// after, since a renumbered invoice isn't the one the client has.
@@ -71,7 +110,7 @@ enum DocumentSent {
         proposal.lineItems = proposal.lineItems   // re-affirm relationship after explicit inserts
         context.insert(proposal)
         if wasSharedBeforeSave(proposal, sharedID: sharedID, sharedNumber: sharedNumber) {
-            shared(proposal, in: context, now: now)
+            shared(proposal, toClient: true, in: context, now: now)
         }
     }
 
@@ -144,20 +183,72 @@ enum DocumentSent {
     }
 }
 
-/// The share sheet for a document's PDF. A share that sends it to someone
-/// (DocumentSent.isSend) calls `onSent`.
+/// Sharing a document's PDF: the system share sheet, under a Mark as Sent
+/// switch (Joe's call). On, as sharing always was, a share that sends the
+/// PDF to someone marks it sent to the client (DocumentSent.shared); off,
+/// for a copy that isn't going to the client, nothing is marked. It starts
+/// on every time. A paid invoice, which sharing never marks, has no switch.
+/// A saved document uses `init(url:document:in:)`; the builder's preview,
+/// whose document isn't saved yet, says what the switch does itself.
+struct DocumentShareView: View {
+    let url: URL
+    let status: InvoiceStatus
+    let clientName: String
+    /// A share that sent the PDF to someone, and whether the switch was on.
+    let onSent: (_ toClient: Bool) -> Void
+    @State private var toClient = true
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if DocumentSent.shareCanMark(status) {
+                Toggle(isOn: $toClient) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Mark as Sent")
+                        Text(DocumentSent.shareNote(status: status, clientName: clientName, toClient: toClient))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
+                .padding(.bottom, 8)
+            }
+            DocumentShareSheet(url: url) { onSent(toClient) }
+        }
+    }
+}
+
+extension DocumentShareView {
+    /// Sharing a saved document: its status and client, and what a send
+    /// does (DocumentSent.shareHandler), all from the document.
+    init(url: URL, document: Proposal, in context: ModelContext) {
+        self.init(url: url, status: document.invoiceStatus, clientName: document.clientName,
+                  onSent: DocumentSent.shareHandler(for: document, in: context))
+    }
+}
+
+/// The system share sheet for a document's PDF. A share that sends it to
+/// someone (DocumentSent.isSend) calls `onSent`.
 struct DocumentShareSheet: UIViewControllerRepresentable {
     let url: URL
     let onSent: () -> Void
 
     func makeUIViewController(context: Context) -> UIActivityViewController {
         let controller = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        handleCompletion(of: controller)
+        return controller
+    }
+
+    /// The latest `onSent`: it reads the Mark as Sent switch.
+    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {
+        handleCompletion(of: controller)
+    }
+
+    private func handleCompletion(of controller: UIActivityViewController) {
+        let onSent = onSent
         controller.completionWithItemsHandler = { activity, completed, _, _ in
             guard completed, DocumentSent.isSend(activity) else { return }
             DispatchQueue.main.async { onSent() }
         }
-        return controller
     }
-
-    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
 }

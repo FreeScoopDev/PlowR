@@ -6,8 +6,8 @@ struct ProposalPreviewView: View {
     let pdfData: Data
     let client: Client
     var isInvoice: Bool = false
-    /// The PDF was sent to someone from the share sheet, before the document
-    /// was saved.
+    /// The PDF was sent to the client from the share sheet (Mark as Sent
+    /// on), before the document was saved.
     var onShared: () -> Void = {}
     let onSave: () -> Void
 
@@ -50,12 +50,15 @@ struct ProposalPreviewView: View {
                 }
         }
         .onAppear { prepareShareURL() }
-        // Sent to the client from the share sheet: they're awaiting a response.
+        // Sent to the client from the share sheet (Mark as Sent on): they're
+        // awaiting a response, and the builder saves it as shared.
         .sheet(isPresented: $showingShare) {
             if let url = shareURL {
-                DocumentShareSheet(url: url) {
-                    DocumentSent.awaitResponse(clientID: client.id.uuidString, in: modelContext)
-                    onShared()
+                DocumentShareView(url: url, status: isInvoice ? .draft : .proposal, clientName: client.name) { toClient in
+                    if DocumentSent.sharedBeforeSave(clientID: client.id.uuidString, toClient: toClient,
+                                                     in: modelContext) {
+                        onShared()
+                    }
                 }
                 .presentationDetents([.medium, .large])
             }

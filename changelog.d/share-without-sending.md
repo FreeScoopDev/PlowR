@@ -1,0 +1,2 @@
+### Added
+- **Sharing an invoice or proposal has a Mark as Sent switch.** It starts on, and sharing to the client works as before: a draft invoice is marked sent, and the client shows Awaiting Response. Turn it off for a copy that isn't going to the client, such as one for a partner, an accountant or your own records, and nothing is marked. Sharing a paid invoice never marks anything, so it has no switch.

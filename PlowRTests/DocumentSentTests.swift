@@ -60,7 +60,7 @@ struct DocumentSentTests {
     @Test func aDocumentSharedToSomeoneMakesItsClientAwait() {
         let proposal = Proposal(operatorID: "op", client: sam)
         context.insert(proposal)
-        DocumentSent.shared(proposal, in: context, now: now)
+        DocumentSent.shared(proposal, toClient: true, in: context, now: now)
         #expect(sam.lastMessageSentAt == now)
         #expect(pat.lastMessageSentAt == nil)
     }
@@ -70,7 +70,7 @@ struct DocumentSentTests {
         let invoice = Proposal(operatorID: "op", client: pat)
         invoice.invoiceNumber = "INV-1001"
         context.insert(invoice)
-        DocumentSent.shared(invoice, in: context, now: now)
+        DocumentSent.shared(invoice, toClient: true, in: context, now: now)
         #expect(invoice.invoiceSentAt == now)
         #expect(invoice.invoiceDueDate == now.addingTimeInterval(30 * 86_400))
         #expect(pat.lastMessageSentAt == now)
@@ -83,7 +83,7 @@ struct DocumentSentTests {
         invoice.invoiceSentAt = sent
         invoice.invoiceDueDate = sent.addingTimeInterval(30 * 86_400)
         context.insert(invoice)
-        DocumentSent.shared(invoice, in: context, now: now)
+        DocumentSent.shared(invoice, toClient: true, in: context, now: now)
         #expect(invoice.invoiceSentAt == sent)
         #expect(invoice.invoiceDueDate == sent.addingTimeInterval(30 * 86_400))
         #expect(pat.lastMessageSentAt == now)
@@ -107,7 +107,7 @@ struct DocumentSentTests {
         invoice.invoiceNumber = "INV-1001"
         context.insert(invoice)
         DocumentSent.markSent(invoice, in: context, now: now.addingTimeInterval(-5 * 86_400))
-        DocumentSent.shared(invoice, in: context, now: now.addingTimeInterval(-86_400))
+        DocumentSent.shared(invoice, toClient: true, in: context, now: now.addingTimeInterval(-86_400))
         DocumentSent.markPaid(invoice, in: context, now: now)
         #expect(pat.clientRespondedAt == now)
     }
@@ -116,7 +116,7 @@ struct DocumentSentTests {
     @Test func sharingAProposalLeavesItAProposal() {
         let proposal = Proposal(operatorID: "op", client: pat)
         context.insert(proposal)
-        DocumentSent.shared(proposal, in: context, now: now)
+        DocumentSent.shared(proposal, toClient: true, in: context, now: now)
         #expect(proposal.invoiceSentAt == nil)
         #expect(proposal.invoiceDueDate == nil)
         #expect(pat.lastMessageSentAt == now)
@@ -175,8 +175,81 @@ struct DocumentSentTests {
         invoice.invoiceSentAt = now.addingTimeInterval(-86_400)
         invoice.invoicePaidAt = now
         context.insert(invoice)
-        DocumentSent.shared(invoice, in: context, now: now)
+        DocumentSent.shared(invoice, toClient: true, in: context, now: now)
         #expect(pat.lastMessageSentAt == nil)
+    }
+
+    // Joe's call: the share sheet's Mark as Sent switch, off, is for a copy
+    // that isn't going to the client (a partner, an accountant, the
+    // business's own files). Nothing is marked: a draft invoice stays a
+    // draft, a sent one keeps its dates, and no client is awaiting.
+    @Test func aCopyThatIsntGoingToTheClientMarksNothing() {
+        let draft = Proposal(operatorID: "op", client: pat)
+        draft.invoiceNumber = "INV-1001"
+        let sent = Proposal(operatorID: "op", client: pat)
+        sent.invoiceNumber = "INV-1002"
+        let sentAt = now.addingTimeInterval(-5 * 86_400)
+        sent.invoiceSentAt = sentAt
+        sent.invoiceDueDate = sentAt.addingTimeInterval(30 * 86_400)
+        let proposal = Proposal(operatorID: "op", client: sam)
+        [draft, sent, proposal].forEach { context.insert($0) }
+        for document in [draft, sent, proposal] {
+            DocumentSent.shared(document, toClient: false, in: context, now: now)
+        }
+        #expect(draft.invoiceStatus == .draft)
+        #expect(draft.invoiceSentAt == nil && draft.invoiceDueDate == nil)
+        #expect(sent.invoiceSentAt == sentAt)
+        #expect(sent.invoiceDueDate == sentAt.addingTimeInterval(30 * 86_400))
+        #expect(pat.lastMessageSentAt == nil && sam.lastMessageSentAt == nil)
+    }
+
+    // What the document's page and a client's document list do when a share
+    // sends the PDF: the switch's value decides.
+    @Test func aSavedDocumentsShareFollowsTheSwitch() {
+        let invoice = Proposal(operatorID: "op", client: pat)
+        invoice.invoiceNumber = "INV-1001"
+        context.insert(invoice)
+        let onSent = DocumentSent.shareHandler(for: invoice, in: context)
+        onSent(false)
+        #expect(invoice.invoiceStatus == .draft)
+        #expect(pat.lastMessageSentAt == nil)
+        onSent(true)
+        #expect(invoice.invoiceStatus == .sent)
+        #expect(pat.lastMessageSentAt != nil)
+    }
+
+    // The builder's preview, before the document is saved: shared to the
+    // client, they're awaiting now and the builder saves it as shared; an
+    // internal copy, neither.
+    @Test func thePreviewsShareCountsOnlyWhenGoingToTheClient() {
+        #expect(!DocumentSent.sharedBeforeSave(clientID: pat.id.uuidString, toClient: false, in: context, now: now))
+        #expect(pat.lastMessageSentAt == nil)
+        #expect(DocumentSent.sharedBeforeSave(clientID: pat.id.uuidString, toClient: true, in: context, now: now))
+        #expect(pat.lastMessageSentAt == now)
+        #expect(sam.lastMessageSentAt == nil)
+    }
+
+    // Sharing a paid invoice marks nothing (the share sheet shows no switch
+    // for it: screen code, checked on the simulator).
+    @Test func sharingCanMarkEverythingButAPaidInvoice() {
+        #expect(!DocumentSent.shareCanMark(.paid))
+        for status in [InvoiceStatus.proposal, .draft, .sent, .overdue] {
+            #expect(DocumentSent.shareCanMark(status), "\(status)")
+        }
+    }
+
+    // What the switch says, on for each kind of document and off.
+    @Test func theSwitchSaysWhatItDoes() {
+        #expect(DocumentSent.shareNote(status: .draft, clientName: "Pat Doe", toClient: true)
+                == "Sharing it marks the invoice sent and Pat Doe as Awaiting Response")
+        #expect(DocumentSent.shareNote(status: .proposal, clientName: "Pat Doe", toClient: true)
+                == "Sharing it marks Pat Doe as Awaiting Response")
+        #expect(DocumentSent.shareNote(status: .overdue, clientName: "Pat Doe", toClient: true)
+                == "Sharing it marks Pat Doe as Awaiting Response")
+        #expect(DocumentSent.shareNote(status: .draft, clientName: "Pat Doe", toClient: false)
+                == "For a copy that isn't going to Pat Doe: nothing is marked")
+        #expect(DocumentSent.shareNote(status: .proposal, clientName: "", toClient: true)
+                == "Sharing it marks the client as Awaiting Response")
     }
 
     @Test func onlyAShareThatSendsCounts() {
