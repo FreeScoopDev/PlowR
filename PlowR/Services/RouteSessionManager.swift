@@ -8,10 +8,10 @@ final class RouteSessionManager {
     static let shared = RouteSessionManager()
     private init() {}
 
-    /// Siri's "Notify next client": the stop whose client to text. The route
-    /// screen opens the text when it can and clears this; a stop that isn't
-    /// on the route it shows is dropped.
-    var textStopID: UUID?
+    /// Siri's "Notify next client": the stop whose client to text, and when
+    /// Siri asked. The route screen opens the text when it can and clears
+    /// this (NotifyNextAction.stopToOpen decides whether it still should).
+    var textRequest: NotifyNextAction.Request?
     /// Why Control Center's Complete Stop didn't complete the stop (the
     /// route changed on another device, say). The route screen shows it.
     var completeStopMessage: String?

@@ -27,7 +27,7 @@ struct NotifyNextClientIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let reply = NotifyNextAction.siri(in: .shared, role: UserDefaults.standard.string(forKey: UserRole.key))
-        RouteSessionManager.shared.textStopID = reply.stopID
+        RouteSessionManager.shared.textRequest = reply.stopID.map { .init(stopID: $0, at: .now) }
         return .result(dialog: "\(reply.text)")
     }
 }

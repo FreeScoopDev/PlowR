@@ -133,7 +133,7 @@ struct ActiveRouteView: View {
             locationManager.stopTracking()
             // Said about this route: not for the next one.
             RouteSessionManager.shared.completeStopMessage = nil
-            RouteSessionManager.shared.textStopID = nil
+            RouteSessionManager.shared.textRequest = nil
         }
         .task(id: currentStopIndex) {
             etaMinutes = nil
@@ -164,11 +164,13 @@ struct ActiveRouteView: View {
             triggerNotifyPrompt()
         }
         // Siri's "Notify next client", once nothing else is up.
-        .onChange(of: RouteSessionManager.shared.textStopID) { _, _ in openRequestedText() }
+        .onChange(of: RouteSessionManager.shared.textRequest) { _, _ in openRequestedText() }
         .onChange(of: isPresentingSomething) { _, _ in openRequestedText() }
         // Each sheet, dialog and alert on this screen is in isPresentingSomething.
         .sheet(item: $textOnlyStop) { stop in
-            NotifyPromptView(stop: stop, locationManager: locationManager, onAdvance: {})
+            // A text only: Send, Skip and Cancel complete nothing.
+            NotifyPromptView(stop: stop, locationManager: locationManager, onAdvance: {},
+                             promptTitle: "Text Current Stop?")
         }
         .sheet(isPresented: $showingFirstStopPrompt) {
             if let first = sortedStops.first {
@@ -777,13 +779,18 @@ struct ActiveRouteView: View {
         openNotifyPrompt()
     }
 
-    /// Opens the text Siri asked for, when nothing else is up. Only a stop on
-    /// this route: one Siri named for another is dropped.
+    /// Opens the text Siri asked for, when nothing else is up, if it's still
+    /// wanted (NotifyNextAction.stopToOpen). Asked again while that text is
+    /// already open, it's dropped rather than reopened after it's sent.
     private func openRequestedText() {
-        guard let id = RouteSessionManager.shared.textStopID, !isPresentingSomething else { return }
-        RouteSessionManager.shared.textStopID = nil
-        guard let stop = sortedStops.first(where: { $0.id == id }) else { return }
-        textOnlyStop = stop
+        guard let request = RouteSessionManager.shared.textRequest else { return }
+        if request.stopID == textOnlyStop?.id {
+            RouteSessionManager.shared.textRequest = nil
+            return
+        }
+        guard !isPresentingSomething else { return }
+        RouteSessionManager.shared.textRequest = nil
+        textOnlyStop = NotifyNextAction.stopToOpen(request, in: store)
     }
 
     /// The Complete button and leaving a stop's geofence land here.

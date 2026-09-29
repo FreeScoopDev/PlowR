@@ -25,7 +25,27 @@ enum NotifyNextAction {
         guard !stop.clientPhone.isEmpty else {
             return Reply(text: "\(name) has no phone number in PlowR.", stopID: nil)
         }
-        return Reply(text: "Opening a text to \(name).", stopID: stop.id)
+        return Reply(text: "Opening a text to \(name), your current stop.", stopID: stop.id)
+    }
+
+    /// A text Siri asked the route screen to open.
+    struct Request: Equatable {
+        var stopID: UUID
+        var at: Date
+    }
+
+    /// How long a request waits for the route screen, say behind another
+    /// sheet, before it's too old to act on.
+    static let requestLifetime: TimeInterval = 120
+
+    /// The stop to open `request`'s text for, or nil to drop it. Only while
+    /// it's still the current stop, and fresh: a request held behind another
+    /// sheet, or while the route screen couldn't show, can outlive its stop
+    /// being completed, and would offer to text a client already done.
+    static func stopToOpen(_ request: Request?, in store: ActiveRouteStore, now: Date = .now) -> RouteStop? {
+        guard let request, now.timeIntervalSince(request.at) <= requestLifetime,
+              request.stopID == store.currentStopID else { return nil }
+        return store.currentStop
     }
 
     private static let noRoute = Reply(text: "No route is in progress.", stopID: nil)

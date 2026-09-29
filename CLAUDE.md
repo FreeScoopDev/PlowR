@@ -44,7 +44,8 @@ injected as an environment object. Services under `PlowR/Services/` own the
 platform work: `LocationManager` (geofencing per stop), `ActiveRouteStore`
 (the in-progress route: current stop, stop timer, checkpoint that survives a
 relaunch; Live Activity and widget via `SystemRouteSurfaces`),
-`RouteSessionManager` (Siri's bridge to the route screen, being retired),
+`RouteSessionManager` (what Siri and Control Center hand the route screen:
+a text to open, a message to show),
 `NotificationService` (weather alerts, overdue invoices), `CalendarSync`
 (Settings switch, off by default: keeps a "PlowR" calendar in step with the
 schedule through EventKit; `VisitCalendar` works out the changes),

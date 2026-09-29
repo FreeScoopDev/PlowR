@@ -31,7 +31,7 @@ struct NotifyNextActionTests {
         let store = h.makeStore()
         store.start(h.route)
         let reply = siri(store)
-        #expect(reply == .init(text: "Opening a text to Client 0.", stopID: h.route.sortedStops[0].id))
+        #expect(reply == .init(text: "Opening a text to Client 0, your current stop.", stopID: h.route.sortedStops[0].id))
         #expect(store.currentStopIndex == 0)
         #expect(h.clients.allSatisfy { $0.totalVisits == 0 })
         #expect(h.route.sortedStops.allSatisfy { $0.actualMinutes == 0 })
@@ -66,6 +66,43 @@ struct NotifyNextActionTests {
         let store = h.makeStore()
         store.start(h.route)
         #expect(siri(store) == .init(text: "Client 0 has no phone number in PlowR.", stopID: nil))
+    }
+
+    // The route was deleted on another device while PlowR was closed: the
+    // store only finds out when it checks, which Siri makes it do.
+    @Test func aRouteDeletedElsewhereIsntTexted() throws {
+        let h = try harnessWithPhones()
+        let store = h.makeClosedAppStore()
+        store.start(h.route)
+        h.context.delete(h.route)
+        try h.context.save()
+        #expect(siri(store) == .init(text: "No route is in progress.", stopID: nil))
+    }
+
+    // A request held behind another sheet opens only if its stop is still
+    // the current one: completed meanwhile, it would offer to text a client
+    // already done.
+    @Test func aHeldRequestOpensOnlyForTheCurrentStop() throws {
+        let h = try harnessWithPhones()
+        let store = h.makeStore()
+        store.start(h.route)
+        let now = Date()
+        let first = h.route.sortedStops[0]
+        let request = NotifyNextAction.Request(stopID: first.id, at: now)
+        #expect(NotifyNextAction.stopToOpen(request, in: store, now: now)?.id == first.id)
+        _ = store.completeCurrentStop(expecting: first.id)
+        #expect(NotifyNextAction.stopToOpen(request, in: store, now: now) == nil)
+    }
+
+    @Test func anOldRequestIsDropped() throws {
+        let h = try harnessWithPhones()
+        let store = h.makeStore()
+        store.start(h.route)
+        let now = Date()
+        let request = NotifyNextAction.Request(stopID: h.route.sortedStops[0].id, at: now)
+        let late = now.addingTimeInterval(NotifyNextAction.requestLifetime + 1)
+        #expect(NotifyNextAction.stopToOpen(request, in: store, now: late) == nil)
+        #expect(NotifyNextAction.stopToOpen(nil, in: store, now: now) == nil)
     }
 
     // Client mode or no role chosen: no route of its own.
