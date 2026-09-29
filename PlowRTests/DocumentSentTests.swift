@@ -87,6 +87,8 @@ struct DocumentSentTests {
         #expect(!DocumentSent.isSend(.saveToCameraRoll))
         #expect(!DocumentSent.isSend(UIActivity.ActivityType("com.apple.DocumentManagerUICore.SaveToFiles")))
         #expect(!DocumentSent.isSend(.openInIBooks))
+        // Seen on the iOS 26.5 simulator, opening the PDF in the Preview app.
+        #expect(!DocumentSent.isSend(UIActivity.ActivityType("com.apple.UIKit.activity.RemoteOpenInApplication-ByCopy")))
         #expect(!DocumentSent.isSend(UIActivity.ActivityType("com.apple.mobilenotes.SharingExtension")))
         #expect(!DocumentSent.isSend(UIActivity.ActivityType("com.getdropbox.Dropbox.ActionExtension")))
     }
@@ -109,8 +111,10 @@ struct DocumentSentTests {
         let invoice = Proposal(operatorID: "op", client: pat)
         context.insert(invoice)
         DocumentSent.markSent(invoice, in: context, now: now)
+        DocumentSent.awaitResponse(clientID: sam.id.uuidString, in: context, now: now)   // a proposal shared since
         DocumentSent.clearTextStamps(in: context, defaults: defaults)
         #expect(pat.lastMessageSentAt == now)
+        #expect(sam.lastMessageSentAt == now)                 // no invoice explains it: kept because it's once
     }
 
     // A second device updated later: an invoice marked sent on the first,

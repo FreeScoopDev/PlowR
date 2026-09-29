@@ -54,6 +54,7 @@ enum DocumentSent {
     /// Apps that keep the file rather than send it, by the start of their
     /// share extensions' IDs (lowercased).
     nonisolated static let keepingApps = [
+        "com.apple.uikit.activity.remoteopeninapplication",   // opening it in another app (Preview, Books...)
         "com.apple.documentmanageruicore",   // Save to Files
         "com.apple.clouddocsui",             // iCloud Drive
         "com.apple.mobilenotes",             // Notes
