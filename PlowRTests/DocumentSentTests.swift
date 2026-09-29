@@ -58,8 +58,21 @@ struct DocumentSentTests {
 
     // A proposal (or invoice) shared to someone from the share sheet.
     @Test func aDocumentSharedToSomeoneMakesItsClientAwait() {
-        DocumentSent.awaitResponse(clientID: sam.id.uuidString, in: context, now: now)
+        let proposal = Proposal(operatorID: "op", client: sam)
+        context.insert(proposal)
+        DocumentSent.shared(proposal, in: context, now: now)
         #expect(sam.lastMessageSentAt == now)
+        #expect(pat.lastMessageSentAt == nil)
+    }
+
+    // A paid invoice shared is a receipt: nothing is owed or awaited.
+    @Test func aPaidInvoiceSharedAwaitsNothing() {
+        let invoice = Proposal(operatorID: "op", client: pat)
+        invoice.invoiceNumber = "INV-1001"
+        invoice.invoiceSentAt = now.addingTimeInterval(-86_400)
+        invoice.invoicePaidAt = now
+        context.insert(invoice)
+        DocumentSent.shared(invoice, in: context, now: now)
         #expect(pat.lastMessageSentAt == nil)
     }
 
@@ -73,6 +86,9 @@ struct DocumentSentTests {
         #expect(!DocumentSent.isSend(.print))
         #expect(!DocumentSent.isSend(.saveToCameraRoll))
         #expect(!DocumentSent.isSend(UIActivity.ActivityType("com.apple.DocumentManagerUICore.SaveToFiles")))
+        #expect(!DocumentSent.isSend(.openInIBooks))
+        #expect(!DocumentSent.isSend(UIActivity.ActivityType("com.apple.mobilenotes.SharingExtension")))
+        #expect(!DocumentSent.isSend(UIActivity.ActivityType("com.getdropbox.Dropbox.ActionExtension")))
     }
 
     @Test func aDocumentWhoseClientIsGoneChangesNothing() {
@@ -104,10 +120,12 @@ struct DocumentSentTests {
         let invoice = Proposal(operatorID: "op", client: pat)
         context.insert(invoice)
         DocumentSent.markSent(invoice, in: context, now: now)
-        let other = Proposal(operatorID: "op", client: sam)        // sent, but not what sam's mark is
-        other.invoiceSentAt = now
-        context.insert(other)
-        sam.lastMessageSentAt = now.addingTimeInterval(-3_600)
+        // Sam's mark is from the same moment as Pat's invoice, and Sam has an
+        // invoice sent at another time: neither explains it.
+        let samsInvoice = Proposal(operatorID: "op", client: sam)
+        samsInvoice.invoiceSentAt = now.addingTimeInterval(-3_600)
+        context.insert(samsInvoice)
+        sam.lastMessageSentAt = now
         DocumentSent.clearTextStamps(in: context, defaults: defaults)
         #expect(pat.lastMessageSentAt == now)
         #expect(sam.lastMessageSentAt == nil)

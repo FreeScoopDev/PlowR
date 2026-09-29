@@ -80,8 +80,9 @@ struct ProposalDetailView: View {
         .sheet(isPresented: $showingShare) {
             if let url = shareURL {
                 DocumentShareSheet(url: url) {
-                    DocumentSent.awaitResponse(clientID: proposal.clientID, in: modelContext)
+                    DocumentSent.shared(proposal, in: modelContext)
                 }
+                .presentationDetents([.medium, .large])
             }
         }
         .sheet(isPresented: $showingReminder) {

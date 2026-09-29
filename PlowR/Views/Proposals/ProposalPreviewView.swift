@@ -1,5 +1,6 @@
-import SwiftUI
 import PDFKit
+import SwiftData
+import SwiftUI
 
 struct ProposalPreviewView: View {
     let pdfData: Data
@@ -52,6 +53,7 @@ struct ProposalPreviewView: View {
                 DocumentShareSheet(url: url) {
                     DocumentSent.awaitResponse(clientID: client.id.uuidString, in: modelContext)
                 }
+                .presentationDetents([.medium, .large])
             }
         }
     }
