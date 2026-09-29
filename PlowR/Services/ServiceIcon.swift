@@ -20,7 +20,7 @@ nonisolated enum ServiceIcon {
         (["driv", "clean", "wash"], "sparkles"),
         (["edg", "hedge", "trim"], "scissors"),
         (["haul", "debris", "remov"], "trash.fill"),
-        (["fert", "seed", "overseed"], "drop.fill"),
+        (["fert", "seed", "overseed"], "drop.fill")
     ]
 
     static let fallback = "wrench.and.screwdriver.fill"
