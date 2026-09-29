@@ -92,6 +92,88 @@ struct ActiveRouteView: View {
     }
 
     var body: some View {
+        screenWithSheets
+        .onChange(of: store.currentStopID) { _, _ in
+            locationManager.clearAllGeofences()
+            if let stop = currentStop { locationManager.startMonitoringStop(stop) }
+            if scenePhase == .active { store.markCurrentStopSeen() }
+        }
+        // The current stop's pin moved with its client's, say corrected on
+        // another device: the job-site zone moves too.
+        .onChange(of: currentStop.map { [$0.latitude, $0.longitude] }) { _, _ in
+            locationManager.keepMonitoring(currentStop)
+        }
+        // Back in the app with this screen up: whatever stop it shows is seen.
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            store.markCurrentStopSeen()
+            // The current stop's pin may have moved while the screen couldn't
+            // redraw (the phone locked, say): its job-site zone follows.
+            if locationManager.isAuthorized { locationManager.keepMonitoring(currentStop) }
+        }
+        // Control Center's Complete Stop, when it couldn't complete the stop.
+        // Held while something else is up: iOS won't present an alert over a
+        // sheet, and shows it once the sheet has closed.
+        .alert("Complete Stop", isPresented: Binding(
+            get: { RouteSessionManager.shared.completeStopMessage != nil && !isPresentingSomething },
+            set: { if !$0 { RouteSessionManager.shared.completeStopMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(RouteSessionManager.shared.completeStopMessage ?? "")
+        }
+        .onChange(of: locationManager.authorizationStatus) { _, status in
+            switch status {
+            case .authorizedAlways, .authorizedWhenInUse:
+                locationManager.startTracking()
+                if let stop = currentStop { locationManager.startMonitoringStop(stop) }
+            case .denied, .restricted:
+                showingLocationDeniedAlert = true
+            default: break
+            }
+        }
+        .onChange(of: showingRouteRecap) { _, showing in
+            guard showing, sortedStops.count >= 5 else { return }
+            completedRoutesCount += 1
+            if completedRoutesCount >= 2 {
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 1_500_000_000)
+                    requestReview()
+                }
+            }
+        }
+        .alert("Route Changed", isPresented: $showingRouteChangedAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("This route was changed on another device, so that stop wasn't marked complete. Check the current stop and try again.")
+        }
+        .alert("Location Access Required", isPresented: $showingLocationDeniedAlert) {
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            Button("End Route", role: .cancel) { store.end() }
+        } message: {
+            Text("PlowR needs location access to track your route. Enable it in Settings > Privacy > Location Services.")
+        }
+        .confirmationDialog("Open in Maps", isPresented: $showingNavPicker, titleVisibility: .visible) {
+            if let stop = navStop {
+                Button("Apple Maps") { openInAppleMaps(stop) }
+                if UIApplication.shared.canOpenURL(URL(string: "comgooglemaps://")!) {
+                    Button("Google Maps") { openInGoogleMaps(stop) }
+                }
+                if UIApplication.shared.canOpenURL(URL(string: "waze://")!) {
+                    Button("Waze") { openInWaze(stop) }
+                }
+                Button("Cancel", role: .cancel) {}
+            }
+        }
+    }
+
+    /// The route screen with its tracking and sheets. Split from `body`: one
+    /// chain of all the screen's modifiers grew too long to type-check.
+    private var screenWithSheets: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 0) {
@@ -212,73 +294,6 @@ struct ActiveRouteView: View {
                 allClients: allClients,
                 onEndRoute: { store.end() }
             )
-        }
-        .onChange(of: store.currentStopID) { _, _ in
-            locationManager.clearAllGeofences()
-            if let stop = currentStop { locationManager.startMonitoringStop(stop) }
-            if scenePhase == .active { store.markCurrentStopSeen() }
-        }
-        // Back in the app with this screen up: whatever stop it shows is seen.
-        .onChange(of: scenePhase) { _, phase in
-            if phase == .active { store.markCurrentStopSeen() }
-        }
-        // Control Center's Complete Stop, when it couldn't complete the stop.
-        // Held while something else is up: iOS won't present an alert over a
-        // sheet, and shows it once the sheet has closed.
-        .alert("Complete Stop", isPresented: Binding(
-            get: { RouteSessionManager.shared.completeStopMessage != nil && !isPresentingSomething },
-            set: { if !$0 { RouteSessionManager.shared.completeStopMessage = nil } }
-        )) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(RouteSessionManager.shared.completeStopMessage ?? "")
-        }
-        .onChange(of: locationManager.authorizationStatus) { _, status in
-            switch status {
-            case .authorizedAlways, .authorizedWhenInUse:
-                locationManager.startTracking()
-                if let stop = currentStop { locationManager.startMonitoringStop(stop) }
-            case .denied, .restricted:
-                showingLocationDeniedAlert = true
-            default: break
-            }
-        }
-        .onChange(of: showingRouteRecap) { _, showing in
-            guard showing, sortedStops.count >= 5 else { return }
-            completedRoutesCount += 1
-            if completedRoutesCount >= 2 {
-                Task { @MainActor in
-                    try? await Task.sleep(nanoseconds: 1_500_000_000)
-                    requestReview()
-                }
-            }
-        }
-        .alert("Route Changed", isPresented: $showingRouteChangedAlert) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("This route was changed on another device, so that stop wasn't marked complete. Check the current stop and try again.")
-        }
-        .alert("Location Access Required", isPresented: $showingLocationDeniedAlert) {
-            Button("Open Settings") {
-                if let url = URL(string: UIApplication.openSettingsURLString) {
-                    UIApplication.shared.open(url)
-                }
-            }
-            Button("End Route", role: .cancel) { store.end() }
-        } message: {
-            Text("PlowR needs location access to track your route. Enable it in Settings > Privacy > Location Services.")
-        }
-        .confirmationDialog("Open in Maps", isPresented: $showingNavPicker, titleVisibility: .visible) {
-            if let stop = navStop {
-                Button("Apple Maps") { openInAppleMaps(stop) }
-                if UIApplication.shared.canOpenURL(URL(string: "comgooglemaps://")!) {
-                    Button("Google Maps") { openInGoogleMaps(stop) }
-                }
-                if UIApplication.shared.canOpenURL(URL(string: "waze://")!) {
-                    Button("Waze") { openInWaze(stop) }
-                }
-                Button("Cancel", role: .cancel) {}
-            }
         }
     }
 

@@ -11,7 +11,10 @@ struct EditClientView: View {
     @Environment(AuthManager.self) private var authManager
 
     let client: Client
-    private let originalAddress: String
+    /// The client's address and pin as this screen knows them: when it
+    /// opened, or after Adjust Pin or Move Pin changed them.
+    @State private var originalAddress: String
+    @State private var originalPin: [Double]
 
     @Query private var allProposals: [Proposal]
     @Query private var allProfiles: [BusinessProfile]
@@ -56,7 +59,8 @@ struct EditClientView: View {
 
     init(client: Client) {
         self.client = client
-        self.originalAddress = client.address
+        _originalAddress = State(initialValue: client.address)
+        _originalPin = State(initialValue: [client.latitude, client.longitude])
         _name = State(initialValue: client.name)
         _phone = State(initialValue: client.phone)
         _email = State(initialValue: client.email)
@@ -103,10 +107,10 @@ struct EditClientView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingPropertyScanner) {
+        .sheet(isPresented: $showingPropertyScanner, onDismiss: takePinFromClient) {
             PropertyScannerView(client: client)
         }
-        .sheet(isPresented: $showingLocationAdjust) {
+        .sheet(isPresented: $showingLocationAdjust, onDismiss: takePinFromClient) {
             NavigationStack {
                 LocationAdjustView(client: client)
             }
@@ -506,6 +510,8 @@ struct EditClientView: View {
                 .textContentType(.fullStreetAddress)
                 .onChange(of: address) { _, v in
                     geocodedCoordinate = nil
+                    // Not typed: the address a new pin brought.
+                    guard v != originalAddress else { addressCompleter.clear(); return }
                     addressCompleter.search(v)
                 }
 
@@ -980,6 +986,19 @@ struct EditClientView: View {
 
     // MARK: - Save
 
+    /// Adjust Pin and the property scanner's Move Pin save the client's pin,
+    /// and the address there, themselves. If one did, this screen takes them:
+    /// Save used to write back the address it opened with, and could geocode
+    /// an address typed before over the pin just set by hand.
+    private func takePinFromClient() {
+        let pin = [client.latitude, client.longitude]
+        guard pin != originalPin || client.address != originalAddress else { return }
+        originalPin = pin
+        originalAddress = client.address
+        address = client.address
+        geocodedCoordinate = nil
+    }
+
     private func saveChanges() {
         isSaving = true
         client.name = name
@@ -996,10 +1015,13 @@ struct EditClientView: View {
         client.isActive = isActive
         client.expectedServiceIDs = Array(expectedServiceIDs)
 
+        // Every path ends with the client's stops following (ClientStops): a
+        // new name, phone, address or pin reaches their routes.
         if let coord = geocodedCoordinate, address != originalAddress {
             client.address = address
             client.latitude = coord.latitude
             client.longitude = coord.longitude
+            ClientStops.update(for: client)
             isSaving = false
             dismiss()
             return
@@ -1014,10 +1036,15 @@ struct EditClientView: View {
                     client.latitude = location.coordinate.latitude
                     client.longitude = location.coordinate.longitude
                 }
-                await MainActor.run { isSaving = false; dismiss() }
+                await MainActor.run {
+                    ClientStops.update(for: client)
+                    isSaving = false
+                    dismiss()
+                }
             }
         } else {
             client.address = address
+            ClientStops.update(for: client)
             isSaving = false
             dismiss()
         }

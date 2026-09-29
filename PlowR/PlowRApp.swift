@@ -29,6 +29,13 @@ struct PlowRApp: App {
     init() {
         let schema = Schema(Self.models)
         container = Self.makeContainer(schema: schema)
+        // Stops that fell behind their client, before the route in progress
+        // is restored from them; then whenever iCloud brings changes. Not
+        // under tests, which bring their own store.
+        if !Self.isRunningUnderTests {
+            ClientStops.updateAll(in: container.mainContext)
+            ClientStops.followRemoteChanges(of: container)
+        }
         // Before any view: a Siri or Control Center launch acts on the route
         // without the UI, and a killed app should come back mid-route.
         ActiveRouteStore.shared.configure(context: container.mainContext)
@@ -126,6 +133,7 @@ struct PlowRApp: App {
         .onChange(of: scenePhase) { _, phase in
             // iCloud may have deleted or reordered the route while the app was away.
             if phase == .active {
+                if !Self.isRunningUnderTests { ClientStops.updateAll(in: container.mainContext) }
                 ActiveRouteStore.shared.validate()
                 authManager.recheckIfSignedOut()
                 CalendarSync.shared.refresh()
