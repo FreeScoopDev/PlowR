@@ -12,6 +12,6 @@ struct PlowRWidgetsControl: ControlWidget {
             }
         }
         .displayName("Complete Current Stop")
-        .description("Mark the current route stop as complete from Control Center.")
+        .description("Opens PlowR and marks the stop you're at as complete.")
     }
 }

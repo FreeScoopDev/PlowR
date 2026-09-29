@@ -24,6 +24,11 @@ struct ContentView: View {
             if url.host == "activeRoute" {
                 selectedTab = 2
             }
+            // Control Center's Complete Stop. The route screen, shown while a
+            // route is in progress, then shows the next stop.
+            if url.host == "completeStop" {
+                _ = CompleteStopAction.run(in: .shared)
+            }
         }
     }
 }

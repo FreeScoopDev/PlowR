@@ -5,13 +5,13 @@ import ActivityKit
 
 struct CompleteCurrentStopIntent: AppIntent {
     static var title: LocalizedStringResource = "Complete Current Stop"
-    static var description = IntentDescription("Mark the current stop as complete in PlowR.")
-    static var openAppWhenRun = true
+    static var description = IntentDescription("Mark the stop you're at as complete in PlowR, and hear which stop is next.")
 
+    // Hands-free, without opening the app (see CompleteStopAction).
     @MainActor
-    func perform() async throws -> some IntentResult {
-        RouteSessionManager.shared.onCompleteStop?()
-        return .result(dialog: "Stop marked complete.")
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        let reply = CompleteStopAction.run(in: .shared)
+        return .result(dialog: "\(reply)")
     }
 }
 

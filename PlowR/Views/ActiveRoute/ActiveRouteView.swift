@@ -104,7 +104,6 @@ struct ActiveRouteView: View {
         .onAppear {
             beginTracking()
             RouteSessionManager.shared.isRouteActive = true
-            RouteSessionManager.shared.onCompleteStop = { triggerNotifyPrompt() }
             RouteSessionManager.shared.onNotifyNext = { openNotifyPrompt() }
         }
         .onDisappear {
@@ -112,7 +111,6 @@ struct ActiveRouteView: View {
             // End Route (store.end()) finishes it.
             locationManager.stopTracking()
             RouteSessionManager.shared.isRouteActive = false
-            RouteSessionManager.shared.onCompleteStop = nil
             RouteSessionManager.shared.onNotifyNext = nil
         }
         .task(id: currentStopIndex) {
@@ -185,6 +183,10 @@ struct ActiveRouteView: View {
                 allClients: allClients,
                 onEndRoute: { store.end() }
             )
+        }
+        .onChange(of: store.currentStopID) { _, _ in
+            locationManager.clearAllGeofences()
+            if let stop = currentStop { locationManager.startMonitoringStop(stop) }
         }
         .onChange(of: locationManager.authorizationStatus) { _, status in
             switch status {
@@ -722,8 +724,8 @@ struct ActiveRouteView: View {
     }
 
     private func triggerNotifyPrompt() {
-        // Nothing to notify on the last stop or once every stop is done (Siri
-        // can still call this then; it used to open an empty sheet).
+        // Nothing to notify on the last stop or once every stop is done (it
+        // used to open an empty sheet then).
         guard nextStop != nil, !showingNotifyPrompt else { return }
         if shouldSkipNextNotify {
             advance(completing: currentStop?.id)
@@ -750,10 +752,10 @@ struct ActiveRouteView: View {
         didAdvance()
     }
 
-    /// After the store moved to the next stop: haptic, and geofence the new stop.
+    /// After this screen moved the store to the next stop. The new stop's
+    /// geofence follows the store (`onChange(of: store.currentStopID)`), so it
+    /// also moves when Siri or Control Center completes a stop.
     private func didAdvance() {
         haptic()
-        locationManager.clearAllGeofences()
-        if let stop = currentStop { locationManager.startMonitoringStop(stop) }
     }
 }

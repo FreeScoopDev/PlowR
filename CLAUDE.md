@@ -104,8 +104,10 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   (`.stopChanged`), so a visit is never credited to the wrong client. Tests of
   "after a relaunch" must build the before-store with `makeClosedAppStore()`:
   a configured store observes saves and fixes its own checkpoint, which hid
-  two bugs. Siri still reaches the route only through `RouteSessionManager`,
-  i.e. only while the route screen is up (bug #3, next).
+  two bugs. Siri's Complete Current Stop and Control Center's Complete Stop go
+  through the store too (`CompleteStopAction`; Control Center by opening
+  `plowr://completeStop`), so they work without the route screen. Only
+  Notify Next Client still needs the route screen (`RouteSessionManager`).
 - **Delete Account & Data** (Settings) is an App Review 5.1.1(v) requirement.
   It removes all SwiftData records, the encrypted work-orders file, the route
   checkpoint and Live Activities (`ActiveRouteStore.eraseAll()`), the widget's
