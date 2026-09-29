@@ -264,18 +264,7 @@ struct RouteDetailView: View {
     }
 
     private func iconForService(_ name: String) -> String {
-        let l = name.lowercased()
-        if l.contains("snow") || l.contains("plow")                          { return "snowflake" }
-        if l.contains("ice") || l.contains("salt")                           { return "thermometer.snowflake" }
-        if l.contains("lawn") || l.contains("mow")                           { return "leaf.fill" }
-        if l.contains("tree") || l.contains("landscap") ||
-           l.contains("mulch") || l.contains("plant")                        { return "tree.fill" }
-        if l.contains("walk") || l.contains("shovel") || l.contains("path")  { return "figure.walk" }
-        if l.contains("driv") || l.contains("clean") || l.contains("wash")   { return "sparkles" }
-        if l.contains("edge") || l.contains("trim")                          { return "scissors" }
-        if l.contains("haul") || l.contains("debris") || l.contains("remov") { return "trash.fill" }
-        if l.contains("fert") || l.contains("seed")                          { return "drop.fill" }
-        return "wrench.and.screwdriver.fill"
+        ServiceIcon.symbol(for: name)
     }
 
     private func clientFor(_ stop: RouteStop) -> Client? {
