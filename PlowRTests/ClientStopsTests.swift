@@ -13,6 +13,9 @@ import Testing
 /// phone number never reached the routes the client was already on.
 @MainActor
 struct ClientStopsTests {
+    /// Kept: a container that goes away resets its context, and every model
+    /// in it is destroyed.
+    let container: ModelContainer
     let context: ModelContext
     let pat: Client
     let sam: Client
@@ -20,7 +23,7 @@ struct ClientStopsTests {
     let tuesday: PlowRoute
 
     init() throws {
-        let container = try ModelContainer(
+        container = try ModelContainer(
             for: Client.self, PlowRoute.self, RouteStop.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
         context = container.mainContext
