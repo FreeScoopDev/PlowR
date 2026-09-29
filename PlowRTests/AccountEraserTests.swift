@@ -36,7 +36,9 @@ struct AccountEraserTests {
     final class Account {
         /// Every preference key the app writes, as of this change.
         static let keys = ["clientName", "clientPhone", "clientEmail", "userRole", "completedRoutesCount",
-                           "notifyIncludeLocation", "operatorName", ActiveRouteStore.checkpointKey]
+                           "notifyIncludeLocation", "operatorName", ActiveRouteStore.checkpointKey,
+                           CalendarSync.enabledKey, CalendarSync.seenKey, CalendarSync.removalOwedKey,
+                           EventKitVisitCalendarStore.calendarIDKey]
 
         let container: ModelContainer
         let context: ModelContext
@@ -51,6 +53,7 @@ struct AccountEraserTests {
         let notifications = FakeNotifications()
         let regions = FakeRegions()
         var widgetCleared = false
+        var calendarErased = false
 
         init() throws {
             let suite = "AccountEraserTests-\(UUID().uuidString)"
@@ -119,7 +122,8 @@ struct AccountEraserTests {
         func eraser() -> AccountEraser {
             AccountEraser(context: context, defaults: defaults, defaultsDomain: suite, workOrdersFile: workOrders,
                           temporaryDirectory: tmp, archiveFolders: [storeFolder], notifications: notifications,
-                          regions: regions, routeStore: routeStore, clearWidget: { [unowned self] in widgetCleared = true })
+                          regions: regions, routeStore: routeStore, clearWidget: { [unowned self] in widgetCleared = true },
+                          eraseCalendar: { [unowned self] in calendarErased = true })
         }
 
         func exists(_ url: URL) -> Bool { FileManager.default.fileExists(atPath: url.path) }
@@ -185,6 +189,58 @@ struct AccountEraserTests {
         // by the route store noticing its route was deleted.
         #expect(account.surfaces.calls.last == "clear")
         #expect(account.widgetCleared)
+    }
+
+    // The "PlowR" calendar, with every client's name and address, was left.
+    @Test func thePlowRCalendarIsErased() throws {
+        let account = try Account()
+        defer { account.removeFiles() }
+        #expect(account.eraser().eraseAll().isEmpty)
+        #expect(account.calendarErased)
+    }
+
+    // Through the real calendar sync, with a calendar in memory.
+    @Test func thePlowRCalendarsEventsAreGone() async throws {
+        let account = try Account()
+        defer { account.removeFiles() }
+        let calendar = FakeVisitCalendarStore()
+        let sync = CalendarSync(store: calendar, defaults: account.defaults)
+        sync.configure(context: account.context)
+        sync.operatorID = "op"
+        await sync.setEnabled(true)
+        #expect(calendar.events.count == 1, "the account's visit wasn't added, so this checks nothing")
+        var eraser = account.eraser()
+        eraser.eraseCalendar = sync.eraseAll
+        #expect(eraser.eraseAll().isEmpty)
+        #expect(calendar.events.isEmpty)
+        #expect(!calendar.hasCalendar)
+    }
+
+    // Preferences say which calendar is PlowR's, even renamed: gone first,
+    // the calendar couldn't be found to remove.
+    @Test func theCalendarGoesBeforeThePreferences() throws {
+        let account = try Account()
+        defer { account.removeFiles() }
+        var preferencesWereThere = false
+        var eraser = account.eraser()
+        eraser.eraseCalendar = { [defaults = account.defaults] in
+            preferencesWereThere = defaults.object(forKey: "userRole") != nil
+        }
+        #expect(eraser.eraseAll().isEmpty)
+        #expect(preferencesWereThere)
+        #expect(account.defaults.object(forKey: "userRole") == nil)
+    }
+
+    @Test func aCalendarThatCantBeErasedIsReported() throws {
+        let account = try Account()
+        defer { account.removeFiles() }
+        var eraser = account.eraser()
+        eraser.eraseCalendar = { throw CocoaError(.fileWriteUnknown) }
+        var signedOut = false
+        let failures = eraser.eraseAll(thenSignOut: { signedOut = true })
+        #expect(failures.map(\.step) == [AccountEraser.calendarStep])
+        #expect(!signedOut)
+        #expect(account.defaults.object(forKey: "userRole") != nil)
     }
 
     // Photos are kept as files beside the database (external storage), which an

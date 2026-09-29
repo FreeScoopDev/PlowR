@@ -28,10 +28,10 @@ extension CLLocationManager: RegionMonitoring {}
 /// model (the list the schema is built from, so a new model can't be missed),
 /// every preference (the whole domain, so a new key can't be missed either),
 /// the work-orders file, notifications, geofences, shared PDFs, database
-/// archives, the route in progress and the widget's copy of it.
-/// `AccountEraserTests` writes each one and checks it's gone.
+/// archives, the route in progress, the widget's copy of it and the "PlowR"
+/// calendar. `AccountEraserTests` writes each one and checks it's gone.
 ///
-/// Not here yet: the iCloud copy and the "PlowR" calendar's events.
+/// Not here yet: the iCloud copy.
 @MainActor
 struct AccountEraser {
     /// A step that failed. The other steps still run.
@@ -39,6 +39,9 @@ struct AccountEraser {
         var step: String
         var reason: String
     }
+
+    /// Settings shows this step's reason: only the user can fix it.
+    static let calendarStep = "calendar events"
 
     var context: ModelContext
     var models: [any PersistentModel.Type] = PlowRApp.models
@@ -57,6 +60,9 @@ struct AccountEraser {
     var regions: any RegionMonitoring = CLLocationManager()
     var routeStore: ActiveRouteStore = .shared
     var clearWidget: @MainActor () -> Void = WidgetDataStore.clear
+    /// The "PlowR" calendar and every event PlowR added: client names and
+    /// addresses, with reminders.
+    var eraseCalendar: @MainActor () throws -> Void = { try CalendarSync.shared.eraseAll() }
 
     /// Removes everything it can. Returns the steps that failed; empty means
     /// everything on this device is gone.
@@ -97,6 +103,8 @@ struct AccountEraser {
         notifications.removeAllDeliveredNotifications()
         for region in regions.monitoredRegions { regions.stopMonitoring(for: region) }
         clearWidget()
+        // Before preferences: they say which calendar is PlowR's.
+        attempt(Self.calendarStep) { try eraseCalendar() }
         if failures.isEmpty, let defaultsDomain {
             defaults.removePersistentDomain(forName: defaultsDomain)
         }

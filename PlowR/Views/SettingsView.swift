@@ -1,9 +1,11 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 struct SettingsView: View {
     @Environment(AuthManager.self) private var authManager
     @Environment(ActiveRouteStore.self) private var activeRoute
+    @Environment(CalendarSync.self) private var calendarSync
     @Environment(\.modelContext) private var modelContext
     @Environment(\.openURL) private var openURL
 
@@ -15,6 +17,23 @@ struct SettingsView: View {
     @State private var showingDeleteConfirmation = false
     /// What Delete Account & Data couldn't remove, shown under the button.
     @State private var deleteFailures: [AccountEraser.Failure] = []
+    private let iCloud = ICloudStatus.shared
+
+    private var iCloudSymbol: String {
+        switch iCloud.summary.kind {
+        case .backedUp: return "icloud.fill"
+        case .unknown: return "icloud"
+        case .problem: return "icloud.slash"
+        }
+    }
+
+    private var iCloudTint: Color {
+        switch iCloud.summary.kind {
+        case .backedUp: return .blue
+        case .unknown: return .secondary
+        case .problem: return .orange
+        }
+    }
 
     var body: some View {
         Form {
@@ -30,6 +49,17 @@ struct SettingsView: View {
                 }
             }
 
+            Section {
+                Toggle(isOn: Binding(get: { calendarSync.isEnabled || calendarSync.isAsking },
+                                     set: { on in Task { await calendarSync.setEnabled(on) } })) {
+                    Label("Add Visits to Calendar", systemImage: "calendar")
+                }
+            } header: {
+                Text("Calendar")
+            } footer: {
+                calendarFooter
+            }
+
             Section("Discover") {
                 Button {
                     showingFindService = true
@@ -39,14 +69,15 @@ struct SettingsView: View {
             }
 
             Section {
+                // It said "Backed Up" whatever iCloud's state (ICloudStatus).
                 HStack(alignment: .top, spacing: 12) {
-                    Image(systemName: "icloud.fill")
+                    Image(systemName: iCloudSymbol)
                         .font(.title2)
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(iCloudTint)
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Data Backed Up to iCloud")
+                        Text(iCloud.summary.title)
                             .font(.subheadline.weight(.semibold))
-                        Text("Your clients, routes, and documents sync automatically across your devices and are stored securely in your private iCloud account.")
+                        Text(iCloud.summary.message)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -88,8 +119,14 @@ struct SettingsView: View {
                 }
             } footer: {
                 if !deleteFailures.isEmpty {
-                    Text("Not everything was deleted. Left: \(deleteFailures.map(\.step).joined(separator: ", ")). You're still signed in, so you can try again.")
-                        .foregroundStyle(.red)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Not everything was deleted. Left: \(deleteFailures.map(\.step).joined(separator: ", ")). You're still signed in, so you can try again.")
+                        // Only the user can fix this one, so say how.
+                        if let calendar = deleteFailures.first(where: { $0.step == AccountEraser.calendarStep }) {
+                            Text(calendar.reason)
+                        }
+                    }
+                    .foregroundStyle(.red)
                 }
             }
 
@@ -129,9 +166,27 @@ struct SettingsView: View {
         }
     }
 
+    @ViewBuilder private var calendarFooter: some View {
+        if calendarSync.needsAccess {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("PlowR needs full access to your calendars to keep its events in step with your visits.")
+                Button("Allow in Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+                }
+                .font(.caption.weight(.semibold))
+            }
+        } else if let problem = calendarSync.problem {
+            Text(problem)
+                .foregroundStyle(.red)
+        } else {
+            Text("Adds your visits from the last month and the next six months to a “PlowR” calendar, with a reminder an hour before, and keeps it up to date when visits are moved, skipped or deleted. The switch is for this device; in iCloud, the calendar shows on your other devices too.")
+        }
+    }
+
     private func deleteAccount() {
         // Everything on this device: records, preferences, files, notifications,
-        // geofences, the route in progress and the widget (see AccountEraser).
+        // geofences, the route in progress, the widget and the PlowR calendar
+        // (see AccountEraser).
         let eraser = AccountEraser(context: modelContext,
                                    archiveFolders: AccountEraser.archiveFolders(for: modelContext.container),
                                    routeStore: activeRoute)
@@ -164,4 +219,5 @@ struct SettingsView: View {
     SettingsView()
         .environment(AuthManager())
         .environment(ActiveRouteStore.shared)
+        .environment(CalendarSync.shared)
 }

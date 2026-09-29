@@ -8,6 +8,7 @@ struct ServiceCatalogView: View {
 
     @State private var showingAddService = false
     @State private var serviceToEdit: ServiceItem?
+    @State private var standardServicesFirst = false
 
     private var myServices: [ServiceItem] {
         allServices
@@ -16,15 +17,29 @@ struct ServiceCatalogView: View {
     }
 
     private var grouped: [(category: String, label: String, items: [ServiceItem])] {
-        let categories: [(String, String)] = [
-            ("snow", "Snow Removal"),
-            ("lawn", "Lawn Care"),
-            ("cleanup", "Cleanup"),
-            ("custom", "Custom Services"),
-        ]
-        return categories.compactMap { (key, label) in
-            let items = myServices.filter { $0.category == key }
-            return items.isEmpty ? nil : (key, label, items)
+        (ServiceCatalog.standardCategories + [ServiceCatalog.custom]).compactMap { category in
+            let items = myServices.filter { $0.category == category.key }
+            return items.isEmpty ? nil : (category.key, category.label, items)
+        }
+    }
+
+    private var offered: [ServiceCatalog.Category] {
+        ServiceCatalog.offered(from: allServices, operatorID: authManager.userID)
+    }
+
+    /// Offered, not added by themselves: see ServiceCatalog.
+    @ViewBuilder
+    private var standardServicesSection: some View {
+        if !offered.isEmpty {
+            Section {
+                ForEach(offered) { category in
+                    StandardCategoryButton(category: category, operatorID: authManager.userID)
+                }
+            } header: {
+                Text("Add Standard Services")
+            } footer: {
+                Text("Common services with typical prices, to edit or delete as you like.")
+            }
         }
     }
 
@@ -43,6 +58,11 @@ struct ServiceCatalogView: View {
                 }
             }
 
+            // An empty catalog starts with the standard services on top. Where
+            // is decided on appear, so the rows don't move under the finger
+            // when the first category is added.
+            if standardServicesFirst { standardServicesSection }
+
             Section {
                 Button {
                     showingAddService = true
@@ -50,33 +70,17 @@ struct ServiceCatalogView: View {
                     Label("Add Custom Service", systemImage: "plus")
                 }
             }
+
+            if !standardServicesFirst { standardServicesSection }
         }
         .navigationTitle("Service Catalog")
+        .onAppear { standardServicesFirst = myServices.isEmpty }
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear { seedIfNeeded() }
         .sheet(isPresented: $showingAddService) {
             ServiceItemEditView(operatorID: authManager.userID)
         }
         .sheet(item: $serviceToEdit) { item in
             ServiceItemEditView(item: item, operatorID: authManager.userID)
-        }
-    }
-
-    private func seedIfNeeded() {
-        let existingNames = Set(myServices.map { $0.name })
-        let toSeed = ServiceItem.defaultServices.enumerated().filter { !existingNames.contains($0.element.name) }
-        guard !toSeed.isEmpty else { return }
-        for (index, def) in toSeed {
-            let item = ServiceItem(
-                name: def.name,
-                category: def.category,
-                unitType: def.unitType,
-                pricePerUnit: def.price,
-                isBuiltIn: true,
-                operatorID: authManager.userID,
-                sortOrder: index
-            )
-            modelContext.insert(item)
         }
     }
 }
@@ -205,7 +209,7 @@ struct ServiceItemEditView: View {
         } else {
             let new = ServiceItem(
                 name: name,
-                category: "custom",
+                category: ServiceCatalog.custom.key,
                 unitType: unitType,
                 pricePerUnit: priceValue,
                 operatorID: operatorID,

@@ -32,9 +32,16 @@ struct PlowRApp: App {
         // Before any view: a Siri or Control Center launch acts on the route
         // without the UI, and a killed app should come back mid-route.
         ActiveRouteStore.shared.configure(context: container.mainContext)
+        // Not under tests: the test host is the app, with the app's
+        // preferences, and must leave the simulator's calendar alone.
+        if !Self.isRunningUnderTests {
+            CalendarSync.shared.configure(context: container.mainContext)
+        }
     }
 
-    // Readable by DashboardView to show a sync-unavailable warning banner.
+    // Whether the iCloud database opened at launch (ICloudStatus reads it).
+    // It opens fine for a user not signed in to iCloud: that's the account's
+    // status, which ICloudStatus asks CloudKit for.
     static private(set) var isCloudKitAvailable = true
 
     // True when the process is running under XCTest. Unit tests inject into the
@@ -55,10 +62,12 @@ struct PlowRApp: App {
             || NSClassFromString("XCTestCase") != nil
     }
 
+    static let iCloudContainer = "iCloud.com.Scoops.PlowR"
+
     /// The store, synced to iCloud. Unnamed like the local one, so both open
     /// the same file: the app-group container on a signed build.
     static func cloudConfiguration(for schema: Schema) -> ModelConfiguration {
-        ModelConfiguration(schema: schema, cloudKitDatabase: .private("iCloud.com.Scoops.PlowR"))
+        ModelConfiguration(schema: schema, cloudKitDatabase: .private(iCloudContainer))
     }
 
     /// The same store without an explicit iCloud database.
@@ -110,6 +119,7 @@ struct PlowRApp: App {
             ContentView()
                 .environment(authManager)
                 .environment(ActiveRouteStore.shared)
+                .environment(CalendarSync.shared)
                 .tint(PlowRColor.accent)
         }
         .modelContainer(container)
@@ -118,6 +128,14 @@ struct PlowRApp: App {
             if phase == .active {
                 ActiveRouteStore.shared.validate()
                 authManager.recheckIfSignedOut()
+                CalendarSync.shared.refresh()
+            }
+            // The screens leave saving to autosave, which took up to half a
+            // minute on a simulator, and a sync waiting for it doesn't run
+            // once the app is suspended: add a visit, open Calendar, and it
+            // wasn't there. So sync on the way out, from what's in memory.
+            if phase == .background {
+                CalendarSync.shared.syncNow()
             }
         }
     }

@@ -45,8 +45,10 @@ platform work: `LocationManager` (geofencing per stop), `ActiveRouteStore`
 (the in-progress route: current stop, stop timer, checkpoint that survives a
 relaunch; Live Activity and widget via `SystemRouteSurfaces`),
 `RouteSessionManager` (Siri's bridge to the route screen, being retired),
-`NotificationService` (weather alerts, overdue invoices), `CalendarService`
-(EventKit — writes to a "PlowR" calendar), `WeatherService` (Open-Meteo),
+`NotificationService` (weather alerts, overdue invoices), `CalendarSync`
+(Settings switch, off by default: keeps a "PlowR" calendar in step with the
+schedule through EventKit; `VisitCalendar` works out the changes),
+`WeatherService` (Open-Meteo),
 `ElevationService` (Open-Topo-Data), `RouteOptimizer` (nearest-neighbor over
 `MKDirections` or haversine), `WidgetDataStore` (app-group `UserDefaults`,
 key `todayRoute`, read by the widget). Views are grouped by feature under
@@ -72,6 +74,14 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   skips CloudKit mirroring; without it the host app dies with "Test crashed
   with signal trap before establishing connection." That kept CI red from
   2026-08-27 until #1 (2026-09-26).
+- **`ICloudStatus` asks CloudKit for the account's status** (the Dashboard
+  card, Settings > Data & Backup). `PlowRApp.isCloudKitAvailable` only says
+  whether the iCloud database opened, and it opens fine for a user who isn't
+  signed in to iCloud. `ICloudStatus.accountStatus()` never asks CloudKit
+  under tests, for the reason above; tests pass in a stand-in `check` and
+  their own `NotificationCenter`. Unverified: whether the "local" fallback
+  (`localConfiguration`, CloudKit setting left automatic) really stays off
+  iCloud on a signed build, so the card says sync "may be off".
 - **The `ModelContainer` fallback chain archives the store rather than
   deleting it** (`default.store.<timestamp>.bak` and the photo folder, beside
   the store: the app-group container on a signed build), and only when the
@@ -124,17 +134,30 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
 - **Delete Account & Data** (Settings) is an App Review 5.1.1(v) requirement.
   It removes all SwiftData records, the encrypted work-orders file, the route
   checkpoint and Live Activities (`ActiveRouteStore.eraseAll()`), the widget's
-  saved route, and Keychain credentials. Any new persistent store must be added to that path or
+  saved route, the "PlowR" calendar (`CalendarSync.eraseAll()`), and Keychain
+  credentials. Any new persistent store must be added to that path or
   the deletion is incomplete and review can fail on it.
+- **Calendar events are matched to visits by their `plowr://visit/<id>`
+  link**, not by an ID saved on the visit (`externalCalendarID` is unused): an
+  event's ID is only good on the device that made it, and visits sync.
+  `CalendarSync` runs after every store save, so no screen calls it. Until
+  2026-09-28 PlowR asked for write-only access, which can't create a calendar
+  or move an event into one, so calendar sync never added an event (seen on
+  a simulator). Two devices can each make a "PlowR" calendar before iCloud
+  brings the other's: every PlowR calendar is treated as one.
 
 ## Conventions
 
 - **Service language is industry-agnostic** (since 1.1.0): snow, lawn, and
   landscaping share the same screens. Don't reintroduce "plow" into user-facing
   copy for a generic action. The `Service-language guard` job in
-  `.github/workflows/guards.yml` fails a PR that puts snow-only wording or a fixed
-  snowflake icon on a shared screen (dashboard, active route, routes, Live
-  Activity, intents, widgets, tab bar). Snow-only features go in their own files.
+  `.github/workflows/guards.yml` fails a PR that puts snow-only wording or a
+  snowflake icon on a shared screen (dashboard, active route, routes,
+  schedule, clients, documents, settings except the service catalog, Live
+  Activity, intents, widgets, tab bar), and fails if a path it lists is gone.
+  Run it locally with `bash -e`, as GitHub runs it (zsh doesn't split its
+  path list, and without `-e` a grep that finds nothing hides a failure).
+  Snow-only features go in their own files.
 - **Colours come from `PlowR/DesignSystem.swift`** (`PlowRColor`). The accent is
   adaptive navy (`PlowRColor.accent`, applied once with `.tint()` in
   `PlowRApp`); the fixed navy is `navyUIColor` (PDFs) and `navy` (SwiftUI,

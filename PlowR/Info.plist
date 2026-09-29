@@ -23,9 +23,9 @@
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>NSCalendarsUsageDescription</key>
-	<string>PlowR adds your scheduled visits to Calendar so they appear alongside your other appointments.</string>
-	<key>NSCalendarsWriteOnlyAccessUsageDescription</key>
-	<string>PlowR adds your scheduled visits to Calendar so they appear alongside your other appointments.</string>
+	<string>PlowR adds your visits to a “PlowR” calendar and updates or removes those events when visits change. It doesn’t read or change your other events.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>PlowR adds your visits to a “PlowR” calendar and updates or removes those events when visits change. It doesn’t read or change your other events.</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>comgooglemaps</string>

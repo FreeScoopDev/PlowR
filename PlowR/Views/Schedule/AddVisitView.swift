@@ -10,10 +10,49 @@ struct AddVisitView: View {
     @Query private var allServiceItems: [ServiceItem]
     @Query private var allProfiles: [BusinessProfile]
 
-    private static let defaultReasonPresets = [
-        "Snow Plowing", "Salting / Ice Melt", "Walkway Shoveling",
-        "Roof Snow Removal", "Inspection", "Routine Visit"
-    ]
+    /// Offered whatever the work, after the business's own services.
+    static let generalReasons = ["Inspection", "Routine Visit"]
+
+    /// The picker's own entry for a reason typed in: never a listed reason
+    /// too, or picking it would save an empty reason.
+    static let otherReason = "Other"
+
+    /// This business's active services in catalog order: the reasons, and
+    /// the Expected Services list.
+    static func activeServices(_ services: [ServiceItem], operatorID: String) -> [ServiceItem] {
+        services.filter { $0.operatorID == operatorID && $0.isActive }
+            .sorted { $0.sortOrder < $1.sortOrder }
+    }
+
+    /// The reasons to offer: this business's active services, then the
+    /// general ones, then its own saved reasons. The list used to be four
+    /// snow services and two general ones, whatever the business did.
+    static func reasonPresets(services: [ServiceItem], operatorID: String, saved: [String]) -> [String] {
+        let mine = activeServices(services, operatorID: operatorID).map(\.name)
+        var listed: Set<String> = [otherReason, ""]
+        return (mine + generalReasons + saved).filter { listed.insert($0).inserted }
+    }
+
+    /// Whether a typed reason can be saved as a preset: not blank, not listed
+    /// already, and not "Other", which is the picker's own entry and would
+    /// leave the visit with no reason.
+    static func canSaveAsPreset(_ reason: String, presets: [String]) -> Bool {
+        let name = presetName(reason)
+        return !name.isEmpty && name != otherReason && !presets.contains(name)
+    }
+
+    /// A typed reason as a preset: without the spaces around it, which would
+    /// make "Inspection " a second "Inspection".
+    static func presetName(_ reason: String) -> String {
+        reason.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// How a visit's saved reason shows in the picker: as a listed reason,
+    /// or as Other with its text (a service since removed, a typed reason).
+    static func pickerSelection(for reason: String, presets: [String]) -> (preset: String, custom: String) {
+        if reason.isEmpty { return ("", "") }
+        return presets.contains(reason) ? (reason, "") : (otherReason, reason)
+    }
 
     // MARK: - Mode
     var editing: ScheduledVisit?
@@ -77,7 +116,7 @@ struct AddVisitView: View {
         _selectedServiceIDs = State(initialValue: [])
     }
 
-    // Edit existing visit — note: reasonPresets reference updated below to use static default list
+    // Edit existing visit
     init(editing: ScheduledVisit) {
         self.editing = editing
         _scheduledDate = State(initialValue: editing.scheduledDate)
@@ -92,10 +131,10 @@ struct AddVisitView: View {
         _selectedClient = State(initialValue: nil) // resolved in onAppear
         _isAfterHours = State(initialValue: editing.isAfterHours)
         _afterHoursMultiplier = State(initialValue: editing.afterHoursMultiplier)
-        // Reason
-        let isPreset = AddVisitView.defaultReasonPresets.contains(editing.visitReason)
-        _selectedReasonPreset = State(initialValue: isPreset ? editing.visitReason : (editing.visitReason.isEmpty ? "" : "Other"))
-        _customReason = State(initialValue: isPreset ? "" : editing.visitReason)
+        // Reason: as typed in until onAppear, when the catalog it may come from can be read.
+        let selection = AddVisitView.pickerSelection(for: editing.visitReason, presets: [])
+        _selectedReasonPreset = State(initialValue: selection.preset)
+        _customReason = State(initialValue: selection.custom)
         _selectedServiceIDs = State(initialValue: Set(editing.expectedServiceIDs))
     }
 
@@ -105,8 +144,7 @@ struct AddVisitView: View {
     }
 
     private var myServices: [ServiceItem] {
-        allServiceItems.filter { $0.operatorID == authManager.userID && $0.isActive }
-            .sorted { $0.sortOrder < $1.sortOrder }
+        Self.activeServices(allServiceItems, operatorID: authManager.userID)
     }
 
     private var operatorProfile: BusinessProfile? {
@@ -114,21 +152,20 @@ struct AddVisitView: View {
     }
 
     private var allReasonPresets: [String] {
-        let custom = operatorProfile?.customVisitReasons ?? []
-        return Self.defaultReasonPresets + custom
+        Self.reasonPresets(services: allServiceItems, operatorID: authManager.userID,
+                           saved: operatorProfile?.customVisitReasons ?? [])
     }
 
     private var resolvedReason: String {
-        selectedReasonPreset == "Other" ? customReason : selectedReasonPreset
+        selectedReasonPreset == Self.otherReason ? customReason : selectedReasonPreset
     }
 
     private func saveReasonAsPreset() {
-        guard !customReason.isEmpty,
-              let profile = operatorProfile,
-              !profile.customVisitReasons.contains(customReason),
-              !Self.defaultReasonPresets.contains(customReason) else { return }
-        profile.customVisitReasons.append(customReason)
-        selectedReasonPreset = customReason
+        guard let profile = operatorProfile,
+              Self.canSaveAsPreset(customReason, presets: allReasonPresets) else { return }
+        let name = Self.presetName(customReason)
+        profile.customVisitReasons.append(name)
+        selectedReasonPreset = name
         customReason = ""
     }
 
@@ -175,6 +212,8 @@ struct AddVisitView: View {
         .onAppear {
             if let e = editing {
                 selectedClient = myClients.first { $0.id.uuidString == e.clientID }
+                (selectedReasonPreset, customReason) = Self.pickerSelection(for: e.visitReason,
+                                                                            presets: allReasonPresets)
             }
         }
         .sheet(isPresented: $showingAddClientSheet) {
@@ -272,12 +311,11 @@ struct AddVisitView: View {
                 ForEach(allReasonPresets, id: \.self) { preset in
                     Text(preset).tag(preset)
                 }
-                Text("Other…").tag("Other")
+                Text("Other…").tag(Self.otherReason)
             }
-            if selectedReasonPreset == "Other" {
+            if selectedReasonPreset == Self.otherReason {
                 TextField("Describe the visit reason…", text: $customReason)
-                if !customReason.isEmpty,
-                   !allReasonPresets.contains(customReason),
+                if Self.canSaveAsPreset(customReason, presets: allReasonPresets),
                    operatorProfile != nil {
                     Button {
                         saveReasonAsPreset()
@@ -462,15 +500,9 @@ struct AddVisitView: View {
             dates = first.recurrenceRule.occurrences(from: scheduledDate, horizon: horizon, calendar: .current)
         }
 
+        // Calendar events follow from the save (CalendarSync).
         for (index, date) in dates.enumerated() {
-            let visit = index == 0 ? first : makeVisit(on: date)
-            modelContext.insert(visit)
-            let capturedVisit = visit
-            Task {
-                if let eventID = await CalendarService.shared.addVisit(capturedVisit) {
-                    capturedVisit.externalCalendarID = eventID
-                }
-            }
+            modelContext.insert(index == 0 ? first : makeVisit(on: date))
         }
     }
 
