@@ -175,8 +175,9 @@ struct ElevationServiceTests {
         }
     }
 
-    // Cancelled while waiting its turn (the zone screen closed): nothing is
-    // sent. The old wait ignored the cancellation and sent it anyway.
+    // A lookup whose task is cancelled while it waits its turn sends nothing.
+    // The old wait ignored the cancellation and sent it anyway. (Today's
+    // callers start lookups in tasks nothing cancels; this pins the service.)
     @Test func aCancelledWaitSendsNothing() async {
         let api = FakeAPI { _, _ in 5 }
         let service = ElevationService(fetch: { try await api.answer($0) }, pause: .seconds(10),
