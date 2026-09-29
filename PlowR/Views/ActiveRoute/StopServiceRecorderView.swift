@@ -339,10 +339,10 @@ struct StopServiceRecorderView: View {
 
         lineItems.forEach { modelContext.insert($0) }
         proposal.lineItems = lineItems
-        if markSent {
-            proposal.invoiceSentAt = Date()
-        }
         modelContext.insert(proposal)
+        if markSent {
+            DocumentSent.markSent(proposal, in: modelContext)
+        }
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         dismiss()
     }

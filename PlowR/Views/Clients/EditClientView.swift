@@ -129,12 +129,9 @@ struct EditClientView: View {
         }
         .sheet(isPresented: $showingMessageComposer) {
             if !phone.isEmpty {
-                MessageComposer(recipients: [phone], body: "") { outcome in
-                    // Only a text that went counts as the last one sent.
-                    guard outcome == .sent else { return }
-                    client.lastMessageSentAt = Date()
-                    client.clientRespondedAt = nil
-                }
+                // A plain text doesn't make the client "Awaiting Response":
+                // that's for invoices and proposals (DocumentSent).
+                MessageComposer(recipients: [phone], body: "") { _ in }
             }
         }
         .lookAroundViewer(isPresented: $showingLookAround, initialScene: lookAroundScene)
@@ -597,7 +594,7 @@ struct EditClientView: View {
                         Text(awaitingResponse ? "Awaiting Response" : "Client Responded")
                             .font(.subheadline)
                             .foregroundStyle(awaitingResponse ? .orange : .green)
-                        Text("Last message sent \(sent, format: .relative(presentation: .named))")
+                        Text("Invoice or proposal sent \(sent, format: .relative(presentation: .named))")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -901,6 +898,13 @@ struct EditClientView: View {
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let window = windowScene.windows.first else { return }
         let vc = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        // Sent to the client from the share sheet: they're awaiting a response.
+        vc.completionWithItemsHandler = { activity, completed, _, _ in
+            guard completed, DocumentSent.isSend(activity) else { return }
+            DispatchQueue.main.async {
+                DocumentSent.shared(proposal, in: modelContext)
+            }
+        }
         vc.popoverPresentationController?.sourceView = window
         var topVC = window.rootViewController
         while let presented = topVC?.presentedViewController { topVC = presented }
