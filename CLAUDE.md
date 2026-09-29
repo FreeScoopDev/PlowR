@@ -33,8 +33,11 @@ Zero third-party dependencies — every import is an Apple framework. Keep it
 that way unless there's a strong reason; adding the first one is a real decision.
 
 Deployment target is **iOS 26.0** (was 26.5 until 2026-09-29; nothing needed more). Swift language mode is 5, so the Swift 6
-strict-concurrency diagnostics show as warnings, not errors — `WeatherService`
-currently has three.
+strict-concurrency diagnostics show as warnings, not errors. A Release build on
+2026-09-29 had five: three in `WeatherService`, and one each in
+`EventKitVisitCalendarStore` and `BusinessProfileView`. It also warns about APIs
+iOS 26 deprecated (`CLGeocoder`, `MKPlacemark` and `placemark`, `UIScreen.main`),
+which still work.
 
 ## Architecture in one paragraph
 
@@ -204,9 +207,7 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   *why*. Since 2026-09-27 it goes in its own file in `changelog.d/`, not in
   `CHANGELOG.md`. `changelog.d/README.md` has the format. The PR that cuts a
   version gathers the files into `CHANGELOG.md`. Two open PRs that both edited
-  `[Unreleased]` conflicted every time (Wockett #90–#92), and a conflicted PR
-  cannot auto-merge. `[Unreleased]` in `CHANGELOG.md` still holds the 5.1.1
-  compliance work that hasn't been cut to a version.
+  `[Unreleased]` conflicted every time, and a conflicted PR cannot auto-merge.
 
 ## Process
 
