@@ -24,10 +24,29 @@ enum DocumentSent {
     }
 
     /// A document shared to someone (`isSend`): its client is awaiting a
-    /// response. Not for a paid invoice: that's a receipt, nothing is owed.
+    /// response. A draft invoice shared is sent (Joe's call: it used to stay
+    /// a draft, with no due date). Not for a paid invoice: that's a receipt,
+    /// nothing is owed.
     static func shared(_ proposal: Proposal, in context: ModelContext, now: Date = .now) {
-        guard proposal.invoiceStatus != .paid else { return }
-        awaitResponse(clientID: proposal.clientID, in: context, now: now)
+        switch proposal.invoiceStatus {
+        case .paid: return
+        case .draft: markSent(proposal, in: context, now: now)
+        default: awaitResponse(clientID: proposal.clientID, in: context, now: now)
+        }
+    }
+
+    /// Marks an invoice paid now. A payment is the client's response, so it
+    /// ends "Awaiting Response" when this invoice is what they were awaiting:
+    /// sent no earlier than the client's mark. A document sent after it
+    /// keeps them awaiting.
+    static func markPaid(_ proposal: Proposal, in context: ModelContext, now: Date = .now) {
+        proposal.invoicePaidAt = now
+        let id = proposal.clientID
+        guard let sent = proposal.invoiceSentAt,
+              let client = try? context.fetch(FetchDescriptor<Client>()).first(where: { $0.id.uuidString == id }),
+              let mark = client.lastMessageSentAt,
+              sent >= mark.addingTimeInterval(-1) else { return }
+        client.clientRespondedAt = now
     }
 
     /// Whether finishing the share sheet with `activity` sent the document

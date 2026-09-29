@@ -6,6 +6,9 @@ struct ProposalPreviewView: View {
     let pdfData: Data
     let client: Client
     var isInvoice: Bool = false
+    /// The PDF was sent to someone from the share sheet, before the document
+    /// was saved.
+    var onShared: () -> Void = {}
     let onSave: () -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -52,6 +55,7 @@ struct ProposalPreviewView: View {
             if let url = shareURL {
                 DocumentShareSheet(url: url) {
                     DocumentSent.awaitResponse(clientID: client.id.uuidString, in: modelContext)
+                    onShared()
                 }
                 .presentationDetents([.medium, .large])
             }

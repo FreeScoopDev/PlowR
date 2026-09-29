@@ -28,6 +28,9 @@ struct ProposalBuilderView: View {
     @State private var showingPreview = false
     @State private var generatedPDFData: Data?
     @State private var pendingProposal: Proposal?
+    /// The preview shared the document before it was saved: an invoice was
+    /// sent, so it's saved as sent.
+    @State private var sharedFromPreview = false
     @State private var grouped = false
 
     private struct CustomLineItem: Identifiable {
@@ -97,7 +100,8 @@ struct ProposalBuilderView: View {
             }
             .sheet(isPresented: $showingPreview) {
                 if let data = generatedPDFData {
-                    ProposalPreviewView(pdfData: data, client: client, isInvoice: isInvoiceMode) {
+                    ProposalPreviewView(pdfData: data, client: client, isInvoice: isInvoiceMode,
+                                        onShared: { sharedFromPreview = true }) {
                         if let proposal = pendingProposal {
                             saveProposal(proposal)
                         }
@@ -397,6 +401,9 @@ struct ProposalBuilderView: View {
         for item in (proposal.lineItems ?? []) { modelContext.insert(item) }
         proposal.lineItems = proposal.lineItems   // re-affirm relationship after explicit inserts
         modelContext.insert(proposal)
+        if sharedFromPreview, proposal.isInvoice {
+            DocumentSent.markSent(proposal, in: modelContext)
+        }
         // Write proposal ID back to the originating scheduled visit
         if !linkedVisitID.isEmpty, let uuid = UUID(uuidString: linkedVisitID) {
             let descriptor = FetchDescriptor<ScheduledVisit>(predicate: #Predicate { $0.id == uuid })
