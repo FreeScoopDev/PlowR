@@ -2,7 +2,7 @@
 // Debug and Release configurations are based on this file, and no target sets
 // its own values, so bump them here and nowhere else.
 //
-// MARKETING_VERSION is the user-facing version ("1.1.0" in the App Store).
+// MARKETING_VERSION is the user-facing version ("1.2.0" in the App Store).
 //
 // CURRENT_PROJECT_VERSION is the build number. It must stay defined: the
 // generated Info.plist resolves CFBundleVersion from it.
@@ -16,5 +16,5 @@
 //     latest build there.
 //   - Nothing bumps it automatically (the Archive-only agvtool script that
 //     did was removed in #2).
-MARKETING_VERSION = 1.1.0
+MARKETING_VERSION = 1.2.0
 CURRENT_PROJECT_VERSION = 1

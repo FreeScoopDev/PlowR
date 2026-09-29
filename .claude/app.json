@@ -11,7 +11,7 @@
     "PlowRTests",
     "docs"
   ],
-  "versionSource": "project.pbxproj",
+  "versionSource": "Versions.xcconfig",
   "github": "FreeScoopDev/PlowR",
   "requiredChecks": [
     "PlowR | CI Tests | Test - iOS",
