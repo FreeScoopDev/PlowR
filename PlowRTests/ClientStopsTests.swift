@@ -143,7 +143,9 @@ struct ClientStopsTests {
     }
 
     private func waitUntil(_ condition: () -> Bool) async throws {
-        for _ in 0..<500 where !condition() {      // Up to 5 s on a busy CI runner.
+        var tries = 0
+        while !condition() && tries < 500 {          // Up to 5 s on a busy CI runner.
+            tries += 1
             try await Task.sleep(for: .milliseconds(10))
         }
         #expect(condition())
