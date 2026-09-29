@@ -115,6 +115,22 @@ struct ClientRemovalTests {
         #expect(try ClientStops.of(sam, in: context).count == 1)
     }
 
+    // A new phone before iCloud has brought the clients: not done yet, so
+    // the next launch still cleans up.
+    @Test func anEmptyStoreDoesntCountAsCleanedUp() throws {
+        let defaults = try #require(UserDefaults(suiteName: "ClientRemovalTests-\(UUID().uuidString)"))
+        let empty = try ModelContainer(
+            for: Client.self, PlowRoute.self, RouteStop.self, ScheduledVisit.self,
+            Proposal.self, ProposalLineItem.self, StopPhoto.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
+        #expect(ClientRemoval.takeInactiveClientsOffRoutes(in: empty.mainContext, defaults: defaults) == 0)
+        #expect(!defaults.bool(forKey: ClientRemoval.inactiveCleanupKey))
+        pat.isActive = false
+        try context.save()
+        #expect(ClientRemoval.takeInactiveClientsOffRoutes(in: context, defaults: defaults) == 3)
+        #expect(defaults.bool(forKey: ClientRemoval.inactiveCleanupKey))
+    }
+
     @Test func takingOffRoutesLeavesTheirRecords() throws {
         visit(pat, .scheduled)
         document(pat)

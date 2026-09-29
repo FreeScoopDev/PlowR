@@ -61,16 +61,20 @@ enum ClientRemoval {
 
     /// Once, at the first launch of this version: clients marked inactive
     /// before that meant coming off their routes are taken off them too
-    /// (Joe's call). Returns how many stops came off.
+    /// (Joe's call). Returns how many stops came off. Not done yet while the
+    /// store has no clients (a new phone, before iCloud has brought them) or
+    /// if the save fails: it tries again at the next launch.
     @discardableResult
     static func takeInactiveClientsOffRoutes(in context: ModelContext, defaults: UserDefaults = .standard) -> Int {
         guard !defaults.bool(forKey: inactiveCleanupKey),
-              let clients = try? context.fetch(FetchDescriptor<Client>()) else { return 0 }
+              let clients = try? context.fetch(FetchDescriptor<Client>()), !clients.isEmpty else { return 0 }
         var removed = 0
         for client in clients where !client.isActive {
             removed += takeOffRoutes(client, in: context)
         }
-        if removed > 0 { try? context.save() }
+        if removed > 0 {
+            do { try context.save() } catch { return removed }
+        }
         defaults.set(true, forKey: inactiveCleanupKey)
         return removed
     }
