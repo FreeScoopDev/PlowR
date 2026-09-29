@@ -28,9 +28,10 @@ struct ProposalBuilderView: View {
     @State private var showingPreview = false
     @State private var generatedPDFData: Data?
     @State private var pendingProposal: Proposal?
-    /// The document the preview shared before it was saved, and the number
-    /// on it: saved as shared (a draft invoice, as sent) if it's still that
-    /// document with that number (DocumentSent.wasSharedBeforeSave).
+    /// The document the preview shared to the client before it was saved,
+    /// and the number on it: saved as shared (a draft invoice, as sent) if
+    /// it's still that document with that number
+    /// (DocumentSent.wasSharedBeforeSave).
     @State private var sharedProposalID: UUID?
     @State private var sharedNumber = ""
     @State private var grouped = false

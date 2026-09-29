@@ -58,6 +58,14 @@ struct EditClientView: View {
     @State private var showingInvoiceBuilder = false
     @State private var showingAddVisit = false
     @State private var showingMessageComposer = false
+    /// A document's PDF being shared from this page (DocumentShareView).
+    @State private var documentShare: DocumentShare?
+
+    private struct DocumentShare: Identifiable {
+        let proposal: Proposal
+        let url: URL
+        var id: URL { url }
+    }
 
     init(client: Client) {
         self.client = client
@@ -154,6 +162,14 @@ struct EditClientView: View {
                 // that's for invoices and proposals (DocumentSent).
                 MessageComposer(recipients: [draft.phone], body: "") { _ in }
             }
+        }
+        // Sent to the client from the share sheet: they're awaiting a response.
+        .sheet(item: $documentShare) { share in
+            DocumentShareView(url: share.url, status: share.proposal.invoiceStatus,
+                              clientName: share.proposal.clientName) { toClient in
+                DocumentSent.shared(share.proposal, toClient: toClient, in: modelContext)
+            }
+            .presentationDetents([.medium, .large])
         }
         .lookAroundViewer(isPresented: $showingLookAround, initialScene: lookAroundScene)
         .alert("Street View Unavailable", isPresented: $showingLookAroundUnavailable) {
@@ -944,21 +960,7 @@ struct EditClientView: View {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("\(prefix)-\(safe)-\(proposal.id.uuidString.prefix(6)).pdf")
         try? data.write(to: url)
-
-        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let window = windowScene.windows.first else { return }
-        let vc = UIActivityViewController(activityItems: [url], applicationActivities: nil)
-        // Sent to the client from the share sheet: they're awaiting a response.
-        vc.completionWithItemsHandler = { activity, completed, _, _ in
-            guard completed, DocumentSent.isSend(activity) else { return }
-            DispatchQueue.main.async {
-                DocumentSent.shared(proposal, in: modelContext)
-            }
-        }
-        vc.popoverPresentationController?.sourceView = window
-        var topVC = window.rootViewController
-        while let presented = topVC?.presentedViewController { topVC = presented }
-        topVC?.present(vc, animated: true)
+        documentShare = DocumentShare(proposal: proposal, url: url)
     }
 
     private func createRevision(of original: Proposal) {

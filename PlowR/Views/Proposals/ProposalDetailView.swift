@@ -79,8 +79,8 @@ struct ProposalDetailView: View {
         // Sent to the client from the share sheet: they're awaiting a response.
         .sheet(isPresented: $showingShare) {
             if let url = shareURL {
-                DocumentShareSheet(url: url) {
-                    DocumentSent.shared(proposal, in: modelContext)
+                DocumentShareView(url: url, status: proposal.invoiceStatus, clientName: proposal.clientName) { toClient in
+                    DocumentSent.shared(proposal, toClient: toClient, in: modelContext)
                 }
                 .presentationDetents([.medium, .large])
             }
