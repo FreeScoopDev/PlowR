@@ -130,15 +130,22 @@ struct ClientStopsTests {
     // A client changed on another device arrives through iCloud: the stops
     // follow then, not only at the next launch. A route app stays open for
     // days.
-    @Test func stopsFollowWhenICloudBringsChanges() throws {
+    @Test func stopsFollowWhenICloudBringsChanges() async throws {
         let center = NotificationCenter()
-        let observer = ClientStops.followRemoteChanges(of: container, center: center)
+        let observer = ClientStops.followRemoteChanges(of: container, center: center, after: .zero)
         defer { center.removeObserver(observer) }
         pat.phone = "555-0111"                    // changed without update(for:)
         try context.save()
         #expect(try stops(of: pat).allSatisfy { $0.clientPhone == "555-0100" })
         center.post(name: .NSPersistentStoreRemoteChange, object: nil)
-        #expect(try stops(of: pat).allSatisfy { $0.clientPhone == "555-0111" })
+        try await waitUntil { (try? stops(of: pat).allSatisfy { $0.clientPhone == "555-0111" }) == true }
         #expect(!context.hasChanges)             // saved
+    }
+
+    private func waitUntil(_ condition: () -> Bool) async throws {
+        for _ in 0..<500 where !condition() {      // Up to 5 s on a busy CI runner.
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(condition())
     }
 }

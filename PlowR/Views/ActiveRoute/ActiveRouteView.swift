@@ -215,7 +215,14 @@ struct ActiveRouteView: View {
         }
         // Back in the app with this screen up: whatever stop it shows is seen.
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { store.markCurrentStopSeen() }
+            guard phase == .active else { return }
+            store.markCurrentStopSeen()
+            // The current stop's pin may have moved while the screen couldn't
+            // redraw (the phone locked, say): place its job-site zone again.
+            if [.authorizedAlways, .authorizedWhenInUse].contains(locationManager.authorizationStatus) {
+                locationManager.clearAllGeofences()
+                if let stop = currentStop { locationManager.startMonitoringStop(stop) }
+            }
         }
         // Control Center's Complete Stop, when it couldn't complete the stop.
         // Held while something else is up: iOS won't present an alert over a

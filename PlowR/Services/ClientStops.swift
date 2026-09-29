@@ -54,13 +54,38 @@ enum ClientStops {
         if changed { try? context.save() }
     }
 
-    /// From now on, `updateAll` whenever iCloud brings changes. A route app
-    /// can stay open for days, so launch alone isn't enough.
+    /// From now on, `updateAll` whenever iCloud brings changes, `delay`
+    /// after the last notice of a burst: an import is many changes, and the
+    /// app's own context takes them in after the notice. A route app can
+    /// stay open for days, so launch alone isn't enough.
     @discardableResult
     static func followRemoteChanges(of container: ModelContainer,
-                                    center: NotificationCenter = .default) -> NSObjectProtocol {
-        center.addObserver(forName: .NSPersistentStoreRemoteChange, object: nil, queue: .main) { _ in
-            MainActor.assumeIsolated { updateAll(in: container.mainContext) }
+                                    center: NotificationCenter = .default,
+                                    after delay: Duration = .seconds(1)) -> NSObjectProtocol {
+        let sweep = Sweep(container: container, delay: delay)
+        return center.addObserver(forName: .NSPersistentStoreRemoteChange, object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated { sweep.schedule() }
+        }
+    }
+
+    /// One `updateAll`, `delay` after the latest request.
+    private final class Sweep {
+        let container: ModelContainer
+        let delay: Duration
+        private var pending: Task<Void, Never>?
+
+        init(container: ModelContainer, delay: Duration) {
+            self.container = container
+            self.delay = delay
+        }
+
+        func schedule() {
+            pending?.cancel()
+            pending = Task { [container, delay] in
+                try? await Task.sleep(for: delay)
+                guard !Task.isCancelled else { return }
+                ClientStops.updateAll(in: container.mainContext)
+            }
         }
     }
 }
