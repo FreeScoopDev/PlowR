@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import SwiftUI
 import UIKit
 
 /// An invoice or proposal sent to its client: from then the client shows
