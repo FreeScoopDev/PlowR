@@ -1,3 +1,4 @@
+import CoreData
 import SwiftUI
 import SwiftData
 import UIKit
@@ -54,37 +55,51 @@ struct PlowRApp: App {
             || NSClassFromString("XCTestCase") != nil
     }
 
+    /// The store, synced to iCloud. Unnamed like the local one, so both open
+    /// the same file: the app-group container on a signed build.
+    static func cloudConfiguration(for schema: Schema) -> ModelConfiguration {
+        ModelConfiguration(schema: schema, cloudKitDatabase: .private("iCloud.com.Scoops.PlowR"))
+    }
+
+    /// The same store without an explicit iCloud database.
+    static func localConfiguration(for schema: Schema) -> ModelConfiguration {
+        ModelConfiguration(schema: schema)
+    }
+
     private static func makeContainer(schema: Schema) -> ModelContainer {
+        var errors: [String] = []
         // 1. Try CloudKit-backed store (skipped under test — see above)
         if !isRunningUnderTests {
-            let cloudConfig = ModelConfiguration(
-                schema: schema,
-                cloudKitDatabase: .private("iCloud.com.Scoops.PlowR")
-            )
-            if let c = try? ModelContainer(for: schema, configurations: [cloudConfig]) {
+            do {
+                let c = try ModelContainer(for: schema, configurations: [cloudConfiguration(for: schema)])
                 isCloudKitAvailable = true
                 return c
+            } catch {
+                errors.append("iCloud: \(error)")
             }
         }
 
         // 2. Fall back to local store (iCloud unavailable or signed out)
         isCloudKitAvailable = false
-        if let c = try? ModelContainer(for: schema) {
-            return c
-        }
-
-        // 3. Store is incompatible — archive it with a timestamp instead of deleting,
-        //    so data can be manually recovered if needed.
-        let support = URL.applicationSupportDirectory
-        let stamp = Int(Date().timeIntervalSince1970)
-        for file in ["default.store", "default.store-wal", "default.store-shm"] {
-            let src = support.appending(path: file)
-            let dst = support.appending(path: "\(file).\(stamp).bak")
-            try? FileManager.default.moveItem(at: src, to: dst)
-        }
-
+        let local = localConfiguration(for: schema)
         do {
-            return try ModelContainer(for: schema)
+            return try ModelContainer(for: schema, configurations: [local])
+        } catch {
+            errors.append("local: \(error)")
+        }
+
+        // 3. Move the store aside with a timestamp, never delete it, and start a
+        //    new one: only when Core Data says it can't be migrated to this model,
+        //    even with iCloud off. Anything else (a store that can't be read yet
+        //    after a restart, one that matches the model, a full disk) is left in
+        //    place and the app stops, so a fixed build still finds the data.
+        let verdict = StoreArchive.verdict(storeAt: local.url, model: NSManagedObjectModel.makeManagedObjectModel(for: models))
+        guard verdict == .cannotBeMigrated,
+              StoreArchive.archive(storeAt: local.url, stamp: Int(Date().timeIntervalSince1970)) else {
+            fatalError("Could not open the store (\(verdict)); it was left in place. \(errors)")
+        }
+        do {
+            return try ModelContainer(for: schema, configurations: [local])
         } catch {
             fatalError("Could not create ModelContainer after archiving stale store: \(error)")
         }

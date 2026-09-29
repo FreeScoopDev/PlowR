@@ -107,6 +107,12 @@ struct AccountEraserTests {
             for name in ["default.store.1790000000.bak", "default.store-wal.1790000000.bak", "default.store", "other.bak"] {
                 try Data([0]).write(to: storeFolder.appending(path: name))
             }
+            // An archived photo folder, and the live one, which must stay.
+            for folder in [".default_SUPPORT.1790000000.bak/_EXTERNAL_DATA", ".default_SUPPORT/_EXTERNAL_DATA"] {
+                let dir = storeFolder.appending(path: folder)
+                try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                try Data([9]).write(to: dir.appending(path: "photo"))
+            }
             try Data("[]".utf8).write(to: workOrders)
         }
 
@@ -156,6 +162,8 @@ struct AccountEraserTests {
         #expect(!account.exists(account.tmp.appending(path: "PlowR_Season_Report.pdf")))
         #expect(!account.exists(account.storeFolder.appending(path: "default.store.1790000000.bak")))
         #expect(!account.exists(account.storeFolder.appending(path: "default.store-wal.1790000000.bak")))
+        #expect(!account.exists(account.storeFolder.appending(path: ".default_SUPPORT.1790000000.bak")))
+        #expect(account.exists(account.storeFolder.appending(path: ".default_SUPPORT/_EXTERNAL_DATA/photo")))
         // Only PlowR's own leftovers go: the live database and other files stay.
         #expect(account.exists(account.storeFolder.appending(path: "default.store")))
         #expect(account.exists(account.storeFolder.appending(path: "other.bak")))
