@@ -20,7 +20,7 @@ private let messagePresets: [MessagePreset] = [
     MessagePreset(label: "Road Conditions",
                   text: "Roads are slow right now — I'll be there as soon as conditions allow."),
     MessagePreset(label: "Door to Door",
-                  text: "I'll make sure everything is cleared and tidy before I move on."),
+                  text: "I'll make sure everything is tidy before I move on."),
     MessagePreset(label: "Gate / Access",
                   text: "Could you make sure the gate is unlocked when I arrive? Appreciate it."),
 ]
