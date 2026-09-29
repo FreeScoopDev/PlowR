@@ -21,6 +21,10 @@ struct ClientListView: View {
     @State private var showingAddClient = false
     @State private var showingContactScanner = false
     @State private var clientToDelete: Client?
+    @State private var clientToDeactivate: Client?
+    /// What deleting or deactivating the client above touches, worked out
+    /// when its prompt opens.
+    @State private var removalFootprint = ClientRemoval.Footprint()
     @State private var statsClient: Client?
     @State private var sortOption: ClientSortOption = .name
     @State private var filterOption: ClientFilterOption = .all
@@ -232,15 +236,42 @@ struct ClientListView: View {
             ),
             titleVisibility: .visible
         ) {
-            Button("Delete", role: .destructive) {
-                if let client = clientToDelete {
-                    modelContext.delete(client)
-                    clientToDelete = nil
+            if let client = clientToDelete {
+                if removalFootprint.hasRecords {
+                    Button("Delete, Keep Records") { delete(client, keepingRecords: true) }
+                    Button("Delete Everything", role: .destructive) { delete(client, keepingRecords: false) }
+                } else {
+                    // Nothing was listed to keep; anything that turns up meanwhile stays.
+                    Button("Delete", role: .destructive) { delete(client, keepingRecords: true) }
+                }
+                if client.isActive {
+                    Button("Mark Inactive Instead") {
+                        ClientRemoval.setActive(false, for: client, in: modelContext)
+                        clientToDelete = nil
+                    }
                 }
             }
             Button("Cancel", role: .cancel) { clientToDelete = nil }
         } message: {
-            Text("This client will be removed from all routes.")
+            Text(ClientRemoval.deleteMessage(for: removalFootprint, isActive: clientToDelete?.isActive ?? false))
+        }
+        .confirmationDialog(
+            "Mark \(clientToDeactivate?.name ?? "this client") Inactive?",
+            isPresented: Binding(
+                get: { clientToDeactivate != nil },
+                set: { if !$0 { clientToDeactivate = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            if let client = clientToDeactivate {
+                Button("Mark Inactive", role: .destructive) {
+                    ClientRemoval.setActive(false, for: client, in: modelContext)
+                    clientToDeactivate = nil
+                }
+            }
+            Button("Cancel", role: .cancel) { clientToDeactivate = nil }
+        } message: {
+            Text(ClientRemoval.deactivateMessage(for: removalFootprint))
         }
     }
 
@@ -310,33 +341,63 @@ struct ClientListView: View {
                 Label("View Visit History", systemImage: "chart.bar.fill")
             }
             Button {
-                client.isActive.toggle()
+                toggleActive(client)
             } label: {
                 Label(client.isActive ? "Mark Inactive" : "Mark Active",
                       systemImage: client.isActive ? "archivebox" : "person.crop.circle.badge.checkmark")
             }
             Divider()
             Button(role: .destructive) {
-                clientToDelete = client
+                askToDelete(client)
             } label: {
                 Label("Delete Client", systemImage: "trash")
             }
         }
         .swipeActions(edge: .trailing) {
             Button(role: .destructive) {
-                clientToDelete = client
+                askToDelete(client)
             } label: {
                 Label("Delete", systemImage: "trash")
             }
         }
         .swipeActions(edge: .leading) {
             Button {
-                client.isActive.toggle()
+                toggleActive(client)
             } label: {
                 Label(client.isActive ? "Inactive" : "Active",
                       systemImage: client.isActive ? "archivebox" : "person.crop.circle")
             }
             .tint(client.isActive ? .secondary : .blue)
+        }
+    }
+}
+
+// MARK: - Deleting and deactivating
+
+extension ClientListView {
+    private func askToDelete(_ client: Client) {
+        removalFootprint = ClientRemoval.footprint(of: client, in: modelContext)
+        clientToDelete = client
+    }
+
+    private func delete(_ client: Client, keepingRecords: Bool) {
+        ClientRemoval.delete(client, keepingRecords: keepingRecords, in: modelContext)
+        clientToDelete = nil
+    }
+
+    /// Mark Inactive takes the client off their routes, so it asks first
+    /// when they're on one. Mark Active just does it: it doesn't put them
+    /// back on routes.
+    private func toggleActive(_ client: Client) {
+        guard client.isActive else {
+            ClientRemoval.setActive(true, for: client, in: modelContext)
+            return
+        }
+        removalFootprint = ClientRemoval.footprint(of: client, in: modelContext)
+        if removalFootprint.routeNames.isEmpty {
+            ClientRemoval.setActive(false, for: client, in: modelContext)
+        } else {
+            clientToDeactivate = client
         }
     }
 }
