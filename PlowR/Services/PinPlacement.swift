@@ -33,6 +33,16 @@ nonisolated enum PinPlacement {
         return AddressPin.exists(latitude: center.latitude, longitude: center.longitude) && distance <= streetDistance
     }
 
+    /// The address saved with a pin from the pin screen: the one the map
+    /// found there only if the user chose it (Use This Address), and never
+    /// for a pin set by hand, whose address the map couldn't find. Nil keeps
+    /// the client's. It used to be written on every move: a reformatted
+    /// version of the same address, or a neighbour's number.
+    static func addressToSave(hadPin: Bool, useFound: Bool, found: String) -> String? {
+        guard hadPin, useFound, !found.isEmpty else { return nil }
+        return found
+    }
+
     /// Whether Confirm saves anything. A pin being adjusted saves only if it
     /// moved: opening the screen looked its address up again, and Confirm
     /// wrote that (reformatted, or a neighbour's number) over the client's.

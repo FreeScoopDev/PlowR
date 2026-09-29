@@ -108,17 +108,22 @@ struct EditClientView: View {
         .navigationTitle(name.isEmpty ? "Client" : name)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(isSaving)
-        .addressLookupAlert($lookupProblem) {
-            // The old pin marked the old address: keeping it put the client
-            // at their old house on every map and route.
+        .addressLookupAlert($lookupProblem, saveWithoutPin: {
+            // A client with no pin yet: saved without one.
             client.address = lookedUpAddress
             client.latitude = 0
             client.longitude = 0
             ClientStops.update(for: client)
             dismiss()
-        } tryAgain: {
+        }, tryAgain: {
             saveChanges()
-        }
+        }, keepCurrentPin: AddressPin.exists(latitude: client.latitude, longitude: client.longitude) ? {
+            // The new address with the pin the client has (a corrected spelling
+            // of the same house, say); Adjust Pin moves it if it's a new place.
+            client.address = lookedUpAddress
+            ClientStops.update(for: client)
+            dismiss()
+        } : nil)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 if isSaving {

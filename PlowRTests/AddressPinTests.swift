@@ -38,11 +38,26 @@ struct AddressPinTests {
     @Test func eachProblemSaysWhatHappened() {
         #expect(AddressPin.Problem.notFound.title == "Address Not Found")
         #expect(AddressPin.Problem.unreachable.title == "Couldn't Reach the Map")
-        #expect(AddressPin.Problem.notFound.message.hasPrefix("PlowR couldn't find this address on the map."))
-        #expect(AddressPin.Problem.unreachable.message.contains("Try again"))
-        for problem in [AddressPin.Problem.notFound, .unreachable] {
-            #expect(problem.message.contains("set the pin on their page"))
+        for hasPin in [false, true] {
+            #expect(AddressPin.Problem.notFound.message(hasPin: hasPin)
+                .hasPrefix("PlowR couldn't find this address on the map."))
+            #expect(AddressPin.Problem.unreachable.message(hasPin: hasPin).contains("Try again"))
+            #expect(!AddressPin.Problem.notFound.message(hasPin: hasPin).contains("Try again"))
         }
+        for problem in [AddressPin.Problem.notFound, .unreachable] {
+            #expect(problem.message(hasPin: false).contains("set the pin on their page"))
+            #expect(problem.message(hasPin: true).contains("keep the client's current pin"))
+        }
+    }
+
+    // Joe's call: a client who has a pin keeps it or has the address typed
+    // again; one without is saved without one, or the address typed again.
+    @Test func theAlertOffersWhatFitsTheClient() {
+        typealias C = AddressPin.Problem.Choice
+        #expect(AddressPin.Problem.notFound.choices(hasPin: false) == [C.saveWithoutPin, .editAddress])
+        #expect(AddressPin.Problem.notFound.choices(hasPin: true) == [C.keepCurrentPin, .editAddress])
+        #expect(AddressPin.Problem.unreachable.choices(hasPin: false) == [C.tryAgain, .saveWithoutPin, .editAddress])
+        #expect(AddressPin.Problem.unreachable.choices(hasPin: true) == [C.tryAgain, .keepCurrentPin, .editAddress])
     }
 
     // Picking a suggestion sets the field; that change isn't typing, so its

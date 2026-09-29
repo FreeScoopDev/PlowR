@@ -41,6 +41,15 @@ struct PinPlacementTests {
         #expect(PinPlacement.saves(moved: false, hadPin: false))
     }
 
+    // The address the map finds at a moved pin is only a suggestion: saved
+    // when chosen, never for a pin set by hand.
+    @Test func theFoundAddressIsSavedOnlyWhenChosen() {
+        #expect(PinPlacement.addressToSave(hadPin: true, useFound: true, found: "12 Old Rd") == "12 Old Rd")
+        #expect(PinPlacement.addressToSave(hadPin: true, useFound: false, found: "12 Old Rd") == nil)
+        #expect(PinPlacement.addressToSave(hadPin: false, useFound: true, found: "12 Old Rd") == nil)
+        #expect(PinPlacement.addressToSave(hadPin: true, useFound: true, found: "") == nil)
+    }
+
     // MARK: - Edit Client's address field after the pin screen
 
     private let none = PinPlacement.Pin(latitude: 0, longitude: 0)

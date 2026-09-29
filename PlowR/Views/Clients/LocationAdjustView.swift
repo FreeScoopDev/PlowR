@@ -15,6 +15,8 @@ struct LocationAdjustView: View {
     @State private var cameraDistance: Double
     @State private var resolvedAddress: String
     @State private var isGeocoding = false
+    /// The user chose the address the map found at the new spot.
+    @State private var useFoundAddress = false
     /// The map was moved from the pin it opened on. Only then is anything
     /// saved: opening the screen looked the pin's address up again, and
     /// Confirm wrote that back over the client's.
@@ -119,10 +121,24 @@ struct LocationAdjustView: View {
                     .symbolEffect(.rotate, isActive: isGeocoding)
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(isGeocoding ? "Finding address…" : (resolvedAddress.isEmpty ? "Unknown location" : resolvedAddress))
+                    // The address that's kept, unless the user picks the one
+                    // the map found here.
+                    Text(useFoundAddress ? resolvedAddress : (client.address.isEmpty ? "No address" : client.address))
                         .font(.subheadline.weight(.medium))
-                        .foregroundStyle(isGeocoding ? .secondary : .primary)
-                        .animation(.easeInOut(duration: 0.2), value: resolvedAddress)
+                        .animation(.easeInOut(duration: 0.2), value: useFoundAddress)
+                    if isGeocoding {
+                        Text("Finding the address here…")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else if let found = foundAddressSuggestion {
+                        HStack(spacing: 6) {
+                            Text(useFoundAddress ? "Was \(client.address)" : "The map shows \(found) here.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Button(useFoundAddress ? "Keep Current" : "Use This Address") { useFoundAddress.toggle() }
+                                .font(.caption.weight(.semibold))
+                        }
+                    }
                     Text(hint)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -160,12 +176,21 @@ struct LocationAdjustView: View {
                 let address = parts.joined(separator: " ")
                 await MainActor.run {
                     resolvedAddress = address.isEmpty ? client.address : address
+                    // A new spot, a new suggestion: chosen again or not at all.
+                    useFoundAddress = false
                     isGeocoding = false
                 }
             } else {
                 await MainActor.run { isGeocoding = false }
             }
         }
+    }
+
+    /// The address the map found at the new spot, offered when it differs
+    /// from the client's.
+    private var foundAddressSuggestion: String? {
+        guard hadPin, moved, !resolvedAddress.isEmpty, resolvedAddress != client.address else { return nil }
+        return resolvedAddress
     }
 
     private var hint: String {
@@ -177,18 +202,16 @@ struct LocationAdjustView: View {
 
     private func saveAndDismiss() {
         guard PinPlacement.saves(moved: moved, hadPin: hadPin) else { return dismiss() }
+        let address = PinPlacement.addressToSave(hadPin: hadPin, useFound: useFoundAddress, found: resolvedAddress)
         if let onSave {
-            // Caller handles the update (e.g. PropertyScannerView before zones are saved)
-            onSave(centerCoordinate, resolvedAddress)
+            // Caller handles the update (e.g. PropertyScannerView before zones
+            // are saved); it keeps the client's address when given none.
+            onSave(centerCoordinate, address ?? "")
         } else {
             // Direct SwiftData model update (EditClientView path)
             client.latitude = centerCoordinate.latitude
             client.longitude = centerCoordinate.longitude
-            // A pin set by hand is for an address the map couldn't find: the
-            // nearest address it knows would replace the one the user typed.
-            if hadPin, !resolvedAddress.isEmpty {
-                client.address = resolvedAddress
-            }
+            if let address { client.address = address }
             ClientStops.update(for: client)
         }
         dismiss()

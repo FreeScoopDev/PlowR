@@ -1,0 +1,3 @@
+### Changed
+- **Adjust Pin suggests the address it finds instead of taking it.** Moving the pin shows the address the map finds there, with "Use This Address"; the client's address changes only if you tap it. It used to be replaced on every move, often by a reformatted version of the same address or a neighbour's number.
+- **When a changed address can't be found, a client who has a pin keeps it or gets the address typed again.** The prompt offers "Keep Current Pin" (the new address with the client's pin, which Adjust Pin can move) or "Edit Address". A client with no pin is still offered "Save Without Pin".
