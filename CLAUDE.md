@@ -126,8 +126,10 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   the route screen was up with the app in front, not proof that anyone
   looked. Only a business (`userRole == "operator"`) completes stops from
   outside. Siri's Notify Next Client only opens a text to the current
-  stop's client and completes nothing (`NotifyNextAction`); the route screen
-  opens it from `RouteSessionManager.textStopID`.
+  stop's client and completes nothing (`NotifyNextAction`): it leaves a
+  request in `RouteSessionManager.textRequest`, and the route screen opens
+  it once nothing else is up, if `NotifyNextAction.stopToOpen` says it's
+  still for the current stop and under two minutes old.
 - **A control that acts in the app needs its intent in both targets.**
   Control Center's `CompleteStopControlIntent` is compiled into the app and
   the widget extension, with `openAppWhenRun`, so the system runs it in the

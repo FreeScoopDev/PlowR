@@ -69,7 +69,7 @@ struct NotifyNextActionTests {
     }
 
     // The route was deleted on another device while PlowR was closed: the
-    // store only finds out when it checks, which Siri makes it do.
+    // relaunch drops it, and Siri says so.
     @Test func aRouteDeletedWhileClosedIsntTexted() throws {
         let h = try harnessWithPhones()
         let before = h.makeClosedAppStore()
