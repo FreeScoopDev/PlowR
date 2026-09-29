@@ -100,6 +100,37 @@ struct ClientRemovalTests {
         #expect(!context.hasChanges)
     }
 
+    // Clients marked inactive before that took them off routes come off
+    // once, at the first launch of this version; not again.
+    @Test func alreadyInactiveClientsComeOffRoutesOnce() throws {
+        let defaults = try #require(UserDefaults(suiteName: "ClientRemovalTests-\(UUID().uuidString)"))
+        pat.isActive = false                                  // the old way: still on routes
+        try context.save()
+        #expect(ClientRemoval.takeInactiveClientsOffRoutes(in: context, defaults: defaults) == 3)
+        #expect(try ClientStops.of(pat, in: context).isEmpty)
+        #expect(try ClientStops.of(sam, in: context).count == 1)
+        #expect(!context.hasChanges)                          // saved
+        sam.isActive = false                                  // say, by an older PlowR on another device
+        #expect(ClientRemoval.takeInactiveClientsOffRoutes(in: context, defaults: defaults) == 0)
+        #expect(try ClientStops.of(sam, in: context).count == 1)
+    }
+
+    // A new phone before iCloud has brought the clients: not done yet, so
+    // the next launch still cleans up.
+    @Test func anEmptyStoreDoesntCountAsCleanedUp() throws {
+        let defaults = try #require(UserDefaults(suiteName: "ClientRemovalTests-\(UUID().uuidString)"))
+        let empty = try ModelContainer(
+            for: Client.self, PlowRoute.self, RouteStop.self, ScheduledVisit.self,
+            Proposal.self, ProposalLineItem.self, StopPhoto.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
+        #expect(ClientRemoval.takeInactiveClientsOffRoutes(in: empty.mainContext, defaults: defaults) == 0)
+        #expect(!defaults.bool(forKey: ClientRemoval.inactiveCleanupKey))
+        pat.isActive = false
+        try context.save()
+        #expect(ClientRemoval.takeInactiveClientsOffRoutes(in: context, defaults: defaults) == 3)
+        #expect(defaults.bool(forKey: ClientRemoval.inactiveCleanupKey))
+    }
+
     @Test func takingOffRoutesLeavesTheirRecords() throws {
         visit(pat, .scheduled)
         document(pat)

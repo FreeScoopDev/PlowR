@@ -37,6 +37,7 @@ struct PlowRApp: App {
             ClientStops.updateAll(in: container.mainContext)
             ClientStops.followRemoteChanges(of: container)
             DocumentSent.clearTextStamps(in: container.mainContext)
+            ClientRemoval.takeInactiveClientsOffRoutes(in: container.mainContext)
         }
         // Before any view: a Siri or Control Center launch acts on the route
         // without the UI, and a killed app should come back mid-route.
