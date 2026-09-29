@@ -46,9 +46,12 @@ jobs:
               found=1
             fi
           done
+          # GitHub runs this with bash -e: grep's "no match" (1) must not end
+          # the step, so its status is caught rather than left to fail.
           check() {
-            grep -rnE "$1" $SHARED --include='*.swift' --exclude=ServiceCatalogView.swift
-            case $? in
+            status=0
+            grep -rnE "$1" $SHARED --include='*.swift' --exclude=ServiceCatalogView.swift || status=$?
+            case $status in
               0) echo "::error::$2"; found=1 ;;
               1) ;;
               *) echo "::error::The guard's grep failed, so nothing was checked."; found=1 ;;
