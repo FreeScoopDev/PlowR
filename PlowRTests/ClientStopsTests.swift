@@ -105,8 +105,9 @@ struct ClientStopsTests {
         #expect(!context.hasChanges)
         pat.phone = "555-0111"
         #expect(ClientStops.follow(stop, pat))
-        try context.save()
         #expect(!ClientStops.follow(stop, pat))
+        ClientStops.update(for: pat)              // pat's other stop
+        try context.save()
         ClientStops.update(for: pat)
         ClientStops.updateAll(in: context)
         #expect(!context.hasChanges)
