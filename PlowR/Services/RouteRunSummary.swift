@@ -19,3 +19,16 @@ struct RouteRunSummary: Equatable {
     /// The last run finished every stop, and the route isn't running now.
     var isDone: Bool { !isRunning && total > 0 && done == total }
 }
+
+extension RouteRunSummary {
+    /// `route`'s run as the route list and the Dashboard show it: while it's
+    /// running, this run's stops (the store's, less any left out today);
+    /// otherwise the route's. The two used to work this out separately.
+    static func stops(of route: PlowRoute, store: ActiveRouteStore) -> [RouteStop] {
+        store.route?.id == route.id ? store.sortedStops : route.sortedStops
+    }
+
+    init(route: PlowRoute, store: ActiveRouteStore) {
+        self.init(stops: Self.stops(of: route, store: store), isRunning: store.route?.id == route.id)
+    }
+}

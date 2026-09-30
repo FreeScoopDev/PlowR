@@ -14,6 +14,20 @@ struct RouteDetailView: View {
     @State private var isOptimizing = false
     @State private var editingStop: RouteStop?
     @State private var showingMessageAll = false
+    /// Stops left out of the run about to start (Skip Today). They stay on
+    /// the route; nothing is saved until Start, and the choice is cleared
+    /// then: this page stays alive under the route screen, and last week's
+    /// skips mustn't quietly apply to the next run.
+    @State private var skippedToday: Set<UUID> = []
+
+    private var todaysRun: TodaysRun {
+        TodaysRun(routeStops: route.sortedStops.map(\.id), skipped: skippedToday)
+    }
+
+    /// Today's stops, as models.
+    private var todaysStops: [RouteStop] {
+        route.sortedStops.filter { todaysRun.isIncluded($0.id) }
+    }
 
     // MARK: - Derived
 
@@ -60,10 +74,15 @@ struct RouteDetailView: View {
             } else {
                 Section("Stops") {
                     ForEach(Array(route.sortedStops.enumerated()), id: \.element.id) { index, stop in
+                        let isSkipped = !todaysRun.isIncluded(stop.id)
                         // A stop opens its page: services, notes, equipment, target time.
                         Button { editingStop = stop } label: {
                             HStack {
                                 stopRow(stop: stop, index: index)
+                                    .opacity(isSkipped ? 0.4 : 1)
+                                if isSkipped {
+                                    StatusChip("Skipped Today", color: .secondary)
+                                }
                                 Image(systemName: "chevron.right")
                                     .font(.caption.weight(.semibold))
                                     .foregroundStyle(.tertiary)
@@ -71,6 +90,24 @@ struct RouteDetailView: View {
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
+                        .swipeActions(edge: .leading) {
+                            Button { toggleSkip(stop) } label: {
+                                Label(isSkipped ? "Include Today" : "Skip Today",
+                                      systemImage: isSkipped ? "arrow.uturn.backward" : "forward.end")
+                            }
+                            .tint(isSkipped ? .blue : .orange)
+                        }
+                        .contextMenu {
+                            Button { start(from: index) } label: {
+                                Label("Start From Here", systemImage: "play.fill")
+                            }
+                            // Not while optimizing: the order it starts from would change under it.
+                            .disabled(isSkipped || isOptimizing)
+                            Button { toggleSkip(stop) } label: {
+                                Label(isSkipped ? "Include Today" : "Skip Today",
+                                      systemImage: isSkipped ? "arrow.uturn.backward" : "forward.end")
+                            }
+                        }
                     }
                 }
             }
@@ -86,11 +123,11 @@ struct RouteDetailView: View {
                     Button { showingOptimizeConfirm = true } label: {
                         Label("Optimize Order", systemImage: "arrow.triangle.swap")
                     }
+                    .disabled(route.sortedStops.filter { $0.latitude != 0 }.count < 2 || isOptimizing)
                     Button { showingMessageAll = true } label: {
                         Label("Message All Clients", systemImage: "bubble.left.and.bubble.right")
                     }
                     .disabled(!canMessage)
-                    .disabled(route.sortedStops.filter { $0.latitude != 0 }.count < 2)
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
@@ -117,14 +154,15 @@ struct RouteDetailView: View {
                     .padding(.vertical, 8)
                 }
                 Button {
-                    activeRoute.start(route)
+                    activeRoute.start(route, skipping: todaysRun.skippedOnRoute)
+                    skippedToday = []
                 } label: {
-                    Text("Start Route")
+                    Text(todaysRun.startTitle)
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                 }
                 .primaryActionStyle(.blue)
-                .disabled(route.sortedStops.isEmpty || isOptimizing)
+                .disabled(todaysRun.stops.isEmpty || isOptimizing)
                 .padding(.horizontal)
                 .padding(.vertical, 12)
             }
@@ -134,7 +172,8 @@ struct RouteDetailView: View {
             EditRouteView(route: route)
         }
         .sheet(isPresented: $showingMessageAll) {
-            MassMessageView(stops: route.sortedStops, allClients: allClients)
+            // Today's clients: a skipped one mustn't be told "we'll be there today".
+            MassMessageView(stops: todaysStops, allClients: allClients)
         }
         .sheet(item: $editingStop) { stop in
             StopDetailView(stop: stop, client: clientFor(stop))
@@ -168,11 +207,14 @@ struct RouteDetailView: View {
     /// load for, the equipment notes, and a way to tell every client today's
     /// the day (the route screen's Message All, before the route starts).
     private var loadOutSection: some View {
-        let stops = route.sortedStops
+        // Today's stops: skipped ones aren't loaded for.
+        let stops = todaysStops
         let minutes = RouteFacts.estimatedMinutes(of: stops, clients: allClients)
         let lines = RouteFacts.loadOut(of: stops, clients: allClients,
                                        services: ServiceLog.activeServices(allServices, operatorID: route.operatorID))
-        let equipment = Array(stops.enumerated()).filter { !$0.element.equipmentNotes.isEmpty }
+        // Numbered as on this page's list of the route's stops.
+        let equipment = Array(route.sortedStops.enumerated())
+            .filter { !$0.element.equipmentNotes.isEmpty && todaysRun.isIncluded($0.element.id) }
         return Section {
             StatTileRow {
                 StatTile(value: "\(stops.count)", label: stops.count == 1 ? "Stop" : "Stops", color: .blue)
@@ -212,9 +254,24 @@ struct RouteDetailView: View {
         }
     }
 
-    /// Any stop with a client and a phone to text.
+    // MARK: - Today's Run
+
+    private func toggleSkip(_ stop: RouteStop) {
+        var run = todaysRun
+        run.toggle(stop.id)
+        skippedToday = run.skipped
+    }
+
+    /// Starts at the stop at `index`: the ones before it are left out of
+    /// today's run, as are any skipped.
+    private func start(from index: Int) {
+        activeRoute.start(route, skipping: todaysRun.skipping(from: index))
+        skippedToday = []
+    }
+
+    /// Any of today's stops with a client and a phone to text.
     private var canMessage: Bool {
-        route.sortedStops.contains { !$0.isCustomStop && !$0.clientPhone.isEmpty }
+        todaysStops.contains { !$0.isCustomStop && !$0.clientPhone.isEmpty }
     }
 
     // MARK: - Stop Row
