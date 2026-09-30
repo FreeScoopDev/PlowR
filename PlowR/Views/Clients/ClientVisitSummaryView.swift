@@ -83,7 +83,7 @@ struct ClientVisitSummaryView: View {
             if outstanding > 0 {
                 LabeledContent("Outstanding") {
                     Text(outstanding, format: .currency(code: "USD"))
-                        .foregroundStyle(.red)
+                        .foregroundStyle(.orange)        // outstanding, as everywhere
                         .fontWeight(.semibold)
                 }
             }

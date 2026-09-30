@@ -147,36 +147,25 @@ struct ProposalListView: View {
 
     private var summarySection: some View {
         Section {
-            HStack(spacing: 12) {
+            StatTileRow {
                 if outstandingTotal > 0 {
-                    summaryTile(
+                    StatTile(
                         value: outstandingTotal.formatted(.currency(code: "USD").precision(.fractionLength(0))),
                         label: "Outstanding",
                         color: .orange
                     )
                 }
                 if overdueCount > 0 {
-                    summaryTile(value: "\(overdueCount)", label: "Overdue", color: .red)
+                    StatTile(value: "\(overdueCount)", label: "Overdue", color: .red)
                 }
                 let draftCount = base.filter { $0.isInvoice && $0.invoiceStatus == .draft }.count
                 if draftCount > 0 {
-                    summaryTile(value: "\(draftCount)", label: "Drafts", color: .blue)
+                    StatTile(value: "\(draftCount)", label: "Drafts", color: .blue)
                 }
             }
             .listRowBackground(Color.clear)
             .listRowInsets(EdgeInsets())
         }
-    }
-
-    private func summaryTile(value: String, label: String, color: Color) -> some View {
-        VStack(spacing: 4) {
-            Text(value).font(.headline.weight(.bold)).foregroundStyle(color)
-            Text(label).font(.caption2).foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
-        .background(color.opacity(0.08))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: - Proposal Row

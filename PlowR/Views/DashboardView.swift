@@ -256,7 +256,7 @@ struct DashboardView: View {
                     emptyRow("No visits scheduled today", icon: "calendar.badge.plus")
                 } else {
                     ForEach(Array(todayVisits.prefix(5).enumerated()), id: \.element.id) { i, visit in
-                        if i > 0 { Divider().padding(.leading, 44) }
+                        if i > 0 { Divider().padding(.leading, Self.rowTextInset) }
                         visitRow(visit)
                     }
                     if todayVisits.count > 5 {
@@ -286,6 +286,12 @@ struct DashboardView: View {
         }
     }
 
+    /// Where a row's text starts (row padding, icon or date column, gap), so
+    /// a separator lines up with it, as iOS lists do. The separators used to
+    /// start 10 and 6 points short.
+    private static let rowTextInset: CGFloat = 14 + 28 + 12
+    private static let dateRowTextInset: CGFloat = 14 + 36 + 12
+
     private func visitRowContent(_ visit: ScheduledVisit) -> some View {
         HStack(spacing: 12) {
             Image(systemName: "calendar.circle.fill")
@@ -313,11 +319,11 @@ struct DashboardView: View {
             sectionHeader("Finances", icon: "dollarsign.circle",
                           badge: overdueCount > 0 ? "\(overdueCount) overdue" : nil,
                           badgeColor: .red)
-            HStack(spacing: 10) {
+            StatTileRow {
                 NavigationLink {
                     ProposalListView(initialFilter: .invoices)
                 } label: {
-                    financeTile(
+                    StatTile(
                         value: outstandingBalance.formatted(.currency(code: "USD").precision(.fractionLength(0))),
                         label: "Outstanding",
                         color: outstandingBalance > 0 ? .orange : .secondary
@@ -328,35 +334,20 @@ struct DashboardView: View {
                 NavigationLink {
                     ProposalListView(initialFilter: .overdue)
                 } label: {
-                    financeTile(value: "\(overdueCount)", label: "Overdue",
-                                color: overdueCount > 0 ? .red : .secondary)
+                    StatTile(value: "\(overdueCount)", label: "Overdue",
+                             color: overdueCount > 0 ? .red : .secondary)
                 }
                 .buttonStyle(.plain)
 
                 NavigationLink {
                     ProposalListView(initialFilter: .draft)
                 } label: {
-                    financeTile(value: "\(draftCount)", label: "Drafts",
-                                color: draftCount > 0 ? .blue : .secondary)
+                    StatTile(value: "\(draftCount)", label: "Drafts",
+                             color: draftCount > 0 ? .blue : .secondary)
                 }
                 .buttonStyle(.plain)
             }
         }
-    }
-
-    private func financeTile(value: String, label: String, color: Color) -> some View {
-        VStack(spacing: 4) {
-            Text(value)
-                .font(.headline.weight(.bold))
-                .foregroundStyle(color)
-                .lineLimit(1)
-                .minimumScaleFactor(0.65)
-            Text(label).font(.caption2).foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 14)
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 
     // MARK: - Routes
@@ -370,7 +361,7 @@ struct DashboardView: View {
                     emptyRow("No routes yet", icon: "map.badge.plus")
                 } else {
                     ForEach(Array(recentRoutes.enumerated()), id: \.element.id) { i, route in
-                        if i > 0 { Divider().padding(.leading, 44) }
+                        if i > 0 { Divider().padding(.leading, Self.rowTextInset) }
                         NavigationLink { RouteDetailView(route: route) } label: {
                             routeRow(route)
                         }
@@ -417,7 +408,7 @@ struct DashboardView: View {
             sectionHeader("Coming Up", icon: "calendar.badge.clock")
             DashCard {
                 ForEach(Array(upcomingVisits.enumerated()), id: \.element.id) { i, visit in
-                    if i > 0 { Divider().padding(.leading, 56) }
+                    if i > 0 { Divider().padding(.leading, Self.dateRowTextInset) }
                     let client = allClients.first { $0.id.uuidString == visit.clientID }
                     let rowContent = upcomingVisitRow(visit)
                     if let client {
@@ -463,7 +454,10 @@ struct DashboardView: View {
     private var quickActionsGrid: some View {
         VStack(alignment: .leading, spacing: 8) {
             sectionHeader("Quick Actions", icon: "bolt.fill")
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+            // Four actions, a full 2 × 2. Settings is the gear at the top.
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: PlowRLayout.tileSpacing),
+                                GridItem(.flexible(), spacing: PlowRLayout.tileSpacing)],
+                      spacing: PlowRLayout.tileSpacing) {
                 Menu {
                     Button { showingAddClient = true } label: {
                         Label("Add Manually", systemImage: "person.badge.plus")
@@ -483,7 +477,6 @@ struct DashboardView: View {
                     quickActionLabel("Season Report", icon: "chart.bar.doc.horizontal", color: .indigo)
                 }
                 .buttonStyle(.plain)
-                quickAction("Settings",        icon: "gearshape.fill",      color: .gray)   { showingSettings = true }
             }
         }
     }
@@ -500,8 +493,8 @@ struct DashboardView: View {
             Spacer()
         }
         .padding(14)
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .background(Color(.secondarySystemGroupedBackground),
+                    in: RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
     }
 
     private func quickAction(_ title: String, icon: String, color: Color,
