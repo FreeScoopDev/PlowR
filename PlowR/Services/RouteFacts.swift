@@ -22,6 +22,28 @@ enum RouteFacts {
         stop.targetMinutes > 0 ? stop.targetMinutes : (client?.goalMinutes ?? 0)
     }
 
+    /// One service the route needs, and at how many stops.
+    struct LoadOutLine: Equatable {
+        let name: String
+        let stops: Int
+    }
+
+    /// What a route's stops are expected to need, service by service, in the
+    /// catalog's order: what to load before heading out. Only services still
+    /// in the active catalog (`services`).
+    static func loadOut(of stops: [RouteStop], clients: [Client],
+                        services: [StopRecording.Service]) -> [LoadOutLine] {
+        let byID = Dictionary(clients.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        var counts: [String: Int] = [:]
+        for stop in stops {
+            let client = stop.isCustomStop ? nil : byID[stop.clientID]
+            for id in Set(StopServices.expected(for: stop, client: client)) { counts[id, default: 0] += 1 }
+        }
+        return services.compactMap { service in
+            counts[service.id].map { LoadOutLine(name: service.name, stops: $0) }
+        }
+    }
+
     /// "45m", "2h", "1h 20m".
     static func duration(_ minutes: Int) -> String {
         let hours = minutes / 60, rest = minutes % 60
