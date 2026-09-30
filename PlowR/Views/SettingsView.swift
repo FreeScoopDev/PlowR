@@ -47,6 +47,9 @@ struct SettingsView: View {
                 NavigationLink(destination: PaymentMethodsView()) {
                     Label("Payment Methods", systemImage: "creditcard")
                 }
+                NavigationLink(destination: ExportDataView()) {
+                    Label("Export Data", systemImage: "square.and.arrow.up.on.square")
+                }
             }
 
             Section {
