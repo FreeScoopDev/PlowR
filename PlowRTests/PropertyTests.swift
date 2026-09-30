@@ -401,4 +401,52 @@ struct PropertyTests {
         rental.stopNotes = "Key under mat"
         #expect(RouteStop(order: 0, client: h.client, place: Place.of(rental)).stopNotes == "Key under mat")
     }
+
+    // MARK: - Inactive properties (Joe's call: off their routes, as clients)
+
+    @Test func markingAPropertyInactiveTakesItOffItsRoutes() throws {
+        let h = try Harness(stopCount: 1)
+        let rental = property(h, "Rental", address: "9 Elm St")
+        let stop = RouteStop(order: 1, client: h.client, place: Place.of(rental))
+        stop.route = h.route
+        h.context.insert(stop)
+        let booked = visit(h, at: rental.id.uuidString, on: h.clock.addingTimeInterval(86_400))
+        try h.context.save()
+
+        var inactive = PropertyEditing.Draft(rental)
+        inactive.isActive = false
+        #expect(PropertyEditing.routesLeft(saving: inactive, to: rental, in: h.context) == [h.route.name])
+        #expect(PropertyEditing.routesLeft(saving: PropertyEditing.Draft(rental), to: rental, in: h.context).isEmpty)
+        PropertyEditing.save(inactive, to: rental, of: h.client, in: h.context)
+        #expect(stop.isDeleted || stop.modelContext == nil)
+        #expect(h.route.sortedStops.count == 1)                                   // the main stop stays
+        #expect(booked.modelContext != nil && !booked.isDeleted)                  // visits stay booked
+
+        // Active again: not put back, and nothing more to ask.
+        var active = PropertyEditing.Draft(rental)
+        active.isActive = true
+        PropertyEditing.save(active, to: rental, of: h.client, in: h.context)
+        #expect(h.route.sortedStops.count == 1)
+        #expect(PropertyEditing.routesLeft(saving: inactive, to: rental, in: h.context).isEmpty)
+    }
+
+    // A route from the Schedule leaves a visit at an inactive property off,
+    // and counts it, as it does an inactive client's.
+    @Test func aRouteFromTheScheduleLeavesInactivePropertiesOff() throws {
+        let h = try Harness(stopCount: 1)
+        let rental = property(h, "Rental", address: "9 Elm St")
+        rental.isActive = false
+        let result = Client.routeStops(for: [visit(h, at: ""), visit(h, at: rental.id.uuidString)],
+                                       from: [h.client], operatorID: "op")
+        #expect(result.stops.map(\.place.isMain) == [true])
+        #expect(result.skippedInactive == 1)
+    }
+
+    @Test func deactivatingSaysWhichRoutes() {
+        let locale = Locale(identifier: "en_US")
+        #expect(PropertyEditing.deactivateMessage(routeNames: ["Monday"], locale: locale)
+                == "It'll be taken off the route Monday. Marking it active again won't put it back.")
+        #expect(PropertyEditing.deactivateMessage(routeNames: ["A", "B"], locale: locale)
+                == "It'll be taken off 2 routes: A and B. Marking it active again won't put it back.")
+    }
 }

@@ -149,7 +149,7 @@ enum ClientRemoval {
         return sentences.joined(separator: " ")
     }
 
-    private static func routes(_ names: [String], _ locale: Locale) -> String {
+    static func routes(_ names: [String], _ locale: Locale) -> String {
         names.count == 1 ? "the route \(names[0])"
             : "\(names.count) routes: \(names.formatted(.list(type: .and).locale(locale)))"
     }
@@ -180,6 +180,21 @@ enum ClientRemoval {
 /// history. Only the property's client's: a visit is matched by client and
 /// property both.
 enum PropertyRemoval {
+    /// The routes `property` has stops on, by name.
+    static func routeNames(of property: Property, in context: ModelContext) -> [String] {
+        var seen = Set<PersistentIdentifier>()
+        return stops(of: property, in: context).compactMap(\.route)
+            .filter { seen.insert($0.persistentModelID).inserted }
+            .map(\.name).sorted()
+    }
+
+    /// Marking a property inactive takes it off every route, as marking a
+    /// client inactive does (Joe's call); marked active again, it isn't put
+    /// back. Its visits stay booked.
+    static func takeOffRoutes(_ property: Property, in context: ModelContext) {
+        stops(of: property, in: context).forEach { context.delete($0) }
+    }
+
     /// How many stops and upcoming visits removing `property` takes with it.
     static func footprint(of property: Property, in context: ModelContext, now: Date = .now) -> (stops: Int, visits: Int) {
         (stops(of: property, in: context).count, visitsLeft(of: property, in: context, now: now).count)
@@ -192,7 +207,7 @@ enum PropertyRemoval {
         try? context.save()
     }
 
-    private static func stops(of property: Property, in context: ModelContext) -> [RouteStop] {
+    static func stops(of property: Property, in context: ModelContext) -> [RouteStop] {
         let id = property.id.uuidString
         let clientID = property.client?.id
         let stops = (try? context.fetch(FetchDescriptor<RouteStop>(predicate: #Predicate { $0.propertyID == id }))) ?? []
