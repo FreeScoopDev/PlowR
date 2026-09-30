@@ -18,6 +18,11 @@ final class RouteStop {
     var completedNotes: String = ""
     var stopNotes: String = ""       // persistent operator reminders shown during route
     var equipmentNotes: String = ""  // equipment/blade flags shown during route
+    /// The services this stop needs on this route, when it has its own list
+    /// (`hasOwnServices`). Otherwise it follows its client's usual services.
+    /// StopServices is the rule.
+    var expectedServiceIDs: [String] = []
+    var hasOwnServices: Bool = false
     var route: PlowRoute?
 
     init(order: Int, client: Client) {

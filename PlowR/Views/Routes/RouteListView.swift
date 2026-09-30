@@ -101,6 +101,8 @@ struct RouteListView: View {
                 stopCopy.stopNotes = stop.stopNotes
                 stopCopy.equipmentNotes = stop.equipmentNotes
                 stopCopy.targetMinutes = stop.targetMinutes
+                stopCopy.expectedServiceIDs = stop.expectedServiceIDs
+                stopCopy.hasOwnServices = stop.hasOwnServices
                 stopCopy.route = copy
                 modelContext.insert(stopCopy)
             } else if let client = allClients.first(where: { $0.id == stop.clientID }), client.isActive {
@@ -109,6 +111,8 @@ struct RouteListView: View {
                 stopCopy.stopNotes = stop.stopNotes
                 stopCopy.equipmentNotes = stop.equipmentNotes
                 stopCopy.targetMinutes = stop.targetMinutes
+                stopCopy.expectedServiceIDs = stop.expectedServiceIDs
+                stopCopy.hasOwnServices = stop.hasOwnServices
                 stopCopy.route = copy
                 modelContext.insert(stopCopy)
             }

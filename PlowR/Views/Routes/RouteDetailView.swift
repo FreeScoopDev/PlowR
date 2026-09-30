@@ -12,6 +12,7 @@ struct RouteDetailView: View {
     @State private var showingEditRoute = false
     @State private var showingOptimizeConfirm = false
     @State private var isOptimizing = false
+    @State private var editingStop: RouteStop?
 
     // MARK: - Derived
 
@@ -54,7 +55,17 @@ struct RouteDetailView: View {
             } else {
                 Section(stopsSectionHeader) {
                     ForEach(Array(route.sortedStops.enumerated()), id: \.element.id) { index, stop in
-                        stopRow(stop: stop, index: index)
+                        // A stop opens its page: services, notes, equipment, target time.
+                        Button { editingStop = stop } label: {
+                            HStack {
+                                stopRow(stop: stop, index: index)
+                                Image(systemName: "chevron.right")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -113,6 +124,9 @@ struct RouteDetailView: View {
         .sheet(isPresented: $showingEditRoute) {
             EditRouteView(route: route)
         }
+        .sheet(item: $editingStop) { stop in
+            StopDetailView(stop: stop, client: clientFor(stop))
+        }
     }
 
     // MARK: - Map Section
@@ -164,12 +178,14 @@ struct RouteDetailView: View {
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
-                        if client.goalMinutes > 0 {
-                            Text("· goal \(client.goalMinutes)m")
-                                .font(.caption2)
-                                .foregroundStyle(.blue)
-                        }
                     }
+                }
+                // The stop's target, or else its client's goal (RouteFacts).
+                let target = RouteFacts.targetMinutes(of: stop, client: clientFor(stop))
+                if target > 0 {
+                    Label("Target \(RouteFacts.duration(target))", systemImage: "timer")
+                        .font(.caption2)
+                        .foregroundStyle(.blue)
                 }
                 // Expected service icons
                 let icons = expectedServiceIcons(for: stop)
@@ -240,9 +256,8 @@ struct RouteDetailView: View {
     // MARK: - Helpers
 
     private func expectedServiceIcons(for stop: RouteStop) -> [String] {
-        guard let client = clientFor(stop), !client.expectedServiceIDs.isEmpty else { return [] }
-        return client.expectedServiceIDs.compactMap { id in
-            allServices.first { $0.id.uuidString == id }.map { iconForService($0.name) }
+        StopServices.expected(for: stop, client: clientFor(stop)).compactMap { id in
+            allServices.first { $0.id.uuidString == id && $0.isActive }.map { iconForService($0.name) }
         }
     }
 

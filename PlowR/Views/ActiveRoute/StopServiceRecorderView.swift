@@ -97,6 +97,12 @@ struct StopServiceRecorderView: View {
             || (hadRecord && hasUnsavedWork)
     }
 
+    /// Expected at this stop (StopServices), in the catalog, and not ticked.
+    private var expectedToAdd: [StopRecording.Service] {
+        let expected = Set(StopServices.expected(for: stop, client: client))
+        return myServices.filter { expected.contains($0.id) && !selectedServiceIDs.contains($0.id) }
+    }
+
     private var myServices: [StopRecording.Service] {
         ServiceLog.activeServices(allServices, operatorID: operatorID)
     }
@@ -119,6 +125,21 @@ struct StopServiceRecorderView: View {
 
                 photoSection(isBefore: true)
                 photoSection(isBefore: false)
+
+                // The stop's expected services, one tap to tick, never ticked
+                // for you: a skipped or cleared stop mustn't record (and bill)
+                // work that wasn't done.
+                if !servicesLocked, !expectedToAdd.isEmpty {
+                    Section {
+                        Button {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            expectedToAdd.forEach { selectedServiceIDs.insert($0.id) }
+                        } label: {
+                            Label("Add Expected: \(expectedToAdd.map(\.name).formatted(.list(type: .and)))",
+                                  systemImage: "checklist")
+                        }
+                    }
+                }
 
                 ServiceLinesSections(
                     services: recording.services, zones: pricingZones, operatorID: operatorID,

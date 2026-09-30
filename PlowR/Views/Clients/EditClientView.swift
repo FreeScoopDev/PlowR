@@ -471,7 +471,7 @@ struct EditClientView: View {
         } header: {
             Text("Default Services")
         } footer: {
-            Text("Services this client typically needs — shown at a glance in route stops.")
+            Text("Services this client typically needs. Their route stops expect these, except a stop given its own services on its route (tap the stop on the route).")
                 .font(.caption)
         }
     }
