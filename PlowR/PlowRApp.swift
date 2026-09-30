@@ -24,6 +24,7 @@ struct PlowRApp: App {
         PaymentMethod.self,
         StopPhoto.self,
         ScheduledVisit.self,
+        ServiceRecord.self,
     ]
 
     init() {

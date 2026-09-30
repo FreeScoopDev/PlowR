@@ -43,6 +43,10 @@ final class ScheduledVisit {
 
     var isPast: Bool { scheduledDate < Date() && status == .scheduled }
 
+    /// What service prices are multiplied by for this visit: its after-hours
+    /// multiplier if it's after hours.
+    var priceMultiplier: Double { isAfterHours ? afterHoursMultiplier : 1 }
+
     init(operatorID: String, clientID: String, clientName: String,
          clientAddress: String, scheduledDate: Date) {
         self.operatorID = operatorID

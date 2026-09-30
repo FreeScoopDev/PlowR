@@ -25,7 +25,7 @@ struct ClientRemovalTests {
     init() throws {
         container = try ModelContainer(
             for: Client.self, PlowRoute.self, RouteStop.self, ScheduledVisit.self,
-            Proposal.self, ProposalLineItem.self, StopPhoto.self,
+            Proposal.self, ProposalLineItem.self, StopPhoto.self, ServiceRecord.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
         context = container.mainContext
         pat = Client(name: "Pat Doe", phone: "555-0100", address: "1 Main St", operatorID: "op")
@@ -53,6 +53,12 @@ struct ClientRemovalTests {
         visit.status = status
         context.insert(visit)
         return visit
+    }
+
+    private func logWork(_ client: Client) {
+        let record = ServiceRecord(operatorID: "op", sourceKey: "visit:\(UUID().uuidString)", source: .visit)
+        record.clientID = client.id.uuidString
+        context.insert(record)
     }
 
     @discardableResult
@@ -121,7 +127,7 @@ struct ClientRemovalTests {
         let defaults = try #require(UserDefaults(suiteName: "ClientRemovalTests-\(UUID().uuidString)"))
         let empty = try ModelContainer(
             for: Client.self, PlowRoute.self, RouteStop.self, ScheduledVisit.self,
-            Proposal.self, ProposalLineItem.self, StopPhoto.self,
+            Proposal.self, ProposalLineItem.self, StopPhoto.self, ServiceRecord.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
         #expect(ClientRemoval.takeInactiveClientsOffRoutes(in: empty.mainContext, defaults: defaults) == 0)
         #expect(!defaults.bool(forKey: ClientRemoval.inactiveCleanupKey))
@@ -182,11 +188,13 @@ struct ClientRemovalTests {
         visit(pat, .completed, daysFromNow: -7)
         visit(pat, .skipped, daysFromNow: -14)
         visit(sam, .scheduled)
+        logWork(pat)                                          // the Service Log: kept
         document(pat, invoice: true)
         document(pat)
         photo(pat)                                            // only their page shows it: deleted
         photo(sam)
         ClientRemoval.delete(pat, keepingRecords: true, in: context)
+        #expect(try context.fetch(FetchDescriptor<ServiceRecord>()).map(\.clientID) == [pat.id.uuidString])
         #expect(try count(Client.self) == 1)
         #expect(try count(RouteStop.self) == 2)               // Sam's and the salt shed
         let visits = try context.fetch(FetchDescriptor<ScheduledVisit>())
@@ -207,7 +215,10 @@ struct ClientRemovalTests {
         document(sam)
         photo(pat)
         photo(sam)
+        logWork(pat)
+        logWork(sam)
         ClientRemoval.delete(pat, keepingRecords: false, in: context)
+        #expect(try context.fetch(FetchDescriptor<ServiceRecord>()).map(\.clientID) == [sam.id.uuidString])
         #expect(try context.fetch(FetchDescriptor<Client>()).map(\.name) == ["Sam Roe"])
         #expect(try context.fetch(FetchDescriptor<ScheduledVisit>()).map(\.clientName) == ["Sam Roe"])
         #expect(try context.fetch(FetchDescriptor<Proposal>()).map(\.clientName) == ["Sam Roe"])

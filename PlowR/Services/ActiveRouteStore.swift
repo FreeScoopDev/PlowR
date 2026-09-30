@@ -31,6 +31,9 @@ final class ActiveRouteStore {
         /// app is in the background, and iOS can end the app before the user
         /// has seen the new stop. nil in a checkpoint from before it existed.
         var stopChangedUnseen: Bool?
+        /// `runID`, kept so a relaunch keeps writing to this run's Service
+        /// Log records. nil in a checkpoint from before it existed.
+        var runID: UUID?
     }
 
     /// What completing the current stop did, so callers (the screen, Siri,
@@ -58,6 +61,10 @@ final class ActiveRouteStore {
     /// reorder: after one, "the stop at the index" is a different client.
     private(set) var currentStopID: UUID?
     private(set) var stopStartedAt: Date?
+    /// This run of the route, from `start(_:)` to `end()`. A stop's Service
+    /// Log record is keyed by run and stop, so running the route again next
+    /// week makes new records instead of overwriting last week's.
+    private(set) var runID: UUID?
 
     /// True from `start(_:)` until the screen has offered to notify the first
     /// client. A route restored after a relaunch does not offer it again.
@@ -132,6 +139,7 @@ final class ActiveRouteStore {
         self.route = route
         routeID = route.id
         routeName = route.name
+        runID = UUID()
         currentStopIndex = 0
         currentStopID = currentStop?.id
         stopStartedAt = now()
@@ -142,9 +150,10 @@ final class ActiveRouteStore {
         surfaces.start(progress)
     }
 
-    /// Records the current stop's visit on its client and moves to the next
-    /// stop. On the last stop, moves past it: the route is then "all stops
-    /// done" and waits for `end()`, so the recap can still be reviewed.
+    /// Records the current stop's visit on its client and in the Service Log,
+    /// and moves to the next stop. On the last stop, moves past it: the route
+    /// is then "all stops done" and waits for `end()`, so the recap can still
+    /// be reviewed.
     ///
     /// `expecting:` is the stop the caller means (the one on screen, or
     /// `currentStopID` for Siri) and is required, so no caller can skip it. If
@@ -274,7 +283,8 @@ final class ActiveRouteStore {
 
     private func recordVisit(for stop: RouteStop) {
         guard let startedAt = stopStartedAt else { return }
-        let minutes = max(0, now().timeIntervalSince(startedAt) / 60)
+        let finishedAt = now()
+        let minutes = max(0, finishedAt.timeIntervalSince(startedAt) / 60)
         // The stop's time this run, which the route list, the dashboard, the
         // route map and the recap read as "done". Nothing wrote it before. At
         // least a minute, so a quick stop still reads as done.
@@ -285,13 +295,18 @@ final class ActiveRouteStore {
         guard let client = try? context.fetch(FetchDescriptor<Client>()).first(where: { $0.id == clientID }) else { return }
         client.totalVisits += 1
         client.totalServiceMinutes += minutes
-        client.lastServiceDate = now()
+        client.lastServiceDate = finishedAt
+        if let runID {
+            ServiceLog.recordStop(stop, of: client, run: runID, operatorID: route?.operatorID ?? client.operatorID,
+                                  startedAt: startedAt, finishedAt: finishedAt, minutes: minutes, in: context)
+        }
     }
 
     private func clearState() {
         route = nil
         routeID = nil
         routeName = ""
+        runID = nil
         lastProgress = nil
         currentStopIndex = 0
         currentStopID = nil
@@ -315,7 +330,7 @@ final class ActiveRouteStore {
         guard let routeID, let stopStartedAt else { return }
         let checkpoint = Checkpoint(routeID: routeID, currentStopIndex: currentStopIndex,
                                     currentStopID: currentStopID, stopStartedAt: stopStartedAt,
-                                    stopChangedUnseen: stopChangedUnseen)
+                                    stopChangedUnseen: stopChangedUnseen, runID: runID)
         if let data = try? JSONEncoder().encode(checkpoint) {
             defaults.set(data, forKey: Self.checkpointKey)
         }
@@ -348,6 +363,7 @@ final class ActiveRouteStore {
         self.route = route
         routeID = route.id
         routeName = route.name
+        runID = checkpoint.runID ?? UUID()
         let stopChanged = reconcile(stopID: checkpoint.currentStopID, index: checkpoint.currentStopIndex)
         // The saved timer belongs to the saved stop only.
         stopStartedAt = stopChanged ? now() : checkpoint.stopStartedAt

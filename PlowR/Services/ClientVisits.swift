@@ -13,9 +13,10 @@ import SwiftData
 /// event pointed there.
 enum ClientVisits {
     /// Whether `visit` follows its client: not completed, and dated today or
-    /// later. Today's count whether done or not: running a route doesn't mark
-    /// a visit complete, and an address corrected during the day should reach
-    /// today's visit and its calendar event. (Deleting a client goes by
+    /// later. Today's count until they're done: a route completes a visit
+    /// only when it's the client's one visit that day (ServiceLog), and an
+    /// address corrected during the day should reach today's visit and its
+    /// calendar event. (Deleting a client goes by
     /// `ClientRemoval.isAhead` instead: from this moment on.)
     static func follows(_ visit: ScheduledVisit, now: Date = .now, calendar: Calendar = .current) -> Bool {
         visit.status != .completed && visit.scheduledDate >= calendar.startOfDay(for: now)

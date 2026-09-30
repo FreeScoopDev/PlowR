@@ -39,7 +39,7 @@ struct StopServiceRecorderView: View {
     }
 
     private var pricingZones: [InvoiceLines.Zone] {
-        client?.sortedZones.map { InvoiceLines.Zone(label: $0.label, areaSquareFeet: $0.areaSquareFeet) } ?? []
+        client?.pricingZones ?? []
     }
 
     // For per-sqft services, the meaningful price is rate × total client area.

@@ -93,6 +93,7 @@ struct AccountEraserTests {
                           isBefore: true, imageData: Data([1, 2, 3])),
                 ScheduledVisit(operatorID: "op", clientID: client.id.uuidString, clientName: client.name,
                                clientAddress: client.address, scheduledDate: Date()),
+                ServiceRecord(operatorID: "op", sourceKey: "visit:\(UUID().uuidString)", source: .visit),
             ]
             others.forEach { context.insert($0) }
             try context.save()
