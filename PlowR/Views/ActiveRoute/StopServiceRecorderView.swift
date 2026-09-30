@@ -24,7 +24,7 @@ struct StopServiceRecorderView: View {
     @State private var selectedServiceIDs: Set<String>
     @State private var notes: String
     @State private var servicePriceOverrides: [String: String] = [:]
-    @State private var customItems: [CustomLineItem] = []
+    @State private var customItems: [StopRecording.CustomItem] = []
     /// Recorded services no longer in the active catalog (StopRecording.keptLines).
     @State private var keptLines: [ServiceRecord.Line] = []
 
@@ -75,12 +75,11 @@ struct StopServiceRecorderView: View {
     /// Everything on screen, priced the one way the log and the invoice share.
     private var recording: StopRecording {
         StopRecording(
-            services: myServices.map { .init(id: $0.id.uuidString, name: $0.name,
-                                             unitType: $0.unitType, pricePerUnit: $0.pricePerUnit) },
+            services: myServices,
             zones: pricingZones,
             selectedIDs: selectedServiceIDs,
             typedPrices: servicePriceOverrides,
-            customItems: customItems.map { .init(name: $0.name, price: $0.price) },
+            customItems: customItems,
             keptLines: keptLines)
     }
 
@@ -98,21 +97,12 @@ struct StopServiceRecorderView: View {
             || (hadRecord && hasUnsavedWork)
     }
 
-    private var myServices: [ServiceItem] {
-        allServices
-            .filter { $0.operatorID == operatorID && $0.isActive }
-            .sorted { $0.sortOrder < $1.sortOrder }
+    private var myServices: [StopRecording.Service] {
+        ServiceLog.activeServices(allServices, operatorID: operatorID)
     }
 
     private var pricingZones: [InvoiceLines.Zone] {
         client?.pricingZones ?? []
-    }
-
-    // For per-sqft services, the meaningful price is rate × total client area.
-    // Drivers see and override the dollar total, not the per-sqft unit rate.
-    private func defaultPrice(for service: ServiceItem) -> Double {
-        InvoiceLines.propertyPrice(unitType: service.unitType, pricePerUnit: service.pricePerUnit,
-                                   zones: pricingZones)
     }
 
     var body: some View {
@@ -130,114 +120,15 @@ struct StopServiceRecorderView: View {
                 photoSection(isBefore: true)
                 photoSection(isBefore: false)
 
-                Section {
-                    if myServices.isEmpty {
-                        // A business that went straight to a route had none, and had
-                        // to leave the route for Settings to get any.
-                        StandardServicesOffer(operatorID: operatorID)
-                    } else {
-                        ForEach(myServices) { service in
-                            let key = service.id.uuidString
-                            let isOn = selectedServiceIDs.contains(key)
-                            VStack(alignment: .leading, spacing: 0) {
-                                Toggle(isOn: Binding(
-                                    get: { isOn },
-                                    set: { on in
-                                        UIImpactFeedbackGenerator(style: on ? .medium : .light).impactOccurred()
-                                        if on {
-                                            selectedServiceIDs.insert(key)
-                                            if servicePriceOverrides[key] == nil {
-                                                servicePriceOverrides[key] = StopRecording.money(defaultPrice(for: service))
-                                            }
-                                        } else {
-                                            selectedServiceIDs.remove(key)
-                                        }
-                                    }
-                                )) {
-                                    Text(service.name)
-                                }
-                                .disabled(servicesLocked)
-                                if isOn {
-                                    HStack(spacing: 4) {
-                                        Text("Price: $").font(.caption).foregroundStyle(.secondary)
-                                        TextField("0.00", text: Binding(
-                                            get: { servicePriceOverrides[key] ?? StopRecording.money(defaultPrice(for: service)) },
-                                            set: { servicePriceOverrides[key] = $0 }
-                                        ))
-                                        .keyboardType(.decimalPad)
-                                        .font(.caption)
-                                        .frame(width: 72)
-                                        .disabled(servicesLocked)
-                                        if service.unitType == "perSqFt",
-                                           case let area = InvoiceLines.totalArea(pricingZones),
-                                           area > 0 {
-                                            Text("(\(Int(area)) sqft)")
-                                                .font(.caption2).foregroundStyle(.tertiary)
-                                        }
-                                    }
-                                    .padding(.leading, 48)
-                                    .padding(.bottom, 6)
-                                }
-                            }
-                        }
-                    }
-                } header: {
-                    Text("Services Performed")
-                } footer: {
-                    if let invoicedAs {
-                        Text(servicesLocked
-                             ? "On invoice \(invoicedAs), so these services are fixed. To change them, edit the invoice."
-                             : "Invoice \(invoicedAs) was already made for this visit.")
-                    }
-                }
-
-                if !keptLines.isEmpty {
-                    Section {
-                        ForEach(keptLines, id: \.serviceID) { line in
-                            LabeledContent(line.name, value: "$" + StopRecording.money(line.price))
-                                .swipeActions(edge: .trailing) {
-                                    Button(role: .destructive) {
-                                        keptLines.removeAll { $0.serviceID == line.serviceID }
-                                    } label: {
-                                        Label("Remove", systemImage: "trash")
-                                    }
-                                }
-                        }
-                    } header: {
-                        Text("Also Recorded")
-                    } footer: {
-                        Text("No longer in your active services, so kept as recorded.")
-                    }
-                    .disabled(servicesLocked)
-                }
-
-                Section("Custom Services") {
-                    ForEach($customItems) { $item in
-                        HStack(spacing: 8) {
-                            TextField("Service name", text: $item.name)
-                            Divider()
-                            Text("$").foregroundStyle(.secondary)
-                            TextField("0.00", text: $item.price)
-                                .keyboardType(.decimalPad)
-                                .multilineTextAlignment(.trailing)
-                                .frame(width: 70)
-                        }
-                        .swipeActions(edge: .trailing) {
-                            Button(role: .destructive) {
-                                customItems.removeAll { $0.id == item.id }
-                            } label: {
-                                Label("Remove", systemImage: "trash")
-                            }
-                        }
-                    }
-                    Button {
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        customItems.append(CustomLineItem())
-                    } label: {
-                        Label("Add Custom Item", systemImage: "plus")
-                    }
-                }
-                .disabled(servicesLocked)
+                ServiceLinesSections(
+                    services: recording.services, zones: pricingZones, operatorID: operatorID,
+                    selectedIDs: $selectedServiceIDs, typedPrices: $servicePriceOverrides,
+                    customItems: $customItems, keptLines: $keptLines, locked: servicesLocked,
+                    footer: invoicedAs.map { number in
+                        servicesLocked
+                            ? "On invoice \(number), so these services are fixed. To change them, edit the invoice."
+                            : "Invoice \(number) was already made for this visit."
+                    })
 
                 Section("Notes") {
                     TextField("Optional notes for this stop…", text: $notes, axis: .vertical)
@@ -411,7 +302,7 @@ struct StopServiceRecorderView: View {
         let loaded = StopRecording.loading(record.lines, services: recording.services, zones: pricingZones)
         selectedServiceIDs = loaded.selectedIDs
         servicePriceOverrides = loaded.typedPrices
-        customItems = loaded.customItems.map { CustomLineItem(name: $0.name, price: $0.price) }
+        customItems = loaded.customItems
         keptLines = loaded.keptLines
     }
 
@@ -443,14 +334,6 @@ struct StopServiceRecorderView: View {
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         dismiss()
     }
-}
-
-// MARK: - Supporting Types
-
-private struct CustomLineItem: Identifiable {
-    let id = UUID()
-    var name: String = ""
-    var price: String = ""
 }
 
 // MARK: - Camera Picker

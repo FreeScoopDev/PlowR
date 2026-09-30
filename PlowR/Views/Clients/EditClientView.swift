@@ -597,8 +597,14 @@ struct EditClientView: View {
 
     private var historySection: some View {
         Section("Service History") {
+            // Every job, from routes, visits or logged by hand (the Service Log).
+            NavigationLink {
+                ClientServiceHistoryView(client: client)
+            } label: {
+                Label("All Work", systemImage: "list.bullet.clipboard")
+            }
             if client.totalVisits == 0 {
-                Text("No visits recorded yet")
+                Text("No route visits recorded yet")
                     .foregroundStyle(.secondary)
                     .font(.subheadline)
             } else {
