@@ -598,6 +598,12 @@ struct EditClientView: View {
             } label: {
                 Label("All Work", systemImage: "list.bullet.clipboard")
             }
+            // Jobs, visits, invoices and photos together, newest first.
+            NavigationLink {
+                ClientTimelineView(client: client)
+            } label: {
+                Label("Timeline", systemImage: "clock")
+            }
             if client.totalVisits == 0 {
                 Text("No route visits recorded yet")
                     .foregroundStyle(.secondary)
