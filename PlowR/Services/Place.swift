@@ -23,6 +23,9 @@ struct Place: Equatable {
     let expectedServiceIDs: [String]
     let zones: [InvoiceLines.Zone]
     let isMain: Bool
+    /// A property marked inactive is off its routes and not booked. (The
+    /// main place is the client's, whose own Active switch covers it.)
+    var isActive = true
 
     static func main(of client: Client) -> Place {
         Place(id: client.id.uuidString, label: "Main", address: client.address, latitude: client.latitude,
@@ -36,7 +39,8 @@ struct Place: Equatable {
         Place(id: property.id.uuidString, label: property.label.isEmpty ? property.address : property.label,
               address: property.address, latitude: property.latitude, longitude: property.longitude,
               stopNotes: property.stopNotes, goalMinutes: property.goalMinutes,
-              expectedServiceIDs: property.expectedServiceIDs, zones: [], isMain: false)
+              expectedServiceIDs: property.expectedServiceIDs, zones: [], isMain: false,
+              isActive: property.isActive)
     }
 
     /// `client`'s place with `propertyID`: their main one for an empty ID or

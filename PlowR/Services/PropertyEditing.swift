@@ -49,6 +49,7 @@ enum PropertyEditing {
             context.insert(target)
             target.client = client
         }
+        if target.isActive, !draft.isActive { PropertyRemoval.takeOffRoutes(target, in: context) }
         target.label = draft.label.trimmingCharacters(in: .whitespacesAndNewlines)
         target.address = draft.address.trimmingCharacters(in: .whitespacesAndNewlines)
         target.latitude = draft.latitude
@@ -60,6 +61,17 @@ enum PropertyEditing {
         ClientStops.update(for: client)
         try? context.save()
         return target
+    }
+
+    /// Whether saving `draft` marks `property` inactive while it's on routes,
+    /// which asks first: they're the routes it comes off.
+    static func routesLeft(saving draft: Draft, to property: Property?, in context: ModelContext) -> [String] {
+        guard let property, property.isActive, !draft.isActive else { return [] }
+        return PropertyRemoval.routeNames(of: property, in: context)
+    }
+
+    static func deactivateMessage(routeNames: [String], locale: Locale = .current) -> String {
+        "It'll be taken off \(ClientRemoval.routes(routeNames, locale)). Marking it active again won't put it back."
     }
 
     /// What removing `property` takes with it, as the confirmation says it.

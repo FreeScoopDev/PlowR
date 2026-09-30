@@ -25,6 +25,8 @@ struct PropertyEditView: View {
     /// even if the field changed while it was looked up.
     @State private var lookedUpAddress = ""
     @State private var removal: (stops: Int, visits: Int)?
+    /// The routes Save would take it off, while that's asked.
+    @State private var leavingRoutes: [String] = []
     private let originalAddress: String
 
     init(client: Client, property: Property?) {
@@ -78,7 +80,7 @@ struct PropertyEditView: View {
                 Section {
                     Toggle("Active", isOn: $draft.isActive)
                 } footer: {
-                    Text("An inactive property isn't offered for new stops and visits. Ones already booked there stay.")
+                    Text("An inactive property comes off its routes and isn't offered for new stops and visits. Visits already booked there stay.")
                 }
                 if property != nil {
                     Section {
@@ -104,7 +106,7 @@ struct PropertyEditView: View {
                     if isSaving {
                         ProgressView()
                     } else {
-                        Button("Save") { save() }
+                        Button("Save") { confirmThenSave() }
                             .disabled(!draft.canSave)
                     }
                 }
@@ -116,6 +118,18 @@ struct PropertyEditView: View {
             }, keepCurrentPin: draft.hasPin ? {
                 commit(address: lookedUpAddress, latitude: draft.latitude, longitude: draft.longitude)
             } : nil)
+            .confirmationDialog("Mark \(draft.label.isEmpty ? "This Property" : draft.label) Inactive?",
+                                isPresented: Binding(get: { !leavingRoutes.isEmpty },
+                                                     set: { if !$0 { leavingRoutes = [] } }),
+                                titleVisibility: .visible) {
+                Button("Save and Mark Inactive", role: .destructive) {
+                    leavingRoutes = []
+                    save()
+                }
+                Button("Cancel", role: .cancel) { leavingRoutes = [] }
+            } message: {
+                Text(PropertyEditing.deactivateMessage(routeNames: leavingRoutes))
+            }
             .confirmationDialog("Remove this property?",
                                 isPresented: Binding(get: { removal != nil }, set: { if !$0 { removal = nil } }),
                                 titleVisibility: .visible, presenting: removal) { _ in
@@ -183,6 +197,12 @@ struct PropertyEditView: View {
         } footer: {
             Text("Services this property typically needs. Its route stops expect these, except a stop given its own services on its route.")
         }
+    }
+
+    /// Asks first when Save marks it inactive and it's on a route.
+    private func confirmThenSave() {
+        leavingRoutes = PropertyEditing.routesLeft(saving: draft, to: property, in: modelContext)
+        if leavingRoutes.isEmpty { save() }
     }
 
     /// A new address is put on the map first: a picked suggestion's pin, or

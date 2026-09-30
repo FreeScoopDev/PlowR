@@ -1,0 +1,2 @@
+### Changed
+- A property marked inactive now comes off its routes, as an inactive client does (Joe's call). Saving it inactive asks first and names the routes it leaves. Marking it active again doesn't put it back. Visits already booked there stay. A route made from the Schedule, or a duplicated route, leaves an inactive property's stops off, and the Schedule counts those visits with inactive clients' when it says what it left off. Before, an inactive property was only left out of new bookings, so a crew could still be sent to a place the business had stopped serving.

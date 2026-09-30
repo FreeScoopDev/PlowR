@@ -377,14 +377,14 @@ struct ScheduleView: View {
     private var routeCreatedMessage: String {
         if createdRouteName.isEmpty {
             return skippedInactiveVisits > 0
-                ? "The visits scheduled that day are all for inactive clients."
+                ? "The visits scheduled that day are all for inactive clients or properties."
                 : "None of the visits scheduled that day has a client on file."
         }
         var text = "\"\(createdRouteName)\" has been added to your Routes tab."
         if skippedInactiveVisits == 1 {
-            text += " 1 visit was left off because that client is inactive."
+            text += " 1 visit was left off because its client or property is inactive."
         } else if skippedInactiveVisits > 1 {
-            text += " \(skippedInactiveVisits) visits were left off because those clients are inactive."
+            text += " \(skippedInactiveVisits) visits were left off because their clients or properties are inactive."
         }
         return text
     }

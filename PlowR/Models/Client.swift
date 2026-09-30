@@ -82,7 +82,8 @@ extension Client {
     /// As `routeClients`, with each visit's place (Place): a stop goes where
     /// the visit was booked, the client's own address or one of their
     /// properties. A visit at a place missing here (its property not synced
-    /// yet) is left off rather than sent to the main address.
+    /// yet) is left off rather than sent to the main address. One at an
+    /// inactive property is left off and counted, as an inactive client's is.
     static func routeStops(for visits: [ScheduledVisit], from clients: [Client], operatorID: String)
         -> (stops: [(client: Client, place: Place)], skippedInactive: Int) {
         var chosen: [(client: Client, place: Place)] = []
@@ -93,7 +94,7 @@ extension Client {
             if !client.isActive {
                 skipped += 1
             } else if let place = Place.of(client, propertyID: visit.propertyID) {
-                chosen.append((client, place))
+                if place.isActive { chosen.append((client, place)) } else { skipped += 1 }
             }
         }
         return (chosen, skipped)
