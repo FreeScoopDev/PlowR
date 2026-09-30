@@ -156,6 +156,11 @@ struct PlowRApp: App {
                 authManager.recheckIfSignedOut()
                 CalendarSync.shared.refresh()
             }
+            // Follow-up reminders from what's on file now: on the way in,
+            // and on the way out, so what's due while away is right.
+            if (phase == .active || phase == .background) && !Self.isRunningUnderTests {
+                FollowUpReminders.refresh(operatorID: authManager.userID, in: container.mainContext)
+            }
             // The screens leave saving to autosave, which took up to half a
             // minute on a simulator, and a sync waiting for it doesn't run
             // once the app is suspended: add a visit, open Calendar, and it
