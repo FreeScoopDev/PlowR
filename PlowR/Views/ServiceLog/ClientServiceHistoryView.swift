@@ -10,6 +10,7 @@ struct ClientServiceHistoryView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var records: [ServiceRecord]
     @State private var showingLogWork = false
+    @State private var showingBillWork = false
 
     init(client: Client) {
         self.client = client
@@ -18,9 +19,11 @@ struct ClientServiceHistoryView: View {
                          sort: \.performedAt, order: .reverse)
     }
 
+    /// What Bill Unbilled Work would bill this client (WorkBilling), so the
+    /// two never disagree.
     private var unbilledTotal: Double {
-        records.filter { ServiceLog.isUnbilled($0, in: modelContext) }
-            .reduce(0) { $0 + ServiceLog.total(of: $1) }
+        WorkBilling.unbilledWork(in: nil, operatorID: client.operatorID, clientID: client.id.uuidString,
+                                 in: modelContext).first?.total ?? 0
     }
 
     var body: some View {
@@ -41,6 +44,13 @@ struct ClientServiceHistoryView: View {
                     LabeledContent("Not Billed Yet") {
                         Text(unbilled, format: .currency(code: "USD"))
                             .foregroundStyle(unbilled > 0 ? .orange : .secondary)
+                    }
+                    if unbilled > 0 {
+                        Button {
+                            showingBillWork = true
+                        } label: {
+                            Label("Bill Unbilled Work", systemImage: "tray.and.arrow.up")
+                        }
                     }
                 }
                 Section {
@@ -67,6 +77,9 @@ struct ClientServiceHistoryView: View {
         }
         .sheet(isPresented: $showingLogWork) {
             LogWorkView(client: client)
+        }
+        .sheet(isPresented: $showingBillWork) {
+            BillWorkView(onlyClient: client)
         }
     }
 }
