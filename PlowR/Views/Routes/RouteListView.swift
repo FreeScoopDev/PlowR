@@ -6,6 +6,7 @@ struct RouteListView: View {
     @Environment(AuthManager.self) private var authManager
     @Query private var allRoutes: [PlowRoute]
     @Query private var allClients: [Client]
+    @Query private var records: [ServiceRecord]
     @State private var showingCreateRoute = false
     @State private var routeToDelete: PlowRoute?
 
@@ -24,12 +25,14 @@ struct RouteListView: View {
                     description: Text("Create a route to organize your stops.")
                 )
             } else {
+                let lastRuns = RouteFacts.lastRuns(in: records)
                 List {
                     ForEach(routes) { route in
                         NavigationLink {
                             RouteDetailView(route: route)
                         } label: {
-                            RouteRowView(route: route)
+                            RouteRowView(route: route, clients: allClients,
+                                         lastRun: lastRuns[route.id.uuidString])
                         }
                         .contextMenu {
                             Button {
@@ -113,35 +116,49 @@ struct RouteListView: View {
     }
 }
 
+/// A route in the list: a map icon coloured by how its run stands, its
+/// name, its stops and about how long they take, and when it last ran.
+/// It used to be a name, a stop count and a grey bar.
 struct RouteRowView: View {
     let route: PlowRoute
+    let clients: [Client]
+    let lastRun: Date?
     @Environment(ActiveRouteStore.self) private var activeRoute
 
     private var run: RouteRunSummary {
         RouteRunSummary(stops: route.sortedStops, isRunning: activeRoute.route?.id == route.id)
     }
 
-    private var completedCount: Int { run.done }
-
-    private var totalCount: Int { run.total }
-
-    private var subtitleText: String {
-        guard totalCount > 0 else { return "No stops" }
-        if completedCount == 0 {
-            return "\(totalCount) stop\(totalCount == 1 ? "" : "s")"
-        }
-        return "\(totalCount) stop\(totalCount == 1 ? "" : "s") · \(completedCount)/\(totalCount) complete"
+    private var color: Color {
+        run.isRunning ? .orange : (run.isDone ? .green : .blue)
     }
 
-    // The bar and type sizes are the Clients and Documents rows'.
+    private var stopsText: String {
+        let count = run.total
+        guard count > 0 else { return "No stops yet" }
+        var text = "\(count) stop\(count == 1 ? "" : "s")"
+        let minutes = RouteFacts.estimatedMinutes(of: route.sortedStops, clients: clients)
+        if minutes > 0 { text += " · about \(RouteFacts.duration(minutes))" }
+        return text
+    }
+
+    private var statusText: String {
+        if run.isRunning { return "Running · \(run.done) of \(run.total) done" }
+        guard let lastRun else { return "Not run yet" }
+        return RouteFacts.lastRunText(lastRun)
+    }
+
     var body: some View {
         HStack(spacing: 12) {
-            AccentBar(color: run.isRunning ? .orange : (run.isDone ? .green : Color(.systemGray4)))
-            VStack(alignment: .leading, spacing: 3) {
+            IconBadge(systemImage: run.isRunning ? "map.fill" : "map", color: color)
+            VStack(alignment: .leading, spacing: 2) {
                 Text(route.name)
                     .font(.subheadline.weight(.semibold))
                     .lineLimit(1)
-                Text(subtitleText)
+                Text(stopsText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(statusText)
                     .font(.caption)
                     .foregroundStyle(run.isRunning ? .orange : .secondary)
             }
