@@ -13,6 +13,7 @@ struct RouteDetailView: View {
     @State private var showingOptimizeConfirm = false
     @State private var isOptimizing = false
     @State private var editingStop: RouteStop?
+    @State private var showingMessageAll = false
 
     // MARK: - Derived
 
@@ -46,6 +47,10 @@ struct RouteDetailView: View {
                 mapSection
             }
 
+            if !route.sortedStops.isEmpty {
+                loadOutSection
+            }
+
             if route.sortedStops.isEmpty {
                 ContentUnavailableView(
                     "No Stops",
@@ -53,7 +58,7 @@ struct RouteDetailView: View {
                     description: Text("Tap Edit to add stops to this route.")
                 )
             } else {
-                Section(stopsSectionHeader) {
+                Section("Stops") {
                     ForEach(Array(route.sortedStops.enumerated()), id: \.element.id) { index, stop in
                         // A stop opens its page: services, notes, equipment, target time.
                         Button { editingStop = stop } label: {
@@ -81,6 +86,10 @@ struct RouteDetailView: View {
                     Button { showingOptimizeConfirm = true } label: {
                         Label("Optimize Order", systemImage: "arrow.triangle.swap")
                     }
+                    Button { showingMessageAll = true } label: {
+                        Label("Message All Clients", systemImage: "bubble.left.and.bubble.right")
+                    }
+                    .disabled(!canMessage)
                     .disabled(route.sortedStops.filter { $0.latitude != 0 }.count < 2)
                 } label: {
                     Image(systemName: "ellipsis.circle")
@@ -124,6 +133,9 @@ struct RouteDetailView: View {
         .sheet(isPresented: $showingEditRoute) {
             EditRouteView(route: route)
         }
+        .sheet(isPresented: $showingMessageAll) {
+            MassMessageView(stops: route.sortedStops, allClients: allClients)
+        }
         .sheet(item: $editingStop) { stop in
             StopDetailView(stop: stop, client: clientFor(stop))
         }
@@ -148,6 +160,61 @@ struct RouteDetailView: View {
             .allowsHitTesting(false)
             .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 6, trailing: 16))
         }
+    }
+
+    // MARK: - Load-Out
+
+    /// Before heading out: how many stops, about how long, what services to
+    /// load for, the equipment notes, and a way to tell every client today's
+    /// the day (the route screen's Message All, before the route starts).
+    private var loadOutSection: some View {
+        let stops = route.sortedStops
+        let minutes = RouteFacts.estimatedMinutes(of: stops, clients: allClients)
+        let lines = RouteFacts.loadOut(of: stops, clients: allClients,
+                                       services: ServiceLog.activeServices(allServices, operatorID: route.operatorID))
+        let equipment = Array(stops.enumerated()).filter { !$0.element.equipmentNotes.isEmpty }
+        return Section {
+            StatTileRow {
+                StatTile(value: "\(stops.count)", label: stops.count == 1 ? "Stop" : "Stops", color: .blue)
+                StatTile(value: minutes > 0 ? RouteFacts.duration(minutes) : "—", label: "About", color: .blue)
+                StatTile(value: "\(lines.count)", label: lines.count == 1 ? "Service" : "Services", color: .green)
+            }
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets())
+
+            ForEach(lines, id: \.name) { line in
+                LabeledContent {
+                    Text("\(line.stops) stop\(line.stops == 1 ? "" : "s")").monospacedDigit()
+                } label: {
+                    Label(line.name, systemImage: ServiceIcon.symbol(for: line.name))
+                }
+            }
+            ForEach(equipment, id: \.element.id) { index, stop in
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Image(systemName: "wrench.and.screwdriver").foregroundStyle(.orange)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(stop.equipmentNotes).font(.subheadline)
+                        Text("Stop \(index + 1) · \(stop.clientName)").font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            }
+            if canMessage {
+                Button { showingMessageAll = true } label: {
+                    Label("Message All Clients", systemImage: "bubble.left.and.bubble.right")
+                }
+            }
+        } header: {
+            Text("Load-Out")
+        } footer: {
+            if lines.isEmpty {
+                Text("Tap a stop to set the services it needs.")
+            }
+        }
+    }
+
+    /// Any stop with a client and a phone to text.
+    private var canMessage: Bool {
+        route.sortedStops.contains { !$0.isCustomStop && !$0.clientPhone.isEmpty }
     }
 
     // MARK: - Stop Row
@@ -268,14 +335,6 @@ struct RouteDetailView: View {
     private func clientFor(_ stop: RouteStop) -> Client? {
         guard !stop.isCustomStop else { return nil }
         return allClients.first { $0.id == stop.clientID }
-    }
-
-    private var stopsSectionHeader: String {
-        let count = route.sortedStops.count
-        var label = "\(count) stop\(count == 1 ? "" : "s")"
-        let minutes = RouteFacts.estimatedMinutes(of: route.sortedStops, clients: allClients)
-        if minutes > 0 { label += " · about \(RouteFacts.duration(minutes))" }
-        return label
     }
 
     // MARK: - Route Optimization

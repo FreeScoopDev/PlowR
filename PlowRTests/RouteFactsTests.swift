@@ -65,4 +65,20 @@ struct RouteFactsTests {
         #expect(RouteFacts.lastRunText(ago(3), now: now, calendar: calendar) == "Last run 3 days ago")
         #expect(RouteFacts.lastRunText(ago(9), now: now, calendar: calendar).hasPrefix("Last run Sep"))
     }
+
+    // The load-out: each service the stops expect, and at how many stops, in
+    // catalog order; services no longer active are left off.
+    @Test func theLoadOutCountsStopsPerService() throws {
+        let h = try Harness(stopCount: 3)
+        let services: [StopRecording.Service] = [
+            .init(id: "clear", name: "Clear", unitType: "flat", pricePerUnit: 40),
+            .init(id: "salt", name: "Salt", unitType: "flat", pricePerUnit: 10),
+        ]
+        h.clients[0].expectedServiceIDs = ["salt", "clear"]
+        h.clients[1].expectedServiceIDs = ["clear", "retired"]
+        let stops = h.route.sortedStops
+        StopServices.setForThisRoute(["salt", "salt"], on: stops[2])   // its own list, a duplicate counts once
+        let lines = RouteFacts.loadOut(of: stops, clients: h.clients, services: services)
+        #expect(lines == [.init(name: "Clear", stops: 2), .init(name: "Salt", stops: 2)])
+    }
 }

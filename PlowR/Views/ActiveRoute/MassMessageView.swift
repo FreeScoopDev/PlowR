@@ -18,6 +18,7 @@ struct MassMessageView: View {
     @State private var stoppedNote: String?
 
     private let presets: [(String, String)] = [
+        ("Coming Today",  "Just letting you know we'll be at your property today."),
         ("On My Way",     "I'll be at your property soon."),
         ("Move Vehicles", "Please move any vehicles from the driveway when you get a chance."),
         ("Running Late",  "Running slightly behind schedule — I'll be there shortly, thank you for your patience."),
