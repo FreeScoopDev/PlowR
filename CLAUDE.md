@@ -68,9 +68,12 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   builds itself; only a manual archive uses it. Nothing bumps it automatically
   (the Archive-only `agvtool` script was removed in #2).
 - **`GENERATE_INFOPLIST_FILE = YES`** for the app, *and* there is a
-  `PlowR/Info.plist` with hand-written keys (usage strings, `UIBackgroundModes`,
-  `NSSupportsLiveActivities`, URL schemes). Both feed the built plist. Before
-  saying a key is missing, check both — and preferably the built artifact.
+  `PlowR/Info.plist`. Both feed the built plist. Since the Xcode 27 upgrade the
+  usage strings, `NSSupportsLiveActivities` and `ITSAppUsesNonExemptEncryption`
+  are `INFOPLIST_KEY_*` build settings (Debug and Release, both), and the file
+  keeps only what has no build setting: `UIBackgroundModes`, URL schemes,
+  `LSApplicationQueriesSchemes`, the icon name. Before saying a key is missing,
+  check both — and preferably the built artifact.
 - **Tests must never touch real CloudKit.** A `ModelContainer` with a
   `cloudKitDatabase:` config returns fine under `try?`, then CoreData sets
   CloudKit up asynchronously and *traps* when there is no iCloud account —

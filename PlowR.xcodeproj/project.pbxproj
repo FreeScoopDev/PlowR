@@ -44,13 +44,13 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		A1B2C3D4E5F60718293A4B5C /* Versions.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Versions.xcconfig; sourceTree = "<group>"; };
 		602AA0103018663F00841B7B /* PlowRWidgetsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PlowRWidgetsExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		602AA0123018663F00841B7B /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		602AA0143018663F00841B7B /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		606443C4303FCBBB004C8A82 /* PlowRTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PlowRTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		60764F30303A02B500470FA3 /* PlowRWidgetsExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PlowRWidgetsExtension.entitlements; sourceTree = "<group>"; };
 		60E5946A3017F85100347251 /* PlowR.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PlowR.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1B2C3D4E5F60718293A4B5C /* Versions.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Versions.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -578,7 +578,16 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = PlowR/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = PlowR;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "PlowR adds your visits to a “PlowR” calendar and updates or removes those events when visits change. It doesn’t read or change your other events.";
+				INFOPLIST_KEY_NSCalendarsUsageDescription = "PlowR adds your visits to a “PlowR” calendar and updates or removes those events when visits change. It doesn’t read or change your other events.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "PlowR uses your camera to capture before and after photos of service stops, and to scan business cards when adding new clients.";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "During a route, PlowR uses your location in the background to notice when you leave a stop, so it can prompt you to notify the next client.";
+				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "During a route, PlowR uses your location in the background to notice when you leave a stop, so it can prompt you to notify the next client.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "PlowR uses your location to show where you are on the route map, estimate arrival times for your clients, and show your local weather.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "PlowR saves a job photo to your photo library when you choose Save Image.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -614,7 +623,16 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = PlowR/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = PlowR;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "PlowR adds your visits to a “PlowR” calendar and updates or removes those events when visits change. It doesn’t read or change your other events.";
+				INFOPLIST_KEY_NSCalendarsUsageDescription = "PlowR adds your visits to a “PlowR” calendar and updates or removes those events when visits change. It doesn’t read or change your other events.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "PlowR uses your camera to capture before and after photos of service stops, and to scan business cards when adding new clients.";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "During a route, PlowR uses your location in the background to notice when you leave a stop, so it can prompt you to notify the next client.";
+				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "During a route, PlowR uses your location in the background to notice when you leave a stop, so it can prompt you to notify the next client.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "PlowR uses your location to show where you are on the route map, estimate arrival times for your clients, and show your local weather.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "PlowR saves a job photo to your photo library when you choose Save Image.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
