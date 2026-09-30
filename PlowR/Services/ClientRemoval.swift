@@ -3,8 +3,8 @@ import SwiftData
 
 /// Taking a client off their routes: when they're marked inactive, or
 /// deleted. A deleted client's visits still ahead go too, and so do their
-/// photos (only the client's page shows them). Their invoices, proposals
-/// and past visits are kept or deleted, as the user chooses.
+/// photos (only the client's page shows them). Their invoices, proposals,
+/// past visits and Service Log are kept or deleted, as the user chooses.
 ///
 /// Deleting a client used to leave their stops on every route, though the
 /// prompt said they'd be removed, and their visits on the schedule. An
@@ -27,8 +27,8 @@ enum ClientRemoval {
 
     /// A visit still ahead on the schedule: dated from `now` on and not
     /// completed. It goes with the client. Anything dated earlier is history
-    /// (routes don't mark visits complete, so a visit done from a route is
-    /// still "scheduled"), and so is a visit already completed.
+    /// (a visit done on a route is still "scheduled" unless it was the
+    /// client's one visit that day), and so is a visit already completed.
     static func isAhead(_ visit: ScheduledVisit, now: Date) -> Bool {
         visit.scheduledDate >= now && visit.status != .completed
     }
@@ -104,6 +104,7 @@ enum ClientRemoval {
         }
         if !keepingRecords {
             for document in documents(of: id, in: context) { context.delete(document) }
+            for record in ServiceLog.records(ofClient: id, in: context) { context.delete(record) }
         }
         for photo in photos(of: id, in: context) { context.delete(photo) }
         context.delete(client)

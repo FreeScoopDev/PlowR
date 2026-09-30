@@ -99,7 +99,7 @@ struct ScheduleView: View {
                             client: client,
                             isInvoiceMode: true,
                             linkedVisitID: visit.id.uuidString,
-                            afterHoursMultiplier: visit.isAfterHours ? visit.afterHoursMultiplier : 1.0
+                            afterHoursMultiplier: visit.priceMultiplier
                         )
                     }
                 }
@@ -401,13 +401,9 @@ struct ScheduleView: View {
     }
 
     private func markComplete(_ visit: ScheduledVisit) {
-        visit.status = .completed
-        visit.completedAt = Date()
-
-        // A series is created up front, so its next visit usually exists already;
-        // adding another duplicated it on every completion. Only a series with
-        // nothing still scheduled after this visit gets one more.
-        ClientVisits.addNext(after: visit, among: allVisits, in: modelContext)
+        // Also continues the series if it needs a next visit, and records the
+        // work in the Service Log.
+        ServiceLog.complete(visit, among: allVisits, in: modelContext)
     }
 }
 

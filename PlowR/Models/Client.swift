@@ -45,6 +45,11 @@ final class Client {
         (zones ?? []).sorted { $0.sortOrder < $1.sortOrder }
     }
 
+    /// The mapped zones, as pricing reads them.
+    var pricingZones: [InvoiceLines.Zone] {
+        sortedZones.map { InvoiceLines.Zone(label: $0.label, areaSquareFeet: $0.areaSquareFeet) }
+    }
+
     init(name: String, phone: String, address: String, operatorID: String) {
         self.name = name
         self.phone = phone
