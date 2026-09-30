@@ -30,8 +30,15 @@ enum WorkBilling {
         let client: Client
         /// One per job, oldest first, as the invoice lists them.
         let records: [ServiceRecord]
+        /// What each job charges (ServiceLog.charge): under a per-visit
+        /// contract, its price; services a contract covers, nothing.
+        var charges: [UUID: [ServiceRecord.Line]] = [:]
         var id: UUID { client.id }
-        var total: Double { InvoiceLines.roundedToCent(records.reduce(0) { $0 + ServiceLog.total(of: $1) }) }
+        var total: Double {
+            InvoiceLines.roundedToCent(records.reduce(0) { sum, record in
+                sum + (charges[record.id] ?? record.lines).reduce(0) { $0 + $1.price }
+            })
+        }
     }
 
     /// Each of this operator's clients with work not billed yet in `range`,
@@ -52,18 +59,27 @@ enum WorkBilling {
         guard let all = try? context.fetch(FetchDescriptor<ServiceRecord>()),
               let clients = try? context.fetch(FetchDescriptor<Client>()) else { return [] }
         let invoiceIDs = ServiceLog.invoiceIDs(in: context)
+        let contracts = Contracts.all(in: context)
         let byID = Dictionary(clients.map { ($0.id.uuidString, $0) }, uniquingKeysWith: { first, _ in first })
         let mine = all.filter { $0.operatorID == operatorID && (clientID == nil || $0.clientID == clientID) }
         let jobs = oneRecordPerJob(mine, invoiceIDs: invoiceIDs)
-        // Cheapest checks first: decoding a record's services comes last.
+        // Cheapest checks first: decoding a record's services comes last. A
+        // job a contract covers entirely charges nothing, and isn't billed.
+        var charges: [UUID: [ServiceRecord.Line]] = [:]
         let toBill = jobs.filter { record in
-            (range?.contains(record.performedAt) ?? true)
-                && ServiceLog.billingStatus(of: record, invoiced: invoiceIDs.contains(record.invoiceID)) == .notBilled
-                && !record.lines.isEmpty
+            guard range?.contains(record.performedAt) ?? true else { return false }
+            let charge = ServiceLog.charge(of: record, contracts: contracts)
+            charges[record.id] = charge
+            let covered = !record.lines.isEmpty && charge.isEmpty
+            return ServiceLog.billingStatus(of: record, invoiced: invoiceIDs.contains(record.invoiceID),
+                                            covered: covered) == .notBilled && !charge.isEmpty
         }
         return Dictionary(grouping: toBill, by: \.clientID)
             .compactMap { clientID, records in
-                byID[clientID].map { ClientWork(client: $0, records: records.sorted { $0.performedAt < $1.performedAt }) }
+                byID[clientID].map {
+                    ClientWork(client: $0, records: records.sorted { $0.performedAt < $1.performedAt },
+                               charges: charges.filter { id, _ in records.contains { $0.id == id } })
+                }
             }
             .sorted { $0.client.name.localizedCaseInsensitiveCompare($1.client.name) == .orderedAscending }
     }
@@ -101,8 +117,16 @@ enum WorkBilling {
         func copies(of record: ServiceRecord) -> [ServiceRecord] {
             record.sourceKey.isEmpty ? [record] : copiesByKey[record.sourceKey] ?? [record]
         }
+        // What each charges now: a contract signed or cancelled since counts.
+        let contracts = Contracts.all(in: context)
+        let charges = Dictionary(uniqueKeysWithValues: work.records.compactMap { live[$0.id] }.map {
+            ($0.id, ServiceLog.charge(of: $0, contracts: contracts))
+        })
         let jobs = work.records.compactMap { live[$0.id] }.filter { record in
-            ServiceLog.billingStatus(of: record, invoiced: false) == .notBilled
+            // A contract signed since the list was made counts: covered now, left off.
+            ServiceLog.billingStatus(of: record, invoiced: false,
+                                     covered: !record.lines.isEmpty && (charges[record.id] ?? []).isEmpty) == .notBilled
+                && !(charges[record.id] ?? []).isEmpty
                 && !copies(of: record).contains { invoiceIDs.contains($0.invoiceID) }
         }
         guard !jobs.isEmpty else { return nil }
@@ -113,7 +137,7 @@ enum WorkBilling {
             if !record.propertyAddress.isEmpty, record.propertyAddress != work.client.address {
                 note += " · \(record.propertyAddress)"
             }
-            for line in record.lines {
+            for line in charges[record.id] ?? record.lines {
                 let item = ProposalLineItem(serviceName: line.name, zoneLabel: "", quantity: 1, unitType: "flat",
                                             unitPrice: line.price, sortOrder: items.count, itemNotes: note)
                 item.lineTotal = line.price

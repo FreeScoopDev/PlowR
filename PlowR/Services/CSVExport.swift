@@ -99,14 +99,17 @@ enum CSVExport {
         let invoices = (try? context.fetch(FetchDescriptor<Proposal>())) ?? []
         let numbers = Dictionary(invoices.filter(\.isInvoice).map { ($0.id.uuidString, $0.invoiceNumber) },
                                  uniquingKeysWith: { first, _ in first })
+        let contracts = Contracts.all(in: context)
         let rows = records.filter { $0.operatorID == operatorID }
             .sorted { $0.performedAt < $1.performedAt }
             .map { record -> [Cell] in
                 let number = numbers[record.invoiceID]
-                let status: String = switch ServiceLog.billingStatus(of: record, invoiced: number != nil) {
+                let status: String = switch ServiceLog.billingStatus(
+                    of: record, invoiced: number != nil, covered: ServiceLog.isCovered(record, contracts: contracts)) {
                 case .invoiced: "Invoiced"
                 case .notTracked: "Billing Not Tracked"
                 case .noCharge: "No Charge"
+                case .covered: "Covered by Contract"
                 case .notBilled: "Not Billed"
                 }
                 let source: String = switch record.source {
@@ -119,10 +122,15 @@ enum CSVExport {
                         .plain(source), .text(record.routeName),
                         .text(record.lines.map(\.name).joined(separator: "; ")),
                         .plain(record.minutes >= 1 ? "\(Int(record.minutes.rounded()))" : ""),
-                        money(ServiceLog.total(of: record)), .plain(status), .text(number ?? ""), .text(record.notes)]
+                        money(ServiceLog.total(of: record)),
+                        money(InvoiceLines.roundedToCent(ServiceLog.charge(of: record, contracts: contracts)
+                            .reduce(0) { $0 + $1.price })),
+                        .plain(status), .text(number ?? ""), .text(record.notes)]
             }
+        // Total is what the work came to; Charged, what it bills (under a
+        // contract: its price, or nothing for work it covers).
         return document(header: ["Date", "Client", "Address", "Recorded From", "Route", "Services", "Minutes",
-                                 "Total", "Billing", "Invoice", "Notes"], rows: rows)
+                                 "Total", "Charged", "Billing", "Invoice", "Notes"], rows: rows)
     }
 
     /// `contents` written to a temporary file named for PlowR, `kind` and the
