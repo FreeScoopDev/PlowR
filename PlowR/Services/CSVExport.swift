@@ -73,10 +73,25 @@ enum CSVExport {
                 [.text(invoice.invoiceNumber), .text(invoice.clientName), .plain(invoice.invoiceStatus.rawValue),
                  day(invoice.createdAt), day(invoice.invoiceSentAt), day(invoice.invoiceDueDate), day(invoice.invoicePaidAt),
                  money(invoice.subtotal), money(invoice.appliedDiscount), money(invoice.taxAmount),
-                 money(invoice.total), .text(invoice.revisionOf)]
+                 money(invoice.total), money(invoice.amountPaid), money(invoice.balanceDue), .text(invoice.revisionOf)]
             }
         return document(header: ["Invoice", "Client", "Status", "Created", "Sent", "Due", "Paid",
-                                 "Subtotal", "Discount", "Tax", "Total", "Revision Of"], rows: rows)
+                                 "Subtotal", "Discount", "Tax", "Total", "Amount Paid", "Balance Due", "Revision Of"],
+                        rows: rows)
+    }
+
+    /// Every payment received, oldest first: what the business's books need
+    /// to match deposits. An invoice marked paid before payments were kept
+    /// has none, and shows as paid in Invoices.
+    static func payments(_ documents: [Proposal], operatorID: String) -> String {
+        let rows = documents.filter { $0.operatorID == operatorID && $0.isInvoice }
+            .flatMap { invoice in invoice.sortedPayments.map { (invoice, $0) } }
+            .sorted { $0.1.receivedAt < $1.1.receivedAt }
+            .map { invoice, payment -> [Cell] in
+                [day(payment.receivedAt), .text(invoice.invoiceNumber), .text(invoice.clientName),
+                 money(payment.amount), .text(payment.method), .text(payment.note)]
+            }
+        return document(header: ["Received", "Invoice", "Client", "Amount", "Method", "Note"], rows: rows)
     }
 
     /// Every job in the Service Log, oldest first, one row per job.

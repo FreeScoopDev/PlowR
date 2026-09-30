@@ -13,11 +13,11 @@ struct ClientVisitSummaryView: View {
     }
 
     private var outstanding: Double {
-        clientInvoices.filter { $0.invoicePaidAt == nil }.reduce(0) { $0 + $1.total }
+        Payments.owed(clientInvoices)
     }
 
     private var paid: Double {
-        clientInvoices.filter { $0.invoicePaidAt != nil }.reduce(0) { $0 + $1.total }
+        Payments.received(clientInvoices)
     }
 
     private var goalDiff: Double? {

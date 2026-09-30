@@ -99,7 +99,7 @@ struct PDFGenerator {
             y += 16
 
             // Totals — break page if not enough room
-            if y + 100 > pageBottom {
+            if y + 140 > pageBottom {
                 drawFooter(profile: profile, pageW: pageW, pageH: pageH, margin: margin, contentW: contentW)
                 ctx.beginPage()
                 y = margin
@@ -571,6 +571,19 @@ struct PDFGenerator {
         drawHRule(x: lX, y: curY, width: lW + vW, weight: 0.75, color: ruleMid)
         curY += 12
 
+        // Paid in part: the total, what's been paid, and the balance still due.
+        if isInvoice, proposal.isPartlyPaid {
+            subtotalRow("Total", value: proposal.total, lX: lX, lW: lW, vX: vX, vW: vW, y: curY)
+            curY += 17
+            subtotalRow("Paid", value: proposal.amountPaid, lX: lX, lW: lW, vX: vX, vW: vW, y: curY, negate: true)
+            curY += 20
+            drawText("BALANCE DUE", x: lX, y: curY, width: lW,
+                     font: labelFont(10), color: accent, kern: 1.5, alignment: .right)
+            drawText(String(format: "$%.2f", proposal.balanceDue), x: vX, y: curY, width: vW,
+                     font: bodyBoldFont(14), color: ink, alignment: .right)
+            return curY + 24
+        }
+
         let totalLabel = isInvoice ? "TOTAL DUE" : "TOTAL"
         drawText(totalLabel, x: lX, y: curY, width: lW,
                  font: labelFont(10), color: accent, kern: 1.5, alignment: .right)
@@ -723,8 +736,8 @@ struct PDFGenerator {
         let invoices         = proposals.filter { $0.isInvoice }
         let totalVisits      = clients.reduce(0)   { $0 + $1.totalVisits }
         let totalMinutes     = clients.reduce(0.0) { $0 + $1.totalServiceMinutes }
-        let totalRevenue     = proposals.filter { $0.invoicePaidAt != nil }.reduce(0.0) { $0 + $1.total }
-        let totalOutstanding = invoices.filter { $0.invoicePaidAt == nil }.reduce(0.0) { $0 + $1.total }
+        let totalRevenue     = Payments.received(proposals)
+        let totalOutstanding = Payments.owed(invoices)
         let activeClients    = clients.filter { $0.totalVisits > 0 }.sorted { $0.totalVisits > $1.totalVisits }
 
         let renderer = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: pageW, height: pageH))
@@ -777,26 +790,9 @@ struct PDFGenerator {
     }
 
     private static func seasonMonthBuckets(from proposals: [Proposal]) -> [SeasonMonthBucket] {
-        let cal    = Calendar.current
-        var map:   [String: (rev: Double, out: Double)] = [:]
-        let keyFmt = DateFormatter(); keyFmt.dateFormat = "yyyy-MM"
         let lblFmt = DateFormatter(); lblFmt.dateFormat = "MMM yyyy"
-
-        for proposal in proposals where proposal.isInvoice {
-            let refDate = proposal.invoicePaidAt ?? proposal.invoiceSentAt ?? proposal.createdAt
-            let comps   = cal.dateComponents([.year, .month], from: refDate)
-            guard let year = comps.year, let month = comps.month else { continue }
-            let key    = String(format: "%04d-%02d", year, month)
-            var bucket = map[key] ?? (rev: 0, out: 0)
-            if proposal.invoicePaidAt != nil { bucket.rev += proposal.total }
-            else { bucket.out += proposal.total }
-            map[key] = bucket
-        }
-
-        return map.sorted { $0.key > $1.key }.prefix(12).compactMap { key, vals in
-            guard let date = keyFmt.date(from: key) else { return nil }
-            return SeasonMonthBucket(label: lblFmt.string(from: date),
-                                     revenue: vals.rev, outstanding: vals.out)
+        return Payments.byMonth(proposals).map { month in
+            SeasonMonthBucket(label: lblFmt.string(from: month.start), revenue: month.received, outstanding: month.owed)
         }
     }
 
@@ -955,9 +951,7 @@ struct PDFGenerator {
                 ctx.beginPage()
                 curY = margin
             }
-            let collected = proposals
-                .filter { $0.clientID == client.id.uuidString && $0.invoicePaidAt != nil }
-                .reduce(0.0) { $0 + $1.total }
+            let collected = Payments.received(proposals.filter { $0.clientID == client.id.uuidString })
             let lastStr = client.lastServiceDate.map { dateFmt.string(from: $0) } ?? "—"
             let collStr = collected > 0 ? String(format: "$%.0f", collected) : "—"
             drawText(client.name, x: margin, y: curY, width: c1,

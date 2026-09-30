@@ -64,7 +64,7 @@ struct ClientTimelineView: View {
             if let record = try? modelContext.fetch(FetchDescriptor<ServiceRecord>()).first(where: { $0.id == id }) {
                 NavigationLink { ServiceRecordDetailView(record: record, client: client) } label: { content }
             } else { content }
-        case .quote(let id), .invoiceMade(let id), .invoiceSent(let id), .invoicePaid(let id):
+        case .quote(let id), .invoiceMade(let id), .invoiceSent(let id), .invoicePaid(let id), .payment(let id):
             if let document = try? modelContext.fetch(FetchDescriptor<Proposal>()).first(where: { $0.id == id }) {
                 NavigationLink { ProposalDetailView(proposal: document) } label: { content }
             } else { content }
@@ -87,6 +87,7 @@ struct ClientTimelineView: View {
         case .invoiceMade: "Invoice made"
         case .invoiceSent: "Invoice sent"
         case .invoicePaid: "Invoice paid"
+        case .payment: "Payment received"
         case .photos: "Photos taken"
         }
         return [what, when, event.detail].filter { !$0.isEmpty }.joined(separator: " · ")
@@ -103,6 +104,7 @@ struct ClientTimelineView: View {
         case .invoiceMade: "doc.badge.arrow.up"
         case .invoiceSent: "paperplane.fill"
         case .invoicePaid: "dollarsign.circle.fill"
+        case .payment: "banknote"
         case .photos: "photo.on.rectangle.angled"
         }
     }
@@ -111,7 +113,7 @@ struct ClientTimelineView: View {
     // missed, red cancelled.
     private func color(_ kind: ClientTimelineKind) -> Color {
         switch kind {
-        case .job, .invoicePaid: .green
+        case .job, .invoicePaid, .payment: .green
         case .upcomingVisit, .quote, .invoiceMade: .blue
         case .missedVisit, .skippedVisit, .invoiceSent: .orange
         case .cancelledVisit: .red
@@ -121,5 +123,10 @@ struct ClientTimelineView: View {
 }
 
 private extension ClientTimelineKind {
-    var isPaid: Bool { if case .invoicePaid = self { true } else { false } }
+    var isPaid: Bool {
+        switch self {
+        case .invoicePaid, .payment: true
+        default: false
+        }
+    }
 }

@@ -4,6 +4,7 @@ import SwiftData
 struct ProposalEditView: View {
     @Bindable var proposal: Proposal
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
 
     /// The discount, tax and due date typed here. Only the ones changed are saved.
     @State private var edits: DocumentEdits
@@ -16,7 +17,7 @@ struct ProposalEditView: View {
 
     // Done, Mark as Sent and a swipe down all save, so the total shown is the
     // total the document will have.
-    private func applyEdits() { edits.apply(to: proposal) }
+    private func applyEdits() { edits.apply(to: proposal, in: modelContext) }
 
     // MARK: - Body
 

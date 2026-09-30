@@ -39,9 +39,7 @@ struct ClientListView: View {
     private var isFiltered: Bool { sortOption != .name || filterOption != .all || activeTagFilter != nil || !searchText.isEmpty }
 
     private func outstandingBalance(for client: Client) -> Double {
-        allProposals
-            .filter { $0.clientID == client.id.uuidString && $0.isInvoice && $0.invoicePaidAt == nil }
-            .reduce(0) { $0 + $1.total }
+        Payments.owed(allProposals.filter { $0.clientID == client.id.uuidString })
     }
 
     private func hasOverdue(for client: Client) -> Bool {
@@ -100,15 +98,11 @@ struct ClientListView: View {
     }
 
     private var totalOutstanding: Double {
-        allProposals
-            .filter { $0.operatorID == authManager.userID && $0.isInvoice && $0.invoicePaidAt == nil }
-            .reduce(0) { $0 + $1.total }
+        Payments.owed(allProposals.filter { $0.operatorID == authManager.userID })
     }
 
     private var totalCollected: Double {
-        allProposals
-            .filter { $0.operatorID == authManager.userID && $0.isInvoice && $0.invoicePaidAt != nil }
-            .reduce(0) { $0 + $1.total }
+        Payments.received(allProposals.filter { $0.operatorID == authManager.userID })
     }
 
     var body: some View {

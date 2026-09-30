@@ -50,7 +50,7 @@ struct ProposalListView: View {
     }
 
     private var outstandingTotal: Double {
-        base.filter { $0.isInvoice && $0.invoicePaidAt == nil }.reduce(0) { $0 + $1.total }
+        Payments.owed(base)
     }
 
     private var overdueCount: Int { base.filter { $0.invoiceStatus == .overdue }.count }
@@ -229,7 +229,7 @@ struct ProposalListView: View {
             }
         } else if proposal.invoiceStatus == .sent || proposal.invoiceStatus == .overdue {
             Button {
-                DocumentSent.markPaid(proposal, in: modelContext)
+                Payments.payInFull(proposal, in: modelContext)
             } label: {
                 Label("Mark Paid", systemImage: "checkmark.seal.fill")
             }

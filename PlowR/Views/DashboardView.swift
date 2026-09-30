@@ -59,7 +59,7 @@ struct DashboardView: View {
     }
 
     private var outstandingBalance: Double {
-        myProposals.filter { $0.isInvoice && $0.invoicePaidAt == nil }.reduce(0) { $0 + $1.total }
+        Payments.owed(myProposals)
     }
 
     private var overdueCount: Int { myProposals.filter { $0.invoiceStatus == .overdue }.count }
