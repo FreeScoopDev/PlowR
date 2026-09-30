@@ -8,8 +8,8 @@ import SwiftData
 import Testing
 @testable import PlowR
 
-/// Keeping the Service Log whole: the same work recorded on two devices is
-/// merged, and completed visits are marked as in the log.
+/// Keeping the Service Log whole: visits completed without a record get one,
+/// once per visit, and the same work recorded on two devices is merged.
 @MainActor
 struct ServiceLogUpkeepTests {
     typealias Harness = ActiveRouteStoreTests.Harness
@@ -64,6 +64,182 @@ struct ServiceLogUpkeepTests {
         let again = ServiceLog.complete(visit, among: [visit], in: h.context, now: h.clock)
         #expect(again != nil)
         #expect(try records(h).count == 1)
+    }
+
+    // MARK: - Visits from before the log
+
+    @Test func completedVisitsAreCopiedInAsBillingNotTracked() throws {
+        let h = try Harness(stopCount: 2)
+        let mowing = ServiceItem(name: "Mowing", category: "lawn", unitType: "flat", pricePerUnit: 45, operatorID: "op")
+        h.context.insert(mowing)
+        let done = visit(h, h.clients[0], .completed, daysAgo: 10)
+        done.expectedServiceIDs = [mowing.id.uuidString]
+        let other = visit(h, h.clients[1], .completed, daysAgo: 3)
+        let ahead = visit(h, h.clients[0], .scheduled, daysAgo: -2)
+        let skipped = visit(h, h.clients[0], .skipped, daysAgo: 5)
+        try h.context.save()
+
+        #expect(ServiceLog.backfillCompletedVisits(in: h.context).made == 2)
+        let all = try records(h)
+        #expect(Set(all.map(\.visitID)) == [done.id.uuidString, other.id.uuidString])
+        let first = try #require(all.first { $0.visitID == done.id.uuidString })
+        #expect(first.source == .beforeLog)
+        #expect(first.clientName == h.clients[0].name)
+        #expect(first.performedAt == done.scheduledDate)
+        #expect(first.lines.map(\.price) == [45])
+        // Joe's call: never counted as owed.
+        #expect(!ServiceLog.isUnbilled(first, in: h.context))
+        #expect(ServiceLog.billingStatus(of: first, in: h.context) == .notTracked)
+        #expect(done.serviceLogged && other.serviceLogged)
+        #expect(!ahead.serviceLogged && !skipped.serviceLogged)
+        #expect(ServiceLog.backfillCompletedVisits(in: h.context).made == 0)
+    }
+
+    // A job the user deleted isn't made again: not at the next launch, and
+    // not by another device or a new phone, since the mark travels with the visit.
+    @Test func aDeletedJobIsNeverMadeAgain() throws {
+        let h = try Harness(stopCount: 1)
+        let done = visit(h, h.client, .completed, daysAgo: 4)
+        try h.context.save()
+        ServiceLog.backfillCompletedVisits(in: h.context)
+        let record = try #require(try records(h).first)
+        ServiceLog.deleteRecord(record, in: h.context)
+        try h.context.save()
+        #expect(done.serviceLogged)
+        #expect(ServiceLog.backfillCompletedVisits(in: h.context).made == 0)
+        #expect(try records(h).isEmpty)
+    }
+
+    // A visit whose client hasn't arrived on this device yet waits.
+    @Test func aVisitWithoutItsClientWaits() throws {
+        let h = try Harness(stopCount: 1)
+        let orphan = ScheduledVisit(operatorID: "op", clientID: UUID().uuidString, clientName: "Not here yet",
+                                    clientAddress: "", scheduledDate: h.clock)
+        orphan.status = .completed
+        h.context.insert(orphan)
+        try h.context.save()
+        #expect(ServiceLog.backfillCompletedVisits(in: h.context).made == 0)
+        #expect(!orphan.serviceLogged)
+    }
+
+    // A completed visit that already has a record (another device made it)
+    // is only marked.
+    @Test func aVisitThatHasARecordIsOnlyMarked() throws {
+        let h = try Harness(stopCount: 1)
+        let done = visit(h, h.client, .completed, daysAgo: 1)
+        h.context.insert(ServiceRecord(operatorID: "op", sourceKey: ServiceLog.visitKey(done.id), source: .visit))
+        try h.context.save()
+        #expect(ServiceLog.backfillCompletedVisits(in: h.context).made == 0)
+        #expect(done.serviceLogged)
+        #expect(try records(h).count == 1)
+    }
+
+    // Invoiced for the visit (Schedule → Invoice): that's known, so it shows
+    // as invoiced.
+    @Test func aVisitInvoicedBeforeTheLogShowsAsInvoiced() throws {
+        let h = try Harness(stopCount: 1)
+        let invoiced = visit(h, h.client, .completed, daysAgo: 4)
+        let invoice = Proposal(operatorID: "op", client: h.client)
+        invoice.invoiceNumber = "INV-0050"
+        h.context.insert(invoice)
+        invoiced.proposalID = invoice.id.uuidString
+        try h.context.save()
+        ServiceLog.backfillCompletedVisits(in: h.context)
+        let record = try #require(try records(h).first)
+        #expect(record.invoiceID == invoice.id.uuidString)
+        #expect(ServiceLog.billingStatus(of: record, in: h.context) == .invoiced)
+    }
+
+    // A long history goes in passes: each handles at most a batch and saves,
+    // and the passes together copy in all of it.
+    @Test func aLongHistoryIsCopiedInPasses() throws {
+        let h = try Harness(stopCount: 1)
+        let count = 25
+        for day in 0..<count { _ = visit(h, h.client, .completed, daysAgo: Double(day + 1)) }
+        try h.context.save()
+        var saves = 0
+        let observer = NotificationCenter.default.addObserver(forName: ModelContext.didSave, object: h.context,
+                                                              queue: nil) { _ in saves += 1 }
+        defer { NotificationCenter.default.removeObserver(observer) }
+        var passes: [Int] = []
+        while case let pass = ServiceLog.backfillCompletedVisits(in: h.context, limit: 10), pass.handled > 0 {
+            passes.append(pass.made)
+        }
+        #expect(passes == [10, 10, 5])
+        #expect(saves == 3)
+        #expect(try records(h).count == count)
+    }
+
+    // Visits of a client not on this device are left, and a pass with only
+    // those to look at does nothing.
+    @Test func onlyVisitsWithoutTheirClientMeansNothingToDo() throws {
+        let h = try Harness(stopCount: 1)
+        let orphan = ScheduledVisit(operatorID: "op", clientID: UUID().uuidString, clientName: "Gone",
+                                    clientAddress: "", scheduledDate: h.clock)
+        orphan.status = .completed
+        h.context.insert(orphan)
+        try h.context.save()
+        #expect(ServiceLog.backfillCompletedVisits(in: h.context).handled == 0)
+    }
+
+    // The visit's invoice hadn't arrived from iCloud when the job was copied
+    // in (or was made later on an older PlowR): it catches up.
+    @Test func aCopiedJobCatchesUpWithItsVisitsInvoice() throws {
+        let h = try Harness(stopCount: 1)
+        let done = visit(h, h.client, .completed, daysAgo: 4)
+        let invoiceID = UUID()
+        done.proposalID = invoiceID.uuidString                           // not arrived yet
+        try h.context.save()
+        ServiceLog.backfillCompletedVisits(in: h.context)
+        let record = try #require(try records(h).first)
+        #expect(ServiceLog.billingStatus(of: record, in: h.context) == .notTracked)
+
+        let invoice = Proposal(operatorID: "op", client: h.client)
+        invoice.id = invoiceID
+        invoice.invoiceNumber = "INV-0080"
+        h.context.insert(invoice)
+        #expect(ServiceLog.linkEarlierVisits(in: h.context) == 1)
+        #expect(ServiceLog.billingStatus(of: record, in: h.context) == .invoiced)
+        #expect(ServiceLog.linkEarlierVisits(in: h.context) == 0)
+    }
+
+    // Copied in before the catalog had arrived: its services catch up too.
+    @Test func aCopiedJobCatchesUpWithTheCatalog() throws {
+        let h = try Harness(stopCount: 1)
+        let mowingID = UUID()
+        let done = visit(h, h.client, .completed, daysAgo: 4)
+        done.expectedServiceIDs = [mowingID.uuidString]
+        try h.context.save()
+        ServiceLog.backfillCompletedVisits(in: h.context)
+        let record = try #require(try records(h).first)
+        #expect(record.lines.isEmpty)
+        let mowing = ServiceItem(name: "Mowing", category: "lawn", unitType: "flat", pricePerUnit: 45, operatorID: "op")
+        mowing.id = mowingID
+        h.context.insert(mowing)
+        ServiceLog.linkEarlierVisits(in: h.context)
+        #expect(record.lines.map(\.name) == ["Mowing"])
+    }
+
+    // MARK: - Billing status
+
+    @Test func theBillingStatusOfEachKindOfJob() throws {
+        let h = try Harness(stopCount: 1)
+        let invoice = Proposal(operatorID: "op", client: h.client)
+        invoice.invoiceNumber = "INV-0070"
+        h.context.insert(invoice)
+        func record(_ source: ServiceRecordSource, billable: Bool = true, invoiced: Bool = false) -> ServiceRecord {
+            let record = ServiceRecord(operatorID: "op", sourceKey: "k:\(UUID())", source: source)
+            record.isBillable = billable
+            if invoiced { record.invoiceID = invoice.id.uuidString }
+            h.context.insert(record)
+            return record
+        }
+        #expect(ServiceLog.billingStatus(of: record(.visit), in: h.context) == .notBilled)
+        #expect(ServiceLog.billingStatus(of: record(.visit, billable: false), in: h.context) == .noCharge)
+        #expect(ServiceLog.billingStatus(of: record(.route, invoiced: true), in: h.context) == .invoiced)
+        #expect(ServiceLog.billingStatus(of: record(.beforeLog), in: h.context) == .notTracked)
+        #expect(ServiceLog.billingStatus(of: record(.beforeLog, billable: false), in: h.context) == .notTracked)
+        #expect(ServiceLog.billingStatus(of: record(.beforeLog, invoiced: true), in: h.context) == .invoiced)
     }
 
     // MARK: - Merging
@@ -180,6 +356,20 @@ struct ServiceLogUpkeepTests {
         [newer, older].forEach { h.context.insert($0) }
         ServiceLog.mergeDuplicates(in: h.context, now: h.clock.addingTimeInterval(aDayLater))
         #expect(older.source == .route)
+    }
+
+    // A copy made before the log and one tracked on another device: the
+    // tracked one's source wins, whichever is older.
+    @Test func trackedWorkWinsOverACopyFromBeforeTheLog() throws {
+        let h = try Harness(stopCount: 1)
+        let newer = copy(h, secondsAfter: 5)
+        newer.source = .visit
+        let older = copy(h, secondsAfter: 0)
+        older.source = .beforeLog
+        [newer, older].forEach { h.context.insert($0) }
+        ServiceLog.mergeDuplicates(in: h.context, now: h.clock.addingTimeInterval(aDayLater))
+        #expect(older.source == .visit)
+        #expect(ServiceLog.isUnbilled(older, in: h.context))
     }
 
     // On two different invoices, it's billed twice for real: both stay.

@@ -113,18 +113,17 @@ struct ServiceRecordRow: View {
     }
 }
 
-/// Billed, not billed yet, or no charge: the Service Log's one status.
+/// Where a job stands with billing (ServiceLog.billingStatus).
 struct ServiceRecordStatusChip: View {
     let record: ServiceRecord
     @Environment(\.modelContext) private var modelContext
 
     var body: some View {
-        let (text, colour): (String, Color) = if !record.isBillable {
-            ("No Charge", .purple)
-        } else if ServiceLog.isUnbilled(record, in: modelContext) {
-            ("Not Billed", .orange)
-        } else {
-            ("Invoiced", .green)
+        let (text, colour): (String, Color) = switch ServiceLog.billingStatus(of: record, in: modelContext) {
+        case .invoiced: ("Invoiced", .green)
+        case .notTracked: ("Billing Not Tracked", .gray)
+        case .noCharge: ("No Charge", .purple)
+        case .notBilled: ("Not Billed", .orange)
         }
         Text(text)
             .font(.caption2.weight(.semibold))
