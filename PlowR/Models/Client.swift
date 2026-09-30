@@ -40,6 +40,8 @@ final class Client {
     }
 
     @Relationship(deleteRule: .cascade, inverse: \PropertyZone.client) var zones: [PropertyZone]?
+    /// Additional properties; the client's own address is their main one (Place).
+    @Relationship(deleteRule: .cascade, inverse: \Property.client) var properties: [Property]?
 
     var sortedZones: [PropertyZone] {
         (zones ?? []).sorted { $0.sortOrder < $1.sortOrder }
@@ -73,12 +75,26 @@ extension Client {
     /// were left out because their client is inactive, so the user can be told.
     static func routeClients(for visits: [ScheduledVisit], from clients: [Client],
                              operatorID: String) -> (clients: [Client], skippedInactive: Int) {
-        var chosen: [Client] = []
+        let stops = routeStops(for: visits, from: clients, operatorID: operatorID)
+        return (stops.stops.map(\.client), stops.skippedInactive)
+    }
+
+    /// As `routeClients`, with each visit's place (Place): a stop goes where
+    /// the visit was booked, the client's own address or one of their
+    /// properties. A visit at a place missing here (its property not synced
+    /// yet) is left off rather than sent to the main address.
+    static func routeStops(for visits: [ScheduledVisit], from clients: [Client], operatorID: String)
+        -> (stops: [(client: Client, place: Place)], skippedInactive: Int) {
+        var chosen: [(client: Client, place: Place)] = []
         var skipped = 0
         for visit in visits {
             guard let client = clients.first(where: { $0.id.uuidString == visit.clientID && $0.operatorID == operatorID })
             else { continue }
-            if client.isActive { chosen.append(client) } else { skipped += 1 }
+            if !client.isActive {
+                skipped += 1
+            } else if let place = Place.of(client, propertyID: visit.propertyID) {
+                chosen.append((client, place))
+            }
         }
         return (chosen, skipped)
     }

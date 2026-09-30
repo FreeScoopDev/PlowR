@@ -172,3 +172,39 @@ enum ClientRemoval {
         (try? context.fetch(FetchDescriptor<StopPhoto>(predicate: #Predicate { $0.clientID == clientID }))) ?? []
     }
 }
+
+/// Removing one of a client's additional properties: its stops come off
+/// their routes and its visits not done yet from the start of today are
+/// deleted (as ClientVisits follows them: one left behind would have nowhere
+/// to be); its done visits, jobs, invoices and photos stay as the client's
+/// history. Only the property's client's: a visit is matched by client and
+/// property both.
+enum PropertyRemoval {
+    /// How many stops and upcoming visits removing `property` takes with it.
+    static func footprint(of property: Property, in context: ModelContext, now: Date = .now) -> (stops: Int, visits: Int) {
+        (stops(of: property, in: context).count, visitsLeft(of: property, in: context, now: now).count)
+    }
+
+    static func remove(_ property: Property, in context: ModelContext, now: Date = .now) {
+        stops(of: property, in: context).forEach { context.delete($0) }
+        visitsLeft(of: property, in: context, now: now).forEach { context.delete($0) }
+        context.delete(property)
+        try? context.save()
+    }
+
+    private static func stops(of property: Property, in context: ModelContext) -> [RouteStop] {
+        let id = property.id.uuidString
+        let clientID = property.client?.id
+        let stops = (try? context.fetch(FetchDescriptor<RouteStop>(predicate: #Predicate { $0.propertyID == id }))) ?? []
+        return stops.filter { $0.clientID == clientID }
+    }
+
+    private static func visitsLeft(of property: Property, in context: ModelContext, now: Date) -> [ScheduledVisit] {
+        let id = property.id.uuidString
+        let clientID = property.client?.id.uuidString ?? ""
+        let visits = (try? context.fetch(FetchDescriptor<ScheduledVisit>(predicate: #Predicate {
+            $0.propertyID == id && $0.clientID == clientID
+        }))) ?? []
+        return visits.filter { ClientVisits.follows($0, now: now) }
+    }
+}

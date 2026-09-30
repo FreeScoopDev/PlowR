@@ -96,6 +96,9 @@ struct AccountEraserTests {
                 ServiceRecord(operatorID: "op", sourceKey: "visit:\(UUID().uuidString)", source: .visit),
             ]
             others.forEach { context.insert($0) }
+            let property = Property(label: "North lot", address: "2 Elm St", operatorID: "op")
+            context.insert(property)
+            property.client = client
             try context.save()
             routeStore.configure(context: context)
             routeStore.start(route)

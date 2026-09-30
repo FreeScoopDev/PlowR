@@ -35,6 +35,9 @@ final class ScheduledVisit {
     /// (ServiceLog.backfillCompletedVisits) skips these, on every device, and
     /// never remakes a record the user deleted.
     var serviceLogged: Bool = false
+    /// The property the visit is at (Place): empty or the client's ID for
+    /// their own address.
+    var propertyID: String = ""
 
     var status: VisitStatus {
         get { VisitStatus(rawValue: statusRaw) ?? .scheduled }
@@ -99,6 +102,7 @@ final class ScheduledVisit {
         next.seriesID = seriesID
         next.isAfterHours = isAfterHours
         next.afterHoursMultiplier = afterHoursMultiplier
+        next.propertyID = propertyID
         return next
     }
 }

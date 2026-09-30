@@ -28,9 +28,12 @@ enum ClientStops {
         var changed = false
         if stop.clientName != client.name { stop.clientName = client.name; changed = true }
         if stop.clientPhone != client.phone { stop.clientPhone = client.phone; changed = true }
-        if stop.clientAddress != client.address { stop.clientAddress = client.address; changed = true }
-        if stop.latitude != client.latitude { stop.latitude = client.latitude; changed = true }
-        if stop.longitude != client.longitude { stop.longitude = client.longitude; changed = true }
+        // The address and pin are its place's: the client's own, or one of
+        // their properties (Place). A missing place's stop keeps its own.
+        guard let place = Place.of(client, propertyID: stop.propertyID) else { return changed }
+        if stop.clientAddress != place.address { stop.clientAddress = place.address; changed = true }
+        if stop.latitude != place.latitude { stop.latitude = place.latitude; changed = true }
+        if stop.longitude != place.longitude { stop.longitude = place.longitude; changed = true }
         return changed
     }
 

@@ -25,6 +25,7 @@ struct PlowRApp: App {
         StopPhoto.self,
         ScheduledVisit.self,
         ServiceRecord.self,
+        Property.self,
     ]
 
     init() {

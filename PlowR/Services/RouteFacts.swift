@@ -19,7 +19,9 @@ enum RouteFacts {
     /// A stop's target time: its own (set on its page, or from the client's
     /// goal when the route was built), or else the client's goal now. 0: none.
     static func targetMinutes(of stop: RouteStop, client: Client?) -> Int {
-        stop.targetMinutes > 0 ? stop.targetMinutes : (client?.goalMinutes ?? 0)
+        if stop.targetMinutes > 0 { return stop.targetMinutes }
+        guard let client else { return 0 }
+        return Place.of(client, propertyID: stop.propertyID)?.goalMinutes ?? 0
     }
 
     /// One service the route needs, and at how many stops.
