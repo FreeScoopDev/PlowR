@@ -36,6 +36,8 @@ final class ActiveRouteStore {
         var runID: UUID?
         /// `runStartedAt`, kept with it. nil in a checkpoint from before it existed.
         var runStartedAt: Date?
+        /// `skippedStopIDs`, kept. nil in a checkpoint from before it existed.
+        var skippedStopIDs: [UUID]?
     }
 
     /// What completing the current stop did, so callers (the screen, Siri,
@@ -70,6 +72,10 @@ final class ActiveRouteStore {
     /// When this run started: the day a stop's work is dated by when the
     /// stop's own start isn't known (Record Services opened from the recap).
     private(set) var runStartedAt: Date?
+    /// Stops left out of this run (skipped today, or before where it was
+    /// started from). They stay on the route; the run goes as if they weren't
+    /// there: its stops, numbers, progress, Siri and the Live Activity.
+    private(set) var skippedStopIDs: Set<UUID> = []
 
     /// True from `start(_:)` until the screen has offered to notify the first
     /// client. A route restored after a relaunch does not offer it again.
@@ -101,7 +107,10 @@ final class ActiveRouteStore {
     // MARK: - Derived
 
     var isActive: Bool { route != nil }
-    var sortedStops: [RouteStop] { route?.sortedStops ?? [] }
+    /// This run's stops, in order: the route's, less any left out of the run.
+    var sortedStops: [RouteStop] {
+        (route?.sortedStops ?? []).filter { !skippedStopIDs.contains($0.id) }
+    }
 
     var currentStop: RouteStop? {
         sortedStops.indices.contains(currentStopIndex) ? sortedStops[currentStopIndex] : nil
@@ -131,8 +140,9 @@ final class ActiveRouteStore {
         }
     }
 
-    /// Begins `route` at its first stop. Replaces any route already active.
-    func start(_ route: PlowRoute) {
+    /// Begins `route` at its first stop, leaving `skipping` out of this run.
+    /// Replaces any route already active.
+    func start(_ route: PlowRoute, skipping: Set<UUID> = []) {
         if isActive { end() }
         // A new run. Last run's times and recorded services would otherwise
         // show its stops as done before they're visited.
@@ -146,6 +156,7 @@ final class ActiveRouteStore {
         routeName = route.name
         runID = UUID()
         runStartedAt = now()
+        skippedStopIDs = skipping
         currentStopIndex = 0
         currentStopID = currentStop?.id
         stopStartedAt = now()
@@ -314,6 +325,7 @@ final class ActiveRouteStore {
         routeName = ""
         runID = nil
         runStartedAt = nil
+        skippedStopIDs = []
         lastProgress = nil
         currentStopIndex = 0
         currentStopID = nil
@@ -338,7 +350,8 @@ final class ActiveRouteStore {
         let checkpoint = Checkpoint(routeID: routeID, currentStopIndex: currentStopIndex,
                                     currentStopID: currentStopID, stopStartedAt: stopStartedAt,
                                     stopChangedUnseen: stopChangedUnseen, runID: runID,
-                                    runStartedAt: runStartedAt)
+                                    runStartedAt: runStartedAt,
+                                    skippedStopIDs: skippedStopIDs.isEmpty ? nil : Array(skippedStopIDs))
         if let data = try? JSONEncoder().encode(checkpoint) {
             defaults.set(data, forKey: Self.checkpointKey)
         }
@@ -373,6 +386,7 @@ final class ActiveRouteStore {
         routeName = route.name
         runID = checkpoint.runID ?? UUID()
         runStartedAt = checkpoint.runStartedAt ?? checkpoint.stopStartedAt
+        skippedStopIDs = Set(checkpoint.skippedStopIDs ?? [])
         let stopChanged = reconcile(stopID: checkpoint.currentStopID, index: checkpoint.currentStopIndex)
         // The saved timer belongs to the saved stop only.
         stopStartedAt = stopChanged ? now() : checkpoint.stopStartedAt

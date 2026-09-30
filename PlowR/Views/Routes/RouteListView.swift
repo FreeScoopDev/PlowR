@@ -130,7 +130,7 @@ struct RouteRowView: View {
     @Environment(ActiveRouteStore.self) private var activeRoute
 
     private var run: RouteRunSummary {
-        RouteRunSummary(stops: route.sortedStops, isRunning: activeRoute.route?.id == route.id)
+        RouteRunSummary(route: route, store: activeRoute)
     }
 
     private var color: Color {
@@ -141,7 +141,9 @@ struct RouteRowView: View {
         let count = run.total
         guard count > 0 else { return "No stops yet" }
         var text = "\(count) stop\(count == 1 ? "" : "s")"
-        let minutes = RouteFacts.estimatedMinutes(of: route.sortedStops, clients: clients)
+        // The same stops as the count: this run's while it's running.
+        let minutes = RouteFacts.estimatedMinutes(of: RouteRunSummary.stops(of: route, store: activeRoute),
+                                                  clients: clients)
         if minutes > 0 { text += " · about \(RouteFacts.duration(minutes))" }
         return text
     }

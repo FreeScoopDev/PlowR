@@ -363,7 +363,7 @@ struct DashboardView: View {
     }
 
     private func routeRow(_ route: PlowRoute) -> some View {
-        let run = RouteRunSummary(stops: route.sortedStops, isRunning: activeRoute.route?.id == route.id)
+        let run = RouteRunSummary(route: route, store: activeRoute)
         let total = run.total
         let done = run.done
         let isActive = run.isRunning
