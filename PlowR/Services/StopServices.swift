@@ -13,7 +13,8 @@ enum StopServices {
     /// The service IDs `stop` is expected to need.
     static func expected(for stop: RouteStop, client: Client?) -> [String] {
         if stop.hasOwnServices { return stop.expectedServiceIDs }
-        return client?.expectedServiceIDs ?? []
+        guard let client else { return [] }
+        return Place.of(client, propertyID: stop.propertyID)?.expectedServiceIDs ?? []
     }
 
     /// `ids` for `stop`, where the user chose: its client's usual services on
@@ -25,7 +26,7 @@ enum StopServices {
                       openedWith: Set<String>? = nil, in context: ModelContext) {
         if let openedWith, Set(ids) == openedWith { return }
         if allRoutes, let client {
-            setForAllRoutes(ids, for: client, in: context)
+            setForAllRoutes(ids, for: client, propertyID: stop.propertyID, in: context)
         } else {
             setForThisRoute(ids, on: stop)
         }
@@ -37,11 +38,20 @@ enum StopServices {
         stop.hasOwnServices = true
     }
 
-    /// `ids` as `client`'s usual services, and every route's stop for them
-    /// following them again.
-    static func setForAllRoutes(_ ids: [String], for client: Client, in context: ModelContext) {
-        client.expectedServiceIDs = ids
-        for stop in (try? ClientStops.of(client, in: context)) ?? [] {
+    /// `ids` as the usual services of `client`'s place with `propertyID`
+    /// (their own address, or one of their properties), and every route's
+    /// stop at that place following them again. Nothing for a missing place:
+    /// there's no one's services to set.
+    static func setForAllRoutes(_ ids: [String], for client: Client, propertyID: String = "",
+                                in context: ModelContext) {
+        guard let place = Place.of(client, propertyID: propertyID) else { return }
+        if place.isMain {
+            client.expectedServiceIDs = ids
+        } else if let property = (client.properties ?? []).first(where: { $0.id.uuidString == place.id }) {
+            property.expectedServiceIDs = ids
+        }
+        for stop in (try? ClientStops.of(client, in: context)) ?? []
+        where Place.id(of: client, propertyID: stop.propertyID) == place.id {
             stop.hasOwnServices = false
             stop.expectedServiceIDs = []
         }

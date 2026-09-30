@@ -84,7 +84,8 @@ enum ServiceLog {
         // Record Services' own lines (typed prices, custom items) stand; the
         // catalog prices only fill a record that has none.
         if record.lines.isEmpty, !stop.completedServiceIDs.isEmpty {
-            record.lines = lines(for: stop.completedServiceIDs, client: client, in: context)
+            record.lines = lines(for: stop.completedServiceIDs, client: client, propertyID: stop.propertyID,
+                                 in: context)
         }
         if record.notes.isEmpty, !stop.completedNotes.isEmpty { record.notes = stop.completedNotes }
         return record
@@ -114,6 +115,7 @@ enum ServiceLog {
             billFromVisit(record, visit, in: context)
         }
         record.clientName = client.name
+        record.propertyID = Place.id(of: client, propertyID: stop.propertyID)
         record.propertyAddress = stop.clientAddress
         record.routeID = stop.route?.id.uuidString ?? ""
         record.routeName = stop.route?.name ?? ""
@@ -181,8 +183,12 @@ enum ServiceLog {
         let descriptor = FetchDescriptor<ScheduledVisit>(predicate: #Predicate {
             $0.clientID == clientID && $0.scheduledDate >= start && $0.scheduledDate < end
         })
+        // At the same place: the rental's visit isn't the main house's stop.
+        // Compared by ID, found or not: a removed property's visit is never the main house's.
+        let place = Place.id(of: client, propertyID: stop.propertyID)
         let sameDay = ((try? context.fetch(descriptor)) ?? [])
             .filter { $0.status == .scheduled || $0.status == .completed }
+            .filter { Place.id(of: client, propertyID: $0.propertyID) == place }
         guard sameDay.count == 1, let visit = sameDay.first else { return nil }
         guard let claimed = record(forKey: visitKey(visit.id), in: context) else { return visit }
         // Done from the Schedule (no run yet).
@@ -271,13 +277,14 @@ enum ServiceLog {
                              catalog: [ServiceItem]? = nil, documents: [String: Proposal]? = nil,
                              in context: ModelContext) {
         record.clientName = client.name
+        record.propertyID = Place.id(of: client, propertyID: visit.propertyID)
         record.propertyAddress = visit.clientAddress
         record.performedAt = performedAt
         record.visitID = visit.id.uuidString
         visit.serviceLogged = true
         if record.lines.isEmpty {
-            record.lines = lines(for: visit.expectedServiceIDs, client: client, multiplier: visit.priceMultiplier,
-                                 catalog: catalog, in: context)
+            record.lines = lines(for: visit.expectedServiceIDs, client: client, propertyID: visit.propertyID,
+                                 multiplier: visit.priceMultiplier, catalog: catalog, in: context)
         }
         if let documents {
             if record.invoiceID.isEmpty, let invoice = documents[visit.proposalID], invoice.isInvoice {
@@ -589,8 +596,8 @@ enum ServiceLog {
                 changed = true
             }
             if record.lines.isEmpty, !visit.expectedServiceIDs.isEmpty, let client = clientsByID[record.clientID] {
-                let lines = lines(for: visit.expectedServiceIDs, client: client, multiplier: visit.priceMultiplier,
-                                  in: context)
+                let lines = lines(for: visit.expectedServiceIDs, client: client, propertyID: visit.propertyID,
+                                  multiplier: visit.priceMultiplier, in: context)
                 if !lines.isEmpty {
                     record.lines = lines
                     changed = true
@@ -718,12 +725,14 @@ enum ServiceLog {
     /// The services with these IDs, in the catalog's order, priced for the
     /// client's property the way Record Services prices them. A service since
     /// deleted from the catalog is left out: there's nothing to name it by.
-    static func lines(for serviceIDs: [String], client: Client, multiplier: Double = 1,
+    static func lines(for serviceIDs: [String], client: Client, propertyID: String = "", multiplier: Double = 1,
                       catalog: [ServiceItem]? = nil, in context: ModelContext) -> [ServiceRecord.Line] {
         let wanted = Set(serviceIDs)
         guard !wanted.isEmpty,
               let catalog = catalog ?? (try? context.fetch(FetchDescriptor<ServiceItem>())) else { return [] }
-        let zones = client.pricingZones
+        // Priced for the place the work was at (Place): its measured zones.
+        // A missing place has none: never the main house's.
+        let zones = Place.of(client, propertyID: propertyID)?.zones ?? []
         return catalog
             .filter { wanted.contains($0.id.uuidString) }
             .sorted { $0.sortOrder < $1.sortOrder }

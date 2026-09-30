@@ -41,8 +41,22 @@ enum ClientVisits {
     static func follow(_ visit: ScheduledVisit, _ client: Client) -> Bool {
         var changed = false
         if visit.clientName != client.name { visit.clientName = client.name; changed = true }
-        if visit.clientAddress != client.address { visit.clientAddress = client.address; changed = true }
+        // Its place's address (Place); a missing place's visit keeps its own.
+        if let address = Place.of(client, propertyID: visit.propertyID)?.address, visit.clientAddress != address {
+            visit.clientAddress = address
+            changed = true
+        }
         return changed
+    }
+
+    /// `visit` booked for `client`, as an edit of it sets it: moved to
+    /// another client, it's at their main address, since the place it was at
+    /// was the other client's.
+    static func book(_ visit: ScheduledVisit, for client: Client) {
+        if visit.clientID != client.id.uuidString { visit.propertyID = "" }
+        visit.clientID = client.id.uuidString
+        visit.clientName = client.name
+        visit.clientAddress = Place.of(client, propertyID: visit.propertyID)?.address ?? visit.clientAddress
     }
 
     /// After `client` was changed: their upcoming visits follow.

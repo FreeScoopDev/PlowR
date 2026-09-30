@@ -23,6 +23,9 @@ final class RouteStop {
     /// StopServices is the rule.
     var expectedServiceIDs: [String] = []
     var hasOwnServices: Bool = false
+    /// The property the stop is at (Place): empty or the client's ID for
+    /// their own address.
+    var propertyID: String = ""
     var route: PlowRoute?
 
     init(order: Int, client: Client) {
@@ -34,6 +37,15 @@ final class RouteStop {
         self.latitude = client.latitude
         self.longitude = client.longitude
         self.isCustomStop = false
+    }
+
+    /// A stop at one of `client`'s places.
+    convenience init(order: Int, client: Client, place: Place) {
+        self.init(order: order, client: client)
+        propertyID = place.isMain ? "" : place.id
+        clientAddress = place.address
+        latitude = place.latitude
+        longitude = place.longitude
     }
 
     init(order: Int, customName: String, customAddress: String = "", customPhone: String = "") {

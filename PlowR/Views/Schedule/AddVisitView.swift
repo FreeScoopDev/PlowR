@@ -508,9 +508,7 @@ struct AddVisitView: View {
 
     private func saveThisOnly() {
         guard let client = selectedClient, let existing = editing else { return }
-        existing.clientID = client.id.uuidString
-        existing.clientName = client.name
-        existing.clientAddress = client.address
+        ClientVisits.book(existing, for: client)
         existing.scheduledDate = scheduledDate
         existing.estimatedMinutes = estimatedMinutes
         existing.notes = notes
@@ -537,9 +535,7 @@ struct AddVisitView: View {
         }
 
         for visit in seriesVisits where visit.scheduledDate >= cutoff {
-            visit.clientID = client.id.uuidString
-            visit.clientName = client.name
-            visit.clientAddress = client.address
+            ClientVisits.book(visit, for: client)
             if visit.id == existing.id {
                 visit.scheduledDate = scheduledDate
             } else if let newDate = cal.date(bySettingHour: newHour, minute: newMinute, second: 0, of: visit.scheduledDate) {

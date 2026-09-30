@@ -353,18 +353,19 @@ struct ScheduleView: View {
         let scheduled = visitsForSelectedDate.filter { $0.status == .scheduled }
         // Inactive clients are hidden from route building, even with a visit
         // still scheduled from before they were marked inactive.
-        let (clients, skipped) = Client.routeClients(for: scheduled, from: allClients, operatorID: authManager.userID)
+        let (stops, skipped) = Client.routeStops(for: scheduled, from: allClients, operatorID: authManager.userID)
         skippedInactiveVisits = skipped
         // No stops left: say why instead of saving an empty route.
-        guard !clients.isEmpty else {
+        guard !stops.isEmpty else {
             createdRouteName = ""
             showingRouteCreated = true
             return
         }
         let route = PlowRoute(name: name, operatorID: authManager.userID)
         modelContext.insert(route)
-        for (order, client) in clients.enumerated() {
-            let stop = RouteStop(order: order, client: client)
+        for (order, entry) in stops.enumerated() {
+            // At the visit's place: the client's own address or a property.
+            let stop = RouteStop(order: order, client: entry.client, place: entry.place)
             stop.route = route
             modelContext.insert(stop)
         }

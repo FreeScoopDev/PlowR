@@ -56,7 +56,10 @@ struct ServiceRecordDetailView: View {
     }
 
     private var operatorID: String { client?.operatorID ?? record.operatorID }
-    private var zones: [InvoiceLines.Zone] { client?.pricingZones ?? [] }
+    /// The measurements of the place the work was at (Place).
+    private var zones: [InvoiceLines.Zone] {
+        client.flatMap { Place.of($0, propertyID: record.propertyID)?.zones } ?? []
+    }
     private var services: [StopRecording.Service] { ServiceLog.activeServices(allServices, operatorID: operatorID) }
 
     private var recording: StopRecording {
