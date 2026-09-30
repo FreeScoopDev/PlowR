@@ -86,9 +86,10 @@ struct AccountEraser {
         // and so a failed save is reported rather than left to autosave.
         attempt("saving the deletions") { try context.save() }
         attempt("work orders") { try removeIfPresent(workOrdersFile) }
-        attempt("shared PDFs") {
-            for file in try files(in: temporaryDirectory, where: { $0.pathExtension == "pdf" }) {
-                attempt("shared PDF \(file.lastPathComponent)") { try removeIfPresent(file) }
+        // Documents and exported spreadsheets (CSVExport) left from sharing.
+        attempt("shared files") {
+            for file in try files(in: temporaryDirectory, where: { ["pdf", "csv"].contains($0.pathExtension) }) {
+                attempt("shared file \(file.lastPathComponent)") { try removeIfPresent(file) }
             }
         }
         for folder in archiveFolders {

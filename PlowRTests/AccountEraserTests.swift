@@ -104,7 +104,7 @@ struct AccountEraserTests {
             for dir in [tmp, storeFolder] {
                 try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
             }
-            for name in ["INV-0001.pdf", "PlowR_Season_Report.pdf"] {
+            for name in ["INV-0001.pdf", "PlowR_Season_Report.pdf", "PlowR Clients 2026-09-30.csv"] {
                 try Data("%PDF".utf8).write(to: tmp.appending(path: name))
             }
             try Data("keep".utf8).write(to: tmp.appending(path: "notes.txt"))
@@ -165,6 +165,7 @@ struct AccountEraserTests {
         #expect(!account.exists(account.workOrders))
         #expect(!account.exists(account.tmp.appending(path: "INV-0001.pdf")))
         #expect(!account.exists(account.tmp.appending(path: "PlowR_Season_Report.pdf")))
+        #expect(!account.exists(account.tmp.appending(path: "PlowR Clients 2026-09-30.csv")))
         #expect(!account.exists(account.storeFolder.appending(path: "default.store.1790000000.bak")))
         #expect(!account.exists(account.storeFolder.appending(path: "default.store-wal.1790000000.bak")))
         #expect(!account.exists(account.storeFolder.appending(path: ".default_SUPPORT.1790000000.bak")))
@@ -299,7 +300,7 @@ struct AccountEraserTests {
         }
         var signedOut = false
         let failures = account.eraser().eraseAll(thenSignOut: { signedOut = true })
-        #expect(failures.map(\.step) == ["shared PDFs"])
+        #expect(failures.map(\.step) == ["shared files"])
         #expect(!signedOut)
     }
 
