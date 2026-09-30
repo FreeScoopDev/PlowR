@@ -89,6 +89,8 @@ enum ClientStops {
                 try? await Task.sleep(for: delay)
                 guard !Task.isCancelled else { return }
                 ClientStops.updateAll(in: container.mainContext)
+                // Another device's records of the same work have arrived.
+                ServiceLog.mergeDuplicates(in: container.mainContext)
             }
         }
     }

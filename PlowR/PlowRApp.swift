@@ -39,6 +39,8 @@ struct PlowRApp: App {
             ClientStops.followRemoteChanges(of: container)
             DocumentSent.clearTextStamps(in: container.mainContext)
             ClientRemoval.takeInactiveClientsOffRoutes(in: container.mainContext)
+            // The Service Log: the same work recorded on two devices, merged.
+            ServiceLog.mergeDuplicates(in: container.mainContext)
         }
         // Before any view: a Siri or Control Center launch acts on the route
         // without the UI, and a killed app should come back mid-route.
