@@ -251,9 +251,7 @@ struct ScheduleView: View {
 
     private func visitRow(_ visit: ScheduledVisit) -> some View {
         HStack(spacing: 12) {
-            RoundedRectangle(cornerRadius: 3)
-                .fill(visit.status.chipColor)
-                .frame(width: 4, height: 44)
+            AccentBar(color: visit.status.chipColor)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(visit.clientName)
@@ -279,28 +277,13 @@ struct ScheduleView: View {
             Spacer()
 
             VStack(alignment: .trailing, spacing: 4) {
-                Label(visit.status.rawValue, systemImage: visit.status.systemImage)
-                    .font(.caption2)
-                    .padding(.horizontal, 6).padding(.vertical, 3)
-                    .background(visit.status.chipColor.opacity(0.15))
-                    .foregroundStyle(visit.status.chipColor)
-                    .clipShape(Capsule())
-
+                StatusChip(visit.status.rawValue, systemImage: visit.status.systemImage,
+                           color: visit.status.chipColor)
                 if !visit.proposalID.isEmpty {
-                    Label("Invoiced", systemImage: "doc.text.fill")
-                        .font(.caption2)
-                        .padding(.horizontal, 6).padding(.vertical, 3)
-                        .background(Color.green.opacity(0.12))
-                        .foregroundStyle(.green)
-                        .clipShape(Capsule())
+                    StatusChip("Invoiced", systemImage: "doc.text.fill", color: .green)
                 }
                 if visit.isAfterHours {
-                    Label("After Hours", systemImage: "moon.fill")
-                        .font(.caption2)
-                        .padding(.horizontal, 6).padding(.vertical, 3)
-                        .background(Color.orange.opacity(0.12))
-                        .foregroundStyle(.orange)
-                        .clipShape(Capsule())
+                    StatusChip("After Hours", systemImage: "moon.fill", color: .orange)
                 }
             }
         }

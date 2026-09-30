@@ -249,13 +249,7 @@ struct ClientStatsView: View {
                     }
                 }
                 Spacer()
-                Text("\(client.totalVisits) visit\(client.totalVisits == 1 ? "" : "s")")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(Color.blue.opacity(0.85))
-                    .clipShape(Capsule())
+                StatusChip("\(client.totalVisits) visit\(client.totalVisits == 1 ? "" : "s")", color: .blue)
             }
             HStack(spacing: 12) {
                 if let last = client.lastServiceDate {

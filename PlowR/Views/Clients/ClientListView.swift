@@ -419,9 +419,7 @@ struct ClientRowView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            RoundedRectangle(cornerRadius: 3)
-                .fill(accentColor)
-                .frame(width: 4, height: 48)
+            AccentBar(color: accentColor)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(client.name)
@@ -496,13 +494,7 @@ struct ClientRowView: View {
     }
 
     private func badge(_ label: String, color: Color) -> some View {
-        Text(label)
-            .font(.caption2.weight(.semibold))
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(color.opacity(0.15))
-            .foregroundStyle(color)
-            .clipShape(Capsule())
+        StatusChip(label, color: color)
     }
 }
 

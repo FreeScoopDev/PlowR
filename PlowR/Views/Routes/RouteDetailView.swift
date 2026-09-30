@@ -148,7 +148,7 @@ struct RouteDetailView: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(stop.clientName)
-                    .font(.headline)
+                    .font(.subheadline.weight(.semibold))
                 if !stop.clientAddress.isEmpty {
                     Text(stop.clientAddress)
                         .font(.caption)
@@ -210,13 +210,7 @@ struct RouteDetailView: View {
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(.green)
                 } else if let client = clientFor(stop), client.totalVisits > 0 {
-                    Text("\(client.totalVisits)")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 3)
-                        .background(Color.blue.opacity(0.8))
-                        .clipShape(Capsule())
+                    StatusChip("\(client.totalVisits)", color: .blue)
                 }
                 if stop.latitude == 0 {
                     Image(systemName: "location.slash")
@@ -231,15 +225,7 @@ struct RouteDetailView: View {
     // MARK: - Subviews
 
     private func stopBadge(number: Int, isDone: Bool) -> some View {
-        ZStack {
-            Circle()
-                .fill(isDone ? Color.green : Color.blue)
-                .frame(width: 30, height: 30)
-                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
-            Text("\(number)")
-                .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(.white)
-        }
+        StopNumberBadge(number: number, isDone: isDone)
     }
 
     private func stopPin(number: Int, isDone: Bool) -> some View {
