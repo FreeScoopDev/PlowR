@@ -50,7 +50,8 @@ final class ServiceRecord {
 
     /// False for a comped client's work: it never goes on a bill.
     var isBillable: Bool = true
-    /// The invoice this work went on; empty while it's unbilled.
+    /// The invoice this work went on; empty while it's unbilled. Whether it's
+    /// billed is `ServiceLog.isUnbilled`: the invoice may have been deleted.
     var invoiceID: String = ""
     var createdAt: Date = Date()
 
@@ -77,8 +78,6 @@ final class ServiceRecord {
         get { (try? JSONDecoder().decode([Line].self, from: servicesData)) ?? [] }
         set { servicesData = (try? JSONEncoder().encode(newValue)) ?? Data() }
     }
-
-    var isUnbilled: Bool { isBillable && invoiceID.isEmpty }
 }
 
 enum ServiceRecordSource: String {

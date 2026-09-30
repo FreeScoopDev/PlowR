@@ -7,6 +7,11 @@ struct RouteRecapView: View {
     let stops: [RouteStop]
     let allClients: [Client]
     let onEndRoute: () -> Void
+    /// The run being recapped (ActiveRouteStore.runID), so editing a stop's
+    /// services updates that run's Service Log record.
+    var runID: UUID?
+    /// When the run started: which day's visit a stop never completed is.
+    var runStartedAt: Date?
 
     @Environment(\.dismiss) private var dismiss
     @State private var editingStop: RouteStop?
@@ -91,7 +96,9 @@ struct RouteRecapView: View {
             StopServiceRecorderView(
                 stop: stop,
                 client: allClients.first { $0.id == stop.clientID },
-                operatorID: route.operatorID
+                operatorID: route.operatorID,
+                runID: runID,
+                stopStartedAt: runStartedAt
             )
         }
     }

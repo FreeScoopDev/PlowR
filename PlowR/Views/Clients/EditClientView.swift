@@ -962,19 +962,7 @@ struct EditClientView: View {
     }
 
     private func createRevision(of original: Proposal) {
-        let revision = Proposal(operatorID: original.operatorID, client: client)
-        revision.invoiceNumber = InvoiceNumbering.nextRevision(of: original.invoiceNumber,
-                                                               operatorID: original.operatorID, in: modelContext)
-        revision.revisionOf = original.invoiceNumber
-        revision.discountAmount = original.discountAmount
-        revision.taxRate = original.taxRate
-        revision.disclaimer = original.disclaimer
-        revision.notes = original.notes
-        revision.invoiceDueDate = Date().addingTimeInterval(30 * 86400)
-        let copies = original.makeLineItemCopies()
-        copies.forEach { modelContext.insert($0) }
-        revision.lineItems = copies
-        modelContext.insert(revision)
+        ServiceLog.revise(original, client: client, in: modelContext)
     }
 
     private func overwriteForEdit(_ proposal: Proposal) {

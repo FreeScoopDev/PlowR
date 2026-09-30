@@ -124,7 +124,7 @@ struct ProposalListView: View {
             titleVisibility: .visible
         ) {
             Button("Delete", role: .destructive) {
-                if let p = proposalToDelete { modelContext.delete(p); proposalToDelete = nil }
+                if let p = proposalToDelete { ServiceLog.delete(p, in: modelContext); proposalToDelete = nil }
             }
             Button("Cancel", role: .cancel) { proposalToDelete = nil }
         }

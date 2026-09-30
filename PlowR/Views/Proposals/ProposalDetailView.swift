@@ -201,6 +201,10 @@ struct ProposalDetailView: View {
     private func convertToInvoice() {
         proposal.invoiceNumber = InvoiceNumbering.next(operatorID: proposal.operatorID, in: modelContext)
         proposal.invoiceDueDate = Date().addingTimeInterval(30 * 86400)
+        // A proposal made for a scheduled visit now bills the visit's work.
+        if !proposal.visitID.isEmpty {
+            ServiceLog.markVisitInvoiced(visitID: proposal.visitID, invoice: proposal, in: modelContext)
+        }
         generatePDF()
     }
 
@@ -217,18 +221,6 @@ struct ProposalDetailView: View {
 
     private func createRevision() {
         guard let client = proposalClient else { return }
-        let revision = Proposal(operatorID: proposal.operatorID, client: client)
-        revision.invoiceNumber = InvoiceNumbering.nextRevision(of: proposal.invoiceNumber,
-                                                               operatorID: proposal.operatorID, in: modelContext)
-        revision.revisionOf = proposal.invoiceNumber
-        revision.discountAmount = proposal.discountAmount
-        revision.taxRate = proposal.taxRate
-        revision.disclaimer = proposal.disclaimer
-        revision.notes = proposal.notes
-        revision.invoiceDueDate = Date().addingTimeInterval(30 * 86400)
-        let copies = proposal.makeLineItemCopies()
-        copies.forEach { modelContext.insert($0) }
-        revision.lineItems = copies
-        modelContext.insert(revision)
+        ServiceLog.revise(proposal, client: client, in: modelContext)
     }
 }

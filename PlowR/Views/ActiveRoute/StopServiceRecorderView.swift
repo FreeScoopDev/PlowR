@@ -2,10 +2,20 @@ import SwiftUI
 import SwiftData
 import PhotosUI
 
+/// Record Services: what was done at a stop, with photos and notes, saved to
+/// the Service Log, and optionally invoiced. It used to save only by making an
+/// invoice, and Skip threw away any photos just taken.
 struct StopServiceRecorderView: View {
     let stop: RouteStop
     let client: Client?
     let operatorID: String
+    /// The route run (ActiveRouteStore.runID), so this writes to the record
+    /// that completing the stop fills in. A sheet opened without one gets
+    /// its own, kept (as state) for as long as it's open.
+    @State private var runID: UUID
+    /// When the stop was started, if it's the current one: which day's
+    /// visit it is doesn't change if the sheet is saved after midnight.
+    @State private var stopStartedAt: Date
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -15,6 +25,8 @@ struct StopServiceRecorderView: View {
     @State private var notes: String
     @State private var servicePriceOverrides: [String: String] = [:]
     @State private var customItems: [CustomLineItem] = []
+    /// Recorded services no longer in the active catalog (StopRecording.keptLines).
+    @State private var keptLines: [ServiceRecord.Line] = []
 
     // Photos
     @State private var beforePickerItems: [PhotosPickerItem] = []
@@ -24,12 +36,66 @@ struct StopServiceRecorderView: View {
     @State private var showingCamera = false
     @State private var cameraIsBefore = true
 
-    init(stop: RouteStop, client: Client?, operatorID: String) {
+    /// The invoice this stop's work is already on, if any (its number).
+    @State private var invoicedAs: String?
+    /// The saved record is on an invoice and has services: they're fixed.
+    @State private var servicesLocked = false
+    /// There's a saved record, so saving an emptied sheet clears it.
+    @State private var hadRecord = false
+    @State private var showingDiscardConfirm = false
+    /// What was on screen once the saved record was loaded: Skip asks only
+    /// if something differs from it.
+    @State private var saved: Snapshot?
+
+    init(stop: RouteStop, client: Client?, operatorID: String, runID: UUID?, stopStartedAt: Date? = nil) {
         self.stop = stop
         self.client = client
         self.operatorID = operatorID
+        _runID = State(initialValue: runID ?? UUID())
+        _stopStartedAt = State(initialValue: stopStartedAt ?? Date())
         _selectedServiceIDs = State(initialValue: Set(stop.completedServiceIDs))
         _notes = State(initialValue: stop.completedNotes)
+    }
+
+    private struct Snapshot: Equatable {
+        var services: Set<String>
+        var prices: [String: String]
+        var custom: [String]
+        var kept: [String]
+        var notes: String
+    }
+
+    private var snapshot: Snapshot {
+        Snapshot(services: selectedServiceIDs,
+                 prices: servicePriceOverrides.filter { selectedServiceIDs.contains($0.key) },
+                 custom: customItems.map { "\($0.name)|\($0.price)" },
+                 kept: keptLines.map(\.serviceID), notes: notes)
+    }
+
+    /// Everything on screen, priced the one way the log and the invoice share.
+    private var recording: StopRecording {
+        StopRecording(
+            services: myServices.map { .init(id: $0.id.uuidString, name: $0.name,
+                                             unitType: $0.unitType, pricePerUnit: $0.pricePerUnit) },
+            zones: pricingZones,
+            selectedIDs: selectedServiceIDs,
+            typedPrices: servicePriceOverrides,
+            customItems: customItems.map { .init(name: $0.name, price: $0.price) },
+            keptLines: keptLines)
+    }
+
+    /// Something Skip, or swiping the sheet away, would lose: photos, or a
+    /// service, price, custom item or note changed since it was loaded.
+    private var hasUnsavedWork: Bool {
+        !beforeImages.isEmpty || !afterImages.isEmpty || (saved.map { $0 != snapshot } ?? false)
+    }
+
+    /// Anything to save: an empty sheet would only make an empty record,
+    /// unless it empties a saved one (services recorded at the wrong stop).
+    private var hasAnythingToSave: Bool {
+        !selectedServiceIDs.isEmpty || !recording.recordLines.isEmpty || !beforeImages.isEmpty
+            || !afterImages.isEmpty || !notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || (hadRecord && hasUnsavedWork)
     }
 
     private var myServices: [ServiceItem] {
@@ -64,7 +130,7 @@ struct StopServiceRecorderView: View {
                 photoSection(isBefore: true)
                 photoSection(isBefore: false)
 
-                Section("Services Performed") {
+                Section {
                     if myServices.isEmpty {
                         // A business that went straight to a route had none, and had
                         // to leave the route for Settings to get any.
@@ -81,7 +147,7 @@ struct StopServiceRecorderView: View {
                                         if on {
                                             selectedServiceIDs.insert(key)
                                             if servicePriceOverrides[key] == nil {
-                                                servicePriceOverrides[key] = String(format: "%.2f", defaultPrice(for: service))
+                                                servicePriceOverrides[key] = StopRecording.money(defaultPrice(for: service))
                                             }
                                         } else {
                                             selectedServiceIDs.remove(key)
@@ -90,16 +156,18 @@ struct StopServiceRecorderView: View {
                                 )) {
                                     Text(service.name)
                                 }
+                                .disabled(servicesLocked)
                                 if isOn {
                                     HStack(spacing: 4) {
                                         Text("Price: $").font(.caption).foregroundStyle(.secondary)
                                         TextField("0.00", text: Binding(
-                                            get: { servicePriceOverrides[key] ?? String(format: "%.2f", defaultPrice(for: service)) },
+                                            get: { servicePriceOverrides[key] ?? StopRecording.money(defaultPrice(for: service)) },
                                             set: { servicePriceOverrides[key] = $0 }
                                         ))
                                         .keyboardType(.decimalPad)
                                         .font(.caption)
                                         .frame(width: 72)
+                                        .disabled(servicesLocked)
                                         if service.unitType == "perSqFt",
                                            case let area = InvoiceLines.totalArea(pricingZones),
                                            area > 0 {
@@ -113,6 +181,34 @@ struct StopServiceRecorderView: View {
                             }
                         }
                     }
+                } header: {
+                    Text("Services Performed")
+                } footer: {
+                    if let invoicedAs {
+                        Text(servicesLocked
+                             ? "On invoice \(invoicedAs), so these services are fixed. To change them, edit the invoice."
+                             : "Invoice \(invoicedAs) was already made for this visit.")
+                    }
+                }
+
+                if !keptLines.isEmpty {
+                    Section {
+                        ForEach(keptLines, id: \.serviceID) { line in
+                            LabeledContent(line.name, value: "$" + StopRecording.money(line.price))
+                                .swipeActions(edge: .trailing) {
+                                    Button(role: .destructive) {
+                                        keptLines.removeAll { $0.serviceID == line.serviceID }
+                                    } label: {
+                                        Label("Remove", systemImage: "trash")
+                                    }
+                                }
+                        }
+                    } header: {
+                        Text("Also Recorded")
+                    } footer: {
+                        Text("No longer in your active services, so kept as recorded.")
+                    }
+                    .disabled(servicesLocked)
                 }
 
                 Section("Custom Services") {
@@ -141,6 +237,7 @@ struct StopServiceRecorderView: View {
                         Label("Add Custom Item", systemImage: "plus")
                     }
                 }
+                .disabled(servicesLocked)
 
                 Section("Notes") {
                     TextField("Optional notes for this stop…", text: $notes, axis: .vertical)
@@ -152,22 +249,33 @@ struct StopServiceRecorderView: View {
             .scrollDismissesKeyboard(.interactively)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Skip") { dismiss() }
+                    Button("Skip") {
+                        if hasUnsavedWork { showingDiscardConfirm = true } else { dismiss() }
+                    }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Menu("Save Invoice") {
+                    Menu("Save") {
                         Button {
-                            saveInvoice(markSent: false)
+                            save(invoice: .none)
                         } label: {
-                            Label("Save as Draft", systemImage: "doc.badge.clock")
+                            Label("Save", systemImage: "checkmark.circle")
                         }
-                        Button {
-                            saveInvoice(markSent: true)
-                        } label: {
-                            Label("Save & Mark Sent", systemImage: "paperplane.fill")
+                        if invoicedAs == nil {
+                            Button {
+                                save(invoice: .draft)
+                            } label: {
+                                Label("Save & Draft Invoice", systemImage: "doc.badge.clock")
+                            }
+                            .disabled(recording.invoiceLines.isEmpty)
+                            Button {
+                                save(invoice: .sent)
+                            } label: {
+                                Label("Save & Mark Invoice Sent", systemImage: "paperplane.fill")
+                            }
+                            .disabled(recording.invoiceLines.isEmpty)
                         }
                     }
-                    .disabled(selectedServiceIDs.isEmpty || client == nil)
+                    .disabled(client == nil || !hasAnythingToSave)
                 }
             }
             .sheet(isPresented: $showingCamera) {
@@ -176,6 +284,15 @@ struct StopServiceRecorderView: View {
                     else { afterImages.append(image) }
                 }
             }
+            .confirmationDialog("Discard what you recorded?", isPresented: $showingDiscardConfirm,
+                                titleVisibility: .visible) {
+                Button("Discard", role: .destructive) { dismiss() }
+                Button("Keep Editing", role: .cancel) { }
+            } message: {
+                Text("Photos, services and notes you haven't saved will be lost.")
+            }
+            .interactiveDismissDisabled(hasUnsavedWork)
+            .onAppear(perform: loadRecord)
             .onChange(of: beforePickerItems) { _, items in
                 loadImages(from: items) { beforeImages.append($0) }
                 beforePickerItems = []
@@ -272,76 +389,56 @@ struct StopServiceRecorderView: View {
 
     // MARK: - Save
 
-    private func saveInvoice(markSent: Bool) {
-        stop.completedServiceIDs = Array(selectedServiceIDs)
-        stop.completedNotes = notes
+    private enum InvoiceChoice { case none, draft, sent }
 
-        // Save photos
-        let clientID = client?.id.uuidString ?? ""
-        let routeID = stop.route?.id.uuidString ?? ""
-        for image in beforeImages {
-            if let data = image.jpegData(compressionQuality: 0.8) {
-                let photo = StopPhoto(operatorID: operatorID, clientID: clientID, routeID: routeID, isBefore: true, imageData: data)
-                modelContext.insert(photo)
-            }
-        }
-        for image in afterImages {
-            if let data = image.jpegData(compressionQuality: 0.8) {
-                let photo = StopPhoto(operatorID: operatorID, clientID: clientID, routeID: routeID, isBefore: false, imageData: data)
-                modelContext.insert(photo)
-            }
-        }
+    /// What was saved before: the prices typed and the custom items, which
+    /// the stop alone doesn't keep, and whether it's invoiced already.
+    private func loadRecord() {
+        defer { if saved == nil { saved = snapshot } }
+        guard saved == nil, let client else { return }
+        invoicedAs = ServiceLog.invoiceForStop(stop, of: client, run: runID, startedAt: stopStartedAt,
+                                               in: modelContext)?.invoiceNumber
+        guard let record = ServiceLog.existingRecordForStop(stop, of: client, run: runID, startedAt: stopStartedAt,
+                                                            in: modelContext)
+        else { return }
+        hadRecord = true
+        servicesLocked = ServiceLog.servicesLocked(record, in: modelContext)
+        if notes.isEmpty { notes = record.notes }
+        guard !record.lines.isEmpty else { return }
+        // Everything the record has, as it was: a record made elsewhere (the
+        // visit completed in the Schedule) has services the stop doesn't, and
+        // saving without them would erase them.
+        let loaded = StopRecording.loading(record.lines, services: recording.services, zones: pricingZones)
+        selectedServiceIDs = loaded.selectedIDs
+        servicePriceOverrides = loaded.typedPrices
+        customItems = loaded.customItems.map { CustomLineItem(name: $0.name, price: $0.price) }
+        keptLines = loaded.keptLines
+    }
 
+    private func save(invoice choice: InvoiceChoice) {
         guard let client else { dismiss(); return }
+        let recording = recording
+        let record = ServiceLog.saveRecording(recording, notes: notes, for: stop, of: client, run: runID,
+                                              operatorID: operatorID, startedAt: stopStartedAt, in: modelContext)
 
-        let proposal = Proposal(operatorID: operatorID, client: client)
-        proposal.invoiceNumber = InvoiceNumbering.next(operatorID: operatorID, in: modelContext)
-        proposal.invoiceDueDate = Date().addingTimeInterval(30 * 86400)
-        if !notes.isEmpty { proposal.notes = notes }
-
-        var lineItems: [ProposalLineItem] = []
-        var sortIndex = 0
-
-        for service in myServices where selectedServiceIDs.contains(service.id.uuidString) {
-            let key = service.id.uuidString
-            // The whole-property figure the driver saw, or typed over. An empty
-            // or unreadable field means it was left alone (see InvoiceLines).
-            let lines = InvoiceLines.lines(serviceName: service.name, unitType: service.unitType,
-                                           pricePerUnit: service.pricePerUnit,
-                                           zones: pricingZones, typedPrice: servicePriceOverrides[key])
-            for line in lines {
-                let item = ProposalLineItem(
-                    serviceName: line.serviceName,
-                    zoneLabel: line.zoneLabel,
-                    quantity: line.quantity,
-                    unitType: line.unitType,
-                    unitPrice: line.unitPrice,
-                    sortOrder: sortIndex
-                )
-                item.lineTotal = line.lineTotal
-                lineItems.append(item)
-                sortIndex += 1
+        let clientID = client.id.uuidString
+        let routeID = stop.route?.id.uuidString ?? ""
+        for (images, isBefore) in [(beforeImages, true), (afterImages, false)] {
+            for image in images {
+                guard let data = image.jpegData(compressionQuality: 0.8) else { continue }
+                let photo = StopPhoto(operatorID: operatorID, clientID: clientID, routeID: routeID,
+                                      isBefore: isBefore, imageData: data)
+                photo.recordID = record.id.uuidString
+                modelContext.insert(photo)
             }
         }
 
-        for (i, custom) in customItems.enumerated() {
-            guard !custom.name.isEmpty, let price = Double(custom.price), price > 0 else { continue }
-            let item = ProposalLineItem(
-                serviceName: custom.name,
-                zoneLabel: "",
-                quantity: 1,
-                unitType: "flat",
-                unitPrice: price,
-                sortOrder: sortIndex + i
-            )
-            lineItems.append(item)
-        }
-
-        lineItems.forEach { modelContext.insert($0) }
-        proposal.lineItems = lineItems
-        modelContext.insert(proposal)
-        if markSent {
-            DocumentSent.markSent(proposal, in: modelContext)
+        if choice != .none, ServiceLog.invoice(of: record, in: modelContext) == nil, !recording.invoiceLines.isEmpty {
+            let proposal = ServiceLog.invoice(record, lines: recording.invoiceLines, client: client,
+                                              operatorID: operatorID, notes: notes, in: modelContext)
+            if choice == .sent {
+                DocumentSent.markSent(proposal, in: modelContext)
+            }
         }
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         dismiss()
