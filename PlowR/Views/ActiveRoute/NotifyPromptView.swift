@@ -153,7 +153,7 @@ struct NotifyPromptView: View {
         .padding(.vertical, 12)
         .padding(.horizontal, 20)
         .background(Color(.systemGray6))
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
     }
 
     private var presetsSection: some View {
@@ -196,7 +196,7 @@ struct NotifyPromptView: View {
                 .lineLimit(1...4)
                 .padding(14)
                 .background(Color(.systemGray6))
-                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
         }
     }
 
@@ -209,7 +209,7 @@ struct NotifyPromptView: View {
         .padding(.vertical, 12)
         .padding(.horizontal, 16)
         .background(Color(.systemGray6))
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
     }
 
     private var messagePreview: some View {
@@ -222,7 +222,7 @@ struct NotifyPromptView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(14)
                 .background(Color(.systemGray6))
-                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
         }
     }
 
@@ -239,11 +239,8 @@ struct NotifyPromptView: View {
                 Label("Send Message", systemImage: "message.fill")
                     .font(.headline)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(Color.blue)
-                    .foregroundStyle(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
             }
+            .primaryActionStyle(.blue)
 
             Button {
                 onAdvance()
@@ -252,11 +249,8 @@ struct NotifyPromptView: View {
                 Text("Skip")
                     .font(.headline)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(Color(.systemGray5))
-                    .foregroundStyle(.primary)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
             }
+            .secondaryActionStyle()
         }
         .padding(.horizontal)
         .padding(.bottom, 16)

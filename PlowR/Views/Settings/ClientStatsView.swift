@@ -197,7 +197,7 @@ struct ClientStatsView: View {
     private var activitySection: some View {
         if activeClients.isEmpty {
             Section("Clients by Activity") {
-                Text("No service history recorded yet.")
+                Text("No service history recorded yet")
                     .foregroundStyle(.secondary)
                     .font(.subheadline)
             }

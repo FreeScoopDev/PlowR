@@ -226,8 +226,11 @@ struct ScheduleView: View {
                     }
                 }
             } header: {
+                // Styled as the day and Upcoming headers on this screen.
                 Label("\(overdue.count) Overdue", systemImage: "exclamationmark.circle.fill")
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.orange)
+                    .textCase(nil)
             }
         }
     }
@@ -508,7 +511,7 @@ private struct WeatherBannerRow: View {
                 } else if let w = fetcher.condition {
                     Image(systemName: w.symbolName)
                         .font(.title2)
-                        .foregroundStyle(conditionColor(w.description))
+                        .foregroundStyle(WeatherKind(w.description).iconColor)
                         .frame(width: 30)
 
                     VStack(alignment: .leading, spacing: 2) {
@@ -563,7 +566,7 @@ private struct WeatherBannerRow: View {
                 .foregroundStyle(.secondary)
             Image(systemName: day.symbolName)
                 .font(.subheadline)
-                .foregroundStyle(conditionColor(day.description))
+                .foregroundStyle(WeatherKind(day.description).iconColor)
             if day.hasSignificantPrecip {
                 Text(String(format: "%.1f\"", day.precipitationMm / 25.4))
                     .font(.system(size: 8))
@@ -582,21 +585,12 @@ private struct WeatherBannerRow: View {
         .padding(.horizontal, 6)
         .background {
             if Calendar.current.isDateInToday(day.date) {
-                RoundedRectangle(cornerRadius: 8)
+                RoundedRectangle(cornerRadius: PlowRLayout.cornerSmall, style: .continuous)
                     .fill(Color(.systemGray6))
             }
         }
     }
 
-    private func conditionColor(_ description: String) -> Color {
-        let d = description.lowercased()
-        if d.contains("snow") || d.contains("freezing") { return .blue }
-        if d.contains("rain") || d.contains("drizzle") || d.contains("shower") { return .indigo }
-        if d.contains("thunder") { return .yellow }
-        if d.contains("fog") { return .gray }
-        if d.contains("cloud") { return Color(.systemGray) }
-        return .orange
-    }
 }
 
 @Observable

@@ -146,7 +146,7 @@ struct ClientHomeView: View {
         }
         .padding(12)
         .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerMedium, style: .continuous))
         .shadow(color: .black.opacity(0.06), radius: 4, y: 1)
     }
 }

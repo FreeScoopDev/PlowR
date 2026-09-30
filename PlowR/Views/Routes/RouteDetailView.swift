@@ -102,14 +102,11 @@ struct RouteDetailView: View {
                     Text("Start Route")
                         .font(.headline)
                         .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(route.sortedStops.isEmpty || isOptimizing ? Color.gray : Color.blue)
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                        .padding(.horizontal)
-                        .padding(.vertical, 12)
                 }
+                .primaryActionStyle(.blue)
                 .disabled(route.sortedStops.isEmpty || isOptimizing)
+                .padding(.horizontal)
+                .padding(.vertical, 12)
             }
             .background(.ultraThinMaterial)
         }
@@ -133,7 +130,7 @@ struct RouteDetailView: View {
                 }
             }
             .frame(height: 210)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerMedium, style: .continuous))
             .allowsHitTesting(false)
             .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 6, trailing: 16))
         }

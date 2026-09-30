@@ -95,7 +95,7 @@ struct ContactScannerView: View {
                         .resizable()
                         .scaledToFit()
                         .frame(maxHeight: 160)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerSmall, style: .continuous))
                         .frame(maxWidth: .infinity)
                 }
                 .listRowBackground(Color.clear)

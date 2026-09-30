@@ -338,7 +338,7 @@ struct PropertyScannerView: View {
         }
         .padding(16)
         .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
         .padding()
         .sheet(isPresented: $showingLocationAdjust) {
             NavigationStack {
