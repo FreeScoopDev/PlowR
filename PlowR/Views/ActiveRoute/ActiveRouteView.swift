@@ -160,10 +160,10 @@ struct ActiveRouteView: View {
         .confirmationDialog("Open in Maps", isPresented: $showingNavPicker, titleVisibility: .visible) {
             if let stop = navStop {
                 Button("Apple Maps") { openInAppleMaps(stop) }
-                if UIApplication.shared.canOpenURL(URL(string: "comgooglemaps://")!) {
+                if canOpen("comgooglemaps://") {
                     Button("Google Maps") { openInGoogleMaps(stop) }
                 }
-                if UIApplication.shared.canOpenURL(URL(string: "waze://")!) {
+                if canOpen("waze://") {
                     Button("Waze") { openInWaze(stop) }
                 }
                 Button("Cancel", role: .cancel) {}
@@ -715,9 +715,16 @@ struct ActiveRouteView: View {
         }
     }
 
+    /// Whether an app for this URL scheme is installed. The scheme must be in
+    /// `LSApplicationQueriesSchemes` (Info.plist), or iOS always answers no.
+    private func canOpen(_ scheme: String) -> Bool {
+        guard let url = URL(string: scheme) else { return false }
+        return UIApplication.shared.canOpenURL(url)
+    }
+
     private func openNavigation(for stop: RouteStop) {
-        let hasGoogle = UIApplication.shared.canOpenURL(URL(string: "comgooglemaps://")!)
-        let hasWaze   = UIApplication.shared.canOpenURL(URL(string: "waze://")!)
+        let hasGoogle = canOpen("comgooglemaps://")
+        let hasWaze   = canOpen("waze://")
         if !hasGoogle && !hasWaze {
             openInAppleMaps(stop)
         } else {
