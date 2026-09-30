@@ -18,7 +18,8 @@ nonisolated struct StopRecording {
         var pricePerUnit: Double
     }
 
-    struct CustomItem {
+    struct CustomItem: Identifiable {
+        var id = UUID()
         var name: String
         var price: String
     }
@@ -77,14 +78,17 @@ nonisolated struct StopRecording {
 
     /// The sheet for a record's `lines`: each catalog service on it selected
     /// at its recorded price, custom items as custom items, and any other
-    /// service kept as it is. Reopening and saving then changes nothing.
+    /// service kept as it is: one no longer in the catalog, or renamed since
+    /// (history keeps the name the work was done under). Reopening and
+    /// saving then changes nothing.
     static func loading(_ lines: [ServiceRecord.Line], services: [Service], zones: [InvoiceLines.Zone]) -> StopRecording {
-        let shown = Set(services.map(\.id))
+        let shown = Dictionary(services.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         var recording = StopRecording(services: services, zones: zones)
         for line in lines {
             if line.serviceID.isEmpty {
                 recording.customItems.append(CustomItem(name: line.name, price: money(line.price)))
-            } else if shown.contains(line.serviceID) {
+            } else if let service = shown[line.serviceID], service.name == line.name,
+                      service.unitType == line.unitType {
                 recording.selectedIDs.insert(line.serviceID)
                 recording.typedPrices[line.serviceID] = money(line.price)
             } else {

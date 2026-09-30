@@ -336,6 +336,71 @@ enum ServiceLog {
         return (try? context.fetch(FetchDescriptor<ServiceRecord>(predicate: #Predicate { $0.invoiceID == id }))) ?? []
     }
 
+    // MARK: - A client's Service History
+
+    /// Work done off a route or a visit, logged from the client's Service
+    /// History, at the client's address.
+    /// Not dated in the future: it's work done.
+    @discardableResult
+    static func logWork(_ recording: StopRecording, notes: String, performedAt: Date, minutes: Double,
+                        for client: Client, operatorID: String, now: Date = .now,
+                        in context: ModelContext) -> ServiceRecord {
+        let record = record(forKey: "manual:\(UUID().uuidString)", source: .manual, operatorID: operatorID,
+                            client: client, in: context).record
+        record.clientName = client.name
+        record.propertyAddress = client.address
+        record.performedAt = min(performedAt, now)
+        record.minutes = max(0, minutes)
+        record.lines = recording.recordLines
+        record.notes = notes
+        return record
+    }
+
+    /// Changes made on a record's own page. While it's on an invoice its
+    /// services (`servicesLocked`) and whether it's billable stay as they
+    /// are: they're what the bill says. Change the invoice instead. Never
+    /// dated in the future.
+    static func update(_ record: ServiceRecord, lines: [ServiceRecord.Line], notes: String, performedAt: Date,
+                       minutes: Double, isBillable: Bool, now: Date = .now, in context: ModelContext) {
+        record.notes = notes
+        record.performedAt = min(performedAt, now)
+        record.minutes = max(0, minutes)
+        if !servicesLocked(record, in: context) { record.lines = lines }
+        if invoice(of: record, in: context) == nil { record.isBillable = isBillable }
+    }
+
+    /// Deletes `record`, unless it's on an invoice: delete the invoice first,
+    /// or the bill would name work the log no longer has. Its photos stay in
+    /// the client's gallery. True if it was deleted.
+    @discardableResult
+    static func deleteRecord(_ record: ServiceRecord, in context: ModelContext) -> Bool {
+        guard invoice(of: record, in: context) == nil else { return false }
+        for photo in photos(of: record, in: context) { photo.recordID = "" }
+        context.delete(record)
+        return true
+    }
+
+    /// The photos taken for `record`'s work, oldest first.
+    static func photos(of record: ServiceRecord, in context: ModelContext) -> [StopPhoto] {
+        let id = record.id.uuidString
+        let descriptor = FetchDescriptor<StopPhoto>(predicate: #Predicate { $0.recordID == id },
+                                                    sortBy: [SortDescriptor(\.takenAt)])
+        return (try? context.fetch(descriptor)) ?? []
+    }
+
+    /// The operator's active services, in catalog order, as the Service Log
+    /// forms list them.
+    static func activeServices(_ all: [ServiceItem], operatorID: String) -> [StopRecording.Service] {
+        all.filter { $0.operatorID == operatorID && $0.isActive }
+            .sorted { $0.sortOrder < $1.sortOrder }
+            .map { .init(id: $0.id.uuidString, name: $0.name, unitType: $0.unitType, pricePerUnit: $0.pricePerUnit) }
+    }
+
+    /// What a record's work adds up to.
+    static func total(of record: ServiceRecord) -> Double {
+        InvoiceLines.roundedToCent(record.lines.reduce(0) { $0 + $1.price })
+    }
+
     // MARK: - A scheduled visit
 
     /// Marks `visit` complete, adds the next visit of its series if it needs
