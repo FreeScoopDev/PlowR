@@ -220,21 +220,37 @@ enum ServiceLog {
 
     /// Where a job stands with billing: the one status Service History shows.
     enum BillingStatus: Equatable {
-        case invoiced, notTracked, noCharge, notBilled
+        case invoiced, notTracked, noCharge, covered, notBilled
     }
 
     /// On an invoice; else from before the log (never counted as owed); else
-    /// no charge; else not billed yet.
+    /// no charge; else covered by a contract (nothing of it charged by the
+    /// visit); else not billed yet.
     static func billingStatus(of record: ServiceRecord, in context: ModelContext) -> BillingStatus {
-        billingStatus(of: record, invoiced: invoice(of: record, in: context) != nil)
+        billingStatus(of: record, invoiced: invoice(of: record, in: context) != nil,
+                      covered: isCovered(record, contracts: Contracts.all(in: context)))
     }
 
-    /// The rule itself, given whether the record's invoice exists: for
-    /// checking many records against one lookup of the invoices (`invoiceIDs`).
-    static func billingStatus(of record: ServiceRecord, invoiced: Bool) -> BillingStatus {
+    /// The rule itself, given whether the record's invoice exists and whether
+    /// a contract covers all of it: for checking many records against one
+    /// lookup of the invoices (`invoiceIDs`) and contracts.
+    static func billingStatus(of record: ServiceRecord, invoiced: Bool, covered: Bool) -> BillingStatus {
         if invoiced { return .invoiced }
         if record.source == .beforeLog { return .notTracked }
-        return record.isBillable ? .notBilled : .noCharge
+        if !record.isBillable { return .noCharge }
+        return covered ? .covered : .notBilled
+    }
+
+    /// What a job charges (Contracts.charge): its services as recorded,
+    /// unless a contract covers it.
+    static func charge(of record: ServiceRecord, contracts: [Contract]) -> [ServiceRecord.Line] {
+        Contracts.charge(of: record.lines, under: Contracts.contract(covering: record, among: contracts))
+    }
+
+    /// A job with services, none of them charged by the visit: a season or
+    /// monthly contract covers all of it.
+    static func isCovered(_ record: ServiceRecord, contracts: [Contract]) -> Bool {
+        !record.lines.isEmpty && charge(of: record, contracts: contracts).isEmpty
     }
 
     /// The IDs of every invoice (not proposal) there is, looked up once.

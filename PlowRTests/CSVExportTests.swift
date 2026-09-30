@@ -93,7 +93,7 @@ struct CSVExportTests {
         #expect(lines.count == 3)
         #expect(lines[1].contains("Before the Service History"))
         #expect(lines[1].contains("Billing Not Tracked"))
-        #expect(lines[2].contains("Clear; Salt,12,50.00,Invoiced,INV-0003"))
+        #expect(lines[2].contains("Clear; Salt,12,50.00,50.00,Invoiced,INV-0003"))    // Total, then Charged
     }
 
     @Test func aFileIsNamedForItsKindAndDay() throws {

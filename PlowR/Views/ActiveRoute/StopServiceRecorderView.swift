@@ -107,6 +107,29 @@ struct StopServiceRecorderView: View {
         ServiceLog.activeServices(allServices, operatorID: operatorID)
     }
 
+    /// The contract covering this stop on the day it started, as billing
+    /// will find it (Contracts.contract(coveringPlace:)).
+    private func coveringContract(_ client: Client) -> Contract? {
+        Contracts.contract(coveringPlace: Place.id(of: client, propertyID: stop.propertyID), of: client.id.uuidString,
+                           on: stopStartedAt, among: Contracts.all(in: modelContext))
+    }
+
+    /// What an invoice made here would bill: under the stop's contract.
+    private var invoiceLines: [InvoiceLines.Line] {
+        recording.invoiceLines(under: client.flatMap { coveringContract($0) })
+    }
+
+    /// What the contract means for what's recorded here, as Bill Unbilled
+    /// Work will bill it (ServiceLog.charge).
+    private func contractNote(_ contract: Contract) -> String {
+        switch Contracts.pricing(of: contract) {
+        case .season, .monthly:
+            "The services it covers aren't billed by the visit, and aren't put on an invoice from here. Others are billed as extras."
+        case .perVisit:
+            "The services it covers are billed at \(contract.price.formatted(.currency(code: "USD"))) a visit, here and in Bill Unbilled Work."
+        }
+    }
+
     private var pricingZones: [InvoiceLines.Zone] {
         client.flatMap { Place.of($0, propertyID: stop.propertyID)?.zones } ?? []
     }
@@ -120,6 +143,12 @@ struct StopServiceRecorderView: View {
                         // The stop's: its place's address, which may be a property's.
                         if !stop.clientAddress.isEmpty {
                             LabeledContent("Address", value: stop.clientAddress)
+                        }
+                        if let contract = coveringContract(client) {
+                            LabeledContent("Contract", value: contract.name)
+                            Text(contractNote(contract))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -179,13 +208,13 @@ struct StopServiceRecorderView: View {
                             } label: {
                                 Label("Save & Draft Invoice", systemImage: "doc.badge.clock")
                             }
-                            .disabled(recording.invoiceLines.isEmpty)
+                            .disabled(invoiceLines.isEmpty)
                             Button {
                                 save(invoice: .sent)
                             } label: {
                                 Label("Save & Mark Invoice Sent", systemImage: "paperplane.fill")
                             }
-                            .disabled(recording.invoiceLines.isEmpty)
+                            .disabled(invoiceLines.isEmpty)
                         }
                     }
                     .disabled(client == nil || !hasAnythingToSave)
@@ -346,8 +375,10 @@ struct StopServiceRecorderView: View {
             }
         }
 
-        if choice != .none, ServiceLog.invoice(of: record, in: modelContext) == nil, !recording.invoiceLines.isEmpty {
-            let proposal = ServiceLog.invoice(record, lines: recording.invoiceLines, client: client,
+        // Billed as its contract says: nothing for work it covers, its price per visit.
+        let lines = invoiceLines
+        if choice != .none, ServiceLog.invoice(of: record, in: modelContext) == nil, !lines.isEmpty {
+            let proposal = ServiceLog.invoice(record, lines: lines, client: client,
                                               operatorID: operatorID, notes: notes, in: modelContext)
             if choice == .sent {
                 DocumentSent.markSent(proposal, in: modelContext)

@@ -39,14 +39,26 @@ nonisolated struct StopRecording {
     /// The invoice's lines: each selected service's whole-property figure (or
     /// the typed price), split across zones as InvoiceLines does, then the
     /// custom items with a name and a price above zero.
-    var invoiceLines: [InvoiceLines.Line] {
+    var invoiceLines: [InvoiceLines.Line] { invoiceLines(under: nil) }
+
+    /// The invoice's lines under `contract` (Contracts.charge): services a
+    /// season or monthly contract covers aren't on it; under a per-visit
+    /// one they're one line at its price. The rest as `invoiceLines`.
+    func invoiceLines(under contract: Contract?) -> [InvoiceLines.Line] {
+        let covered = Set(contract?.serviceIDs ?? [])
         var lines: [InvoiceLines.Line] = []
-        for service in services where selectedIDs.contains(service.id) {
+        let anyCovered = services.contains { selectedIDs.contains($0.id) && covered.contains($0.id) }
+            || keptLines.contains { covered.contains($0.serviceID) }
+        if let contract, anyCovered, Contracts.pricing(of: contract) == .perVisit {
+            lines.append(InvoiceLines.Line(serviceName: "\(contract.name): visit", zoneLabel: "", quantity: 1,
+                                           unitType: "flat", unitPrice: contract.price, lineTotal: contract.price))
+        }
+        for service in services where selectedIDs.contains(service.id) && !covered.contains(service.id) {
             lines += InvoiceLines.lines(serviceName: service.name, unitType: service.unitType,
                                         pricePerUnit: service.pricePerUnit, zones: zones,
                                         typedPrice: typedPrices[service.id])
         }
-        for kept in keptLines {
+        for kept in keptLines where kept.serviceID.isEmpty || !covered.contains(kept.serviceID) {
             lines.append(InvoiceLines.Line(serviceName: kept.name, zoneLabel: "", quantity: 1,
                                            unitType: "flat", unitPrice: kept.price, lineTotal: kept.price))
         }

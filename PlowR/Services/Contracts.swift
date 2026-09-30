@@ -172,6 +172,7 @@ enum Contracts {
         /// Why it can't be saved yet, or nil when it can.
         func problem(now: Date = .now, calendar: Calendar = .current) -> String? {
             if placeIDs.isEmpty { return "Choose where it applies." }
+            if serviceIDs.isEmpty { return "Choose the services it covers." }
             if endDate < startDate { return "It has to end after it starts." }
             if isSigned, calendar.startOfDay(for: endDate) < calendar.startOfDay(for: now) {
                 return "A signed contract can't end before today. To end it now, cancel it."
@@ -244,5 +245,64 @@ enum Contracts {
         contract.client = nil
         context.delete(contract)
         try? context.save()
+    }
+
+    // MARK: - Work under a contract
+
+    /// Whether `contract` covers `day` at the place with `placeID` (Place.id).
+    /// Signed; within its dates; and, cancelled, up to the day it was.
+    static func covers(_ contract: Contract, placeID: String, on day: Date, calendar: Calendar = .current) -> Bool {
+        guard contract.signedAt != nil, contract.placeIDs.contains(placeID) else { return false }
+        let day = calendar.startOfDay(for: day)
+        guard day >= calendar.startOfDay(for: contract.startDate),
+              day <= calendar.startOfDay(for: contract.endDate) else { return false }
+        if let cancelled = contract.cancelledAt, day > calendar.startOfDay(for: cancelled) { return false }
+        return true
+    }
+
+    /// The contract covering a client's place on a day: the newest signed
+    /// one if two overlap. The one rule, for the Service Log and for Record
+    /// Services alike.
+    static func contract(coveringPlace placeID: String, of clientID: String, on day: Date,
+                         among contracts: [Contract], calendar: Calendar = .current) -> Contract? {
+        contracts
+            .filter { $0.clientID == clientID && covers($0, placeID: placeID, on: day, calendar: calendar) }
+            .max { ($0.signedAt ?? .distantPast) < ($1.signedAt ?? .distantPast) }
+    }
+
+    /// The contract covering a job in the Service Log: at its place, on the
+    /// day it started (a route that runs past midnight is the day's work).
+    static func contract(covering record: ServiceRecord, among contracts: [Contract],
+                         calendar: Calendar = .current) -> Contract? {
+        contract(coveringPlace: record.propertyID.isEmpty ? record.clientID : record.propertyID,
+                 of: record.clientID, on: record.startedAt ?? record.performedAt, among: contracts,
+                 calendar: calendar)
+    }
+
+    /// What a job charges under `contract`. Its services stay as they were
+    /// recorded (the record of what was done); only what's billed changes:
+    /// - Season price or monthly: the services it covers charge nothing;
+    ///   the contract's own payments are what's owed for them.
+    /// - Per visit: they're one line at the contract's price.
+    /// Services it doesn't cover are extras, charged as recorded. With no
+    /// contract, everything is charged as recorded.
+    static func charge(of lines: [ServiceRecord.Line], under contract: Contract?) -> [ServiceRecord.Line] {
+        guard let contract else { return lines }
+        let covered = Set(contract.serviceIDs)
+        let extras = lines.filter { $0.serviceID.isEmpty || !covered.contains($0.serviceID) }
+        guard extras.count < lines.count else { return lines }
+        switch pricing(of: contract) {
+        case .season, .monthly:
+            return extras
+        case .perVisit:
+            let visit = ServiceRecord.Line(serviceID: "", name: "\(contract.name): visit", unitType: "flat",
+                                           price: contract.price)
+            return [visit] + extras
+        }
+    }
+
+    /// Every contract there is, looked up once, for billing many jobs.
+    static func all(in context: ModelContext) -> [Contract] {
+        (try? context.fetch(FetchDescriptor<Contract>())) ?? []
     }
 }

@@ -47,6 +47,8 @@ struct ContractsTests {
         let h = try Harness(stopCount: 0)
         var draft = Contracts.Draft(for: h.client, now: h.clock)
         draft.priceText = "100"
+        #expect(draft.problem(now: h.clock) == "Choose the services it covers.")
+        draft.serviceIDs = ["plow"]
         #expect(draft.problem(now: h.clock) == nil)
         draft.placeIDs = []
         #expect(draft.problem(now: h.clock) == "Choose where it applies.")

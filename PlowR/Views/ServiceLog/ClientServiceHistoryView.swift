@@ -53,12 +53,20 @@ struct ClientServiceHistoryView: View {
                         }
                     }
                 }
+                // Looked up once for the list, not once a row.
+                let invoiceIDs = ServiceLog.invoiceIDs(in: modelContext)
+                let contracts = Contracts.all(in: modelContext)
                 Section {
                     ForEach(records) { record in
+                        let charge = ServiceLog.charge(of: record, contracts: contracts)
+                        let status = ServiceLog.billingStatus(
+                            of: record, invoiced: invoiceIDs.contains(record.invoiceID),
+                            covered: !record.lines.isEmpty && charge.isEmpty)
                         NavigationLink {
                             ServiceRecordDetailView(record: record, client: client)
                         } label: {
-                            ServiceRecordRow(record: record)
+                            ServiceRecordRow(record: record, status: status,
+                                             charged: InvoiceLines.roundedToCent(charge.reduce(0) { $0 + $1.price }))
                         }
                     }
                 }
@@ -84,9 +92,14 @@ struct ClientServiceHistoryView: View {
     }
 }
 
-/// One job in a Service History list.
+/// One job in a Service History list: what it charges (under a contract,
+/// its price, or for covered work what the work came to, in grey), and
+/// where it stands with billing.
 struct ServiceRecordRow: View {
     let record: ServiceRecord
+    let status: ServiceLog.BillingStatus
+    /// What it charges (ServiceLog.charge).
+    let charged: Double
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -94,16 +107,16 @@ struct ServiceRecordRow: View {
                 Text(record.performedAt, format: .dateTime.month(.abbreviated).day().year())
                     .font(.subheadline.weight(.semibold))
                 Spacer()
-                Text(ServiceLog.total(of: record), format: .currency(code: "USD"))
+                Text(status == .covered ? ServiceLog.total(of: record) : charged, format: .currency(code: "USD"))
                     .font(.subheadline)
-                    .foregroundStyle(record.isBillable ? .primary : .secondary)
+                    .foregroundStyle(record.isBillable && status != .covered ? .primary : .secondary)
             }
             Text(servicesSummary)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
             HStack(spacing: 8) {
-                ServiceRecordStatusChip(record: record)
+                ServiceRecordStatusChip(status: status)
                 if record.minutes >= 1 {
                     Label("\(Int(record.minutes.rounded())) min", systemImage: "clock")
                         .font(.caption2)
@@ -128,14 +141,14 @@ struct ServiceRecordRow: View {
 
 /// Where a job stands with billing (ServiceLog.billingStatus).
 struct ServiceRecordStatusChip: View {
-    let record: ServiceRecord
-    @Environment(\.modelContext) private var modelContext
+    let status: ServiceLog.BillingStatus
 
     var body: some View {
-        let (text, colour): (String, Color) = switch ServiceLog.billingStatus(of: record, in: modelContext) {
+        let (text, colour): (String, Color) = switch status {
         case .invoiced: ("Invoiced", .green)
         case .notTracked: ("Billing Not Tracked", .gray)
         case .noCharge: ("No Charge", .purple)
+        case .covered: ("Covered by Contract", .teal)
         case .notBilled: ("Not Billed", .orange)
         }
         StatusChip(text, color: colour)
