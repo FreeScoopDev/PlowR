@@ -4,33 +4,6 @@
 <dict>
 	<key>CFBundleIconName</key>
 	<string>AppIcon</string>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>location</string>
-	</array>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>PlowR uses your location to show where you are on the route map, estimate arrival times for your clients, and show your local weather.</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>During a route, PlowR uses your location in the background to notice when you leave a stop, so it can prompt you to notify the next client.</string>
-	<key>NSLocationAlwaysUsageDescription</key>
-	<string>During a route, PlowR uses your location in the background to notice when you leave a stop, so it can prompt you to notify the next client.</string>
-	<key>NSCameraUsageDescription</key>
-	<string>PlowR uses your camera to capture before and after photos of service stops, and to scan business cards when adding new clients.</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>PlowR saves a job photo to your photo library when you choose Save Image.</string>
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
-	<key>NSSupportsLiveActivities</key>
-	<true/>
-	<key>NSCalendarsUsageDescription</key>
-	<string>PlowR adds your visits to a “PlowR” calendar and updates or removes those events when visits change. It doesn’t read or change your other events.</string>
-	<key>NSCalendarsFullAccessUsageDescription</key>
-	<string>PlowR adds your visits to a “PlowR” calendar and updates or removes those events when visits change. It doesn’t read or change your other events.</string>
-	<key>LSApplicationQueriesSchemes</key>
-	<array>
-		<string>comgooglemaps</string>
-		<string>waze</string>
-	</array>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -39,6 +12,15 @@
 				<string>plowr</string>
 			</array>
 		</dict>
+	</array>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>comgooglemaps</string>
+		<string>waze</string>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
 	</array>
 </dict>
 </plist>
