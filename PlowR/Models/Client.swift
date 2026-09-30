@@ -32,6 +32,9 @@ final class Client {
     var isActive: Bool = true
     var lastMessageSentAt: Date? = nil
     var clientRespondedAt: Date? = nil
+    /// Marked lost: a lead or a quote that didn't turn into work (Pipeline).
+    /// Nil for everyone else, and again when reopened.
+    var lostAt: Date? = nil
     var expectedServiceIDs: [String] = []  // ServiceItem IDs this client typically needs
 
     var averageServiceMinutes: Double {

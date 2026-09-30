@@ -18,6 +18,9 @@ struct ClientListView: View {
     @Environment(AuthManager.self) private var authManager
     @Query private var allClients: [Client]
     @Query private var allProposals: [Proposal]
+    @Query private var allRecords: [ServiceRecord]
+    @Query private var allVisits: [ScheduledVisit]
+    @Query private var allStops: [RouteStop]
     @State private var showingAddClient = false
     @State private var showingContactScanner = false
     @State private var clientToDelete: Client?
@@ -105,6 +108,30 @@ struct ClientListView: View {
         Payments.received(allProposals.filter { $0.operatorID == authManager.userID })
     }
 
+    /// Leads and quotes (Pipeline), when there are any.
+    @ViewBuilder
+    private var pipelineLink: some View {
+        // Shown while anyone's in it, lost too: the Pipeline is where they're reopened.
+        let entries = Pipeline.entries(allClients, operatorID: authManager.userID,
+                                       facts: Pipeline.Facts(documents: allProposals, records: allRecords,
+                                                             visits: allVisits, stops: allStops))
+        if !entries.isEmpty {
+            Section {
+                NavigationLink { PipelineView() } label: {
+                    let followUps = entries.filter(\.needsFollowUp).count
+                    LabeledContent {
+                        if followUps > 0 { StatusChip("\(followUps) to follow up", color: .orange) }
+                    } label: {
+                        Label("Pipeline", systemImage: "person.crop.circle.badge.plus")
+                        let leads = entries.filter { $0.stage == .lead }.count
+                        let quoted = entries.filter { $0.stage == .quoted }.count
+                        Text("\(leads) \(leads == 1 ? "lead" : "leads") · \(quoted) quoted")
+                    }
+                }
+            }
+        }
+    }
+
     var body: some View {
         Group {
             if clients.isEmpty && myClients.isEmpty {
@@ -119,6 +146,7 @@ struct ClientListView: View {
                 List {
                     if !myClients.isEmpty {
                         clientSummarySection
+                        pipelineLink
                     }
                     ForEach(activeClients) { client in
                         clientRow(client)

@@ -11,6 +11,7 @@ struct DashboardView: View {
     @Query(sort: \ScheduledVisit.scheduledDate) private var allVisits: [ScheduledVisit]
     @Query(sort: \PlowRoute.createdAt, order: .reverse) private var allRoutes: [PlowRoute]
     @Query private var allProposals: [Proposal]
+    @Query private var allRecords: [ServiceRecord]
 
     @State private var dashWeather: WeatherCondition?
     private let iCloud = ICloudStatus.shared
@@ -76,6 +77,7 @@ struct DashboardView: View {
                     if let w = dashWeather { dashWeatherStrip(w) }
                     todayCard
                     financeRow
+                    pipelineRow
                     routesCard
                     if !upcomingVisits.isEmpty { upcomingCard }
                     quickActionsGrid
@@ -337,6 +339,45 @@ struct DashboardView: View {
                              color: draftCount > 0 ? .blue : .secondary)
                 }
                 .buttonStyle(.plain)
+            }
+        }
+    }
+
+    // MARK: - Pipeline
+
+    /// Clients who aren't customers yet (Pipeline).
+    private var pipeline: [Pipeline.Entry] {
+        Pipeline.entries(allClients, operatorID: authManager.userID,
+                         facts: Pipeline.Facts(documents: allProposals, records: allRecords, visits: allVisits,
+                                               stops: allRoutes.flatMap { $0.stops ?? [] }))
+    }
+
+    /// Leads, quotes and follow-ups, when there are any: each opens the Pipeline.
+    @ViewBuilder
+    private var pipelineRow: some View {
+        let entries = pipeline.filter { $0.stage != .lost }
+        if !entries.isEmpty {
+            let followUps = entries.filter(\.needsFollowUp).count
+            VStack(alignment: .leading, spacing: 8) {
+                sectionHeader("Pipeline", icon: "person.crop.circle.badge.plus",
+                              badge: followUps > 0 ? "\(followUps) to follow up" : nil, badgeColor: .orange)
+                let leads = entries.filter { $0.stage == .lead }.count
+                let quoted = entries.filter { $0.stage == .quoted }.count
+                // Each its own link to the Pipeline, and zero in grey, as the finance tiles.
+                StatTileRow {
+                    NavigationLink { PipelineView() } label: {
+                        StatTile(value: "\(leads)", label: "Leads", color: leads > 0 ? .blue : .secondary)
+                    }
+                    .buttonStyle(.plain)
+                    NavigationLink { PipelineView() } label: {
+                        StatTile(value: "\(quoted)", label: "Quoted", color: quoted > 0 ? .blue : .secondary)
+                    }
+                    .buttonStyle(.plain)
+                    NavigationLink { PipelineView() } label: {
+                        StatTile(value: "\(followUps)", label: "Follow Up", color: followUps > 0 ? .orange : .secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
     }

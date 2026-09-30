@@ -697,9 +697,10 @@ struct EditClientView: View {
                 }
             }
 
+            pipelineStageRow
+
             if let sent = client.lastMessageSentAt {
-                let responded = client.clientRespondedAt
-                let awaitingResponse = responded.map { $0 < sent } ?? true
+                let awaitingResponse = Pipeline.isAwaitingResponse(client)
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(awaitingResponse ? "Awaiting Response" : "Client Responded")
@@ -719,6 +720,26 @@ struct EditClientView: View {
                         .controlSize(.small)
                     }
                 }
+            }
+        }
+    }
+
+    /// Where they stand before they're a customer (Pipeline): Lead or
+    /// Quoted, with Mark Lost; or Lost, with Reopen. Nothing for a customer.
+    @ViewBuilder
+    private var pipelineStageRow: some View {
+        // This client's records only: the page redraws with each key typed.
+        let stage = Pipeline.stage(of: client, facts: Pipeline.Facts(of: client, in: modelContext))
+        if stage != .customer, client.isActive {
+            LabeledContent {
+                Button(stage == .lost ? "Reopen" : "Mark Lost") {
+                    Pipeline.setLost(stage != .lost, for: client, in: modelContext)
+                }
+                .font(.caption)
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            } label: {
+                StatusChip(stage.title, color: stage == .lost ? .gray : .blue)
             }
         }
     }
