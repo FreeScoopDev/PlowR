@@ -131,8 +131,12 @@ struct SettingsView: View {
             }
 
             Section("Legal") {
-                Link("Privacy Policy", destination: URL(string: "https://getplowr.app/privacy-policy.html")!)
-                Link("Terms of Service", destination: URL(string: "https://getplowr.app/terms-of-service.html")!)
+                if let url = URL(string: "https://getplowr.app/privacy-policy.html") {
+                    Link("Privacy Policy", destination: url)
+                }
+                if let url = URL(string: "https://getplowr.app/terms-of-service.html") {
+                    Link("Terms of Service", destination: url)
+                }
             }
 
             #if DEBUG

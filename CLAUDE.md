@@ -103,8 +103,12 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   (#17). The annotations stop at 10; the log's `Found N violations, M serious`
   line has the full count. **Blind spot:** `force_unwrapping` does not flag a
   force-unwrapped initializer call such as `URL(string: "…")!` (verified
-  2026-09-27; `SettingsView` has two, on literal URLs), so the gate isn't a
-  guarantee that no `!` exists. Never add a `swiftlint:disable` to get past it:
+  2026-09-27), so the gate isn't a guarantee that no `!` exists. The app and
+  widget have none since 2026-09-30 (the six were literal URLs in
+  `SettingsView` and `ActiveRouteView`); check by hand with
+  `git grep -nE '\)!([^=]|$)' -- 'PlowR/*.swift' 'PlowRWidgets/*.swift'`,
+  which should print nothing. `PlowRTests` is outside the lint and keeps its
+  own. Never add a `swiftlint:disable` to get past it:
   remove the unwrap. Never run `scripts/lint.sh --fix` without
   `scripts/test.sh` after it.
 - **A route in progress lives in `ActiveRouteStore`, never in a view.** Only
