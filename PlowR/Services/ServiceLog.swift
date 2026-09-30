@@ -220,9 +220,27 @@ enum ServiceLog {
     /// On an invoice; else from before the log (never counted as owed); else
     /// no charge; else not billed yet.
     static func billingStatus(of record: ServiceRecord, in context: ModelContext) -> BillingStatus {
-        if invoice(of: record, in: context) != nil { return .invoiced }
+        billingStatus(of: record, invoiced: invoice(of: record, in: context) != nil)
+    }
+
+    /// The rule itself, given whether the record's invoice exists: for
+    /// checking many records against one lookup of the invoices (`invoiceIDs`).
+    static func billingStatus(of record: ServiceRecord, invoiced: Bool) -> BillingStatus {
+        if invoiced { return .invoiced }
         if record.source == .beforeLog { return .notTracked }
         return record.isBillable ? .notBilled : .noCharge
+    }
+
+    /// The IDs of every invoice (not proposal) there is, looked up once.
+    static func invoiceIDs(in context: ModelContext) -> Set<String> {
+        Set(((try? context.fetch(FetchDescriptor<Proposal>())) ?? []).filter(\.isInvoice).map(\.id.uuidString))
+    }
+
+    /// Whether the work of `visit` is already on an invoice, so the Schedule
+    /// mustn't offer to invoice the visit again.
+    static func isVisitBilled(_ visit: ScheduledVisit, in context: ModelContext) -> Bool {
+        guard let record = record(forKey: visitKey(visit.id), in: context) else { return false }
+        return invoice(of: record, in: context) != nil
     }
 
     /// The invoice made for `visit` (Schedule → Invoice), if it exists and
@@ -301,10 +319,6 @@ enum ServiceLog {
     @discardableResult
     static func invoice(_ record: ServiceRecord, lines: [InvoiceLines.Line], client: Client, operatorID: String,
                         notes: String, now: Date = .now, in context: ModelContext) -> Proposal {
-        let proposal = Proposal(operatorID: operatorID, client: client)
-        proposal.invoiceNumber = InvoiceNumbering.next(operatorID: operatorID, in: context)
-        proposal.invoiceDueDate = now.addingTimeInterval(30 * 86_400)
-        if !notes.isEmpty { proposal.notes = notes }
         let items = lines.enumerated().map { index, line in
             let item = ProposalLineItem(serviceName: line.serviceName, zoneLabel: line.zoneLabel,
                                         quantity: line.quantity, unitType: line.unitType,
@@ -312,16 +326,40 @@ enum ServiceLog {
             item.lineTotal = line.lineTotal
             return item
         }
-        items.forEach { context.insert($0) }
-        proposal.lineItems = items
-        context.insert(proposal)
+        let proposal = newDraftInvoice(for: client, items: items, operatorID: operatorID, notes: notes,
+                                       now: now, in: context)
         record.invoiceID = proposal.id.uuidString
         if let visit = scheduledVisit(record.visitID, in: context) {
             proposal.visitID = visit.id.uuidString
-            // Unless the visit is on another document that still exists.
-            if document(visit.proposalID, in: context) == nil { visit.proposalID = proposal.id.uuidString }
+            link(visit, to: proposal, in: context)
         }
         return proposal
+    }
+
+    /// How long a new invoice gives to pay.
+    static let invoiceTerm: TimeInterval = 30 * 86_400
+
+    /// A new draft invoice for `client` with `items`: the next number, due in
+    /// `invoiceTerm`, the business's default terms. Record Services and Bill
+    /// Unbilled Work both make invoices through here, so they can't differ.
+    static func newDraftInvoice(for client: Client, items: [ProposalLineItem], operatorID: String,
+                                notes: String = "", now: Date, in context: ModelContext) -> Proposal {
+        let proposal = Proposal(operatorID: operatorID, client: client)
+        proposal.invoiceNumber = InvoiceNumbering.next(operatorID: operatorID, in: context)
+        proposal.invoiceDueDate = now.addingTimeInterval(invoiceTerm)
+        let profile = (try? context.fetch(FetchDescriptor<BusinessProfile>()))?.first { $0.operatorID == operatorID }
+        proposal.disclaimer = profile?.defaultDisclaimer ?? ""
+        if !notes.isEmpty { proposal.notes = notes }
+        items.forEach { context.insert($0) }
+        proposal.lineItems = items
+        context.insert(proposal)
+        return proposal
+    }
+
+    /// `visit` is on `proposal` now, unless it's on another document that
+    /// still exists, so the Schedule doesn't offer to invoice it again.
+    static func link(_ visit: ScheduledVisit, to proposal: Proposal, in context: ModelContext) {
+        if document(visit.proposalID, in: context) == nil { visit.proposalID = proposal.id.uuidString }
     }
 
     /// After an invoice was made for a scheduled visit: the visit's record,
@@ -348,7 +386,7 @@ enum ServiceLog {
         revision.taxRate = original.taxRate
         revision.disclaimer = original.disclaimer
         revision.notes = original.notes
-        revision.invoiceDueDate = now.addingTimeInterval(30 * 86_400)
+        revision.invoiceDueDate = now.addingTimeInterval(invoiceTerm)
         let copies = original.makeLineItemCopies()
         copies.forEach { context.insert($0) }
         revision.lineItems = copies

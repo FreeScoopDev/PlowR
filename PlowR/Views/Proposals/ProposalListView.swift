@@ -9,6 +9,7 @@ struct ProposalListView: View {
     @Query(sort: \Proposal.createdAt, order: .reverse) private var allProposals: [Proposal]
 
     @State private var showingClientPicker = false
+    @State private var showingBillWork = false
     @State private var pendingIsInvoice = false
     @State private var creationContext: ProposalCreationContext?
     @State private var proposalToDelete: Proposal?
@@ -102,6 +103,12 @@ struct ProposalListView: View {
                     } label: {
                         Label("New Invoice", systemImage: "doc.badge.arrow.up")
                     }
+                    Divider()
+                    Button {
+                        showingBillWork = true
+                    } label: {
+                        Label("Bill Unbilled Work", systemImage: "tray.and.arrow.up")
+                    }
                 } label: {
                     Image(systemName: "plus")
                 }
@@ -127,6 +134,9 @@ struct ProposalListView: View {
                 if let p = proposalToDelete { ServiceLog.delete(p, in: modelContext); proposalToDelete = nil }
             }
             Button("Cancel", role: .cancel) { proposalToDelete = nil }
+        }
+        .sheet(isPresented: $showingBillWork) {
+            BillWorkView()
         }
         .sheet(isPresented: $showingClientPicker) {
             ClientPickerForProposalView { client in

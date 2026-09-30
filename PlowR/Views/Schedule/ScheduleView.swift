@@ -169,7 +169,9 @@ struct ScheduleView: View {
                                 }
                                 .tint(.orange)
                             }
-                            if visit.proposalID.isEmpty {
+                            // Not when its work is already on an invoice (Bill
+                            // Unbilled Work, Record Services).
+                            if visit.proposalID.isEmpty, !ServiceLog.isVisitBilled(visit, in: modelContext) {
                                 Button { invoicingVisit = visit } label: {
                                     Label("Invoice", systemImage: "doc.text.badge.plus")
                                 }
