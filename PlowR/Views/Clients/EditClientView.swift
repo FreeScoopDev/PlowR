@@ -223,8 +223,11 @@ struct EditClientView: View {
 
     private var actionTilesSection: some View {
         Section {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
+            // Four tiles sharing the row's width (ClientActionTile). The
+            // scroll view doesn't scroll: it keeps the list from treating the
+            // row as one tappable cell with a disclosure arrow.
+            ScrollView(.horizontal) {
+                HStack(spacing: 8) {
                     Menu {
                         if !draft.phone.isEmpty {
                             Button {
@@ -245,8 +248,13 @@ struct EditClientView: View {
                             } label: { Label("Email", systemImage: "envelope.fill") }
                         }
                     } label: {
-                        actionTileLabel(title: "Contact", icon: "phone.badge.waveform.fill", color: .blue)
+                        ClientActionTile(title: "Contact", icon: "phone.badge.waveform.fill", color: .blue)
                     }
+                    // Styled as the other tiles are: a menu otherwise tints
+                    // and pads its label its own way.
+                    .menuStyle(.button)
+                    .buttonStyle(.plain)
+                    .menuIndicator(.hidden)
                     actionTile(title: "Invoice", icon: "doc.badge.arrow.up", color: .orange) {
                         if let latest = clientDocuments.first(where: { $0.isInvoice && $0.invoicePaidAt == nil }) {
                             editingProposal = latest
@@ -260,36 +268,23 @@ struct EditClientView: View {
                     NavigationLink {
                         ClientPhotoGalleryView(client: client)
                     } label: {
-                        actionTileLabel(title: "Photos", icon: "photo.on.rectangle.angled", color: .teal)
+                        ClientActionTile(title: "Photos", icon: "photo.on.rectangle.angled", color: .teal)
                     }
                     .buttonStyle(.plain)
                 }
-                .padding(.vertical, 8)
+                .padding(.vertical, 10)
+                .containerRelativeFrame(.horizontal)
             }
-            .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+            .scrollDisabled(true)
+            .listRowInsets(EdgeInsets(top: 0, leading: 12, bottom: 0, trailing: 12))
         }
     }
 
     private func actionTile(title: String, icon: String, color: Color, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            actionTileLabel(title: title, icon: icon, color: color)
+            ClientActionTile(title: title, icon: icon, color: color)
         }
         .buttonStyle(.plain)
-    }
-
-    private func actionTileLabel(title: String, icon: String, color: Color) -> some View {
-        VStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(color)
-                .frame(width: 50, height: 40)
-                .background(color.opacity(0.12))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-            Text(title)
-                .font(.caption2.weight(.medium))
-                .foregroundStyle(.secondary)
-        }
-        .frame(width: 64)
     }
 
     // MARK: - Contact Section
