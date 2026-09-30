@@ -88,7 +88,11 @@ struct ProposalDetailView: View {
         }
         .sheet(isPresented: $showingReminder) {
             if let phone = proposalClient?.phone, !phone.isEmpty {
-                MessageComposer(recipients: [phone], body: reminderMessage) { _ in }
+                MessageComposer(recipients: [phone], body: reminderMessage) { outcome in
+                    if outcome == .sent, let id = UUID(uuidString: proposal.clientID) {
+                        TextLog.record(.invoiceReminder, body: reminderMessage, to: [id], in: modelContext)
+                    }
+                }
             }
         }
         .sheet(isPresented: $showingPayments) {

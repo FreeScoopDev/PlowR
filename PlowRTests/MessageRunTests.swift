@@ -13,7 +13,7 @@ import Testing
 /// record of who had been sent it.
 @MainActor
 struct MessageRunTests {
-    private let people = (0..<5).map { MessageRun.Recipient(id: UUID(), phone: "555-010\($0)") }
+    private let people = (0..<5).map { MessageRun.Recipient(id: UUID(), phone: "555-010\($0)", clientID: UUID()) }
     private var ids: [UUID] { people.map(\.id) }
 
     @Test func everyoneSentFinishes() {

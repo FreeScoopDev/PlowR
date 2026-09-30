@@ -1,8 +1,8 @@
 import SwiftUI
 import SwiftData
 
-/// A client's timeline (ClientTimeline): jobs, visits, quotes, invoices and
-/// photos, newest first, by month. Jobs and documents open when tapped.
+/// A client's timeline (ClientTimeline): jobs, visits, quotes, invoices,
+/// texts sent and photos, newest first, by month. Jobs and documents open when tapped.
 struct ClientTimelineView: View {
     let client: Client
 
@@ -14,7 +14,7 @@ struct ClientTimelineView: View {
             if let events {
                 if events.isEmpty {
                     ContentUnavailableView("Nothing Yet", systemImage: "clock",
-                                           description: Text("Jobs, visits, invoices and photos for \(client.name) will show here."))
+                                           description: Text("Jobs, visits, invoices, texts and photos for \(client.name) will show here."))
                 } else {
                     ForEach(months(of: events), id: \.month) { group in
                         Section(group.month.formatted(.dateTime.month(.wide).year())) {
@@ -76,7 +76,10 @@ struct ClientTimelineView: View {
     }
 
     private func subtitle(_ event: ClientTimeline.Event) -> String {
-        let when = event.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
+        // A text's time too: "did I tell them we were coming?" is about when.
+        let when = event.kind == .text
+            ? event.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().hour().minute())
+            : event.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
         let what: String = switch event.kind {
         case .job: "Job done"
         case .upcomingVisit: "Scheduled"
@@ -88,6 +91,7 @@ struct ClientTimelineView: View {
         case .invoiceSent: "Invoice sent"
         case .invoicePaid: "Invoice paid"
         case .payment: "Payment received"
+        case .text: ""
         case .photos: "Photos taken"
         }
         return [what, when, event.detail].filter { !$0.isEmpty }.joined(separator: " · ")
@@ -105,6 +109,7 @@ struct ClientTimelineView: View {
         case .invoiceSent: "paperplane.fill"
         case .invoicePaid: "dollarsign.circle.fill"
         case .payment: "banknote"
+        case .text: "message.fill"
         case .photos: "photo.on.rectangle.angled"
         }
     }
@@ -114,7 +119,7 @@ struct ClientTimelineView: View {
     private func color(_ kind: ClientTimelineKind) -> Color {
         switch kind {
         case .job, .invoicePaid, .payment: .green
-        case .upcomingVisit, .quote, .invoiceMade: .blue
+        case .upcomingVisit, .quote, .invoiceMade, .text: .blue
         case .missedVisit, .skippedVisit, .invoiceSent: .orange
         case .cancelledVisit: .red
         case .photos: .teal

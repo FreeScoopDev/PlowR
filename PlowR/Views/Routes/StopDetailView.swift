@@ -151,7 +151,9 @@ struct StopDetailView: View {
                 Button("Keep Editing", role: .cancel) { }
             }
             .sheet(isPresented: $showingMessage) {
-                MessageComposer(recipients: [stop.clientPhone], body: "") { _ in }
+                MessageComposer(recipients: [stop.clientPhone], body: "") { outcome in
+                    if outcome == .sent { TextLog.record(.text, body: "", to: [stop.clientID], in: modelContext) }
+                }
             }
         }
     }

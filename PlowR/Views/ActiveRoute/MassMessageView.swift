@@ -1,3 +1,4 @@
+import SwiftData
 import SwiftUI
 import MessageUI
 
@@ -6,12 +7,15 @@ struct MassMessageView: View {
     let allClients: [Client]
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
 
     @State private var includedIDs: Set<UUID>
     @State private var messageText = ""
     /// Texting the selected clients one at a time.
     @State private var run: MessageRun?
     @State private var groupPhones: [String] = []
+    /// The clients the group text is going to, for their Timeline.
+    @State private var groupClientIDs: [UUID] = []
     @State private var showingComposer = false
     @State private var showingGroupWarning = false
     /// Why sending one at a time stopped, and who's left.
@@ -245,12 +249,15 @@ struct MassMessageView: View {
     // MARK: - Send Logic
 
     private func startSequentialSend() {
-        run = MessageRun(selectedStops.map { MessageRun.Recipient(id: $0.id, phone: $0.clientPhone) })
+        run = MessageRun(selectedStops.map {
+            MessageRun.Recipient(id: $0.id, phone: $0.clientPhone, clientID: $0.clientID)
+        })
         showingComposer = true
     }
 
     private func startGroupSend() {
         groupPhones = selectedStops.map { $0.clientPhone }
+        groupClientIDs = selectedStops.map(\.clientID)
         showingComposer = true
     }
 
@@ -258,7 +265,10 @@ struct MassMessageView: View {
     private func groupFinished(_ outcome: MessageOutcome) {
         groupPhones = []
         showingComposer = false
-        if outcome == .sent { dismiss() }
+        if outcome == .sent {
+            TextLog.record(.routeMessage, body: messageText, to: groupClientIDs, in: modelContext)
+            dismiss()
+        }
     }
 
     /// One client's text closed: the next client's, the end, or a stop
@@ -267,6 +277,9 @@ struct MassMessageView: View {
     private func textFinished(_ outcome: MessageOutcome) {
         showingComposer = false
         guard let current = run else { return }
+        if let clientID = current.textedClient(outcome) {
+            TextLog.record(.routeMessage, body: messageText, to: [clientID], in: modelContext)
+        }
         let step = MessageRun.step(current, outcome: outcome, selection: includedIDs)
         run = step.run
         includedIDs = step.selection
@@ -292,6 +305,9 @@ struct MessageRun: Equatable {
     struct Recipient: Equatable {
         var id: UUID
         var phone: String
+        /// Their client, for the Timeline (TextLog): taken when the run
+        /// starts, as the phone is.
+        var clientID: UUID
     }
 
     private(set) var queue: [Recipient]
@@ -303,6 +319,11 @@ struct MessageRun: Equatable {
 
     /// The client whose text is up.
     var current: Recipient? { queue.first }
+
+    /// The client the current text went to, once Messages says it was sent.
+    func textedClient(_ outcome: MessageOutcome) -> UUID? {
+        outcome == .sent ? current?.clientID : nil
+    }
 
     enum Next: Equatable {
         /// Show the composer for this client.
