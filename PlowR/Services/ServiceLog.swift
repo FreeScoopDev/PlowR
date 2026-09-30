@@ -21,10 +21,18 @@ enum ServiceLog {
     /// The record with this source key, if there is one. The oldest, if two
     /// devices each made one: every device then updates the same one.
     static func record(forKey key: String, in context: ModelContext) -> ServiceRecord? {
-        let descriptor = FetchDescriptor<ServiceRecord>(
-            predicate: #Predicate { $0.sourceKey == key },
-            sortBy: [SortDescriptor(\.createdAt)])
-        return try? context.fetch(descriptor).first
+        let descriptor = FetchDescriptor<ServiceRecord>(predicate: #Predicate { $0.sourceKey == key })
+        return oldest((try? context.fetch(descriptor)) ?? [])
+    }
+
+    /// The oldest of `records` by creation, then by ID: every device picks
+    /// the same one, even from two made in the same instant.
+    static func oldest(_ records: [ServiceRecord]) -> ServiceRecord? {
+        records.min { isOlder($0, than: $1) }
+    }
+
+    private static func isOlder(_ a: ServiceRecord, than b: ServiceRecord) -> Bool {
+        a.createdAt != b.createdAt ? a.createdAt < b.createdAt : a.id.uuidString < b.id.uuidString
     }
 
     /// A client's records, newest first.
@@ -95,6 +103,7 @@ enum ServiceLog {
         if let visit {
             record.visitID = visit.id.uuidString
             record.source = .route
+            visit.serviceLogged = true
             billFromVisit(record, visit, in: context)
         }
         record.clientName = client.name
@@ -140,9 +149,8 @@ enum ServiceLog {
         let runID = run.uuidString
         let stopID = stop.id.uuidString
         let descriptor = FetchDescriptor<ServiceRecord>(
-            predicate: #Predicate { $0.runID == runID && $0.stopID == stopID },
-            sortBy: [SortDescriptor(\.createdAt)])
-        return try? context.fetch(descriptor).first
+            predicate: #Predicate { $0.runID == runID && $0.stopID == stopID })
+        return oldest((try? context.fetch(descriptor)) ?? [])
     }
 
     private static func scheduledVisit(_ id: String, in context: ModelContext) -> ScheduledVisit? {
@@ -401,6 +409,71 @@ enum ServiceLog {
         InvoiceLines.roundedToCent(record.lines.reduce(0) { $0 + $1.price })
     }
 
+    // MARK: - Keeping the log whole
+
+    /// How long a duplicate is left before it's merged: long enough for the
+    /// day's route to finish writing to it. Merged sooner, a photo or the
+    /// stop's times saved to it on a device that hasn't heard of the merge
+    /// yet would land on a deleted record.
+    static let mergeAfter: TimeInterval = 24 * 3_600
+
+    /// Merges records of the same work: two devices that each recorded it
+    /// before syncing (CloudKit can't enforce a unique key) each made one.
+    /// The oldest stays (the one `record(forKey:)` has been updating) and
+    /// takes from the others what it lacks: an invoice together with the
+    /// services it billed; the services a route recorded, over a visit's
+    /// expected ones (or over a visit record's services edited by hand: the
+    /// merge can't tell those apart); notes; the route's times. Their photos
+    /// move to it.
+    /// A copy is merged only once it's `mergeAfter` old, and never when both
+    /// are on different invoices: that double bill is real and stays in
+    /// sight. (Work logged by hand has a key of its own each time, so it
+    /// never merges.) Saves only if anything merged; returns how many went.
+    @discardableResult
+    static func mergeDuplicates(in context: ModelContext, now: Date = .now) -> Int {
+        guard let all = try? context.fetch(FetchDescriptor<ServiceRecord>()) else { return 0 }
+        var survivors: [String: ServiceRecord] = [:]
+        var merged = 0
+        for record in all.sorted(by: { isOlder($0, than: $1) }) where !record.sourceKey.isEmpty {
+            guard let survivor = survivors[record.sourceKey] else {
+                survivors[record.sourceKey] = record
+                continue
+            }
+            guard now.timeIntervalSince(record.createdAt) >= mergeAfter else { continue }
+            let survivorInvoice = invoice(of: survivor, in: context)
+            let copyInvoice = invoice(of: record, in: context)
+            if let survivorInvoice, let copyInvoice, survivorInvoice.id != copyInvoice.id { continue }
+            if survivorInvoice == nil, copyInvoice != nil {
+                survivor.invoiceID = record.invoiceID
+                // Billed lines win: the survivor must match the bill it takes.
+                // An invoice with no services on the copy (made ahead, for the
+                // visit) bills whatever the survivor recorded.
+                if !record.lines.isEmpty { survivor.servicesData = record.servicesData }
+            } else if !servicesLocked(survivor, in: context), !record.lines.isEmpty,
+                      survivor.lines.isEmpty || (survivor.startedAt == nil && record.startedAt != nil) {
+                survivor.servicesData = record.servicesData
+            }
+            if survivor.notes.isEmpty { survivor.notes = record.notes }
+            if survivor.startedAt == nil, let started = record.startedAt {
+                survivor.source = .route
+                survivor.startedAt = started
+                survivor.performedAt = record.performedAt
+                survivor.minutes = record.minutes
+            }
+            if survivor.runID.isEmpty {
+                survivor.runID = record.runID
+                survivor.stopID = record.stopID
+                survivor.routeID = record.routeID
+                survivor.routeName = record.routeName
+            }
+            for photo in photos(of: record, in: context) { photo.recordID = survivor.id.uuidString }
+            context.delete(record)
+            merged += 1
+        }
+        if merged > 0 { try? context.save() }
+        return merged
+    }
+
     // MARK: - A scheduled visit
 
     /// Marks `visit` complete, adds the next visit of its series if it needs
@@ -421,6 +494,7 @@ enum ServiceLog {
         record.propertyAddress = visit.clientAddress
         record.performedAt = min(visit.scheduledDate, now)
         record.visitID = visit.id.uuidString
+        visit.serviceLogged = true
         if record.lines.isEmpty {
             record.lines = lines(for: visit.expectedServiceIDs, client: client,
                                  multiplier: visit.priceMultiplier, in: context)
