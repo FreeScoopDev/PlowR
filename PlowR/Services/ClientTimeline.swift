@@ -3,7 +3,7 @@ import SwiftData
 
 /// Everything that's happened with a client, and what's coming, in one list:
 /// jobs done (the Service Log), visits ahead or missed, quotes and invoices
-/// (made, sent, paid) and photos, newest first. It was spread over the
+/// (made, sent, paid), texts sent and photos, newest first. It was spread over the
 /// client's page, their Service History, Documents, the Schedule and the
 /// photo gallery.
 enum ClientTimeline {
@@ -78,6 +78,14 @@ enum ClientTimeline {
             }
         }
 
+        // Texts sent from PlowR (TextLog), as drafted.
+        for text in TextLog.texts(ofClient: id, in: context) {
+            let body = text.body.replacingOccurrences(of: "\n", with: " ")
+            events.append(Event(id: "text-\(text.id)", date: text.sentAt, kind: .text,
+                                title: TextLog.Kind(rawValue: text.kind)?.title ?? "Text sent",
+                                detail: body.count > 80 ? String(body.prefix(79)) + "…" : body))
+        }
+
         let photos = (try? context.fetch(FetchDescriptor<StopPhoto>(
             predicate: #Predicate { $0.clientID == id }))) ?? []
         for (day, onDay) in Dictionary(grouping: photos, by: { calendar.startOfDay(for: $0.takenAt) }) {
@@ -98,5 +106,6 @@ enum ClientTimelineKind: Equatable {
     case quote(documentID: UUID)
     case invoiceMade(documentID: UUID), invoiceSent(documentID: UUID), invoicePaid(documentID: UUID)
     case payment(documentID: UUID)
+    case text
     case photos(count: Int)
 }

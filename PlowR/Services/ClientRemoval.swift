@@ -88,7 +88,7 @@ enum ClientRemoval {
     }
 
     /// Deletes `client`: off every route, with their visits still ahead and
-    /// their photos, and their invoices, proposals and past visits kept for
+    /// their photos and the texts sent them, and their invoices, proposals and past visits kept for
     /// the books or deleted.
     static func delete(_ client: Client, keepingRecords: Bool, in context: ModelContext, now: Date = .now) {
         let id = client.id.uuidString
@@ -107,6 +107,9 @@ enum ClientRemoval {
             for record in ServiceLog.records(ofClient: id, in: context) { context.delete(record) }
         }
         for photo in photos(of: id, in: context) { context.delete(photo) }
+        // The texts sent them are a log of the client, not the business's
+        // records: they go with the client, as photos do.
+        for text in TextLog.texts(ofClient: id, in: context) { context.delete(text) }
         context.delete(client)
         try? context.save()
     }

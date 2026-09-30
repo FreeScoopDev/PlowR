@@ -1,3 +1,4 @@
+import SwiftData
 import SwiftUI
 import MessageUI
 import CoreLocation
@@ -31,9 +32,14 @@ struct NotifyPromptView: View {
     let onAdvance: () -> Void
     var promptTitle: String = "Notify Next Client?"
 
+    @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @State private var estimatedMinutes: Int?
     @State private var showingMessageComposer = false
+    /// The text as Send Message took it: what Messages gets, and (without
+    /// the location link) what the client's Timeline keeps. Taken once, so
+    /// an ETA or a position arriving meanwhile can't make them differ.
+    @State private var sending: (body: String, logged: String)?
     @State private var customNote: String = ""
     @State private var selectedPresetIDs: Set<UUID> = []
     @AppStorage("notifyIncludeLocation") private var includeLocation: Bool = false
@@ -54,16 +60,30 @@ struct NotifyPromptView: View {
         messagePresets.filter { selectedPresetIDs.contains($0.id) }
     }
 
-    var fullMessage: String {
+    /// The text without the location link.
+    private var messageText: String {
         var parts: [String] = [baseMessage]
         for preset in selectedPresets { parts.append(preset.text) }
         let note = customNote.trimmingCharacters(in: .whitespacesAndNewlines)
         if !note.isEmpty { parts.append(note) }
-        var message = parts.joined(separator: " ")
-        if includeLocation, let coord = locationManager.currentLocation?.coordinate {
-            message += "\n\nLocation: https://maps.apple.com/?ll=\(coord.latitude),\(coord.longitude)"
-        }
-        return message
+        return parts.joined(separator: " ")
+    }
+
+    /// The link to where the user is, when they include it.
+    private var locationLink: String? {
+        guard includeLocation, let coord = locationManager.currentLocation?.coordinate else { return nil }
+        return "https://maps.apple.com/?ll=\(coord.latitude),\(coord.longitude)"
+    }
+
+    var fullMessage: String {
+        guard let link = locationLink else { return messageText }
+        return messageText + "\n\nLocation: " + link
+    }
+
+    /// What the Timeline keeps: never the user's position (the privacy
+    /// policy says location isn't stored), only that a link went with it.
+    private var loggedMessage: String {
+        locationLink == nil ? messageText : messageText + " (with a location link)"
     }
 
     private var previewMessage: String {
@@ -107,13 +127,14 @@ struct NotifyPromptView: View {
             estimatedMinutes = await locationManager.calculateETA(to: stop)
         }
         .sheet(isPresented: $showingMessageComposer) {
-            MessageComposer(recipients: [stop.clientPhone], body: fullMessage) { outcome in
+            MessageComposer(recipients: [stop.clientPhone], body: sending?.body ?? fullMessage) { outcome in
                 // Cancelled or failed: back to this prompt, where Skip moves on
                 // without a text. It used to move on as if the text had gone.
                 guard outcome == .sent else {
                     showingMessageComposer = false
                     return
                 }
+                TextLog.record(.heading, body: sending?.logged ?? loggedMessage, to: [stop.clientID], in: modelContext)
                 onAdvance()
                 dismiss()
             }
@@ -230,6 +251,7 @@ struct NotifyPromptView: View {
         VStack(spacing: 10) {
             Button {
                 if MFMessageComposeViewController.canSendText() {
+                    sending = (fullMessage, loggedMessage)
                     showingMessageComposer = true
                 } else {
                     onAdvance()

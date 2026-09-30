@@ -41,8 +41,8 @@ which still work.
 
 ## Architecture in one paragraph
 
-SwiftData with a CloudKit-backed `ModelContainer`, eleven `@Model` types
-registered in `PlowRApp.init`. `AuthManager` (Sign in with Apple, Keychain) is
+SwiftData with a CloudKit-backed `ModelContainer`, the `@Model` types listed
+in `PlowRApp.models` (a count here went stale twice). `AuthManager` (Sign in with Apple, Keychain) is
 injected as an environment object. Services under `PlowR/Services/` own the
 platform work: `LocationManager` (geofencing per stop), `ActiveRouteStore`
 (the in-progress route: current stop, stop timer, checkpoint that survives a
@@ -165,8 +165,8 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   call: inactive clients come off routes, and aren't put back when made
   active again; clients already inactive came off once, at the first launch
   of that version, `ClientRemoval.takeInactiveClientsOffRoutes`). A delete
-  also removes their visits still ahead and their photos (only the client's
-  page shows photos), and keeps or deletes their invoices, proposals and
+  also removes their visits still ahead, their photos (only the client's
+  page shows photos) and the texts kept for their Timeline (`TextLog`), and keeps or deletes their invoices, proposals and
   past visits as the user chooses. "Past" goes by date, not status: running
   a route doesn't mark a visit complete. Kept documents and visits carry the
   client's ID and a copy of their name.

@@ -165,7 +165,10 @@ struct EditClientView: View {
             if !draft.phone.isEmpty {
                 // A plain text doesn't make the client "Awaiting Response":
                 // that's for invoices and proposals (DocumentSent).
-                MessageComposer(recipients: [draft.phone], body: "") { _ in }
+                MessageComposer(recipients: [draft.phone], body: "") { outcome in
+                    // Kept for their Timeline (TextLog).
+                    if outcome == .sent { TextLog.record(.text, body: "", to: [client.id], in: modelContext) }
+                }
             }
         }
         // Sent to the client from the share sheet (Mark as Sent on): they're

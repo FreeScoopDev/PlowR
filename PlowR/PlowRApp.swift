@@ -27,6 +27,7 @@ struct PlowRApp: App {
         ScheduledVisit.self,
         ServiceRecord.self,
         Property.self,
+        SentText.self,
     ]
 
     init() {

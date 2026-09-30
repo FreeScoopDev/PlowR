@@ -149,7 +149,12 @@ struct ProposalListView: View {
         }
         .sheet(item: $reminderProposal) { proposal in
             let phone = myClients.first(where: { $0.id.uuidString == proposal.clientID })?.phone ?? ""
-            MessageComposer(recipients: [phone], body: reminderMessage(for: proposal)) { _ in }
+            let body = reminderMessage(for: proposal)
+            MessageComposer(recipients: [phone], body: body) { outcome in
+                if outcome == .sent, let id = UUID(uuidString: proposal.clientID) {
+                    TextLog.record(.invoiceReminder, body: body, to: [id], in: modelContext)
+                }
+            }
         }
     }
 
