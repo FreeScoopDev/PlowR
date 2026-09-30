@@ -117,8 +117,9 @@ struct StopServiceRecorderView: View {
                 if let client {
                     Section {
                         LabeledContent("Client", value: client.name)
-                        if !client.address.isEmpty {
-                            LabeledContent("Address", value: client.address)
+                        // The stop's: its place's address, which may be a property's.
+                        if !stop.clientAddress.isEmpty {
+                            LabeledContent("Address", value: stop.clientAddress)
                         }
                     }
                 }

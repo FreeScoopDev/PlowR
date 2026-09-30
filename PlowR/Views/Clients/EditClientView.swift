@@ -57,6 +57,7 @@ struct EditClientView: View {
     @State private var showingProposalBuilder = false
     @State private var showingInvoiceBuilder = false
     @State private var showingAddVisit = false
+    @State private var propertySheet: PropertySheet?
     @State private var showingMessageComposer = false
     /// A document's PDF being shared from this page (DocumentShareView).
     @State private var documentShare: DocumentShare?
@@ -88,6 +89,7 @@ struct EditClientView: View {
             expectedServicesSection
             stopNotesSection
             serviceAddressSection
+            otherPropertiesSection
             historySection
             scheduleSection
             documentsSection
@@ -152,6 +154,9 @@ struct EditClientView: View {
         }
         .sheet(isPresented: $showingInvoiceBuilder) {
             NavigationStack { ProposalBuilderView(client: client, isInvoiceMode: true) }
+        }
+        .sheet(item: $propertySheet) { sheet in
+            PropertyEditView(client: client, property: sheet.property)
         }
         .sheet(isPresented: $showingAddVisit) {
             AddVisitView(client: client)
@@ -588,6 +593,45 @@ struct EditClientView: View {
         }
     }
 
+    // MARK: - Other Properties Section
+
+    /// The property page, for a property or a new one.
+    private struct PropertySheet: Identifiable {
+        let property: Property?
+        var id: String { property?.id.uuidString ?? "new" }
+    }
+
+    private var otherPropertiesSection: some View {
+        Section {
+            ForEach(Place.ordered(client.properties ?? [])) { property in
+                Button {
+                    propertySheet = PropertySheet(property: property)
+                } label: {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(Place.of(property).label).foregroundStyle(.primary)
+                            if !property.label.isEmpty {
+                                Text(property.address).font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                        Spacer()
+                        if !property.isActive { StatusChip("Inactive", color: .gray) }
+                    }
+                }
+            }
+            Button {
+                propertySheet = PropertySheet(property: nil)
+            } label: {
+                Label("Add Property", systemImage: "plus")
+            }
+        } header: {
+            Text("Other Properties")
+        } footer: {
+            Text("Other places you work for this client, like a rental or a second lot. Each can go on routes and the schedule by itself.")
+                .font(.caption)
+        }
+    }
+
     // MARK: - History Section
 
     private var historySection: some View {
@@ -713,7 +757,7 @@ struct EditClientView: View {
     // MARK: - Property Section
 
     private var propertySection: some View {
-        Section("Property") {
+        Section("Main Property") {
             let zones = client.sortedZones
             if !zones.isEmpty {
                 zoneMapPreview(zones: zones)

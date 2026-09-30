@@ -17,6 +17,8 @@ struct LogWorkView: View {
     @State private var customItems: [StopRecording.CustomItem] = []
     @State private var keptLines: [ServiceRecord.Line] = []
     @State private var notes = ""
+    /// The client's place it was done at (Place): empty for their own address.
+    @State private var placeID = ""
     @State private var showingDiscardConfirm = false
 
     private var services: [StopRecording.Service] {
@@ -24,9 +26,12 @@ struct LogWorkView: View {
     }
 
     private var recording: StopRecording {
-        StopRecording(services: services, zones: client.pricingZones, selectedIDs: selectedIDs,
+        StopRecording(services: services, zones: zones, selectedIDs: selectedIDs,
                       typedPrices: typedPrices, customItems: customItems, keptLines: keptLines)
     }
+
+    /// Priced for the place: a property isn't priced by the main house's measurements.
+    private var zones: [InvoiceLines.Zone] { Place.of(client, propertyID: placeID)?.zones ?? [] }
 
     private var hasNotes: Bool { !notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     private var canSave: Bool { !recording.recordLines.isEmpty || hasNotes }
@@ -37,6 +42,14 @@ struct LogWorkView: View {
             Form {
                 Section {
                     LabeledContent("Client", value: client.name)
+                    let places = Place.all(of: client)
+                    if places.count > 1 {
+                        Picker("Property", selection: $placeID) {
+                            ForEach(places, id: \.id) { place in
+                                Text(place.isMain ? "Main Address" : place.label).tag(place.storedID)
+                            }
+                        }
+                    }
                     DatePicker("Done", selection: $performedAt, in: ...Date.now)
                     LabeledContent("Minutes on Site") {
                         TextField("Optional", text: $minutes)
@@ -46,7 +59,7 @@ struct LogWorkView: View {
                 }
 
                 ServiceLinesSections(
-                    services: services, zones: client.pricingZones, operatorID: client.operatorID,
+                    services: services, zones: zones, operatorID: client.operatorID,
                     selectedIDs: $selectedIDs, typedPrices: $typedPrices,
                     customItems: $customItems, keptLines: $keptLines)
 
@@ -80,7 +93,7 @@ struct LogWorkView: View {
     private func save() {
         ServiceLog.logWork(recording, notes: notes, performedAt: performedAt,
                            minutes: Double(minutes.trimmingCharacters(in: .whitespaces)) ?? 0,
-                           for: client, operatorID: client.operatorID, in: modelContext)
+                           for: client, at: placeID, operatorID: client.operatorID, in: modelContext)
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         dismiss()
     }
