@@ -45,6 +45,9 @@ final class Client {
     @Relationship(deleteRule: .cascade, inverse: \PropertyZone.client) var zones: [PropertyZone]?
     /// Additional properties; the client's own address is their main one (Place).
     @Relationship(deleteRule: .cascade, inverse: \Property.client) var properties: [Property]?
+    /// Their contracts (Contracts). Deleting the client deletes them or, with
+    /// Keep Records, keeps the signed ones (ClientRemoval).
+    @Relationship(deleteRule: .nullify, inverse: \Contract.client) var contracts: [Contract]?
 
     var sortedZones: [PropertyZone] {
         (zones ?? []).sorted { $0.sortOrder < $1.sortOrder }

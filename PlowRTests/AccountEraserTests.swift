@@ -100,6 +100,9 @@ struct AccountEraserTests {
             let property = Property(label: "North lot", address: "2 Elm St", operatorID: "op")
             context.insert(property)
             property.client = client
+            let contract = Contract(name: "Season", startDate: Date(), endDate: Date(), operatorID: "op")
+            context.insert(contract)
+            contract.client = client
             let payment = Payment(amount: 10, method: "Cash", receivedAt: Date(), operatorID: "op")
             context.insert(payment)
             payment.invoice = proposal

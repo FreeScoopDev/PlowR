@@ -28,6 +28,7 @@ struct PlowRApp: App {
         ServiceRecord.self,
         Property.self,
         SentText.self,
+        Contract.self,
     ]
 
     init() {
