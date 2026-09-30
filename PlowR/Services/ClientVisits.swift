@@ -49,11 +49,16 @@ enum ClientVisits {
         return changed
     }
 
-    /// `visit` booked for `client`, as an edit of it sets it: moved to
-    /// another client, it's at their main address, since the place it was at
-    /// was the other client's.
-    static func book(_ visit: ScheduledVisit, for client: Client) {
-        if visit.clientID != client.id.uuidString { visit.propertyID = "" }
+    /// `visit` booked for `client` at their place with `propertyID`, as an
+    /// edit of it sets it. A place that isn't the client's (the visit was
+    /// moved to another client and kept the first one's) is their main
+    /// address instead. Left as it was, the place is kept even if it's
+    /// missing here: not synced yet isn't gone.
+    static func book(_ visit: ScheduledVisit, for client: Client, at propertyID: String) {
+        let unchanged = visit.clientID == client.id.uuidString && visit.propertyID == propertyID
+        if !unchanged {
+            visit.propertyID = Place.of(client, propertyID: propertyID)?.storedID ?? ""
+        }
         visit.clientID = client.id.uuidString
         visit.clientName = client.name
         visit.clientAddress = Place.of(client, propertyID: visit.propertyID)?.address ?? visit.clientAddress

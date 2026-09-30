@@ -81,9 +81,9 @@ struct EditRouteView: View {
             .sheet(isPresented: $showingClientPicker) {
                 ClientPickerView(
                     clients: availableClients,
-                    alreadyAdded: stops.map { $0.clientID },
-                    onSelect: { client in
-                        let stop = RouteStop(order: stops.count, client: client)
+                    alreadyAdded: stops.filter { !$0.isCustomStop }.map(\.placeKey),
+                    onSelect: { client, place in
+                        let stop = RouteStop(order: stops.count, client: client, place: place)
                         stops.append(stop)
                     },
                     onCustomStop: { name, address, phone in

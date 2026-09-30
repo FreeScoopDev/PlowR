@@ -59,9 +59,50 @@ struct Place: Equatable {
     /// The client's places work can be booked at: the main one, then their
     /// active properties in order.
     static func all(of client: Client) -> [Place] {
-        [main(of: client)] + (client.properties ?? [])
-            .filter(\.isActive)
-            .sorted { ($0.sortOrder, $0.createdAt) < ($1.sortOrder, $1.createdAt) }
-            .map(of)
+        [main(of: client)] + ordered(client.properties ?? []).filter(\.isActive).map(of)
+    }
+
+    /// What a picker offers for something already at `propertyID`: the
+    /// bookable places, and that one too if it has since been made inactive,
+    /// so the picker still shows where it is.
+    static func choices(of client: Client, keeping propertyID: String) -> [Place] {
+        let places = all(of: client)
+        guard let kept = of(client, propertyID: propertyID), !places.contains(kept) else { return places }
+        return places + [kept]
+    }
+
+    /// Properties in the order the business put them in.
+    static func ordered(_ properties: [Property]) -> [Property] {
+        properties.sorted { ($0.sortOrder, $0.createdAt) < ($1.sortOrder, $1.createdAt) }
+    }
+
+    /// One client's one place, as a picker tells stops apart: a client can
+    /// be on a route once at each of their places.
+    static func key(clientID: UUID, propertyID: String) -> String {
+        "\(clientID.uuidString)|\(propertyID.isEmpty ? clientID.uuidString : propertyID)"
+    }
+
+    /// The property ID a stop or visit keeps for this place: empty for the main one.
+    var storedID: String { isMain ? "" : id }
+
+    /// What a route list or picker calls a stop there: the client's name,
+    /// and the place's label when it isn't the main one.
+    func title(for clientName: String) -> String {
+        isMain ? clientName : "\(clientName) · \(label)"
+    }
+}
+
+/// A form field filled in from the place chosen (a new visit's notes and
+/// time): it follows each place picked while it still shows what was last
+/// filled in, and stays as it is once typed over.
+struct PlaceFill<Value: Equatable>: Equatable {
+    private(set) var filled: Value
+
+    init(_ filled: Value) { self.filled = filled }
+
+    mutating func follow(_ field: inout Value, to value: Value) {
+        guard field == filled else { return }
+        field = value
+        filled = value
     }
 }

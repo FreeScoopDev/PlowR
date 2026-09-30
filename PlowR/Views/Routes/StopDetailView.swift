@@ -45,6 +45,14 @@ struct StopDetailView: View {
             || targetMinutes != stop.targetMinutes
     }
 
+    /// What the stop's time falls back to (RouteFacts.targetMinutes): its
+    /// place's goal, the client's own or their property's.
+    private var placeGoalLabel: String {
+        guard let client, let place = Place.of(client, propertyID: stop.propertyID), place.goalMinutes > 0
+        else { return "None" }
+        return place.isMain ? "Client's goal" : "Property's goal"
+    }
+
     var body: some View {
         // Deleted while open (another device, or its client made inactive):
         // the page is on its way out and mustn't read the stop.
@@ -103,10 +111,11 @@ struct StopDetailView: View {
                 Section {
                     Stepper(value: $targetMinutes, in: 0...480, step: 5) {
                         LabeledContent("Target Time", value: targetMinutes > 0 ? RouteFacts.duration(targetMinutes)
-                                       : (client?.goalMinutes ?? 0) > 0 ? "Client's goal" : "None")
+                                       : placeGoalLabel)
                     }
                 } footer: {
-                    if let client, client.averageServiceMinutes > 0 {
+                    // The client's average is over all their places: said only at their own address.
+                    if let client, client.averageServiceMinutes > 0, Place.isMain(stop.propertyID, of: client) {
                         Text("Usually about \(RouteFacts.duration(Int(client.averageServiceMinutes.rounded()))) here.")
                     }
                 }

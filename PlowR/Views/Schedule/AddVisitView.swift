@@ -59,6 +59,11 @@ struct AddVisitView: View {
 
     // MARK: - Form State
     @State private var selectedClient: Client?
+    /// The client's place it's at (Place): empty for their own address.
+    @State private var selectedPlaceID = ""
+    /// A new visit's notes and time, as filled in from its place.
+    @State private var notesFill = PlaceFill("")
+    @State private var minutesFill = PlaceFill(0)
     @State private var scheduledDate: Date
     @State private var estimatedMinutes: Int
     @State private var notes: String
@@ -109,6 +114,8 @@ struct AddVisitView: View {
         _recurrenceEndDate = State(initialValue: Date().addingTimeInterval(86400 * 90))
         _recurrenceWeekdays = State(initialValue: [])
         _selectedClient = State(initialValue: client)
+        _notesFill = State(initialValue: PlaceFill(client.defaultStopNotes))
+        _minutesFill = State(initialValue: PlaceFill(client.goalMinutes))
         _isAfterHours = State(initialValue: false)
         _afterHoursMultiplier = State(initialValue: 1.5)
         _selectedReasonPreset = State(initialValue: "")
@@ -129,6 +136,7 @@ struct AddVisitView: View {
         _recurrenceEndDate = State(initialValue: editing.recurrenceEndDate ?? Date().addingTimeInterval(86400 * 90))
         _recurrenceWeekdays = State(initialValue: Set(editing.recurrenceWeekdays))
         _selectedClient = State(initialValue: nil) // resolved in onAppear
+        _selectedPlaceID = State(initialValue: editing.propertyID)
         _isAfterHours = State(initialValue: editing.isAfterHours)
         _afterHoursMultiplier = State(initialValue: editing.afterHoursMultiplier)
         // Reason: as typed in until onAppear, when the catalog it may come from can be read.
@@ -216,6 +224,16 @@ struct AddVisitView: View {
                                                                             presets: allReasonPresets)
             }
         }
+        .onChange(of: selectedClient) { _, client in
+            // Another client's place isn't this one's: their own address
+            // instead. The visit's own place stays even if it hasn't synced
+            // here yet (ClientVisits.book).
+            guard let client else { return }
+            let visitsOwn = editing?.clientID == client.id.uuidString && selectedPlaceID == editing?.propertyID
+            if !visitsOwn, Place.of(client, propertyID: selectedPlaceID) == nil { selectedPlaceID = "" }
+            fillFromPlace()
+        }
+        .onChange(of: selectedPlaceID) { fillFromPlace() }
         .sheet(isPresented: $showingAddClientSheet) {
             AddClientView()
         }
@@ -259,6 +277,26 @@ struct AddVisitView: View {
                     }
                 }
                 .pickerStyle(.navigationLink)
+                if let client = selectedClient {
+                    let places = Place.choices(of: client, keeping: selectedPlaceID)
+                    // Its own place, not synced to this device yet: shown as such.
+                    let unsynced = Place.of(client, propertyID: selectedPlaceID) == nil
+                    if places.count > 1 || unsynced {
+                        Picker("Property", selection: $selectedPlaceID) {
+                            ForEach(places, id: \.id) { place in
+                                VStack(alignment: .leading) {
+                                    Text(place.isMain ? "Main Address" : place.label)
+                                    Text(place.address).font(.caption).foregroundStyle(.secondary)
+                                }
+                                .tag(place.storedID)
+                            }
+                            if unsynced {
+                                Text("Not on this device yet").tag(selectedPlaceID)
+                            }
+                        }
+                        .pickerStyle(.navigationLink)
+                    }
+                }
             }
             Button {
                 showingAddClientSheet = true
@@ -458,6 +496,15 @@ struct AddVisitView: View {
         .padding(.vertical, 4)
     }
 
+    /// A new visit's notes and time follow the place chosen (its own
+    /// address's, or a property's) until they're typed over.
+    private func fillFromPlace() {
+        guard editing == nil, let client = selectedClient,
+              let place = Place.of(client, propertyID: selectedPlaceID) else { return }
+        notesFill.follow(&notes, to: place.stopNotes)
+        minutesFill.follow(&estimatedMinutes, to: place.goalMinutes)
+    }
+
     // MARK: - Save
 
     private func save() {
@@ -473,9 +520,10 @@ struct AddVisitView: View {
                 operatorID: authManager.userID,
                 clientID: client.id.uuidString,
                 clientName: client.name,
-                clientAddress: client.address,
+                clientAddress: Place.of(client, propertyID: selectedPlaceID)?.address ?? client.address,
                 scheduledDate: date
             )
+            visit.propertyID = Place.of(client, propertyID: selectedPlaceID)?.storedID ?? ""
             visit.estimatedMinutes = estimatedMinutes
             visit.notes = notes
             visit.visitReason = resolvedReason
@@ -508,7 +556,7 @@ struct AddVisitView: View {
 
     private func saveThisOnly() {
         guard let client = selectedClient, let existing = editing else { return }
-        ClientVisits.book(existing, for: client)
+        ClientVisits.book(existing, for: client, at: selectedPlaceID)
         existing.scheduledDate = scheduledDate
         existing.estimatedMinutes = estimatedMinutes
         existing.notes = notes
@@ -535,7 +583,7 @@ struct AddVisitView: View {
         }
 
         for visit in seriesVisits where visit.scheduledDate >= cutoff {
-            ClientVisits.book(visit, for: client)
+            ClientVisits.book(visit, for: client, at: selectedPlaceID)
             if visit.id == existing.id {
                 visit.scheduledDate = scheduledDate
             } else if let newDate = cal.date(bySettingHour: newHour, minute: newMinute, second: 0, of: visit.scheduledDate) {

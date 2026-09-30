@@ -46,7 +46,13 @@ final class RouteStop {
         clientAddress = place.address
         latitude = place.latitude
         longitude = place.longitude
+        // A new stop starts with the place's route notes (gate codes and the
+        // like), whichever screen makes it.
+        stopNotes = place.stopNotes
     }
+
+    /// Which of its client's places it's at, as the client picker keys them.
+    var placeKey: String { Place.key(clientID: clientID, propertyID: propertyID) }
 
     init(order: Int, customName: String, customAddress: String = "", customPhone: String = "") {
         self.order = order

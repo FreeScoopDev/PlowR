@@ -1,17 +1,21 @@
 import SwiftUI
 
+/// Adding stops to a route: a client at their own address, or at one of
+/// their other properties (a row for each place). A place already on the
+/// route can't be added twice.
 struct ClientPickerView: View {
     let clients: [Client]
-    let alreadyAdded: [UUID]
-    let onSelect: (Client) -> Void
+    /// Places already on the route (Place.key).
+    let alreadyAdded: [String]
+    let onSelect: (Client, Place) -> Void
     let onCustomStop: (String, String, String) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var showingCustomForm = false
-    @State private var localAdded: Set<UUID>
+    @State private var localAdded: Set<String>
 
-    init(clients: [Client], alreadyAdded: [UUID],
-         onSelect: @escaping (Client) -> Void,
+    init(clients: [Client], alreadyAdded: [String],
+         onSelect: @escaping (Client, Place) -> Void,
          onCustomStop: @escaping (String, String, String) -> Void) {
         self.clients = clients
         self.alreadyAdded = alreadyAdded
@@ -37,31 +41,9 @@ struct ClientPickerView: View {
                 if !clients.isEmpty {
                     Section("Your Clients") {
                         ForEach(clients) { client in
-                            let isAdded = localAdded.contains(client.id)
-                            Button {
-                                guard !isAdded else { return }
-                                onSelect(client)
-                                localAdded.insert(client.id)
-                            } label: {
-                                HStack {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(client.name)
-                                            .font(.headline)
-                                            .foregroundStyle(isAdded ? .secondary : .primary)
-                                        if !client.address.isEmpty {
-                                            Text(client.address)
-                                                .font(.caption)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                    }
-                                    Spacer()
-                                    if isAdded {
-                                        Image(systemName: "checkmark.circle.fill")
-                                            .foregroundStyle(.green)
-                                    }
-                                }
+                            ForEach(Place.all(of: client), id: \.id) { place in
+                                row(client, place)
                             }
-                            .disabled(isAdded)
                         }
                     }
                 }
@@ -82,6 +64,35 @@ struct ClientPickerView: View {
                 }
             }
         }
+    }
+
+    private func row(_ client: Client, _ place: Place) -> some View {
+        let key = Place.key(clientID: client.id, propertyID: place.storedID)
+        let isAdded = localAdded.contains(key)
+        return Button {
+            guard !isAdded else { return }
+            onSelect(client, place)
+            localAdded.insert(key)
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(place.title(for: client.name))
+                        .font(.headline)
+                        .foregroundStyle(isAdded ? .secondary : .primary)
+                    if !place.address.isEmpty {
+                        Text(place.address)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer()
+                if isAdded {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                }
+            }
+        }
+        .disabled(isAdded)
     }
 }
 

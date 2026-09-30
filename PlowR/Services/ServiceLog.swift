@@ -443,12 +443,14 @@ enum ServiceLog {
     /// Not dated in the future: it's work done.
     @discardableResult
     static func logWork(_ recording: StopRecording, notes: String, performedAt: Date, minutes: Double,
-                        for client: Client, operatorID: String, now: Date = .now,
+                        for client: Client, at propertyID: String = "", operatorID: String, now: Date = .now,
                         in context: ModelContext) -> ServiceRecord {
         let record = record(forKey: "manual:\(UUID().uuidString)", source: .manual, operatorID: operatorID,
                             client: client, in: context).record
         record.clientName = client.name
-        record.propertyAddress = client.address
+        // At the place chosen: the client's own address, or a property.
+        record.propertyID = Place.id(of: client, propertyID: propertyID)
+        record.propertyAddress = Place.of(client, propertyID: propertyID)?.address ?? client.address
         record.performedAt = min(performedAt, now)
         record.minutes = max(0, minutes)
         record.lines = recording.recordLines

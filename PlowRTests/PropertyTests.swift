@@ -231,7 +231,7 @@ struct PropertyTests {
         let moved = visit(h, at: rental.id.uuidString, on: h.clock.addingTimeInterval(86_400))
         let copy = visit(h, at: rental.id.uuidString, on: h.clock.addingTimeInterval(86_400))
         copy.clientID = other.id.uuidString                                       // as a synced older edit would leave it
-        ClientVisits.book(moved, for: other)
+        ClientVisits.book(moved, for: other, at: moved.propertyID)
         #expect(moved.propertyID.isEmpty)
         #expect(moved.clientAddress == "7 Oak St")
         try h.context.save()
@@ -284,5 +284,121 @@ struct PropertyTests {
         try h.context.save()
         ClientRemoval.delete(h.client, keepingRecords: false, in: h.context)
         #expect(try h.context.fetch(FetchDescriptor<Property>()).isEmpty)
+    }
+
+    // MARK: - Screens' rules
+
+    @Test func aNewPropertyGoesLastAndEditingOneMovesItsStops() throws {
+        let h = try Harness(stopCount: 1)
+        let first = property(h, "A", address: "1 A St", sortOrder: 4)
+        var draft = PropertyEditing.Draft()
+        draft.label = "  Rental  "
+        draft.address = "9 Elm St"
+        draft.expectedServiceIDs = ["mow", "edge"]
+        let rental = PropertyEditing.save(draft, to: nil, of: h.client, in: h.context)
+        #expect(rental.client?.id == h.client.id)
+        #expect(rental.sortOrder == 5)
+        #expect(rental.label == "Rental")
+        #expect(rental.expectedServiceIDs == ["edge", "mow"])
+        #expect(Place.all(of: h.client).map(\.id).suffix(2) == [first.id.uuidString, rental.id.uuidString])
+
+        let stop = RouteStop(order: 1, client: h.client, place: Place.of(rental))
+        stop.route = h.route
+        h.context.insert(stop)
+        var moved = PropertyEditing.Draft(rental)
+        moved.address = "11 Elm St"
+        moved.latitude = 43
+        PropertyEditing.save(moved, to: rental, of: h.client, in: h.context)
+        #expect(stop.clientAddress == "11 Elm St")
+        #expect(stop.latitude == 43)
+        #expect(!PropertyEditing.Draft().canSave)
+    }
+
+    // A place made inactive is still shown where something is booked there.
+    @Test func aPickerKeepsTheInactivePlaceItsVisitIsAt() throws {
+        let h = try Harness(stopCount: 1)
+        let rental = property(h, "Rental", address: "9 Elm St")
+        rental.isActive = false
+        #expect(Place.choices(of: h.client, keeping: "").count == 1)
+        #expect(Place.choices(of: h.client, keeping: rental.id.uuidString).map(\.id).last == rental.id.uuidString)
+        #expect(Place.of(rental).title(for: "Pat") == "Pat · Rental")
+    }
+
+    // The client picker tells a client's places apart, and the main one's key
+    // is the same whether its stop keeps "" or the client's ID.
+    @Test func eachPlaceHasItsOwnPickerKey() throws {
+        let h = try Harness(stopCount: 1)
+        let rental = property(h, "Rental", address: "9 Elm St")
+        let main = try #require(h.route.sortedStops.first)
+        let atRental = RouteStop(order: 1, client: h.client, place: Place.of(rental))
+        #expect(main.placeKey != atRental.placeKey)
+        #expect(main.placeKey == Place.key(clientID: h.client.id, propertyID: h.client.id.uuidString))
+        #expect(atRental.placeKey == Place.key(clientID: h.client.id, propertyID: Place.of(rental).storedID))
+    }
+
+    // Booking a visit at one of the client's places, and one that isn't theirs.
+    @Test func aVisitIsBookedAtTheChosenPlace() throws {
+        let h = try Harness(stopCount: 1)
+        let rental = property(h, "Rental", address: "9 Elm St")
+        let booked = visit(h, at: "")
+        ClientVisits.book(booked, for: h.client, at: rental.id.uuidString)
+        #expect(booked.propertyID == rental.id.uuidString)
+        #expect(booked.clientAddress == "9 Elm St")
+        ClientVisits.book(booked, for: h.client, at: UUID().uuidString)          // not theirs
+        #expect(booked.propertyID.isEmpty)
+        #expect(booked.clientAddress == h.client.address)
+
+        // Its own place, not synced here yet, is kept as it is.
+        let unsynced = UUID().uuidString
+        let waiting = visit(h, at: unsynced)
+        ClientVisits.book(waiting, for: h.client, at: unsynced)
+        #expect(waiting.propertyID == unsynced)
+        #expect(waiting.clientAddress == "9 Elm St")
+    }
+
+    @Test func removingSaysWhatGoesWithIt() {
+        #expect(PropertyEditing.removalMessage(stops: 1, visits: 3).hasPrefix("This also removes 1 route stop and 3 visits"))
+        #expect(PropertyEditing.removalMessage(stops: 0, visits: 0)
+                == "Work already done there stays in the client's Service History.")
+        #expect(PropertyEditing.removalMessage(stops: 2, visits: 1)
+                == "This also removes 2 route stops and 1 visit not done yet. "
+                + "Work already done there stays in the client's Service History.")
+    }
+
+    // A new visit booked from the Schedule: blank until a client is picked,
+    // then their own address's notes and time, then the property's, until
+    // typed over.
+    @Test func aNewVisitsNotesFollowThePlaceUntilTypedOver() {
+        var notes = ""
+        var fill = PlaceFill("")
+        fill.follow(&notes, to: "Dog in yard")                                    // the client picked
+        #expect(notes == "Dog in yard")
+        fill.follow(&notes, to: "Key under mat")                                  // the rental picked
+        #expect(notes == "Key under mat")
+        notes = "Ring first"                                                      // typed over
+        fill.follow(&notes, to: "Dog in yard")
+        #expect(notes == "Ring first")
+    }
+
+    @Test func workLoggedAtAPropertyIsRecordedThere() throws {
+        let h = try Harness(stopCount: 0)
+        let rental = property(h, "Rental", address: "9 Elm St")
+        let record = ServiceLog.logWork(StopRecording(services: [], zones: []), notes: "n", performedAt: h.clock,
+                                        minutes: 0, for: h.client, at: rental.id.uuidString, operatorID: "op",
+                                        in: h.context)
+        #expect(record.propertyID == rental.id.uuidString)
+        #expect(record.propertyAddress == "9 Elm St")
+        let atHome = ServiceLog.logWork(StopRecording(services: [], zones: []), notes: "n", performedAt: h.clock,
+                                        minutes: 0, for: h.client, operatorID: "op", in: h.context)
+        #expect(atHome.propertyID == h.client.id.uuidString)
+        #expect(atHome.propertyAddress == h.client.address)
+    }
+
+    // Every screen that makes a stop at a place starts it with the place's notes.
+    @Test func aNewStopStartsWithItsPlacesNotes() throws {
+        let h = try Harness(stopCount: 1)
+        let rental = property(h, "Rental", address: "9 Elm St")
+        rental.stopNotes = "Key under mat"
+        #expect(RouteStop(order: 0, client: h.client, place: Place.of(rental)).stopNotes == "Key under mat")
     }
 }
