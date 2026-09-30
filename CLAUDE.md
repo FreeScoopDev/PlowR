@@ -192,8 +192,9 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   copy for a generic action. The `Service-language guard` job in
   `.github/workflows/guards.yml` fails a PR that puts snow-only wording or a
   snowflake icon on a shared screen (dashboard, active route, routes,
-  schedule, clients, documents, settings except the service catalog, Live
-  Activity, intents, widgets, tab bar), and fails if a path it lists is gone.
+  schedule, clients, documents, contracts except their snow trigger,
+  settings except the service catalog, Live Activity, intents, widgets, tab
+  bar), and fails if a path it lists is gone.
   Run it locally with `bash -e`, as GitHub runs it (zsh doesn't split its
   path list, and without `-e` a grep that finds nothing hides a failure).
   Snow-only features go in their own files.

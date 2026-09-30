@@ -58,6 +58,7 @@ struct EditClientView: View {
     @State private var showingInvoiceBuilder = false
     @State private var showingAddVisit = false
     @State private var propertySheet: PropertySheet?
+    @State private var showingNewContract = false
     @State private var showingMessageComposer = false
     /// A document's PDF being shared from this page (DocumentShareView).
     @State private var documentShare: DocumentShare?
@@ -91,6 +92,7 @@ struct EditClientView: View {
             serviceAddressSection
             otherPropertiesSection
             historySection
+            contractsSection
             scheduleSection
             documentsSection
             photosSection
@@ -154,6 +156,9 @@ struct EditClientView: View {
         }
         .sheet(isPresented: $showingInvoiceBuilder) {
             NavigationStack { ProposalBuilderView(client: client, isInvoiceMode: true) }
+        }
+        .sheet(isPresented: $showingNewContract) {
+            ContractEditView(client: client, contract: nil)
         }
         .sheet(item: $propertySheet) { sheet in
             PropertyEditView(client: client, property: sheet.property)
@@ -632,6 +637,26 @@ struct EditClientView: View {
             Text("Other Properties")
         } footer: {
             Text("Other places you work for this client, like a rental or a second lot. Each can go on routes and the schedule by itself.")
+                .font(.caption)
+        }
+    }
+
+    // MARK: - Contracts Section
+
+    private var contractsSection: some View {
+        Section {
+            ForEach(Contracts.sorted(client.contracts ?? [])) { contract in
+                NavigationLink { ContractDetailView(contract: contract) } label: { ContractRow(contract: contract) }
+            }
+            Button {
+                showingNewContract = true
+            } label: {
+                Label("New Contract", systemImage: "plus")
+            }
+        } header: {
+            Text("Contracts")
+        } footer: {
+            Text("An agreement for a period: a season price, a price per visit, or a monthly amount.")
                 .font(.caption)
         }
     }

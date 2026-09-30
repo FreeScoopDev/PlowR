@@ -20,9 +20,11 @@ enum ClientRemoval {
         var documents = 0
         var pastVisits = 0
         var photos = 0
+        /// Signed contracts (drafts just go).
+        var contracts = 0
 
         /// What "Keep Records" keeps.
-        var hasRecords: Bool { documents + pastVisits > 0 }
+        var hasRecords: Bool { documents + pastVisits + contracts > 0 }
     }
 
     /// A visit still ahead on the schedule: dated from `now` on and not
@@ -45,7 +47,8 @@ enum ClientRemoval {
             visitsAhead: ahead,
             documents: documents(of: id, in: context).count,
             pastVisits: visits.count - ahead,
-            photos: photos(of: id, in: context).count)
+            photos: photos(of: id, in: context).count,
+            contracts: (client.contracts ?? []).filter { $0.signedAt != nil }.count)
     }
 
     /// Takes `client` off every route: their stops are deleted. Marking
@@ -106,6 +109,11 @@ enum ClientRemoval {
             for document in documents(of: id, in: context) { context.delete(document) }
             for record in ServiceLog.records(ofClient: id, in: context) { context.delete(record) }
         }
+        // Signed contracts are records, kept (with the client's name) or
+        // deleted as the invoices are; a draft never agreed just goes.
+        for contract in client.contracts ?? [] where !keepingRecords || contract.signedAt == nil {
+            context.delete(contract)
+        }
         for photo in photos(of: id, in: context) { context.delete(photo) }
         // The texts sent them are a log of the client, not the business's
         // records: they go with the client, as photos do.
@@ -138,6 +146,7 @@ enum ClientRemoval {
             let records = [
                 footprint.documents > 0 ? count(footprint.documents, "invoice or proposal", "invoices or proposals") : nil,
                 footprint.pastVisits > 0 ? count(footprint.pastVisits, "past visit", "past visits") : nil,
+                footprint.contracts > 0 ? count(footprint.contracts, "signed contract", "signed contracts") : nil,
             ].compactMap { $0 }
             sentences.append("Keep their \(records.formatted(.list(type: .and).locale(locale))) for your records, "
                 + "or delete everything?")

@@ -81,9 +81,12 @@ enum Pipeline {
         }
     }
 
-    static func stage(of client: Client, facts: Facts) -> Stage {
+    static func stage(of client: Client, facts: Facts, now: Date = .now) -> Stage {
         let id = client.id.uuidString
-        if client.totalVisits > 0 || facts.withWork.contains(id) { return .customer }
+        // Work booked or done, or a contract signed and in force.
+        if client.totalVisits > 0 || facts.withWork.contains(id) || Contracts.hasContractInForce(client, now: now) {
+            return .customer
+        }
         let newestProposal = facts.proposals[id]?.first?.createdAt
         // Lost, unless they've been sent a proposal since: back in Quoted.
         if let lostAt = client.lostAt, (newestProposal ?? .distantPast) <= lostAt { return .lost }
@@ -126,7 +129,7 @@ enum Pipeline {
     }
 
     static func entry(for client: Client, facts: Facts, now: Date) -> Entry {
-        let stage = stage(of: client, facts: facts)
+        let stage = stage(of: client, facts: facts, now: now)
         return Entry(client: client, stage: stage,
                      quoteTotal: facts.proposals[client.id.uuidString]?.first?.total,
                      waitingDays: waitingDays(client, now: now))
