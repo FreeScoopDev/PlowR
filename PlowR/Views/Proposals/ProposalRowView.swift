@@ -9,9 +9,7 @@ struct ProposalRowView: View {
     var body: some View {
         HStack(spacing: 12) {
             // Left accent bar — mirrors the visit row pattern
-            RoundedRectangle(cornerRadius: 3)
-                .fill(status.chipColor)
-                .frame(width: 4, height: 48)
+            AccentBar(color: status.chipColor)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(proposal.clientName)
@@ -48,24 +46,13 @@ struct ProposalRowView: View {
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(.primary)
 
-                Label(status.rawValue, systemImage: status.systemImage)
-                    .font(.caption2)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(status.chipColor.opacity(0.13))
-                    .foregroundStyle(status.chipColor)
-                    .clipShape(Capsule())
+                StatusChip(status.rawValue, systemImage: status.systemImage, color: status.chipColor)
 
                 if !proposal.isInvoice, let expiry = proposal.validUntil {
                     let daysLeft = Calendar.current.dateComponents([.day], from: Calendar.current.startOfDay(for: Date()), to: expiry).day ?? Int.max
                     if daysLeft >= 0 && daysLeft <= 3 {
-                        Label(daysLeft == 0 ? "Expires today" : "Expires in \(daysLeft)d", systemImage: "clock.badge.exclamationmark")
-                            .font(.caption2)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 3)
-                            .background(Color.orange.opacity(0.13))
-                            .foregroundStyle(.orange)
-                            .clipShape(Capsule())
+                        StatusChip(daysLeft == 0 ? "Expires today" : "Expires in \(daysLeft)d",
+                                   systemImage: "clock.badge.exclamationmark", color: .orange)
                     }
                 }
             }

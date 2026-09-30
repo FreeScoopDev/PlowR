@@ -571,13 +571,7 @@ struct ActiveRouteView: View {
                             .font(.subheadline)
                         Spacer()
                         if !stop.completedServiceIDs.isEmpty {
-                            Text("\(stop.completedServiceIDs.count) recorded")
-                                .font(.caption)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 3)
-                                .background(Color.green.opacity(0.15))
-                                .foregroundStyle(.green)
-                                .clipShape(Capsule())
+                            StatusChip("\(stop.completedServiceIDs.count) recorded", color: .green)
                         }
                     }
                     .frame(maxWidth: .infinity)
@@ -679,10 +673,7 @@ struct ActiveRouteView: View {
             }
             ForEach(Array(upcomingStops.enumerated()), id: \.element.id) { index, stop in
                 HStack(spacing: 12) {
-                    Text("\(currentStopIndex + 2 + index)")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 24)
+                    StopNumberBadge(number: currentStopIndex + 2 + index)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(stop.clientName).font(.subheadline.weight(.medium))
                         if !stop.clientAddress.isEmpty {

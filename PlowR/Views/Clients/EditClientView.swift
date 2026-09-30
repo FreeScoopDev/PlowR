@@ -868,21 +868,10 @@ struct EditClientView: View {
         HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 5) {
-                    Label(document.invoiceStatus.rawValue, systemImage: document.invoiceStatus.systemImage)
-                        .font(.caption2)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(document.invoiceStatus.chipColor.opacity(0.15))
-                        .foregroundStyle(document.invoiceStatus.chipColor)
-                        .clipShape(Capsule())
+                    StatusChip(document.invoiceStatus.rawValue, systemImage: document.invoiceStatus.systemImage,
+                               color: document.invoiceStatus.chipColor)
                     if !document.revisionOf.isEmpty {
-                        Text("Revision")
-                            .font(.caption2)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 2)
-                            .background(Color.orange.opacity(0.15))
-                            .foregroundStyle(.orange)
-                            .clipShape(Capsule())
+                        StatusChip("Revision", color: .orange)
                     }
                 }
                 Text(document.isInvoice

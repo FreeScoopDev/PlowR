@@ -133,13 +133,18 @@ struct RouteRowView: View {
         return "\(totalCount) stop\(totalCount == 1 ? "" : "s") · \(completedCount)/\(totalCount) complete"
     }
 
+    // The bar and type sizes are the Clients and Documents rows'.
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(route.name)
-                .font(.headline)
-            Text(subtitleText)
-                .font(.subheadline)
-                .foregroundStyle(run.isRunning ? .orange : .secondary)
+        HStack(spacing: 12) {
+            AccentBar(color: run.isRunning ? .orange : (run.isDone ? .green : Color(.systemGray4)))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(route.name)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                Text(subtitleText)
+                    .font(.caption)
+                    .foregroundStyle(run.isRunning ? .orange : .secondary)
+            }
         }
         .padding(.vertical, 4)
     }

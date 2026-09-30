@@ -520,12 +520,7 @@ struct DashboardView: View {
             Label(title, systemImage: icon)
                 .font(.subheadline.weight(.semibold))
             if let badge {
-                Text(badge)
-                    .font(.caption2.weight(.semibold))
-                    .padding(.horizontal, 6).padding(.vertical, 2)
-                    .background(badgeColor.opacity(0.15))
-                    .foregroundStyle(badgeColor)
-                    .clipShape(Capsule())
+                StatusChip(badge, color: badgeColor)
             }
             Spacer()
         }

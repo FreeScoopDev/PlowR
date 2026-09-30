@@ -125,12 +125,6 @@ struct ServiceRecordStatusChip: View {
         case .noCharge: ("No Charge", .purple)
         case .notBilled: ("Not Billed", .orange)
         }
-        Text(text)
-            .font(.caption2.weight(.semibold))
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(colour.opacity(0.15))
-            .foregroundStyle(colour)
-            .clipShape(Capsule())
+        StatusChip(text, color: colour)
     }
 }

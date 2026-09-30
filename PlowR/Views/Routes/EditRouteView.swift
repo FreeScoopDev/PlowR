@@ -35,13 +35,10 @@ struct EditRouteView: View {
                 Section {
                     ForEach(Array(stops.enumerated()), id: \.element.id) { index, stop in
                         HStack(spacing: 12) {
-                            Text("\(index + 1)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .frame(width: 20)
+                            StopNumberBadge(number: index + 1)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(stop.clientName)
-                                    .font(.headline)
+                                    .font(.subheadline.weight(.semibold))
                                 if !stop.clientAddress.isEmpty {
                                     Text(stop.clientAddress)
                                         .font(.caption)
