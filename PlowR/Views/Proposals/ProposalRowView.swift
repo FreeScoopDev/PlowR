@@ -48,6 +48,9 @@ struct ProposalRowView: View {
 
                 StatusChip(status.rawValue, systemImage: status.systemImage, color: status.chipColor)
 
+                // Paid in part: what's still owed.
+                BalanceDueCaption(document: proposal)
+
                 if !proposal.isInvoice, let expiry = proposal.validUntil {
                     let daysLeft = Calendar.current.dateComponents([.day], from: Calendar.current.startOfDay(for: Date()), to: expiry).day ?? Int.max
                     if daysLeft >= 0 && daysLeft <= 3 {

@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 
 /// What a document's Edit screen saves: the discount, the tax rate and, for an
 /// invoice, the due date.
@@ -59,5 +60,14 @@ extension DocumentEdits {
            dueDate != openedDueDate || proposal.invoiceDueDate == nil {
             proposal.invoiceDueDate = dueDate
         }
+    }
+
+    /// Saves them, and the invoice's payments are weighed against its new
+    /// total (Payments.settle): edited down to what's been paid, it's paid;
+    /// its line amounts, changed on the same screen, count too.
+    @MainActor
+    func apply(to proposal: Proposal, in context: ModelContext) {
+        apply(to: proposal)
+        Payments.settle(proposal, in: context)
     }
 }

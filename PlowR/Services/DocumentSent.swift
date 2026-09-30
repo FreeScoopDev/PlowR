@@ -80,7 +80,9 @@ enum DocumentSent {
         let id = proposal.clientID
         guard let client = try? context.fetch(FetchDescriptor<Client>()).first(where: { $0.id.uuidString == id }),
               client.lastMessageSentAt != nil else { return }
-        client.clientRespondedAt = now
+        // Never earlier than a response already marked: a payment recorded
+        // late, dated when it came, mustn't bring "Awaiting Response" back.
+        client.clientRespondedAt = max(client.clientRespondedAt ?? .distantPast, now)
     }
 
     /// Whether a document the builder saves is the one its preview shared:

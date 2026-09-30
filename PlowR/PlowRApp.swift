@@ -20,6 +20,7 @@ struct PlowRApp: App {
         PropertyZone.self,
         BusinessProfile.self,
         Proposal.self,
+        Payment.self,
         ProposalLineItem.self,
         PaymentMethod.self,
         StopPhoto.self,
@@ -38,6 +39,8 @@ struct PlowRApp: App {
         if !Self.isRunningUnderTests {
             ClientStops.updateAll(in: container.mainContext)
             ClientStops.followRemoteChanges(of: container)
+            // Parts of a payment recorded on two devices, now together.
+            Payments.settleAll(in: container.mainContext)
             DocumentSent.clearTextStamps(in: container.mainContext)
             ClientRemoval.takeInactiveClientsOffRoutes(in: container.mainContext)
             // The Service Log: the same work recorded on two devices, merged.
@@ -144,7 +147,10 @@ struct PlowRApp: App {
         .onChange(of: scenePhase) { _, phase in
             // iCloud may have deleted or reordered the route while the app was away.
             if phase == .active {
-                if !Self.isRunningUnderTests { ClientStops.updateAll(in: container.mainContext) }
+                if !Self.isRunningUnderTests {
+                    ClientStops.updateAll(in: container.mainContext)
+                    Payments.settleAll(in: container.mainContext)
+                }
                 ActiveRouteStore.shared.validate()
                 authManager.recheckIfSignedOut()
                 CalendarSync.shared.refresh()

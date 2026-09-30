@@ -25,6 +25,8 @@ final class Proposal {
     var visitID: String = ""      // scheduled visit this invoice was created from
 
     @Relationship(deleteRule: .cascade, inverse: \ProposalLineItem.proposal) var lineItems: [ProposalLineItem]?
+    /// Money received against it, in parts or all at once (Payments).
+    @Relationship(deleteRule: .cascade, inverse: \Payment.invoice) var payments: [Payment]?
 
     /// The sum of the lines as billed: each to the cent, as the PDF prints
     /// them, so the printed rows add up to the printed sub-total.
@@ -50,6 +52,39 @@ final class Proposal {
     var appliedDiscount: Double {
         subtotal - discountedTotal
     }
+
+    /// Its payments, oldest first.
+    var sortedPayments: [Payment] {
+        (payments ?? []).sorted { ($0.receivedAt, $0.createdAt) < ($1.receivedAt, $1.createdAt) }
+    }
+
+    /// What its payments add up to.
+    var paymentsTotal: Double {
+        InvoiceLines.roundedToCent((payments ?? []).reduce(0) { $0 + $1.amount })
+    }
+
+    /// What's been paid: its payments, and a paid invoice at least its total
+    /// (one marked paid before payments were kept, or on a device with an
+    /// older PlowR, has fewer or none). More, if it was overpaid.
+    var amountPaid: Double {
+        guard isInvoice else { return 0 }
+        return invoicePaidAt != nil ? max(total, paymentsTotal) : paymentsTotal
+    }
+
+    /// Paid more than its total (edited down after it was paid, or the same
+    /// payment recorded on two devices).
+    var overpaid: Double {
+        isInvoice ? max(0, InvoiceLines.roundedToCent(paymentsTotal - total)) : 0
+    }
+
+    /// What the client still owes on it: nothing on a proposal or a paid invoice.
+    var balanceDue: Double {
+        guard isInvoice, invoicePaidAt == nil else { return 0 }
+        return max(0, InvoiceLines.roundedToCent(total - amountPaid))
+    }
+
+    /// Paid in part: some money received, some still owed.
+    var isPartlyPaid: Bool { balanceDue > 0 && amountPaid > 0 }
 
     var sortedLineItems: [ProposalLineItem] {
         (lineItems ?? []).sorted { $0.sortOrder < $1.sortOrder }
@@ -164,10 +199,17 @@ extension Proposal {
     /// A payment reminder to text the client. The amount is to the cent; it was
     /// rounded to whole dollars, so a $149.50 invoice was texted as $150. It was
     /// also written out separately on two screens.
+    /// Paid in part, it asks for the balance, as the PDF does.
     func reminderMessage(locale: Locale = .current) -> String {
-        let amount = total.formatted(.currency(code: "USD").locale(locale))
         let statusWord = invoiceStatus == .overdue ? "overdue" : "outstanding"
-        var message = "Hi \(clientName), just a friendly reminder that invoice \(invoiceNumber) for \(amount) is \(statusWord)."
+        var message: String
+        if isPartlyPaid {
+            let balance = balanceDue.formatted(.currency(code: "USD").locale(locale))
+            message = "Hi \(clientName), just a friendly reminder that the balance of \(balance) on invoice \(invoiceNumber) is \(statusWord)."
+        } else {
+            let amount = total.formatted(.currency(code: "USD").locale(locale))
+            message = "Hi \(clientName), just a friendly reminder that invoice \(invoiceNumber) for \(amount) is \(statusWord)."
+        }
         if let due = invoiceDueDate {
             message += " Due: \(due.formatted(.dateTime.month(.abbreviated).day().year().locale(locale)))."
         }

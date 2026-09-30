@@ -58,10 +58,19 @@ enum ClientTimeline {
                     events.append(Event(id: "sent-\(document.id)", date: sent,
                                         kind: .invoiceSent(documentID: document.id), title: "Sent \(number)"))
                 }
+                // Each payment on the day it came; paid in full, the invoice
+                // is marked paid, with the amount only when no payments show it.
+                for payment in document.sortedPayments {
+                    events.append(Event(id: "payment-\(payment.id)", date: payment.receivedAt,
+                                        kind: .payment(documentID: document.id), title: "Payment on \(number)",
+                                        detail: [payment.method, payment.note].filter { !$0.isEmpty }
+                                            .joined(separator: " · "),
+                                        amount: payment.amount))
+                }
                 if let paid = document.invoicePaidAt {
                     events.append(Event(id: "paid-\(document.id)", date: paid,
                                         kind: .invoicePaid(documentID: document.id), title: "Paid \(number)",
-                                        amount: document.total))
+                                        amount: document.sortedPayments.isEmpty ? document.total : nil))
                 }
             } else {
                 events.append(Event(id: "quote-\(document.id)", date: document.createdAt,
@@ -88,5 +97,6 @@ enum ClientTimelineKind: Equatable {
     case upcomingVisit, missedVisit, skippedVisit, cancelledVisit
     case quote(documentID: UUID)
     case invoiceMade(documentID: UUID), invoiceSent(documentID: UUID), invoicePaid(documentID: UUID)
+    case payment(documentID: UUID)
     case photos(count: Int)
 }

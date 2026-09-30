@@ -99,6 +99,9 @@ struct AccountEraserTests {
             let property = Property(label: "North lot", address: "2 Elm St", operatorID: "op")
             context.insert(property)
             property.client = client
+            let payment = Payment(amount: 10, method: "Cash", receivedAt: Date(), operatorID: "op")
+            context.insert(payment)
+            payment.invoice = proposal
             try context.save()
             routeStore.configure(context: context)
             routeStore.start(route)

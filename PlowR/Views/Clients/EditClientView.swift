@@ -219,7 +219,8 @@ struct EditClientView: View {
             if let doc = revisePaidDoc {
                 let copyNumber = InvoiceNumbering.nextRevision(of: doc.invoiceNumber,
                                                                operatorID: doc.operatorID, in: modelContext)
-                Text("'\(doc.invoiceNumber)' is marked paid. 'Save as Revision Copy' creates \(copyNumber) as a new draft. 'Overwrite' resets it to Draft so you can resend.")
+                Text(["'\(doc.invoiceNumber)' is marked paid. 'Save as Revision Copy' creates \(copyNumber) as a new draft. 'Overwrite' resets it to Draft so you can resend.",
+                      Payments.clearNote(for: doc)].filter { !$0.isEmpty }.joined(separator: " "))
             }
         }
     }
@@ -889,17 +890,9 @@ struct EditClientView: View {
             .sorted { $0.createdAt > $1.createdAt }
     }
 
-    private var outstandingBalance: Double {
-        clientInvoices
-            .filter { $0.invoicePaidAt == nil }
-            .reduce(0) { $0 + $1.total }
-    }
+    private var outstandingBalance: Double { Payments.owed(clientInvoices) }
 
-    private var totalRevenuePaid: Double {
-        clientInvoices
-            .filter { $0.invoicePaidAt != nil }
-            .reduce(0) { $0 + $1.total }
-    }
+    private var totalRevenuePaid: Double { Payments.received(clientInvoices) }
 
     private var operatorProfile: BusinessProfile? {
         allProfiles.first { $0.operatorID == client.operatorID }
@@ -940,6 +933,7 @@ struct EditClientView: View {
                 Text(String(format: "$%.2f", document.total))
                     .font(.subheadline)
                     .fontWeight(.semibold)
+                BalanceDueCaption(document: document)
                 HStack(spacing: 4) {
                     Button {
                         shareDocument(document)
@@ -951,7 +945,7 @@ struct EditClientView: View {
 
                     if document.invoiceStatus == .sent || document.invoiceStatus == .overdue {
                         Button("Paid") {
-                            DocumentSent.markPaid(document, in: modelContext)
+                            Payments.payInFull(document, in: modelContext)
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.mini)
@@ -1007,7 +1001,7 @@ struct EditClientView: View {
 
     private func overwriteForEdit(_ proposal: Proposal) {
         // Reset to Draft so the operator can resend with updated info
-        proposal.invoicePaidAt = nil
+        Payments.clear(proposal, in: modelContext)
         proposal.invoiceSentAt = nil
     }
 

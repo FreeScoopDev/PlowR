@@ -15,6 +15,7 @@ struct ProposalDetailView: View {
     @State private var showingEditView = false
     @State private var showingReviseDialog = false
     @State private var showingReminder = false
+    @State private var showingPayments = false
 
     // MARK: - Computed Properties
 
@@ -74,6 +75,7 @@ struct ProposalDetailView: View {
         .onAppear { generatePDF() }
         .onChange(of: proposal.total) { _, _ in generatePDF() }
         .onChange(of: proposal.invoicePaidAt) { _, _ in generatePDF() }
+        .onChange(of: proposal.amountPaid) { _, _ in generatePDF() }
         .onChange(of: proposal.invoiceSentAt) { _, _ in generatePDF() }
         .onChange(of: allProfiles) { _, _ in generatePDF() }
         // Sent to the client from the share sheet (Mark as Sent on): they're
@@ -89,6 +91,9 @@ struct ProposalDetailView: View {
                 MessageComposer(recipients: [phone], body: reminderMessage) { _ in }
             }
         }
+        .sheet(isPresented: $showingPayments) {
+            InvoicePaymentsView(invoice: proposal)
+        }
         .sheet(isPresented: $showingEditView, onDismiss: { generatePDF() }) {
             ProposalEditView(proposal: proposal)
         }
@@ -97,7 +102,8 @@ struct ProposalDetailView: View {
             Button("Reset to Draft", role: .destructive) { resetToDraft() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Create a new draft revision, or reset this invoice back to Draft status.")
+            Text(["Create a new draft revision, or reset this invoice back to Draft status.",
+                  Payments.clearNote(for: proposal)].filter { !$0.isEmpty }.joined(separator: " "))
         }
     }
 
@@ -152,17 +158,21 @@ struct ProposalDetailView: View {
                     .tint(.orange)
                 }
 
-                Button {
-                    DocumentSent.markPaid(proposal, in: modelContext)
-                    generatePDF()
-                } label: {
-                    Label("Mark Paid", systemImage: "checkmark.seal.fill")
+                // All that's owed, or part of it (Payments).
+                Button { showingPayments = true } label: {
+                    Label("Payment", systemImage: "dollarsign.circle.fill")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.green)
 
             case .paid:
+                Button { showingPayments = true } label: {
+                    Label("Payments", systemImage: "dollarsign.circle")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+
                 Button { showingReviseDialog = true } label: {
                     Label("Revise", systemImage: "doc.badge.plus")
                         .frame(maxWidth: .infinity)
@@ -214,7 +224,7 @@ struct ProposalDetailView: View {
     }
 
     private func resetToDraft() {
-        proposal.invoicePaidAt = nil
+        Payments.clear(proposal, in: modelContext)
         proposal.invoiceSentAt = nil
         generatePDF()
     }

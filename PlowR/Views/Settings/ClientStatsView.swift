@@ -26,21 +26,15 @@ struct ClientStatsView: View {
     private var totalMinutes: Double { myClients.reduce(0) { $0 + $1.totalServiceMinutes } }
 
     private var totalRevenue: Double {
-        allProposals
-            .filter { $0.operatorID == authManager.userID && $0.invoicePaidAt != nil }
-            .reduce(0) { $0 + $1.total }
+        Payments.received(allProposals.filter { $0.operatorID == authManager.userID })
     }
 
     private var totalOutstanding: Double {
-        allProposals
-            .filter { $0.operatorID == authManager.userID && $0.isInvoice && $0.invoicePaidAt == nil }
-            .reduce(0) { $0 + $1.total }
+        Payments.owed(allProposals.filter { $0.operatorID == authManager.userID })
     }
 
     private func outstanding(for client: Client) -> Double {
-        allProposals
-            .filter { $0.clientID == client.id.uuidString && $0.isInvoice && $0.invoicePaidAt == nil }
-            .reduce(0) { $0 + $1.total }
+        Payments.owed(allProposals.filter { $0.clientID == client.id.uuidString })
     }
 
     // MARK: - Monthly Revenue
@@ -52,32 +46,13 @@ struct ClientStatsView: View {
         let outstanding: Double
     }
 
-    private static let monthKeyFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM"
-        return f
-    }()
-
+    /// Money by month (Payments.byMonth): received when it came, owed by
+    /// when the invoice went out.
     private var monthlyBuckets: [MonthBucket] {
-        let cal = Calendar.current
-        let myInvoices = allProposals.filter { $0.operatorID == authManager.userID && $0.isInvoice }
-        var map: [String: (rev: Double, out: Double)] = [:]
-
-        for proposal in myInvoices {
-            let refDate = proposal.invoicePaidAt ?? proposal.invoiceSentAt ?? proposal.createdAt
-            let comps = cal.dateComponents([.year, .month], from: refDate)
-            guard let year = comps.year, let month = comps.month else { continue }
-            let key = String(format: "%04d-%02d", year, month)
-            var bucket = map[key] ?? (rev: 0, out: 0)
-            if proposal.invoicePaidAt != nil { bucket.rev += proposal.total }
-            else { bucket.out += proposal.total }
-            map[key] = bucket
-        }
-
-        return map.sorted { $0.key > $1.key }.prefix(12).compactMap { key, vals in
-            guard let date = Self.monthKeyFormatter.date(from: key) else { return nil }
-            let label = date.formatted(.dateTime.month(.abbreviated).year())
-            return MonthBucket(id: key, label: label, revenue: vals.rev, outstanding: vals.out)
+        Payments.byMonth(allProposals.filter { $0.operatorID == authManager.userID }).map { month in
+            MonthBucket(id: month.start.formatted(.iso8601.year().month()),
+                        label: month.start.formatted(.dateTime.month(.abbreviated).year()),
+                        revenue: month.received, outstanding: month.owed)
         }
     }
 
