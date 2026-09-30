@@ -16,7 +16,7 @@ struct ClientActionTile: View {
                 .symbolRenderingMode(.hierarchical)
                 .foregroundStyle(color)
                 .frame(width: 48, height: 48)
-                .background(color.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .background(color.opacity(0.12), in: RoundedRectangle(cornerRadius: PlowRLayout.cornerMedium, style: .continuous))
             Text(title)
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)

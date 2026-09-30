@@ -125,7 +125,7 @@ struct FindServiceFlow: View {
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 20)
                             .background(.regularMaterial)
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                            .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
                         }
                         .buttonStyle(.plain)
                     }

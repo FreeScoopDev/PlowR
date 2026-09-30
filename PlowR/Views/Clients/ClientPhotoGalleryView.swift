@@ -158,27 +158,19 @@ struct ClientPhotoGalleryView: View {
 
     // MARK: - Empty State
 
+    // The system's empty state, as the other empty screens use.
     private var emptyState: some View {
-        VStack(spacing: 20) {
-            Spacer()
-            Image(systemName: "photo.on.rectangle.angled")
-                .font(.system(size: 52))
-                .foregroundStyle(.secondary)
-            Text("No Photos Yet")
-                .font(.headline)
+        ContentUnavailableView {
+            Label("No Photos Yet", systemImage: "photo.on.rectangle.angled")
+        } description: {
             Text("Add photos from your library or camera, or take them during a route stop.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
-
+        } actions: {
             HStack(spacing: 12) {
                 if UIImagePickerController.isSourceTypeAvailable(.camera) {
                     Button {
                         showingCamera = true
                     } label: {
                         Label("Take Photo", systemImage: "camera.fill")
-                            .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
                 }
@@ -186,13 +178,9 @@ struct ClientPhotoGalleryView: View {
                     showingLibraryPicker = true
                 } label: {
                     Label("Library", systemImage: "photo.on.rectangle")
-                        .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
             }
-            .padding(.horizontal, 40)
-
-            Spacer()
         }
     }
 

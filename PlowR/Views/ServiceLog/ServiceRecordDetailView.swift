@@ -167,7 +167,7 @@ struct ServiceRecordDetailView: View {
                                     .scaledToFill()
                                     .frame(width: 88, height: 88)
                                     .accessibilityLabel(photo.isBefore ? "Before photo" : "After photo")
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                                    .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerSmall, style: .continuous))
                                     .overlay(alignment: .bottomLeading) {
                                         Text(photo.isBefore ? "Before" : "After")
                                             .font(.system(size: 9, weight: .semibold))

@@ -783,7 +783,7 @@ struct EditClientView: View {
     private var scheduleSection: some View {
         Section("Upcoming Visits") {
             if upcomingClientVisits.isEmpty {
-                Text("No upcoming visits scheduled.")
+                Text("No upcoming visits scheduled")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             } else {
@@ -973,7 +973,7 @@ struct EditClientView: View {
             }
         }
         .frame(height: 160)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerMedium, style: .continuous))
         .overlay(alignment: .bottomTrailing) {
             Label("Edit Zones", systemImage: "pencil")
                 .font(.caption2)

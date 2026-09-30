@@ -65,7 +65,7 @@ struct RoleSelectionView: View {
             }
             .padding(20)
             .background(.regularMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
         }
         .buttonStyle(.plain)
     }

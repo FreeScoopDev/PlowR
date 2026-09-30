@@ -141,7 +141,7 @@ struct DashboardView: View {
             }
             .padding(14)
             .background(Color(.secondarySystemGroupedBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
         }
     }
 
@@ -163,23 +163,13 @@ struct DashboardView: View {
         .foregroundStyle(.white)
         .padding(.horizontal, 16)
         .padding(.vertical, 11)
-        .background(dashWeatherBackground(w))
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .background(WeatherKind(w.description).background)
+        .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
         .onTapGesture {
             if let url = URL(string: "weather://"), UIApplication.shared.canOpenURL(url) {
                 UIApplication.shared.open(url)
             }
         }
-    }
-
-    private func dashWeatherBackground(_ w: WeatherCondition) -> Color {
-        let d = w.description
-        if d.contains("Snow") || d.contains("Blizzard") { return .blue }
-        if d.contains("Thunder")                        { return .purple }
-        if d.contains("Rain") || d.contains("Shower") || d.contains("Drizzle") { return .indigo }
-        if d.contains("Fog")                            { return Color(white: 0.4) }
-        if d.contains("Clear")                          { return .teal }
-        return Color(.systemGray)
     }
 
     private func fetchDashboardWeather() async {
@@ -222,7 +212,7 @@ struct DashboardView: View {
         }
         .padding(16)
         .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
     }
 
     @ViewBuilder
@@ -231,9 +221,9 @@ struct DashboardView: View {
             Image(uiImage: img)
                 .resizable()
                 .scaledToFill()
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerMedium, style: .continuous))
         } else {
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: PlowRLayout.cornerMedium, style: .continuous)
                 .fill(Color.accentColor.gradient)
                 .overlay {
                     Text((profile?.companyName ?? "").dashInitials)
@@ -535,7 +525,7 @@ private struct DashCard<Content: View>: View {
     var body: some View {
         VStack(spacing: 0) { content }
             .background(Color(.secondarySystemGroupedBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
     }
 }
 

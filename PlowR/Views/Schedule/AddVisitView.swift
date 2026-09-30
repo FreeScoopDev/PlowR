@@ -243,7 +243,7 @@ struct AddVisitView: View {
     private var clientSection: some View {
         Section("Client") {
             if myClients.isEmpty {
-                Text("No clients yet.")
+                Text("No clients yet")
                     .foregroundStyle(.secondary)
             } else {
                 Picker("Client", selection: $selectedClient) {

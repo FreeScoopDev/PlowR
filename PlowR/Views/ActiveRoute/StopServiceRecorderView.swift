@@ -213,7 +213,7 @@ struct StopServiceRecorderView: View {
                                     .resizable()
                                     .scaledToFill()
                                     .frame(width: 80, height: 80)
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                                    .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerSmall, style: .continuous))
                                 Button {
                                     if isBefore { beforeImages.remove(at: idx) }
                                     else { afterImages.remove(at: idx) }
@@ -244,7 +244,7 @@ struct StopServiceRecorderView: View {
                         .padding(.vertical, 8)
                         .background(color.opacity(0.1))
                         .foregroundStyle(color)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerSmall, style: .continuous))
                 }
                 .buttonStyle(.plain)
 
@@ -259,7 +259,7 @@ struct StopServiceRecorderView: View {
                         .padding(.vertical, 8)
                         .background(color.opacity(0.1))
                         .foregroundStyle(color)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerSmall, style: .continuous))
                 }
                 .buttonStyle(.plain)
             }

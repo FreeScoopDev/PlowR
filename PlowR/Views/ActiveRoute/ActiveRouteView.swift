@@ -491,19 +491,9 @@ struct ActiveRouteView: View {
             .foregroundStyle(.white)
             .padding(.horizontal)
             .padding(.vertical, 10)
-            .background(weatherBackground(w))
+            .background(WeatherKind(w.description).background)
             .onTapGesture { openWeather() }
         }
-    }
-
-    private func weatherBackground(_ w: WeatherCondition) -> Color {
-        let d = w.description
-        if d.contains("Snow") || d.contains("Blizzard") { return .blue }
-        if d.contains("Thunder") { return .purple }
-        if d.contains("Rain") || d.contains("Shower") || d.contains("Drizzle") { return .indigo }
-        if d.contains("Fog") { return Color(white: 0.4) }
-        if d.contains("Clear") { return .teal }
-        return Color(.systemGray)
     }
 
     // MARK: - Stop Cards
@@ -559,7 +549,7 @@ struct ActiveRouteView: View {
                 .padding(10)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color(.systemGray6))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerSmall, style: .continuous))
             }
 
             if !stop.isCustomStop {
@@ -578,7 +568,7 @@ struct ActiveRouteView: View {
                     .padding(.vertical, 10)
                     .padding(.horizontal)
                     .background(Color(.systemGray6))
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerMedium, style: .continuous))
                 }
                 .buttonStyle(.plain)
             }
@@ -600,11 +590,8 @@ struct ActiveRouteView: View {
                     Label("Complete Route", systemImage: "checkmark.circle.fill")
                         .font(.headline)
                         .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.green)
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
+                .primaryActionStyle(.green)
             } else {
                 Button { triggerNotifyPrompt() } label: {
                     Label(
@@ -613,16 +600,13 @@ struct ActiveRouteView: View {
                     )
                     .font(.headline)
                     .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.blue)
-                    .foregroundStyle(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
+                .primaryActionStyle(.blue)
             }
         }
         .padding()
         .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
         .shadow(color: .black.opacity(0.07), radius: 8, y: 2)
     }
 
@@ -639,15 +623,12 @@ struct ActiveRouteView: View {
                 Text("Review & End Route")
                     .font(.headline)
                     .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.green)
-                    .foregroundStyle(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
             }
+            .primaryActionStyle(.green)
         }
         .padding()
         .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
         .shadow(color: .black.opacity(0.07), radius: 8, y: 2)
     }
 
@@ -691,7 +672,7 @@ struct ActiveRouteView: View {
                 .padding(.vertical, 8)
                 .padding(.horizontal, 12)
                 .background(Color(.systemGray6))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerMedium, style: .continuous))
             }
         }
     }
