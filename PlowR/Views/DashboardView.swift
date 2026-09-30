@@ -310,8 +310,9 @@ struct DashboardView: View {
                           badge: overdueCount > 0 ? "\(overdueCount) overdue" : nil,
                           badgeColor: .red)
             StatTileRow {
+                // Outstanding opens what's owed by how late it is.
                 NavigationLink {
-                    ProposalListView(initialFilter: .invoices)
+                    MoneyOwedView()
                 } label: {
                     StatTile(
                         value: outstandingBalance.formatted(.currency(code: "USD").precision(.fractionLength(0))),
