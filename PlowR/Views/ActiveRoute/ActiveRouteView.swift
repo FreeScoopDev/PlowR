@@ -15,6 +15,7 @@ struct ActiveRouteView: View {
     @Environment(\.scenePhase) private var scenePhase
 
     @Query private var allClients: [Client]
+    @Query private var allServices: [ServiceItem]
 
     @State private var locationManager = LocationManager()
     @State private var showingNotifyPrompt = false
@@ -75,6 +76,14 @@ struct ActiveRouteView: View {
     private var isPresentingSomething: Bool {
         showingFirstStopPrompt || showingNotifyPrompt || textOnlyStop != nil || recorderStop != nil || showingMassMessage
             || showingRouteRecap || showingNavPicker || showingRouteChangedAlert || showingLocationDeniedAlert
+    }
+
+    /// The names of the active services `stop` is expected to need.
+    private func expectedServiceNames(for stop: RouteStop) -> [String] {
+        let operatorID = route.operatorID
+        return ServiceLog.activeServices(allServices, operatorID: operatorID)
+            .filter { StopServices.expected(for: stop, client: client(for: stop)).contains($0.id) }
+            .map(\.name)
     }
 
     private func client(for stop: RouteStop) -> Client? {
@@ -533,6 +542,24 @@ struct ActiveRouteView: View {
                 }
             }
 
+            // What this stop is expected to need, and its target time, as set
+            // on the stop's page before the route.
+            let expected = expectedServiceNames(for: stop)
+            let target = RouteFacts.targetMinutes(of: stop, client: client(for: stop))
+            if !expected.isEmpty || target > 0 {
+                VStack(alignment: .leading, spacing: 6) {
+                    if !expected.isEmpty {
+                        Label(expected.formatted(.list(type: .and)), systemImage: "checklist")
+                            .font(.caption.weight(.medium))
+                    }
+                    if target > 0 {
+                        Label("Target \(RouteFacts.duration(target))", systemImage: "timer")
+                            .font(.caption)
+                            .foregroundStyle(.blue)
+                    }
+                }
+            }
+
             if !stop.stopNotes.isEmpty || !stop.equipmentNotes.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     if !stop.stopNotes.isEmpty {
@@ -706,11 +733,7 @@ struct ActiveRouteView: View {
     }
 
     private func openInAppleMaps(_ stop: RouteStop) {
-        let addr = stop.clientAddress.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        let urlStr = stop.latitude != 0
-            ? "maps://?daddr=\(stop.latitude),\(stop.longitude)&dirflg=d"
-            : "maps://?daddr=\(addr)"
-        if let url = URL(string: urlStr) { UIApplication.shared.open(url) }
+        if let url = stop.appleMapsDirectionsURL { UIApplication.shared.open(url) }
     }
 
     private func openInGoogleMaps(_ stop: RouteStop) {
