@@ -106,24 +106,22 @@ struct ClientStatsView: View {
 
     private var summarySection: some View {
         Section {
-            HStack(spacing: 10) {
-                summaryCard(
-                    label: "Visits",
+            StatTileRow {
+                StatTile(
                     value: "\(totalVisits)",
-                    icon: "checkmark.circle.fill",
+                    label: "Visits",
                     color: .blue
                 )
-                summaryCard(
-                    label: "Revenue",
+                StatTile(
                     value: totalRevenue == 0 ? "$0" : totalRevenue.formatted(.currency(code: "USD").precision(.fractionLength(0))),
-                    icon: "dollarsign.circle.fill",
+                    label: "Revenue",
                     color: .green
                 )
-                summaryCard(
-                    label: "Outstanding",
+                // Outstanding is orange everywhere (red is for overdue).
+                StatTile(
                     value: totalOutstanding == 0 ? "$0" : totalOutstanding.formatted(.currency(code: "USD").precision(.fractionLength(0))),
-                    icon: "exclamationmark.circle.fill",
-                    color: totalOutstanding > 0 ? .red : .secondary
+                    label: "Outstanding",
+                    color: totalOutstanding > 0 ? .orange : .secondary
                 )
             }
             .listRowBackground(Color.clear)
@@ -269,31 +267,10 @@ struct ClientStatsView: View {
                     systemImage: "exclamationmark.circle.fill"
                 )
                 .font(.caption.weight(.medium))
-                .foregroundStyle(.red)
+                .foregroundStyle(.orange)                // outstanding, as everywhere
             }
         }
         .padding(.vertical, 4)
-    }
-
-    private func summaryCard(label: String, value: String, icon: String, color: Color) -> some View {
-        VStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.title3)
-                .foregroundStyle(color)
-            Text(value)
-                .font(.headline.weight(.bold))
-                .foregroundStyle(.primary)
-                .minimumScaleFactor(0.7)
-                .lineLimit(1)
-            Text(label)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 14)
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .shadow(color: .black.opacity(0.06), radius: 4, y: 2)
     }
 
     private func buildReportURL() -> IdentifiableURL? {

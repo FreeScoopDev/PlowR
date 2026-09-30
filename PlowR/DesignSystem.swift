@@ -41,3 +41,18 @@ nonisolated enum PlowRColor {
     /// The accent's dark-mode colour: a brighter blue, readable on dark backgrounds.
     static let accentDarkUIColor = UIColor(red: 0.53, green: 0.70, blue: 1.00, alpha: 1)
 }
+
+/// Shared sizes, so the same kind of element is drawn the same way on every
+/// screen. Screens had grown their own values (tiles at radius 12 or 14 with
+/// gaps of 10, 12 or 24); these are the few the app uses. Corners are
+/// `.continuous` wherever they're used.
+nonisolated enum PlowRLayout {
+    /// Small insets inside a card: thumbnails, notes.
+    static let cornerSmall: CGFloat = 8
+    /// Tiles and stat cards.
+    static let cornerMedium: CGFloat = 12
+    /// Cards and panels.
+    static let cornerLarge: CGFloat = 14
+    /// Between tiles in a row or grid.
+    static let tileSpacing: CGFloat = 8
+}

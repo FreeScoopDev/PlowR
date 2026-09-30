@@ -634,7 +634,7 @@ struct EditClientView: View {
             if outstandingBalance > 0 {
                 LabeledContent("Outstanding Balance") {
                     Text(outstandingBalance, format: .currency(code: "USD"))
-                        .foregroundStyle(.red)
+                        .foregroundStyle(.orange)        // outstanding, as everywhere
                         .fontWeight(.semibold)
                 }
             } else if !clientInvoices.isEmpty {

@@ -279,21 +279,21 @@ struct ClientListView: View {
 
     private var clientSummarySection: some View {
         Section {
-            HStack(spacing: 10) {
-                clientStatTile(
+            StatTileRow {
+                StatTile(
                     value: "\(myClients.filter { $0.isActive }.count)",
                     label: "Active",
                     color: .blue
                 )
                 if totalOutstanding > 0 {
-                    clientStatTile(
+                    StatTile(
                         value: totalOutstanding.formatted(.currency(code: "USD").precision(.fractionLength(0))),
                         label: "Outstanding",
                         color: .orange
                     )
                 }
                 if totalCollected > 0 {
-                    clientStatTile(
+                    StatTile(
                         value: totalCollected.formatted(.currency(code: "USD").precision(.fractionLength(0))),
                         label: "Collected",
                         color: .green
@@ -303,21 +303,6 @@ struct ClientListView: View {
             .listRowBackground(Color.clear)
             .listRowInsets(EdgeInsets())
         }
-    }
-
-    private func clientStatTile(value: String, label: String, color: Color) -> some View {
-        VStack(spacing: 4) {
-            Text(value)
-                .font(.headline.weight(.bold))
-                .foregroundStyle(color)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-            Text(label).font(.caption2).foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
-        .background(color.opacity(0.08))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: - Client Row

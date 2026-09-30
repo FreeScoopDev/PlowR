@@ -107,29 +107,20 @@ struct RouteRecapView: View {
 
     private var summarySection: some View {
         Section {
-            HStack(spacing: 24) {
-                statCell(value: "\(completedStops.count)", label: "Serviced")
+            StatTileRow {
+                StatTile(value: "\(completedStops.count)", label: "Serviced", color: .green)
                 if skippedStops.count > 0 {
-                    statCell(value: "\(skippedStops.count)", label: "Skipped")
+                    StatTile(value: "\(skippedStops.count)", label: "Skipped", color: .orange)
                 }
                 let totalMin = stops.reduce(0) { $0 + $1.actualMinutes }
                 if totalMin > 0 {
                     let h = totalMin / 60, m = totalMin % 60
                     let label = h > 0 ? "\(h)h \(m)m" : "\(m)m"
-                    statCell(value: label, label: "On Route")
+                    StatTile(value: label, label: "On Route", color: .blue)
                 }
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 6)
             .listRowBackground(Color.clear)
             .listRowInsets(EdgeInsets())
-        }
-    }
-
-    private func statCell(value: String, label: String) -> some View {
-        VStack(spacing: 2) {
-            Text(value).font(.title2.weight(.bold))
-            Text(label).font(.caption).foregroundStyle(.secondary)
         }
     }
 
