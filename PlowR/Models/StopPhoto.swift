@@ -7,6 +7,7 @@ final class StopPhoto {
     var operatorID: String = ""
     var clientID: String = ""      // for querying all photos for a client
     var routeID: String = ""       // for querying photos from a specific route
+    var recordID: String = ""      // the Service Log record (ServiceRecord) it shows the work of
     var isBefore: Bool = true      // before or after service
     var caption: String = ""
     var takenAt: Date = Date()

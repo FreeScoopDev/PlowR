@@ -46,8 +46,7 @@ struct ActiveRouteStoreTests {
 
         init(stopCount: Int = 3) throws {
             container = try ModelContainer(
-                for: Client.self, PlowRoute.self, RouteStop.self, ServiceRecord.self, ServiceItem.self, PropertyZone.self,
-                ScheduledVisit.self,
+                for: Schema(PlowRApp.models),
                 configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
             )
             context = container.mainContext

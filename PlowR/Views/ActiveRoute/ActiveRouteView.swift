@@ -280,7 +280,9 @@ struct ActiveRouteView: View {
                     StopServiceRecorderView(
                         stop: stop,
                         client: client(for: stop),
-                        operatorID: route.operatorID
+                        operatorID: route.operatorID,
+                        runID: store.runID,
+                        stopStartedAt: stop.id == store.currentStopID ? store.stopStartedAt : store.runStartedAt
                     )
                 }
         )
@@ -292,7 +294,9 @@ struct ActiveRouteView: View {
                 route: route,
                 stops: sortedStops,
                 allClients: allClients,
-                onEndRoute: { store.end() }
+                onEndRoute: { store.end() },
+                runID: store.runID,
+                runStartedAt: store.runStartedAt
             )
         }
     }
@@ -563,7 +567,7 @@ struct ActiveRouteView: View {
                     recorderStop = stop
                 } label: {
                     HStack {
-                        Label("Record Services for Invoice", systemImage: "doc.badge.plus")
+                        Label("Record Services", systemImage: "doc.badge.plus")
                             .font(.subheadline)
                         Spacer()
                         if !stop.completedServiceIDs.isEmpty {

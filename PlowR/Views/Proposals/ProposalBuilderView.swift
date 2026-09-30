@@ -404,6 +404,10 @@ struct ProposalBuilderView: View {
             if let visit = try? modelContext.fetch(descriptor).first {
                 visit.proposalID = proposal.id.uuidString
             }
+            // The visit's work, once done, is billed on this invoice.
+            if proposal.isInvoice {
+                ServiceLog.markVisitInvoiced(visitID: linkedVisitID, invoice: proposal, in: modelContext)
+            }
         }
     }
 }

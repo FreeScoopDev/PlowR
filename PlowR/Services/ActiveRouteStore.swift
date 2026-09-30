@@ -34,6 +34,8 @@ final class ActiveRouteStore {
         /// `runID`, kept so a relaunch keeps writing to this run's Service
         /// Log records. nil in a checkpoint from before it existed.
         var runID: UUID?
+        /// `runStartedAt`, kept with it. nil in a checkpoint from before it existed.
+        var runStartedAt: Date?
     }
 
     /// What completing the current stop did, so callers (the screen, Siri,
@@ -65,6 +67,9 @@ final class ActiveRouteStore {
     /// Log record is keyed by run and stop, so running the route again next
     /// week makes new records instead of overwriting last week's.
     private(set) var runID: UUID?
+    /// When this run started: the day a stop's work is dated by when the
+    /// stop's own start isn't known (Record Services opened from the recap).
+    private(set) var runStartedAt: Date?
 
     /// True from `start(_:)` until the screen has offered to notify the first
     /// client. A route restored after a relaunch does not offer it again.
@@ -140,6 +145,7 @@ final class ActiveRouteStore {
         routeID = route.id
         routeName = route.name
         runID = UUID()
+        runStartedAt = now()
         currentStopIndex = 0
         currentStopID = currentStop?.id
         stopStartedAt = now()
@@ -307,6 +313,7 @@ final class ActiveRouteStore {
         routeID = nil
         routeName = ""
         runID = nil
+        runStartedAt = nil
         lastProgress = nil
         currentStopIndex = 0
         currentStopID = nil
@@ -330,7 +337,8 @@ final class ActiveRouteStore {
         guard let routeID, let stopStartedAt else { return }
         let checkpoint = Checkpoint(routeID: routeID, currentStopIndex: currentStopIndex,
                                     currentStopID: currentStopID, stopStartedAt: stopStartedAt,
-                                    stopChangedUnseen: stopChangedUnseen, runID: runID)
+                                    stopChangedUnseen: stopChangedUnseen, runID: runID,
+                                    runStartedAt: runStartedAt)
         if let data = try? JSONEncoder().encode(checkpoint) {
             defaults.set(data, forKey: Self.checkpointKey)
         }
@@ -364,6 +372,7 @@ final class ActiveRouteStore {
         routeID = route.id
         routeName = route.name
         runID = checkpoint.runID ?? UUID()
+        runStartedAt = checkpoint.runStartedAt ?? checkpoint.stopStartedAt
         let stopChanged = reconcile(stopID: checkpoint.currentStopID, index: checkpoint.currentStopIndex)
         // The saved timer belongs to the saved stop only.
         stopStartedAt = stopChanged ? now() : checkpoint.stopStartedAt

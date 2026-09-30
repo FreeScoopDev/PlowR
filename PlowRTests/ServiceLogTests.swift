@@ -45,7 +45,7 @@ struct ServiceLogTests {
         #expect(record.stopID == stop.id.uuidString)
         #expect(record.operatorID == "op")
         #expect(record.isBillable)
-        #expect(record.isUnbilled)
+        #expect(ServiceLog.isUnbilled(record, in: h.context))
     }
 
     // The services ticked on the stop go into the record, priced as Record
@@ -129,7 +129,8 @@ struct ServiceLogTests {
         let h = try Harness(stopCount: 2)
         let old = ActiveRouteStore.Checkpoint(routeID: h.route.id, currentStopIndex: 0,
                                               currentStopID: h.route.sortedStops.first?.id,
-                                              stopStartedAt: h.clock, stopChangedUnseen: nil, runID: nil)
+                                              stopStartedAt: h.clock, stopChangedUnseen: nil, runID: nil,
+                                              runStartedAt: nil)
         let data = try JSONEncoder().encode(old)
         #expect(!String(decoding: data, as: UTF8.self).contains("runID"))
         h.defaults.set(data, forKey: ActiveRouteStore.checkpointKey)
@@ -137,6 +138,7 @@ struct ServiceLogTests {
         let store = h.makeStore()
         #expect(store.isActive)
         #expect(store.runID != nil)
+        #expect(store.runStartedAt == h.clock)
         store.completeShownStop()
         #expect(try records(h.context).count == 1)
     }
@@ -189,7 +191,7 @@ struct ServiceLogTests {
         store.completeShownStop()
         let record = try #require(try records(h.context).first)
         #expect(!record.isBillable)
-        #expect(!record.isUnbilled)
+        #expect(!ServiceLog.isUnbilled(record, in: h.context))
 
         // Stopping the comp later doesn't make past work billable.
         h.clients[0].isComped = false
