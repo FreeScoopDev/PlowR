@@ -31,9 +31,9 @@ final class ScheduledVisit {
     var recurrenceEndDate: Date? = nil
     var seriesID: String = ""                 // groups all visits in a recurring series
     /// Its work is in the Service Log (or was, and the user deleted it).
-    /// Synced, so that copying completed visits into the log later (not
-    /// built yet: how to show work billed before the log is Joe's call) can
-    /// skip these, and never remake a record the user deleted.
+    /// Synced, so copying completed visits into the log
+    /// (ServiceLog.backfillCompletedVisits) skips these, on every device, and
+    /// never remakes a record the user deleted.
     var serviceLogged: Bool = false
 
     var status: VisitStatus {

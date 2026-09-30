@@ -6,6 +6,6 @@
   Two copies on different invoices are left alone, because that double bill is real and should stay visible.
 
 ### Internal
-- Each visit carries a synced `serviceLogged` mark (a new field: deploy it to the CloudKit Production schema with the other Service Log fields). It's set when a visit's work goes into the log, so a later copy of completed visits into the log can skip them, and never remake a job the user deleted. That copy isn't built: work from before the log would show as not billed, and how to present it is Joe's call.
+- Each visit carries a synced `serviceLogged` mark (a new field: deploy it to the CloudKit Production schema with the other Service Log fields). It's set when a visit's work goes into the log, so the copy of completed visits into the log (earlier-visits.md) skips them and never remakes a job the user deleted.
 - `ServiceLog.mergeDuplicates` runs at launch and after every iCloud import. It leaves a copy alone for its first day (`mergeAfter`), so a route still writing to it on another device doesn't lose a photo or a stop's times to a deleted record. The oldest record wins, with ties broken by ID, the same everywhere `record(forKey:)` looks.
 - The merge takes a route's services over a visit record's even if someone edited the visit record's services by hand: it can't tell the two apart.

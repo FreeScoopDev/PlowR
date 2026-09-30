@@ -16,7 +16,7 @@ import SwiftData
 ///
 /// CloudKit can't enforce a unique source key: two devices that record the
 /// same work before syncing each make a record. ServiceLog always updates the
-/// oldest; merging the copies is a later step of the plan.
+/// oldest, and ServiceLog.mergeDuplicates merges the copies.
 @Model
 final class ServiceRecord {
     var id: UUID = UUID()
@@ -82,4 +82,8 @@ final class ServiceRecord {
 
 enum ServiceRecordSource: String {
     case route, visit, manual
+    /// A visit completed without a Service Log record (before the log
+    /// existed, or on an older PlowR), copied in. Whether it was billed
+    /// wasn't tracked, so it's never counted as owed.
+    case beforeLog
 }

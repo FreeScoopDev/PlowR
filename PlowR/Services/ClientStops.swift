@@ -89,8 +89,10 @@ enum ClientStops {
                 try? await Task.sleep(for: delay)
                 guard !Task.isCancelled else { return }
                 ClientStops.updateAll(in: container.mainContext)
-                // Another device's records of the same work have arrived.
+                // Another device's records of the same work have arrived, or
+                // the invoice of a visit copied into the log before it had.
                 ServiceLog.mergeDuplicates(in: container.mainContext)
+                ServiceLog.linkEarlierVisits(in: container.mainContext)
             }
         }
     }

@@ -41,6 +41,10 @@ struct PlowRApp: App {
             ClientRemoval.takeInactiveClientsOffRoutes(in: container.mainContext)
             // The Service Log: the same work recorded on two devices, merged.
             ServiceLog.mergeDuplicates(in: container.mainContext)
+            // Visits completed before it existed, copied in after launch, in
+            // passes on a context of its own: a long history is a lot of work.
+            let container = container
+            Task { await ServiceLog.backfillAll(in: container) }
         }
         // Before any view: a Siri or Control Center launch acts on the route
         // without the UI, and a killed app should come back mid-route.

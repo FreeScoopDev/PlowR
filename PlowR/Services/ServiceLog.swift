@@ -49,13 +49,20 @@ enum ServiceLog {
     private static func record(forKey key: String, source: ServiceRecordSource, operatorID: String,
                                client: Client, in context: ModelContext) -> (record: ServiceRecord, isNew: Bool) {
         if let existing = record(forKey: key, in: context) { return (existing, false) }
+        return (newRecord(forKey: key, source: source, operatorID: operatorID, client: client, in: context), true)
+    }
+
+    /// A new record for `client`'s work, inserted. Billable unless the client
+    /// is comped: that is decided when the work is done, not changed later.
+    private static func newRecord(forKey key: String, source: ServiceRecordSource, operatorID: String,
+                                  client: Client, in context: ModelContext) -> ServiceRecord {
         let record = ServiceRecord(operatorID: operatorID, sourceKey: key, source: source)
         record.clientID = client.id.uuidString
         // A client's main property will have the client's ID (Properties).
         record.propertyID = client.id.uuidString
         record.isBillable = !client.isComped
         context.insert(record)
-        return (record, true)
+        return record
     }
 
     // MARK: - A route stop
@@ -202,7 +209,20 @@ enum ServiceLog {
     /// Work that goes on a bill and isn't on one yet. The one definition:
     /// an invoice that no longer exists doesn't count.
     static func isUnbilled(_ record: ServiceRecord, in context: ModelContext) -> Bool {
-        record.isBillable && invoice(of: record, in: context) == nil
+        billingStatus(of: record, in: context) == .notBilled
+    }
+
+    /// Where a job stands with billing: the one status Service History shows.
+    enum BillingStatus: Equatable {
+        case invoiced, notTracked, noCharge, notBilled
+    }
+
+    /// On an invoice; else from before the log (never counted as owed); else
+    /// no charge; else not billed yet.
+    static func billingStatus(of record: ServiceRecord, in context: ModelContext) -> BillingStatus {
+        if invoice(of: record, in: context) != nil { return .invoiced }
+        if record.source == .beforeLog { return .notTracked }
+        return record.isBillable ? .notBilled : .noCharge
     }
 
     /// The invoice made for `visit` (Schedule → Invoice), if it exists and
@@ -221,6 +241,33 @@ enum ServiceLog {
     private static func billFromVisit(_ record: ServiceRecord, _ visit: ScheduledVisit, in context: ModelContext) {
         guard invoice(of: record, in: context) == nil, let invoice = invoice(ofVisit: visit, in: context) else { return }
         record.invoiceID = invoice.id.uuidString
+    }
+
+    /// `record` for `visit`'s work, done for `client`: who and where (the
+    /// visit's address), when, the visit's expected services priced for the
+    /// property, and the invoice made for the visit if there is one.
+    /// Completing a visit and copying in one done before the log both fill a
+    /// record through here, so the two can't differ. `catalog` and
+    /// `documents` are for a caller filling many at once.
+    private static func fill(_ record: ServiceRecord, from visit: ScheduledVisit, client: Client, performedAt: Date,
+                             catalog: [ServiceItem]? = nil, documents: [String: Proposal]? = nil,
+                             in context: ModelContext) {
+        record.clientName = client.name
+        record.propertyAddress = visit.clientAddress
+        record.performedAt = performedAt
+        record.visitID = visit.id.uuidString
+        visit.serviceLogged = true
+        if record.lines.isEmpty {
+            record.lines = lines(for: visit.expectedServiceIDs, client: client, multiplier: visit.priceMultiplier,
+                                 catalog: catalog, in: context)
+        }
+        if let documents {
+            if record.invoiceID.isEmpty, let invoice = documents[visit.proposalID], invoice.isInvoice {
+                record.invoiceID = invoice.id.uuidString
+            }
+        } else {
+            billFromVisit(record, visit, in: context)
+        }
     }
 
     // MARK: - Record Services
@@ -411,6 +458,123 @@ enum ServiceLog {
 
     // MARK: - Keeping the log whole
 
+    /// How many visits one backfill pass handles before saving: a launch cut
+    /// short keeps what's done, and the app gets the main thread back
+    /// between passes.
+    static let backfillBatch = 200
+
+    /// Visits completed without a Service Log record get one, so a client's
+    /// Service History starts with the work already done: visits completed
+    /// before the log existed, or on a device still running an older PlowR.
+    /// Each is a `.beforeLog` record, "Billing Not Tracked": PlowR can only
+    /// tell such work was billed if the invoice was made for the visit
+    /// (Schedule → Invoice), so it's never counted as owed (Joe's call).
+    ///
+    /// Each visit's synced `serviceLogged` mark says it's been done, so it's
+    /// done once per visit, on whichever device gets there first, and a job
+    /// the user deleted is never made again. Dated when the visit was due (or
+    /// completed, if earlier), priced at today's catalog prices (the prices
+    /// then weren't kept). A visit whose client isn't on this device yet
+    /// waits for a later launch. (Route runs from before the log can't be
+    /// recovered: each run wiped the one before.)
+    ///
+    /// One pass: up to `limit` visits, then a save. Returns how many visits
+    /// it handled (0: nothing left, or the save failed) and how many records
+    /// it made. Run it on a context of its own: a failed save rolls back.
+    @discardableResult
+    static func backfillCompletedVisits(in context: ModelContext,
+                                        limit: Int = backfillBatch) -> (handled: Int, made: Int) {
+        let completed = VisitStatus.completed.rawValue
+        guard let unlogged = try? context.fetch(FetchDescriptor<ScheduledVisit>(
+                  predicate: #Predicate { $0.statusRaw == completed && !$0.serviceLogged })),
+              !unlogged.isEmpty,
+              let clients = try? context.fetch(FetchDescriptor<Client>()) else { return (0, 0) }
+        let clientsByID = Dictionary(clients.map { ($0.id.uuidString, $0) }, uniquingKeysWith: { first, _ in first })
+        // Visits of a client not on this device (yet, or deleted keeping the
+        // records) wait; with none to do, nothing more is fetched.
+        let visits = unlogged.filter { clientsByID[$0.clientID] != nil }.prefix(max(1, limit))
+        guard !visits.isEmpty, let existing = try? context.fetch(FetchDescriptor<ServiceRecord>()) else { return (0, 0) }
+        // Looked up once per pass, not per visit.
+        let logged = Set(existing.map(\.sourceKey))
+        let catalog = (try? context.fetch(FetchDescriptor<ServiceItem>())) ?? []
+        let documents = Dictionary(((try? context.fetch(FetchDescriptor<Proposal>())) ?? [])
+            .map { ($0.id.uuidString, $0) }, uniquingKeysWith: { first, _ in first })
+        var made = 0
+        for visit in visits {
+            guard let client = clientsByID[visit.clientID] else { continue }
+            let key = visitKey(visit.id)
+            if logged.contains(key) {
+                visit.serviceLogged = true
+            } else {
+                let record = newRecord(forKey: key, source: .beforeLog, operatorID: visit.operatorID,
+                                       client: client, in: context)
+                fill(record, from: visit, client: client,
+                     performedAt: min(visit.scheduledDate, visit.completedAt ?? visit.scheduledDate),
+                     catalog: catalog, documents: documents, in: context)
+                made += 1
+            }
+        }
+        return save(context) ? (visits.count, made) : (0, 0)
+    }
+
+    /// Every backfill pass there is to do, on a context of its own, giving
+    /// the main thread back between passes. For launch.
+    static func backfillAll(in container: ModelContainer) async {
+        let context = ModelContext(container)
+        await Task.yield()
+        while backfillCompletedVisits(in: context).handled > 0 {
+            await Task.yield()
+        }
+    }
+
+    /// Jobs copied in before their visit's invoice or the catalog had arrived
+    /// from iCloud (or invoiced since, on an older PlowR) catch up: the
+    /// visit's invoice, and its expected services if the job has none. Runs
+    /// after each iCloud import. Saves only if anything changed; returns how
+    /// many jobs it updated.
+    @discardableResult
+    static func linkEarlierVisits(in context: ModelContext) -> Int {
+        let beforeLog = ServiceRecordSource.beforeLog.rawValue
+        guard let records = try? context.fetch(FetchDescriptor<ServiceRecord>(
+                  predicate: #Predicate { $0.sourceRaw == beforeLog })), !records.isEmpty,
+              let visits = try? context.fetch(FetchDescriptor<ScheduledVisit>()),
+              let clients = try? context.fetch(FetchDescriptor<Client>()) else { return 0 }
+        let visitsByID = Dictionary(visits.map { ($0.id.uuidString, $0) }, uniquingKeysWith: { first, _ in first })
+        let clientsByID = Dictionary(clients.map { ($0.id.uuidString, $0) }, uniquingKeysWith: { first, _ in first })
+        var updated = 0
+        for record in records {
+            guard let visit = visitsByID[record.visitID] else { continue }
+            var changed = false
+            if invoice(of: record, in: context) == nil, let invoice = invoice(ofVisit: visit, in: context),
+               record.invoiceID != invoice.id.uuidString {
+                record.invoiceID = invoice.id.uuidString
+                changed = true
+            }
+            if record.lines.isEmpty, !visit.expectedServiceIDs.isEmpty, let client = clientsByID[record.clientID] {
+                let lines = lines(for: visit.expectedServiceIDs, client: client, multiplier: visit.priceMultiplier,
+                                  in: context)
+                if !lines.isEmpty {
+                    record.lines = lines
+                    changed = true
+                }
+            }
+            if changed { updated += 1 }
+        }
+        if updated > 0 { try? context.save() }
+        return updated
+    }
+
+    /// Saves, or leaves nothing half-made to be saved with the user's next change.
+    private static func save(_ context: ModelContext) -> Bool {
+        do {
+            try context.save()
+            return true
+        } catch {
+            context.rollback()
+            return false
+        }
+    }
+
     /// How long a duplicate is left before it's merged: long enough for the
     /// day's route to finish writing to it. Merged sooner, a photo or the
     /// stop's times saved to it on a device that hasn't heard of the merge
@@ -453,6 +617,10 @@ enum ServiceLog {
                       survivor.lines.isEmpty || (survivor.startedAt == nil && record.startedAt != nil) {
                 survivor.servicesData = record.servicesData
             }
+            // Work that was tracked (from a route or the Schedule) wins over a
+            // copy made before the log: which device was quicker mustn't
+            // decide whether it's owed.
+            if survivor.source == .beforeLog, record.source != .beforeLog { survivor.source = record.source }
             if survivor.notes.isEmpty { survivor.notes = record.notes }
             if survivor.startedAt == nil, let started = record.startedAt {
                 survivor.source = .route
@@ -490,16 +658,7 @@ enum ServiceLog {
         else { return nil }
         let record = record(forKey: visitKey(visit.id), source: .visit,
                             operatorID: visit.operatorID, client: client, in: context).record
-        record.clientName = client.name
-        record.propertyAddress = visit.clientAddress
-        record.performedAt = min(visit.scheduledDate, now)
-        record.visitID = visit.id.uuidString
-        visit.serviceLogged = true
-        if record.lines.isEmpty {
-            record.lines = lines(for: visit.expectedServiceIDs, client: client,
-                                 multiplier: visit.priceMultiplier, in: context)
-        }
-        billFromVisit(record, visit, in: context)
+        fill(record, from: visit, client: client, performedAt: min(visit.scheduledDate, now), in: context)
         return record
     }
 
@@ -522,9 +681,10 @@ enum ServiceLog {
     /// client's property the way Record Services prices them. A service since
     /// deleted from the catalog is left out: there's nothing to name it by.
     static func lines(for serviceIDs: [String], client: Client, multiplier: Double = 1,
-                      in context: ModelContext) -> [ServiceRecord.Line] {
+                      catalog: [ServiceItem]? = nil, in context: ModelContext) -> [ServiceRecord.Line] {
         let wanted = Set(serviceIDs)
-        guard !wanted.isEmpty, let catalog = try? context.fetch(FetchDescriptor<ServiceItem>()) else { return [] }
+        guard !wanted.isEmpty,
+              let catalog = catalog ?? (try? context.fetch(FetchDescriptor<ServiceItem>())) else { return [] }
         let zones = client.pricingZones
         return catalog
             .filter { wanted.contains($0.id.uuidString) }

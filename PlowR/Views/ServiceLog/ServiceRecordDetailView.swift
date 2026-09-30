@@ -84,11 +84,16 @@ struct ServiceRecordDetailView: View {
                         .keyboardType(.numberPad)
                         .multilineTextAlignment(.trailing)
                 }
-                Toggle("Bill for This Work", isOn: $isBillable)
-                    .disabled(invoice != nil)
+                // Work from before the log: whether it was billed isn't known.
+                if record.source != .beforeLog {
+                    Toggle("Bill for This Work", isOn: $isBillable)
+                        .disabled(invoice != nil)
+                }
             } footer: {
                 if let invoice {
                     Text("On invoice \(invoice.invoiceNumber).")
+                } else if record.source == .beforeLog {
+                    Text("Completed before PlowR kept a Service History, or on an older version of PlowR, so whether it was billed wasn't tracked. It's never counted as owed.")
                 } else if !isBillable {
                     Text("No charge: this work won't be billed.")
                 }
@@ -186,6 +191,7 @@ struct ServiceRecordDetailView: View {
         case .route: record.routeName.isEmpty ? "A route" : "Route: \(record.routeName)"
         case .visit: "A scheduled visit"
         case .manual: "Logged by hand"
+        case .beforeLog: "A visit completed without a record"
         }
     }
 
