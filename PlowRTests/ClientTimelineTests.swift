@@ -50,18 +50,22 @@ struct ClientTimelineTests {
         h.context.insert(otherClients)
 
         let events = ClientTimeline.events(for: h.client, now: h.clock, in: h.context)
-        let kinds = events.map(\.kind)
-        #expect(kinds == [
+        // Typed up front: inferring the literal inside #expect timed out on Xcode Cloud.
+        let expected: [ClientTimelineKind] = [
             .upcomingVisit,
             .invoicePaid(documentID: invoice.id), .invoiceSent(documentID: invoice.id),
             .invoiceMade(documentID: invoice.id),
             .job(recordID: job.id), .photos(count: 1),
             .missedVisit, .skippedVisit,
             .quote(documentID: quote.id),
-        ])
-        #expect(events.first { $0.kind == .job(recordID: job.id) }?.title == "Clear")
-        #expect(events.first { $0.kind == .job(recordID: job.id) }?.detail == "On Tuesday")
-        #expect(events.first { $0.kind == .job(recordID: job.id) }?.amount == 40)
+        ]
+        let kinds: [ClientTimelineKind] = events.map(\.kind)
+        #expect(kinds == expected)
+        let jobKind = ClientTimelineKind.job(recordID: job.id)
+        let jobEvent = try #require(events.first { $0.kind == jobKind })
+        #expect(jobEvent.title == "Clear")
+        #expect(jobEvent.detail == "On Tuesday")
+        #expect(jobEvent.amount == 40)
     }
 
     // Photos on one day are one event.
