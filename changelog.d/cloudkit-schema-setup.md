@@ -1,0 +1,2 @@
+### Internal
+- Settings → Developer (debug builds only) has **Set Up iCloud Schema**: it puts every record type and field of PlowR's models into iCloud's Development database (`CloudKitSchemaSetup`, Apple's `initializeCloudKitSchema()` on a throwaway store), ready to deploy to Production before a release. Development only learns fields as records are saved, so new types (properties, payments, sent texts, contracts) and fields never given a value in a debug build would be missing from the deploy, and a TestFlight build couldn't sync them. It's compiled out of release builds.

@@ -14,6 +14,7 @@ struct SettingsView: View {
     /// Client mode provides one; this entry point didn't, which crashed on Send.
     @State private var workOrderStore = ClientWorkOrderStore()
     @State private var sampleDataInserted = false
+    @State private var schemaStatus: String?
     @State private var showingDeleteConfirmation = false
     /// What Delete Account & Data couldn't remove, shown under the button.
     @State private var deleteFailures: [AccountEraser.Failure] = []
@@ -153,10 +154,16 @@ struct SettingsView: View {
                     )
                 }
                 .disabled(sampleDataInserted)
+                Button {
+                    setUpSchema()
+                } label: {
+                    Label(schemaStatus ?? "Set Up iCloud Schema", systemImage: "icloud.and.arrow.up")
+                }
+                .disabled(schemaStatus == "Setting Up…")
             } header: {
                 Text("Developer")
             } footer: {
-                Text("Adds sample Claremont, NH clients for testing.")
+                Text("Populate adds sample Claremont, NH clients for testing. Set Up iCloud Schema puts every record type and field into iCloud's Development database, to deploy to Production before a release (CloudKitSchemaSetup).")
             }
             #endif
         }
@@ -202,6 +209,19 @@ struct SettingsView: View {
     }
 
     #if DEBUG
+    private func setUpSchema() {
+        schemaStatus = "Setting Up…"
+        Task { @MainActor in
+            await Task.yield()
+            do {
+                try CloudKitSchemaSetup.run()
+                schemaStatus = "Schema Set Up"
+            } catch {
+                schemaStatus = "Failed: \(error.localizedDescription)"
+            }
+        }
+    }
+
     private func insertSampleData() {
         let operatorID = authManager.userID
         let clients: [(name: String, phone: String, address: String, lat: Double, lon: Double)] = [
