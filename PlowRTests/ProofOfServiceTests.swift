@@ -185,7 +185,11 @@ struct ProofOfServiceTests {
         let h = try Harness(stopCount: 0)
         for day in 1...12 {
             let record = job(h, started: date(2027, 1, day, 5), finished: date(2027, 1, day, 5, 30), notes: "Visit \(day).")
-            _ = photo(h, for: record, before: true, at: date(2027, 1, day, 5, 31), pixels: 1_600)
+            let shot = photo(h, for: record, before: true, at: date(2027, 1, day, 5, 31), pixels: 1_600)
+            if day == 1 {
+                shot.capturedAt = date(2027, 1, 1, 5, 2)
+                shot.captureSourceRaw = CaptureSource.camera.rawValue
+            }
         }
         let visits = ProofOfService.visits(of: h.client, placeID: h.client.id.uuidString,
                                            from: date(2027, 1, 1), to: date(2027, 1, 31), in: h.context, calendar: calendar)
@@ -199,6 +203,7 @@ struct ProofOfServiceTests {
         #expect((1...12).allSatisfy { text.contains("Visit \($0).") })
         #expect(!text.contains("on site"))
         #expect(text.contains("About this report"))
+        #expect(text.contains("Before, taken"))                                   // a known capture time is shown
         let originals = visits.flatMap(\.photos).reduce(0) { $0 + $1.imageData.count }
         #expect(data.count < originals / 4)                                       // shrunk, not the originals
         #expect(ProofOfService.fileName(client: h.client, period: period) == "Service Report - \(h.client.name) - January.pdf")

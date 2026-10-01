@@ -504,9 +504,8 @@ enum ServiceLog {
     /// The photos taken for `record`'s work, oldest first.
     static func photos(of record: ServiceRecord, in context: ModelContext) -> [StopPhoto] {
         let id = record.id.uuidString
-        let descriptor = FetchDescriptor<StopPhoto>(predicate: #Predicate { $0.recordID == id },
-                                                    sortBy: [SortDescriptor(\.takenAt)])
-        return (try? context.fetch(descriptor)) ?? []
+        let descriptor = FetchDescriptor<StopPhoto>(predicate: #Predicate { $0.recordID == id })
+        return StopPhoto.ordered((try? context.fetch(descriptor)) ?? [])
     }
 
     /// The operator's active services, in catalog order, as the Service Log

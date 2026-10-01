@@ -10,7 +10,13 @@ final class StopPhoto {
     var recordID: String = ""      // the Service Log record (ServiceRecord) it shows the work of
     var isBefore: Bool = true      // before or after service
     var caption: String = ""
+    /// When it was saved in PlowR (despite the name: kept for older builds).
     var takenAt: Date = Date()
+    /// When it was actually taken (PhotoCapture): the camera's moment, or a
+    /// library photo's EXIF time. Nil when that isn't known.
+    var capturedAt: Date?
+    /// Where `capturedAt` came from (CaptureSource); empty when unknown.
+    var captureSourceRaw: String = ""
 
     @Attribute(.externalStorage)
     var imageData: Data = Data()

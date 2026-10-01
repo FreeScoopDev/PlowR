@@ -18,8 +18,10 @@ import UIKit
 ///   Schedule, or logged by hand, has no time PlowR recorded, and says so.
 /// - Each visit says where its record came from (route, Schedule, by hand),
 ///   and that times can be edited in PlowR.
-/// - Photos are listed with the visit they were saved with; they carry no
-///   time, because PlowR stamped them when they were saved, not taken.
+/// - A photo shows when it was taken only when PlowR knows it (taken with
+///   its camera, or a library photo's EXIF time), and its date when that
+///   isn't the visit's day. Older photos were stamped when they were saved,
+///   not taken, so they show no time.
 /// - The address is the one the work was recorded at, not today's.
 enum ProofOfService {
     static let title = "SERVICE REPORT"
@@ -105,8 +107,7 @@ enum ProofOfService {
         let photos = (try? context.fetch(FetchDescriptor<StopPhoto>(predicate: #Predicate { $0.clientID == clientID }))) ?? []
         let byRecord = Dictionary(grouping: photos.filter { !$0.recordID.isEmpty }, by: \.recordID)
         return records.map { record in
-            Visit(record: record, photos: (byRecord[record.id.uuidString] ?? [])
-                .sorted { ($0.isBefore ? 0 : 1, $0.takenAt) < ($1.isBefore ? 0 : 1, $1.takenAt) })
+            Visit(record: record, photos: StopPhoto.ordered(byRecord[record.id.uuidString] ?? []))
         }
     }
 
@@ -147,6 +148,29 @@ enum ProofOfService {
         return lines
     }
 
+    /// A photo's caption: before or after, and its time where known, said
+    /// for where it came from: "taken" by PlowR's camera, or "file dated"
+    /// for a library photo (a date that can be changed), "zone assumed"
+    /// when the file gave none. The date and year too when it isn't the
+    /// visit's day, so a photo from another storm or another year can't
+    /// pass as this visit's.
+    static func caption(of photo: StopPhoto, visitDay: Date, timeZone: TimeZone = .current,
+                        locale: Locale = .current, calendar: Calendar = .current) -> String {
+        let kind = photo.isBefore ? "Before" : "After"
+        guard let taken = photo.capturedAt else { return kind }
+        var time = Date.FormatStyle.dateTime.hour().minute().locale(locale)
+        time.timeZone = timeZone
+        var day = Date.FormatStyle.dateTime.month(.abbreviated).day().year().locale(locale)
+        day.timeZone = timeZone
+        let when = calendar.isDate(taken, inSameDayAs: visitDay)
+            ? taken.formatted(time) : "\(taken.formatted(day)) \(taken.formatted(time))"
+        switch photo.captureSource {
+        case .camera: return "\(kind), taken \(when)"
+        case .fileAssumedZone: return "\(kind), file dated \(when) (zone assumed)"
+        case .file, nil: return "\(kind), file dated \(when)"
+        }
+    }
+
     /// The note at the end: what the times and photos are, and the zone.
     static func note(timeZone: TimeZone = .current) -> String {
         let zone = timeZone.localizedName(for: .generic, locale: .current) ?? timeZone.identifier
@@ -154,7 +178,10 @@ enum ProofOfService {
             + "current stop (the route started, or the previous stop was completed), so it includes travel; its "
             + "completion is when it was marked done. Visits completed from the Schedule or logged by hand have no "
             + "recorded time. Records can be edited in PlowR after the work. Photos are shown with the visit they "
-            + "were saved with, without a time. Times are \(zone)."
+            + "were saved with. \"Taken\" is when PlowR's camera took it. \"File dated\" is the date stored in a "
+            + "photo picked from the library, which can be changed, and \"zone assumed\" means the file gave no "
+            + "time zone, so it was read in the phone's. A photo with no time is one whose time PlowR doesn't "
+            + "know, and isn't shown to be from that visit. Times are \(zone)."
     }
 
     /// The report.
@@ -185,7 +212,9 @@ enum ProofOfService {
                     // One visit's photos in memory at a time.
                     autoreleasepool {
                         page.photos(visit.photos.compactMap { photo in
-                            UIImage(data: photo.imageData).map { (image: $0, caption: photo.isBefore ? "Before" : "After") }
+                            UIImage(data: photo.imageData).map {
+                            (image: $0, caption: caption(of: photo, visitDay: visit.record.startedAt ?? visit.record.performedAt))
+                        }
                         })
                     }
                 }
