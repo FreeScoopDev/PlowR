@@ -11,6 +11,7 @@ struct ClientServiceHistoryView: View {
     @Query private var records: [ServiceRecord]
     @State private var showingLogWork = false
     @State private var showingBillWork = false
+    @State private var showingProof = false
 
     init(client: Client) {
         self.client = client
@@ -52,6 +53,11 @@ struct ClientServiceHistoryView: View {
                             Label("Bill Unbilled Work", systemImage: "tray.and.arrow.up")
                         }
                     }
+                    Button {
+                        showingProof = true
+                    } label: {
+                        Label("Service Report", systemImage: "checkmark.seal")
+                    }
                 }
                 // Looked up once for the list, not once a row.
                 let invoiceIDs = ServiceLog.invoiceIDs(in: modelContext)
@@ -85,6 +91,9 @@ struct ClientServiceHistoryView: View {
         }
         .sheet(isPresented: $showingLogWork) {
             LogWorkView(client: client)
+        }
+        .sheet(isPresented: $showingProof) {
+            ProofOfServiceView(client: client)
         }
         .sheet(isPresented: $showingBillWork) {
             BillWorkView(onlyClient: client)
