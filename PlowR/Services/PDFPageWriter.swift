@@ -119,17 +119,17 @@ final class PDFPageWriter {
                 return CGSize(width: size.width * scale, height: size.height * scale)
             }
             let rowHeight = sizes.map(\.height).max() ?? 0
-            keep(rowHeight + 16)
+            keep(rowHeight + 28)
             for (index, item) in row.enumerated() where sizes[index] != .zero {
                 let rect = CGRect(x: margin + CGFloat(index) * (slot + gap), y: y,
                                   width: sizes[index].width, height: sizes[index].height)
                 Self.shrunk(item.image, to: sizes[index]).draw(in: rect)
-                (item.caption as NSString).draw(with: CGRect(x: rect.minX, y: rect.maxY + 2, width: slot, height: 12),
+                (item.caption as NSString).draw(with: CGRect(x: rect.minX, y: rect.maxY + 2, width: slot, height: 22),
                                                 options: .usesLineFragmentOrigin,
                                                 attributes: [.font: captionFont, .foregroundColor: PDFGenerator.inkMid],
                                                 context: nil)
             }
-            y += rowHeight + 18
+            y += rowHeight + 28
         }
     }
 

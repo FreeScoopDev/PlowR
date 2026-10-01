@@ -16,13 +16,15 @@ struct ClientPhotoGalleryView: View {
     @State private var showingCamera = false
     @State private var showingLibraryPicker = false
     @State private var pendingImageData: Data? = nil
+    /// When the pending photo was taken (PhotoCapture), if known.
+    @State private var pendingCapture: CapturedPhoto?
     @State private var showingPhotoTypePrompt = false
 
     private var clientPhotos: [StopPhoto] {
         allPhotos
             .filter { $0.clientID == client.id.uuidString }
             .filter { filterBefore == nil || $0.isBefore == filterBefore }
-            .sorted { $0.takenAt > $1.takenAt }
+            .sorted { $0.displayTime > $1.displayTime }
     }
 
     private let columns = [GridItem(.adaptive(minimum: 110, maximum: 160), spacing: 3)]
@@ -57,9 +59,10 @@ struct ClientPhotoGalleryView: View {
             PhotoDetailView(photo: photo)
         }
         .sheet(isPresented: $showingCamera) {
-            CameraCapture { image in
+            CameraCapture { image, metadata in
                 if let data = image.jpegData(compressionQuality: 0.85) {
                     pendingImageData = data
+                    pendingCapture = PhotoCapture.fromCamera(image, metadata: metadata)
                     showingPhotoTypePrompt = true
                 }
             }
@@ -76,6 +79,7 @@ struct ClientPhotoGalleryView: View {
                 guard let item = newItem else { return }
                 if let data = try? await item.loadTransferable(type: Data.self) {
                     pendingImageData = data
+                    pendingCapture = PhotoCapture.fromLibrary(data)
                     showingPhotoTypePrompt = true
                 }
                 selectedPickerItem = nil
@@ -195,15 +199,18 @@ struct ClientPhotoGalleryView: View {
             isBefore: isBefore,
             imageData: data
         )
+        photo.capturedAt = pendingCapture?.capturedAt
+        photo.captureSourceRaw = pendingCapture?.source?.rawValue ?? ""
         modelContext.insert(photo)
         pendingImageData = nil
+        pendingCapture = nil
     }
 }
 
 // MARK: - Camera Capture
 
 private struct CameraCapture: UIViewControllerRepresentable {
-    let onCapture: (UIImage) -> Void
+    let onCapture: (UIImage, [String: Any]?) -> Void
 
     func makeUIViewController(context: Context) -> UIImagePickerController {
         let picker = UIImagePickerController()
@@ -222,7 +229,9 @@ private struct CameraCapture: UIViewControllerRepresentable {
 
         func imagePickerController(_ picker: UIImagePickerController,
                                    didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
-            if let image = info[.originalImage] as? UIImage { parent.onCapture(image) }
+            if let image = info[.originalImage] as? UIImage {
+                parent.onCapture(image, info[.mediaMetadata] as? [String: Any])
+            }
             picker.dismiss(animated: true)
         }
 
@@ -270,8 +279,9 @@ private struct PhotoDetailView: View {
                     }
                     VStack(alignment: .leading, spacing: 8) {
                         LabeledContent("Type", value: photo.isBefore ? "Before Service" : "After Service")
-                        LabeledContent("Date") {
-                            Text(photo.takenAt, format: .dateTime.month(.abbreviated).day().year().hour().minute())
+                        // When it was taken, or the file's date, or when it was added: said which.
+                        LabeledContent(photo.displayTimeLabel) {
+                            Text(photo.displayTime, format: .dateTime.month(.abbreviated).day().year().hour().minute())
                         }
                         if !photo.caption.isEmpty {
                             LabeledContent("Caption", value: photo.caption)

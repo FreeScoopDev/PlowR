@@ -31,8 +31,9 @@ struct StopServiceRecorderView: View {
     // Photos
     @State private var beforePickerItems: [PhotosPickerItem] = []
     @State private var afterPickerItems: [PhotosPickerItem] = []
-    @State private var beforeImages: [UIImage] = []
-    @State private var afterImages: [UIImage] = []
+    /// Each with when it was taken (PhotoCapture).
+    @State private var beforeImages: [CapturedPhoto] = []
+    @State private var afterImages: [CapturedPhoto] = []
     @State private var showingCamera = false
     @State private var cameraIsBefore = true
 
@@ -221,9 +222,9 @@ struct StopServiceRecorderView: View {
                 }
             }
             .sheet(isPresented: $showingCamera) {
-                CameraPickerView { image in
-                    if cameraIsBefore { beforeImages.append(image) }
-                    else { afterImages.append(image) }
+                CameraPickerView { image, metadata in
+                    let photo = PhotoCapture.fromCamera(image, metadata: metadata)
+                    if cameraIsBefore { beforeImages.append(photo) } else { afterImages.append(photo) }
                 }
             }
             .confirmationDialog("Discard what you recorded?", isPresented: $showingDiscardConfirm,
@@ -260,7 +261,7 @@ struct StopServiceRecorderView: View {
                     HStack(spacing: 8) {
                         ForEach(images.indices, id: \.self) { idx in
                             ZStack(alignment: .topTrailing) {
-                                Image(uiImage: images[idx])
+                                Image(uiImage: images[idx].image)
                                     .resizable()
                                     .scaledToFill()
                                     .frame(width: 80, height: 80)
@@ -319,11 +320,13 @@ struct StopServiceRecorderView: View {
 
     // MARK: - Image Loading
 
-    private func loadImages(from items: [PhotosPickerItem], appending: @escaping (UIImage) -> Void) {
+    /// Library photos, each with the time it was taken (its EXIF), read
+    /// before it's turned into an image, which drops that.
+    private func loadImages(from items: [PhotosPickerItem], appending: @escaping (CapturedPhoto) -> Void) {
         for item in items {
             item.loadTransferable(type: Data.self) { result in
-                if case .success(let data) = result, let data, let image = UIImage(data: data) {
-                    DispatchQueue.main.async { appending(image) }
+                if case .success(let data) = result, let data, let photo = PhotoCapture.fromLibrary(data) {
+                    DispatchQueue.main.async { appending(photo) }
                 }
             }
         }
@@ -366,11 +369,10 @@ struct StopServiceRecorderView: View {
         let clientID = client.id.uuidString
         let routeID = stop.route?.id.uuidString ?? ""
         for (images, isBefore) in [(beforeImages, true), (afterImages, false)] {
-            for image in images {
-                guard let data = image.jpegData(compressionQuality: 0.8) else { continue }
-                let photo = StopPhoto(operatorID: operatorID, clientID: clientID, routeID: routeID,
-                                      isBefore: isBefore, imageData: data)
-                photo.recordID = record.id.uuidString
+            for captured in images {
+                guard let photo = StopPhoto.make(from: captured, isBefore: isBefore, operatorID: operatorID,
+                                                 clientID: clientID, routeID: routeID,
+                                                 recordID: record.id.uuidString) else { continue }
                 modelContext.insert(photo)
             }
         }
@@ -392,7 +394,8 @@ struct StopServiceRecorderView: View {
 // MARK: - Camera Picker
 
 struct CameraPickerView: UIViewControllerRepresentable {
-    let onCapture: (UIImage) -> Void
+    /// The photo, and the camera's metadata (its EXIF has the shutter time).
+    let onCapture: (UIImage, [String: Any]?) -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(onCapture: onCapture) }
 
@@ -406,12 +409,12 @@ struct CameraPickerView: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
 
     class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
-        let onCapture: (UIImage) -> Void
-        init(onCapture: @escaping (UIImage) -> Void) { self.onCapture = onCapture }
+        let onCapture: (UIImage, [String: Any]?) -> Void
+        init(onCapture: @escaping (UIImage, [String: Any]?) -> Void) { self.onCapture = onCapture }
 
         func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
             if let image = info[.originalImage] as? UIImage {
-                onCapture(image)
+                onCapture(image, info[.mediaMetadata] as? [String: Any])
             }
             picker.dismiss(animated: true)
         }
