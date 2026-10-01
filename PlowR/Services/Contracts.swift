@@ -137,6 +137,11 @@ enum Contracts {
         var installments = 1
         var triggerInches: Double = 0
         var notes = ""
+        /// Visits it books (ContractSchedule): weekdays, 1 = Sunday … 7 =
+        /// Saturday; none books nothing. Not locked by signing: a lawn day
+        /// can move mid-season (then Book Visits again).
+        var scheduleWeekdays: Set<Int> = []
+        var scheduleIntervalWeeks = 1
 
         /// A new contract for `client`: six months from today (its last day
         /// the day before the six months are up), at their own address, with
@@ -165,6 +170,8 @@ enum Contracts {
             installments = max(1, contract.installments)
             triggerInches = contract.triggerInches
             notes = contract.notes
+            scheduleWeekdays = Set(contract.scheduleWeekdays)
+            scheduleIntervalWeeks = max(1, contract.scheduleIntervalWeeks)
         }
 
         var price: Double { InvoiceLines.price(typed: priceText, default: 0) }
@@ -215,7 +222,17 @@ enum Contracts {
         target.clientID = client.id.uuidString
         target.clientName = client.name
         target.name = draft.resolvedName()
+        // Ending earlier takes off the visits it booked after its new last day.
+        if target.signedAt != nil, draft.endDate < target.endDate {
+            ContractSchedule.removeVisits(of: target, after: draft.endDate, in: context)
+        }
         target.endDate = draft.endDate
+        // Visits switched off: the ones it booked after today come off too.
+        if !target.scheduleWeekdays.isEmpty, draft.scheduleWeekdays.isEmpty {
+            ContractSchedule.removeVisits(of: target, after: .now, in: context)
+        }
+        target.scheduleWeekdays = draft.scheduleWeekdays.sorted()
+        target.scheduleIntervalWeeks = max(1, draft.scheduleIntervalWeeks)
         target.notes = draft.notes
         if target.signedAt == nil {
             target.startDate = draft.startDate
@@ -237,9 +254,11 @@ enum Contracts {
         try? context.save()
     }
 
-    /// Ended early. What's already been done or billed stays.
+    /// Ended early. What's already been done or billed stays; the visits it
+    /// booked after today come off the Schedule.
     static func cancel(_ contract: Contract, in context: ModelContext, now: Date = .now) {
         contract.cancelledAt = now
+        ContractSchedule.removeVisits(of: contract, after: now, in: context)
         try? context.save()
     }
 

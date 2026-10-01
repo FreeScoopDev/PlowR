@@ -64,6 +64,7 @@ struct ContractEditView: View {
                 } else {
                     termsSections
                 }
+                scheduleSection
                 if coversSnow { ContractTriggerSection(inches: $draft.triggerInches) }
                 Section("Notes") {
                     TextField("Terms, what's included, anything agreed", text: $draft.notes, axis: .vertical)
@@ -113,6 +114,38 @@ struct ContractEditView: View {
                     Text("Services it doesn't cover are billed as extras, as usual.")
                 }
                 pricingSection
+    }
+
+    /// The visits it books: which days, how often. Changeable after signing.
+    private var scheduleSection: some View {
+        Section {
+            Toggle("Book Visits", isOn: Binding(
+                get: { !draft.scheduleWeekdays.isEmpty },
+                set: { on in
+                    let weekday = Calendar.current.component(.weekday, from: draft.startDate)
+                    draft.scheduleWeekdays = on ? [weekday] : []
+                }))
+            if !draft.scheduleWeekdays.isEmpty {
+                WeekdayPicker(selection: $draft.scheduleWeekdays)
+                Stepper(value: $draft.scheduleIntervalWeeks, in: 1...8) {
+                    LabeledContent("Every", value: draft.scheduleIntervalWeeks == 1 ? "Week" : "\(draft.scheduleIntervalWeeks) Weeks")
+                }
+            }
+        } header: {
+            Text("Visits")
+        } footer: {
+            Text(scheduleNote)
+        }
+    }
+
+    private var scheduleNote: String {
+        let booked = contract.map { !ContractSchedule.visitsAhead(of: $0, in: modelContext).isEmpty } ?? false
+        if draft.scheduleWeekdays.isEmpty {
+            return booked ? "Off: saving takes the visits it booked after today off the Schedule."
+                          : "Off: no visits are booked by the contract (for work done when it's needed)."
+        }
+        return booked ? "Its booked visits keep their days until you Book Again on its page."
+                      : "Once it's signed, Book Visits on its page puts them on the Schedule, at each place it applies to."
     }
 
     private var pricingSection: some View {
