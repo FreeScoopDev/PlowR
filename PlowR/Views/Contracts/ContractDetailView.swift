@@ -9,6 +9,12 @@ struct ContractDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Query private var allServiceItems: [ServiceItem]
+    @Query private var allContracts: [Contract]
+    @Query private var allProfiles: [BusinessProfile]
+    /// The contract's PDF, written when the page opens, to share.
+    @State private var pdfURL: URL?
+    @State private var choosingRenewal = false
+    @State private var renewalDraft: Contracts.Draft?
     @State private var showingEdit = false
     @State private var confirmingCancel = false
     @State private var confirmingDelete = false
@@ -65,10 +71,35 @@ struct ContractDetailView: View {
         .navigationTitle(contract.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            if let pdfURL {
+                ToolbarItem(placement: .primaryAction) {
+                    ShareLink(item: pdfURL) { Image(systemName: "square.and.arrow.up") }
+                }
+            }
             if status != .cancelled, status != .ended, contract.client != nil {
                 ToolbarItem(placement: .primaryAction) {
                     Button("Edit") { showingEdit = true }
                 }
+            }
+        }
+        .task(id: contract.persistentModelID) { writePDF() }
+        .onChange(of: showingEdit) { _, open in if !open { writePDF() } }
+        // Changed here or on another device: the file shared is the page as it is.
+        .onChange(of: [contract.name, contract.notes]) { writePDF() }
+        .onChange(of: contract.endDate) { writePDF() }
+        .onChange(of: contract.signedAt) { writePDF() }
+        .onChange(of: allProfiles.count) { writePDF() }
+        .confirmationDialog("Renew for next season?", isPresented: $choosingRenewal, titleVisibility: .visible) {
+            ForEach([0.0, 3, 5, 10], id: \.self) { percent in
+                Button(percent == 0 ? "Same Price" : "Raise \(Int(percent))%") { renew(raising: percent) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("A new draft for the same months next season, with the same terms. Check it and mark it signed when the client agrees.")
+        }
+        .sheet(isPresented: Binding(get: { renewalDraft != nil }, set: { if !$0 { renewalDraft = nil } })) {
+            if let client = contract.client, let draft = renewalDraft {
+                ContractEditView(client: client, draft: draft)
             }
         }
         .sheet(isPresented: $showingEdit) {
@@ -113,10 +144,17 @@ struct ContractDetailView: View {
             }
         case .upcoming, .active:
             Section {
+                if Contracts.canRenew(contract, among: allContracts) {
+                    Button("Renew") { choosingRenewal = true }
+                }
                 Button("Cancel Contract", role: .destructive) { confirmingCancel = true }
             }
         case .ended, .cancelled:
-            EmptyView()
+            if Contracts.canRenew(contract, among: allContracts) {
+                Section {
+                    Button("Renew") { choosingRenewal = true }
+                }
+            }
         }
     }
 
@@ -219,6 +257,18 @@ struct ContractDetailView: View {
             text += " \(plan.keptDays == 1 ? "1 day already has" : "\(plan.keptDays) days already have") a visit there, left as it is."
         }
         return text
+    }
+
+    private func renew(raising percent: Double) {
+        renewalDraft = Contracts.renewal(of: contract, increasePercent: percent)
+    }
+
+    /// The PDF to share, in the temporary folder.
+    private func writePDF() {
+        let profile = allProfiles.first { $0.operatorID == contract.operatorID }
+        let data = ContractPDF.generate(contract, client: contract.client, profile: profile, catalog: allServiceItems)
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(ContractPDF.fileName(contract))
+        if (try? data.write(to: url)) != nil { pdfURL = url }
     }
 
     private var period: String {

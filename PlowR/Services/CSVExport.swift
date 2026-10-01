@@ -133,6 +133,24 @@ enum CSVExport {
                                  "Total", "Charged", "Billing", "Invoice", "Notes"], rows: rows)
     }
 
+    /// Every contract, oldest first: what was agreed, and where it stands.
+    static func contracts(_ contracts: [Contract], operatorID: String, catalog: [ServiceItem],
+                          now: Date = .now) -> String {
+        let names = Dictionary(catalog.map { ($0.id.uuidString, $0.name) }, uniquingKeysWith: { first, _ in first })
+        let rows = contracts.filter { $0.operatorID == operatorID }
+            .sorted { $0.startDate < $1.startDate }
+            .map { contract -> [Cell] in
+                [.text(contract.name), .text(contract.clientName), .plain(Contracts.status(of: contract, now: now).title),
+                 day(contract.startDate), day(contract.endDate), .plain(Contracts.pricing(of: contract).title),
+                 money(contract.price), .plain(Contracts.pricing(of: contract) == .season ? "\(contract.installments)" : ""),
+                 .text(contract.serviceIDs.compactMap { names[$0] }.joined(separator: "; ")),
+                 .text(ContractSchedule.hasSchedule(contract) ? ContractSchedule.summary(of: contract) : ""),
+                 day(contract.signedAt), day(contract.cancelledAt), .text(contract.notes)]
+            }
+        return document(header: ["Contract", "Client", "Status", "Starts", "Ends", "Pricing", "Price", "Payments",
+                                 "Services", "Visits", "Signed", "Cancelled", "Notes"], rows: rows)
+    }
+
     /// `contents` written to a temporary file named for PlowR, `kind` and the
     /// day ("PlowR Clients 2026-09-30.csv"), to share. Delete Account & Data
     /// removes these (AccountEraser).

@@ -19,6 +19,13 @@ struct ContractEditView: View {
         _draft = State(initialValue: contract.map(Contracts.Draft.init) ?? Contracts.Draft(for: client))
     }
 
+    /// A new contract starting from `draft`: made from a proposal, or a renewal.
+    init(client: Client, draft: Contracts.Draft) {
+        self.client = client
+        self.contract = nil
+        _draft = State(initialValue: draft)
+    }
+
     private var services: [ServiceItem] {
         allServiceItems
             .filter { $0.operatorID == client.operatorID && ($0.isActive || draft.serviceIDs.contains($0.id.uuidString)) }

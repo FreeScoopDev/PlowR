@@ -142,6 +142,10 @@ enum Contracts {
         /// can move mid-season (then Book Visits again).
         var scheduleWeekdays: Set<Int> = []
         var scheduleIntervalWeeks = 1
+        /// Where a new one came from: the proposal it was made from, or the
+        /// contract it renews.
+        var sourceProposalID = ""
+        var renewedFromID = ""
 
         /// A new contract for `client`: six months from today (its last day
         /// the day before the six months are up), at their own address, with
@@ -242,6 +246,10 @@ enum Contracts {
             target.price = InvoiceLines.roundedToCent(draft.price)
             target.installments = draft.pricing == .season ? max(1, draft.installments) : 1
         }
+        if contract == nil {
+            target.sourceProposalID = draft.sourceProposalID
+            target.renewedFromID = draft.renewedFromID
+        }
         let catalog = (try? context.fetch(FetchDescriptor<ServiceItem>())) ?? []
         target.triggerInches = coversSnow(Set(target.serviceIDs), catalog: catalog) ? max(0, draft.triggerInches) : 0
         try? context.save()
@@ -269,6 +277,68 @@ enum Contracts {
         contract.client = nil
         context.delete(contract)
         try? context.save()
+    }
+
+    // MARK: - From a proposal, and renewing
+
+    /// A new contract from a proposal: the services on it that are in the
+    /// catalog (matched by name; none matched, none chosen, so they're
+    /// picked by hand), its total before tax as the season price (a
+    /// contract's payments carry no tax of their own), at their own address.
+    /// It stays a draft to check and sign.
+    static func draft(from proposal: Proposal, client: Client, catalog: [ServiceItem],
+                      now: Date = .now) -> Draft {
+        var draft = Draft(for: client, now: now)
+        let names = Set(proposal.sortedLineItems.map { $0.serviceName.lowercased() })
+        let matched = catalog.filter { $0.operatorID == client.operatorID && names.contains($0.name.lowercased()) }
+        draft.serviceIDs = Set(matched.map(\.id.uuidString))
+        draft.pricing = .season
+        draft.priceText = proposal.discountedTotal > 0 ? StopRecording.money(proposal.discountedTotal) : ""
+        draft.notes = proposal.notes
+        draft.sourceProposalID = proposal.id.uuidString
+        return draft
+    }
+
+    /// The same contract for its next season: the same months a whole
+    /// number of years on (the first year it starts after this one ends,
+    /// and doesn't end before today), so a winter contract renews into
+    /// next winter and a year's into the next year, leap years or not. At
+    /// its price raised by `increasePercent` (to the cent), with the same
+    /// places, services, payments, visits and notes. A draft to check and
+    /// sign. A name made from its dates is made again from the new ones.
+    static func renewal(of contract: Contract, increasePercent: Double = 0, now: Date = .now,
+                        calendar: Calendar = .current) -> Draft {
+        var draft = Draft(contract)
+        draft.isSigned = false
+        let oldStart = calendar.startOfDay(for: contract.startDate)
+        let oldEnd = calendar.startOfDay(for: contract.endDate)
+        let today = calendar.startOfDay(for: now)
+        var years = 1
+        func shifted(_ date: Date) -> Date { calendar.date(byAdding: .year, value: years, to: date) ?? date }
+        while years < 100, shifted(oldStart) <= oldEnd || shifted(oldEnd) < today { years += 1 }
+        draft.startDate = shifted(oldStart)
+        draft.endDate = shifted(oldEnd)
+        draft.serviceIDs = Set(contract.serviceIDs)
+        draft.pricing = pricing(of: contract)
+        let raised = InvoiceLines.roundedToCent(contract.price * (1 + max(0, increasePercent) / 100))
+        draft.priceText = StopRecording.money(raised)
+        draft.installments = max(1, contract.installments)
+        draft.renewedFromID = contract.id.uuidString
+        return draft
+    }
+
+    /// Whether Renew is offered: it was signed (it's what the client
+    /// agreed), it wasn't cancelled (terms retired on purpose aren't brought
+    /// back), and it hasn't been renewed already.
+    static func canRenew(_ contract: Contract, among contracts: [Contract]) -> Bool {
+        contract.signedAt != nil && contract.cancelledAt == nil && contract.client != nil
+            && !contracts.contains { $0.renewedFromID == contract.id.uuidString }
+    }
+
+    /// The contract made from `proposal`, if one was: the proposal is then
+    /// spoken for, and isn't made into another or converted to an invoice.
+    static func madeFrom(_ proposal: Proposal, among contracts: [Contract]) -> Contract? {
+        contracts.first { $0.sourceProposalID == proposal.id.uuidString }
     }
 
     // MARK: - Work under a contract

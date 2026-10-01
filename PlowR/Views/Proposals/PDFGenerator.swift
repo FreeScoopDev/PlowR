@@ -6,10 +6,10 @@ import CoreImage.CIFilterBuiltins
 struct PDFGenerator {
 
     // MARK: - Palette
-    private static let ink       = UIColor(white: 0.06, alpha: 1)
-    private static let inkDark   = UIColor(white: 0.20, alpha: 1)
-    private static let inkMid    = UIColor(white: 0.48, alpha: 1)
-    private static let inkLight  = UIColor(white: 0.66, alpha: 1)
+    static let ink       = UIColor(white: 0.06, alpha: 1)
+    static let inkDark   = UIColor(white: 0.20, alpha: 1)
+    static let inkMid    = UIColor(white: 0.48, alpha: 1)
+    static let inkLight  = UIColor(white: 0.66, alpha: 1)
     private static let ruleLight = UIColor(white: 0.84, alpha: 1)
     private static let ruleMid   = UIColor(white: 0.52, alpha: 1)
 
@@ -64,9 +64,7 @@ struct PDFGenerator {
         let isInvoice     = forceIsInvoice ?? proposal.isInvoice
         let colorPDFs     = profile?.colorPDFs     ?? true
         let compactHeader = profile?.compactHeader ?? false
-        let accent: UIColor = colorPDFs
-            ? (accentUIColor(from: profile?.accentColorHex) ?? defaultAccent)
-            : UIColor(white: 0.08, alpha: 1)
+        let accent = Self.accent(for: profile)
 
         let renderer = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: pageW, height: pageH))
         return renderer.pdfData { ctx in
@@ -680,6 +678,14 @@ struct PDFGenerator {
 
     // MARK: - Color Helpers
 
+    /// The business's document colour: its accent, or near-black when its
+    /// PDFs are set to black and white. Every PDF PlowR makes uses it.
+    static func accent(for profile: BusinessProfile?) -> UIColor {
+        (profile?.colorPDFs ?? true)
+            ? (accentUIColor(from: profile?.accentColorHex) ?? defaultAccent)
+            : UIColor(white: 0.08, alpha: 1)
+    }
+
     private static func accentUIColor(from hex: String?) -> UIColor? {
         guard let hex, hex.count == 6, let value = UInt32(hex, radix: 16) else { return nil }
         return UIColor(
@@ -729,9 +735,7 @@ struct PDFGenerator {
         let margin: CGFloat = 54
         let contentW = pageW - margin * 2
         let colorPDFs = profile?.colorPDFs ?? true
-        let accent: UIColor = colorPDFs
-            ? (accentUIColor(from: profile?.accentColorHex) ?? defaultAccent)
-            : UIColor(white: 0.08, alpha: 1)
+        let accent = Self.accent(for: profile)
 
         let invoices         = proposals.filter { $0.isInvoice }
         let totalVisits      = clients.reduce(0)   { $0 + $1.totalVisits }
