@@ -1,7 +1,0 @@
-### Added
-- Contract payments (contracts, step 3). A season price is split into its payments, one a month from the contract's start (equal to the cent, the last taking what's left; they have to fit its dates); a monthly contract bills each month through its last day (the 31st stays at each month's end). On a payment's date it's due: the Dashboard shows the payments due with **Make Invoices**, and the contract's page lists every payment, with **Make Invoice** on one that's due. One tap makes its draft invoice ("Winter 2026–27, payment 2 of 3", "Lawn Care, April 2027"), ready to send like any other; its due date counts from when it's sent. A payment's invoice is made once: deleted on purpose, it isn't due again. Revised, the revision is still that payment. A cancelled contract's payments dated after the day it was cancelled are never due. Nothing is sent by itself. Before, a season's installments had to be remembered and invoiced by hand.
-- The plan was for PlowR to make these drafts by itself on the date. With several devices on one iCloud account, each would make its own copy before hearing of the others' (one deleted could come back, and an invoice number could repeat), and removing copies safely couldn't be guaranteed. So only a tap makes one.
-- An invoice deleted on another device while it's open closes, as other pages do.
-
-### Internal
-- New CloudKit fields to deploy: `CD_Proposal.contractID`, `CD_Proposal.installmentIndex`, `CD_Contract.installmentsMade`.

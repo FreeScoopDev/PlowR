@@ -1,2 +1,0 @@
-### Added
-- Money Owed (the Dashboard's Outstanding tile): what's owed by how late it is, not due yet, then 1–30, 31–60, 61–90 and over 90 days past the due date, and each client who owes, the latest payers first, with their invoices one tap away. Balances are what's still owed after payments, so it adds up to the Dashboard's figure. Before, the tile opened the list of invoices, and finding who was furthest behind meant reading every due date.
