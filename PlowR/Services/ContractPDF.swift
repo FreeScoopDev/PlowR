@@ -6,8 +6,6 @@ import UIKit
 /// the visits it books, the notes, and lines to sign. Signing is by hand
 /// (Mark Signed): e-signatures would need a server.
 enum ContractPDF {
-    private static let pageSize = CGSize(width: 612, height: 792)
-    private static let margin: CGFloat = 54
 
     /// The page's text, top to bottom: each a heading and its lines.
     struct Section: Equatable {
@@ -59,79 +57,25 @@ enum ContractPDF {
         return sections
     }
 
-    /// The page: the business's colour (or black and white), logo and ink,
-    /// as its proposals and invoices are (PDFGenerator). Long terms run on
-    /// to further pages, and the signature lines stay together.
+    /// The page, in the business's colour, logo and ink (PDFPageWriter):
+    /// long terms run on to further pages, and the signature lines stay
+    /// together.
     static func generate(_ contract: Contract, client: Client?, profile: BusinessProfile?,
                          catalog: [ServiceItem]) -> Data {
-        let renderer = UIGraphicsPDFRenderer(bounds: CGRect(origin: .zero, size: pageSize))
-        let width = pageSize.width - margin * 2
-        let bottom = pageSize.height - margin
-        let accent = PDFGenerator.accent(for: profile)
-        return renderer.pdfData { ctx in
-            ctx.beginPage()
-            var y = margin
-            func height(_ text: String, _ attributes: [NSAttributedString.Key: Any]) -> CGFloat {
-                (text as NSString).boundingRect(with: CGSize(width: width, height: .greatestFiniteMagnitude),
-                                                options: .usesLineFragmentOrigin, attributes: attributes,
-                                                context: nil).height.rounded(.up)
-            }
-            func newPage() {
-                ctx.beginPage()
-                y = margin
-            }
-            /// Draws `text`, paragraph by paragraph, breaking a paragraph
-            /// between words where the page ends.
-            func draw(_ text: String, _ font: UIFont, _ color: UIColor = PDFGenerator.ink, gap: CGFloat = 4) {
-                let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
-                for paragraph in text.components(separatedBy: "\n") {
-                    var words = paragraph.split(separator: " ", omittingEmptySubsequences: false).map(String.init)
-                    repeat {
-                        // The most words that fit what's left of the page.
-                        var low = 0, high = words.count
-                        while low < high {
-                            let mid = (low + high + 1) / 2
-                            if y + height(words[..<mid].joined(separator: " "), attributes) <= bottom { low = mid } else { high = mid - 1 }
-                        }
-                        if low == 0, y > margin {
-                            newPage()
-                            continue
-                        }
-                        let take = max(1, low)
-                        let piece = words[..<take].joined(separator: " ")
-                        let pieceHeight = height(piece.isEmpty ? " " : piece, attributes)
-                        (piece as NSString).draw(with: CGRect(x: margin, y: y, width: width, height: pieceHeight),
-                                                 options: .usesLineFragmentOrigin, attributes: attributes, context: nil)
-                        y += pieceHeight
-                        words.removeFirst(min(take, words.count))
-                        if !words.isEmpty { newPage() }
-                    } while !words.isEmpty
-                    y += gap
-                }
-            }
-            let business = profile?.companyName.isEmpty == false ? profile?.companyName ?? "" : "Service Provider"
-            if let data = profile?.logoData, let logo = UIImage(data: data) {
-                let scale = min(48 / logo.size.height, 96 / logo.size.width)
-                let size = CGSize(width: logo.size.width * scale, height: logo.size.height * scale)
-                logo.draw(in: CGRect(x: pageSize.width - margin - size.width, y: margin, width: size.width, height: size.height))
-            }
-            draw("SERVICE CONTRACT", .systemFont(ofSize: 20, weight: .bold), accent, gap: 2)
-            draw(contract.name, .systemFont(ofSize: 14, weight: .semibold), gap: 10)
-            draw(business, .systemFont(ofSize: 12, weight: .semibold), gap: 2)
-            let contact = [profile?.phone ?? "", profile?.email ?? "", profile?.licenseNumber ?? ""].filter { !$0.isEmpty }
-            if !contact.isEmpty { draw(contact.joined(separator: " · "), .systemFont(ofSize: 10), PDFGenerator.inkMid, gap: 14) }
+        PDFPageWriter.document(profile: profile) { page in
+            page.header(title: "SERVICE CONTRACT", subtitle: contract.name, profile: profile)
             for section in sections(of: contract, client: client, catalog: catalog) {
-                if y + 40 > bottom { newPage() }                                    // a heading with its first line
-                draw(section.heading.uppercased(), .systemFont(ofSize: 9, weight: .semibold), accent, gap: 3)
-                for line in section.lines { draw(line, .systemFont(ofSize: 11), gap: 2) }
-                y += 10
+                page.heading(section.heading)
+                for line in section.lines { page.text(line, .systemFont(ofSize: 11), gap: 2) }
+                page.y += 10
             }
             // The signatures together, on one page.
-            if y + 190 > bottom { newPage() } else { y += 24 }
-            draw("Agreed by", .systemFont(ofSize: 9, weight: .semibold), accent, gap: 30)
+            if page.y + 190 > page.bottom { page.newPage() } else { page.y += 24 }
+            page.text("Agreed by", .systemFont(ofSize: 9, weight: .semibold), page.accent, gap: 30)
+            let business = PDFPageWriter.businessName(profile)
             for party in [contract.clientName.isEmpty ? (client?.name ?? "Client") : contract.clientName, business] {
-                draw("______________________________          Date ____________", .systemFont(ofSize: 11), gap: 2)
-                draw(party, .systemFont(ofSize: 10), PDFGenerator.inkMid, gap: 26)
+                page.text("______________________________          Date ____________", .systemFont(ofSize: 11), gap: 2)
+                page.text(party, .systemFont(ofSize: 10), PDFGenerator.inkMid, gap: 26)
             }
         }
     }
