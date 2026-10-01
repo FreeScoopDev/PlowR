@@ -426,6 +426,9 @@ enum ServiceLog {
         for record in billed(on: original, in: context) { record.invoiceID = revision.id.uuidString }
         for visit in linkedVisits(to: original, in: context) { visit.proposalID = revision.id.uuidString }
         if revision.visitID.isEmpty { revision.visitID = original.visitID }
+        // A contract payment's revision is still that payment.
+        revision.contractID = original.contractID
+        revision.installmentIndex = original.installmentIndex
     }
 
     private static func linkedVisits(to document: Proposal, in context: ModelContext) -> [ScheduledVisit] {

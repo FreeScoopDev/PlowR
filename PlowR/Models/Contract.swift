@@ -40,6 +40,9 @@ final class Contract {
     var renewedFromID: String = ""
     /// The proposal it was made from, if any.
     var sourceProposalID: String = ""
+    /// The installments (1, 2, …) whose invoice has been made: each is made
+    /// once, so one deleted on purpose isn't made again.
+    var installmentsMade: [Int] = []
     var createdAt: Date = Date()
     var client: Client?
 

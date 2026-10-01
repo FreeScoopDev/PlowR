@@ -51,6 +51,7 @@ struct ContractDetailView: View {
                 }
                 ForEach(serviceNames, id: \.self) { Text($0) }
             }
+            paymentsSection
             if contract.triggerInches > 0 {
                 Section { ContractTriggerRow(inches: contract.triggerInches) }
             }
@@ -109,6 +110,65 @@ struct ContractDetailView: View {
         case .ended, .cancelled:
             EmptyView()
         }
+    }
+
+    /// Its payments (season or monthly): each date and amount, and its
+    /// invoice once made. A per-visit contract bills its visits instead.
+    @ViewBuilder
+    private var paymentsSection: some View {
+        let ledger = ContractInstallments.ledger(of: contract, in: modelContext)
+        let due = ContractInstallments.due(contract, now: .now)
+        if !ledger.isEmpty {
+            Section {
+                ForEach(ledger, id: \.installment.index) { entry in
+                    if let invoice = entry.invoice {
+                        NavigationLink { ProposalDetailView(proposal: invoice) } label: { paymentRow(entry.installment, invoice) }
+                    } else if due.contains(entry.installment) {
+                        HStack {
+                            paymentRow(entry.installment, nil)
+                            Button("Make Invoice") {
+                                ContractInstallments.makeInvoice(for: entry.installment, of: contract, in: modelContext)
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        }
+                    } else {
+                        paymentRow(entry.installment, nil)
+                    }
+                }
+            } header: {
+                Text("Payments")
+            } footer: {
+                Text("On a payment's date, Make Invoice makes its draft, ready for you to send. Nothing is sent by itself.")
+            }
+        }
+    }
+
+    private func paymentRow(_ installment: ContractInstallments.Installment, _ invoice: Proposal?) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(installment.date.formatted(.dateTime.month(.abbreviated).day().year()))
+                Text(invoice.map { $0.invoiceNumber } ?? paymentNote(installment))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+            Text(installment.amount, format: .currency(code: "USD"))
+            if let invoice {
+                StatusChip(invoice.invoiceStatus.rawValue, color: invoice.invoiceStatus.chipColor)
+            }
+        }
+    }
+
+    /// A payment with no invoice: still to come, or never made (the
+    /// contract was cancelled first, or it was deleted).
+    private func paymentNote(_ installment: ContractInstallments.Installment) -> String {
+        if contract.installmentsMade.contains(installment.index) { return "Invoice deleted" }
+        if let cancelled = contract.cancelledAt, installment.date > Calendar.current.startOfDay(for: cancelled) {
+            return "Not billed: cancelled"
+        }
+        if contract.signedAt == nil { return "Once signed" }
+        if contract.client == nil { return "Client deleted" }
+        return installment.date <= .now ? "Due" : "Due on this date"
     }
 
     private var period: String {

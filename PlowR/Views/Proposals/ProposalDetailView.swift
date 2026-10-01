@@ -5,6 +5,7 @@ import MessageUI
 struct ProposalDetailView: View {
     @Bindable var proposal: Proposal
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
     @Query private var allProfiles: [BusinessProfile]
     @Query private var allPaymentMethods: [PaymentMethod]
     @Query private var allClients: [Client]
@@ -45,6 +46,15 @@ struct ProposalDetailView: View {
     // MARK: - Body
 
     var body: some View {
+        if proposal.isDeleted || proposal.modelContext == nil {
+            // Deleted on another device while open: nothing left to show.
+            Color.clear.onAppear { dismiss() }
+        } else {
+            document
+        }
+    }
+
+    private var document: some View {
         Group {
             if let data = pdfData {
                 PDFKitView(data: data)
