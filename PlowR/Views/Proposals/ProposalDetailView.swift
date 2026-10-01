@@ -9,6 +9,8 @@ struct ProposalDetailView: View {
     @Query private var allProfiles: [BusinessProfile]
     @Query private var allPaymentMethods: [PaymentMethod]
     @Query private var allClients: [Client]
+    @Query private var allServiceItems: [ServiceItem]
+    @Query private var allContracts: [Contract]
 
     @State private var pdfData: Data? = nil
     @State private var shareURL: URL? = nil
@@ -17,6 +19,8 @@ struct ProposalDetailView: View {
     @State private var showingReviseDialog = false
     @State private var showingReminder = false
     @State private var showingPayments = false
+    /// A contract being made from this proposal (Contracts.draft(from:)).
+    @State private var contractDraft: Contracts.Draft?
 
     // MARK: - Computed Properties
 
@@ -105,6 +109,11 @@ struct ProposalDetailView: View {
                 }
             }
         }
+        .sheet(isPresented: Binding(get: { contractDraft != nil }, set: { if !$0 { contractDraft = nil } })) {
+            if let client = proposalClient, let draft = contractDraft {
+                ContractEditView(client: client, draft: draft)
+            }
+        }
         .sheet(isPresented: $showingPayments) {
             InvoicePaymentsView(invoice: proposal)
         }
@@ -134,12 +143,32 @@ struct ProposalDetailView: View {
                 }
                 .buttonStyle(.bordered)
 
-                Button { convertToInvoice() } label: {
-                    Label("Convert", systemImage: "doc.badge.arrow.up")
-                        .frame(maxWidth: .infinity)
+                // Agreed for a period, not a one-off: a contract. Once it is,
+                // the proposal is spoken for: no second contract, no invoice.
+                if let made = Contracts.madeFrom(proposal, among: allContracts) {
+                    NavigationLink { ContractDetailView(contract: made) } label: {
+                        Label("View Contract", systemImage: "signature")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                } else {
+                    if let client = proposalClient {
+                        Button {
+                            contractDraft = Contracts.draft(from: proposal, client: client, catalog: allServiceItems)
+                        } label: {
+                            Label("Contract", systemImage: "signature")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                    }
+
+                    Button { convertToInvoice() } label: {
+                        Label("Convert", systemImage: "doc.badge.arrow.up")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.blue)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(.blue)
 
             case .draft:
                 Button { showingEditView = true } label: {

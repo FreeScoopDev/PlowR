@@ -49,6 +49,8 @@ struct ExportDataView: View {
         let clients = (try? modelContext.fetch(FetchDescriptor<Client>())) ?? []
         let documents = (try? modelContext.fetch(FetchDescriptor<Proposal>())) ?? []
         let records = (try? modelContext.fetch(FetchDescriptor<ServiceRecord>())) ?? []
+        let contracts = Contracts.all(in: modelContext)
+        let catalog = (try? modelContext.fetch(FetchDescriptor<ServiceItem>())) ?? []
         do {
             files = [
                 Export(title: "Clients", detail: "\(clients.filter { $0.operatorID == operatorID }.count) clients",
@@ -64,6 +66,11 @@ struct ExportDataView: View {
                        systemImage: "banknote",
                        url: try CSVExport.file("Payments",
                                                contents: CSVExport.payments(documents, operatorID: operatorID))),
+                Export(title: "Contracts",
+                       detail: "\(contracts.filter { $0.operatorID == operatorID }.count) contracts",
+                       systemImage: "signature",
+                       url: try CSVExport.file("Contracts", contents: CSVExport.contracts(contracts, operatorID: operatorID,
+                                                                                         catalog: catalog))),
                 Export(title: "Service History",
                        detail: "\(records.filter { $0.operatorID == operatorID }.count) jobs",
                        systemImage: "list.bullet.clipboard",
