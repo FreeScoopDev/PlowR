@@ -4,6 +4,7 @@ import CoreLocation
 
 struct DashboardView: View {
     @Environment(ActiveRouteStore.self) private var activeRoute
+    @Environment(\.modelContext) private var modelContext
     @Environment(AuthManager.self) private var authManager
 
     @Query private var allProfiles: [BusinessProfile]
@@ -12,6 +13,7 @@ struct DashboardView: View {
     @Query(sort: \PlowRoute.createdAt, order: .reverse) private var allRoutes: [PlowRoute]
     @Query private var allProposals: [Proposal]
     @Query private var allRecords: [ServiceRecord]
+    @Query private var allContracts: [Contract]
 
     @State private var dashWeather: WeatherCondition?
     private let iCloud = ICloudStatus.shared
@@ -77,6 +79,7 @@ struct DashboardView: View {
                     if let w = dashWeather { dashWeatherStrip(w) }
                     todayCard
                     financeRow
+                    readyToSendRow
                     pipelineRow
                     routesCard
                     if !upcomingVisits.isEmpty { upcomingCard }
@@ -339,6 +342,60 @@ struct DashboardView: View {
                              color: draftCount > 0 ? .blue : .secondary)
                 }
                 .buttonStyle(.plain)
+            }
+        }
+    }
+
+    // MARK: - Contract payments
+
+    /// Contract payments due (Make Invoices makes their drafts here, on
+    /// this device), and drafts made and waiting to be sent.
+    @ViewBuilder
+    private var readyToSendRow: some View {
+        let due = ContractInstallments.allDue(allContracts, operatorID: authManager.userID)
+        let ready = ContractInstallments.readyToSend(allProposals, operatorID: authManager.userID)
+        if !due.isEmpty || !ready.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                sectionHeader("Contract Payments", icon: "doc.text")
+                DashCard {
+                    if !due.isEmpty {
+                        HStack(spacing: 12) {
+                            IconBadge(systemImage: "calendar.badge.clock", color: .orange)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(due.count == 1 ? "1 payment due" : "\(due.count) payments due")
+                                    .font(.subheadline.weight(.semibold))
+                                Text(due.reduce(0) { $0 + $1.installment.amount }.formatted(.currency(code: "USD")))
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Button(due.count == 1 ? "Make Invoice" : "Make Invoices") {
+                                ContractInstallments.makeAllDue(operatorID: authManager.userID, in: modelContext)
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        }
+                        .padding(14)
+                    }
+                    if !ready.isEmpty {
+                        if !due.isEmpty { Divider().padding(.leading, 14) }
+                        NavigationLink { ProposalListView(initialFilter: .draft) } label: {
+                            HStack(spacing: 12) {
+                                IconBadge(systemImage: "doc.text.fill", color: .blue)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(ready.count == 1 ? "1 invoice ready to send" : "\(ready.count) invoices ready to send")
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(.primary)
+                                    Text("\(Payments.owed(ready).formatted(.currency(code: "USD"))) · in Drafts")
+                                        .font(.caption).foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
+                            }
+                            .padding(14)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
             }
         }
     }

@@ -178,6 +178,11 @@ enum Contracts {
                 return "A signed contract can't end before today. To end it now, cancel it."
             }
             if price <= 0 { return "Enter its price." }
+            if pricing == .season, installments > 1,
+               let last = calendar.date(byAdding: .month, value: installments - 1, to: calendar.startOfDay(for: startDate)),
+               last > calendar.startOfDay(for: endDate) {
+                return "Its \(installments) monthly payments run past its end. Fewer payments, or a later end."
+            }
             return nil
         }
 

@@ -23,6 +23,10 @@ final class Proposal {
     var invoicePaidAt: Date?
     var revisionOf: String = ""
     var visitID: String = ""      // scheduled visit this invoice was created from
+    /// An installment of a contract (ContractInstallments): its contract,
+    /// and which payment (1, 2, …). Empty for any other invoice.
+    var contractID: String = ""
+    var installmentIndex: Int = 0
 
     @Relationship(deleteRule: .cascade, inverse: \ProposalLineItem.proposal) var lineItems: [ProposalLineItem]?
     /// Money received against it, in parts or all at once (Payments).
