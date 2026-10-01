@@ -473,27 +473,7 @@ struct AddVisitView: View {
     }
 
     private var weekdayPicker: some View {
-        HStack(spacing: 4) {
-            ForEach(0..<7) { offset in
-                let weekday = offset + 1
-                let label = ["S","M","T","W","T","F","S"][offset]
-                let selected = recurrenceWeekdays.contains(weekday)
-                Button {
-                    if selected { recurrenceWeekdays.remove(weekday) }
-                    else { recurrenceWeekdays.insert(weekday) }
-                } label: {
-                    Text(label)
-                        .font(.caption.weight(.semibold))
-                        .frame(width: 32, height: 32)
-                        .background(selected ? Color.blue : Color(.systemGray5))
-                        .foregroundStyle(selected ? .white : .primary)
-                        .clipShape(Circle())
-                }
-                .buttonStyle(.plain)
-                if offset < 6 { Spacer() }
-            }
-        }
-        .padding(.vertical, 4)
+        WeekdayPicker(selection: $recurrenceWeekdays)
     }
 
     /// A new visit's notes and time follow the place chosen (its own

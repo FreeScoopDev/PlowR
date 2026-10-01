@@ -13,6 +13,7 @@ struct ContractDetailView: View {
     @State private var confirmingCancel = false
     @State private var confirmingDelete = false
     @State private var confirmingSign = false
+    @State private var confirmingBook = false
 
     private var status: Contracts.Status { Contracts.status(of: contract) }
 
@@ -51,6 +52,7 @@ struct ContractDetailView: View {
                 }
                 ForEach(serviceNames, id: \.self) { Text($0) }
             }
+            visitsSection
             paymentsSection
             if contract.triggerInches > 0 {
                 Section { ContractTriggerRow(inches: contract.triggerInches) }
@@ -76,7 +78,13 @@ struct ContractDetailView: View {
             Button("Cancel Contract", role: .destructive) { Contracts.cancel(contract, in: modelContext) }
             Button("Keep It", role: .cancel) {}
         } message: {
-            Text("It ends today. Work already done and anything already billed stay as they are.")
+            Text("It ends today. Work already done and anything already billed stay as they are, and the visits it booked after today come off the Schedule.")
+        }
+        .confirmationDialog("Book its visits?", isPresented: $confirmingBook, titleVisibility: .visible) {
+            Button("Book Visits") { ContractSchedule.book(contract, in: modelContext) }
+            Button("Not Now", role: .cancel) {}
+        } message: {
+            Text(bookMessage)
         }
         .confirmationDialog("Mark it signed?", isPresented: $confirmingSign, titleVisibility: .visible) {
             Button("Mark Signed") { Contracts.sign(contract, in: modelContext) }
@@ -109,6 +117,25 @@ struct ContractDetailView: View {
             }
         case .ended, .cancelled:
             EmptyView()
+        }
+    }
+
+    /// The visits it books: its days, how many are ahead, and Book Visits.
+    @ViewBuilder
+    private var visitsSection: some View {
+        let ahead = ContractSchedule.visitsAhead(of: contract, in: modelContext).count
+        if ContractSchedule.hasSchedule(contract) || ahead > 0 {
+            Section {
+                LabeledContent("Days", value: ContractSchedule.summary(of: contract))
+                LabeledContent("Booked Ahead", value: ahead == 1 ? "1 visit" : "\(ahead) visits")
+                if ContractSchedule.canBook(contract) {
+                    Button(ahead == 0 ? "Book Visits" : "Book Again") { confirmingBook = true }
+                }
+            } header: {
+                Text("Visits")
+            } footer: {
+                Text(visitsNote(ahead: ahead))
+            }
         }
     }
 
@@ -169,6 +196,29 @@ struct ContractDetailView: View {
         if contract.signedAt == nil { return "Once signed" }
         if contract.client == nil { return "Client deleted" }
         return installment.date <= .now ? "Due" : "Due on this date"
+    }
+
+    private func visitsNote(ahead: Int) -> String {
+        if ContractSchedule.canBook(contract) {
+            return ahead == 0
+                ? "Puts its visits on the Schedule, from today to its last day, at each place it applies to."
+                : "Booking again replaces the visits it booked that aren't done yet: after changing its days, say."
+        }
+        if contract.signedAt == nil { return "Book them once it's signed." }
+        if contract.client?.isActive == false { return "Its client is inactive: mark them active to book visits." }
+        return ""
+    }
+
+    private var bookMessage: String {
+        let plan = ContractSchedule.plan(contract, in: modelContext)
+        let ahead = ContractSchedule.visitsAhead(of: contract, in: modelContext).count
+        let count = plan.visits.count
+        var text = "\(ContractSchedule.summary(of: contract)): \(count == 1 ? "1 visit" : "\(count) visits") on the Schedule."
+        if ahead > 0 { text += " The \(ahead) it booked before that aren't done yet are replaced." }
+        if plan.keptDays > 0 {
+            text += " \(plan.keptDays == 1 ? "1 day already has" : "\(plan.keptDays) days already have") a visit there, left as it is."
+        }
+        return text
     }
 
     private var period: String {
