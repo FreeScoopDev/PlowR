@@ -95,6 +95,55 @@ enum ProofOfService {
         var id: UUID { record.id }
     }
 
+    /// A day marked below the contract's snow trigger (TriggerCheck), and
+    /// its photos.
+    struct Check: Identifiable {
+        let check: TriggerCheck
+        let photos: [StopPhoto]
+        var id: UUID { check.id }
+    }
+
+    /// The days at `placeID` marked below the contract's trigger in
+    /// `start…end`, oldest first, one per day: a check at the stop over a
+    /// mark by hand (it's PlowR's record of being there), then the earliest.
+    static func checks(of client: Client, placeID: String, from start: Date, to end: Date,
+                       in context: ModelContext, calendar: Calendar = .current) -> [Check] {
+        let first = calendar.startOfDay(for: start)
+        let last = calendar.startOfDay(for: end)
+        let inPeriod = TriggerChecks.of(clientID: client.id.uuidString, in: context).filter {
+            let day = calendar.startOfDay(for: $0.day)
+            return $0.placeID == placeID && day >= first && day <= last
+        }
+        return Dictionary(grouping: inPeriod) { calendar.startOfDay(for: $0.day) }
+            .values.compactMap { sameDay in
+                sameDay.min { ($0.isFromStop ? 0 : 1, $0.checkedAt) < ($1.isFromStop ? 0 : 1, $1.checkedAt) }
+            }
+            .sorted { $0.day < $1.day }
+            .map { Check(check: $0, photos: TriggerChecks.photos(of: $0, in: context)) }
+    }
+
+    /// What the report says about a day below the trigger, line by line.
+    static func lines(of check: Check, timeZone: TimeZone = .current, locale: Locale = .current) -> [String] {
+        let check = check.check
+        var time = Date.FormatStyle.dateTime.hour().minute().locale(locale)
+        time.timeZone = timeZone
+        var lines: [String]
+        if check.isFromStop {
+            lines = ["Checked on a route at \(check.checkedAt.formatted(time)): below the contract's snow trigger, "
+                     + "not cleared"]
+            lines.append(check.arrivedAt.map { "Arrived \($0.formatted(time)) (GPS, within about 100 m)" }
+                         ?? "Arrival not caught (GPS)")
+            if !check.routeName.isEmpty { lines.append("Route: \(check.routeName)") }
+        } else {
+            var when = Date.FormatStyle.dateTime.month(.abbreviated).day().hour().minute().locale(locale)
+            when.timeZone = timeZone
+            lines = ["Marked below the contract's snow trigger by hand (\(check.checkedAt.formatted(when))); "
+                     + "not a check at the property recorded by PlowR"]
+        }
+        if !check.note.isEmpty { lines.append("Notes: \(check.note)") }
+        return lines
+    }
+
     /// The jobs at `placeID` (Place.id) whose day (the day each started)
     /// falls in `start…end`, whole days, oldest first, with their photos.
     /// The same job recorded on two devices before iCloud merged them is
@@ -177,7 +226,7 @@ enum ProofOfService {
     /// pass as this visit's.
     static func caption(of photo: StopPhoto, visitDay: Date, timeZone: TimeZone = .current,
                         locale: Locale = .current, calendar: Calendar = .current) -> String {
-        let kind = photo.isBefore ? "Before" : "After"
+        let kind = photo.kindLabel
         guard let taken = photo.capturedAt else { return kind }
         var time = Date.FormatStyle.dateTime.hour().minute().locale(locale)
         time.timeZone = timeZone
@@ -193,12 +242,17 @@ enum ProofOfService {
     }
 
     /// The note at the end: what the times and photos are, and the zone.
-    static func note(withWeather: Bool = false, timeZone: TimeZone = .current) -> String {
+    static func note(withWeather: Bool = false, withChecks: Bool = false, timeZone: TimeZone = .current) -> String {
         let zone = timeZone.localizedName(for: .generic, locale: .current) ?? timeZone.identifier
         let weather = withWeather
             ? " Weather figures are estimates from a weather model (Open-Meteo's historical forecast archive, "
                 + "open-meteo.com) for the area within about 1 km: whole-day totals, before and after the visit, not "
                 + "measurements at the property, and not available before 2022 or for today."
+            : ""
+        let checksNote = withChecks
+            ? " A day below the contract's snow trigger was either checked on a route (Below Trigger saved on the "
+                + "route screen at that stop; its GPS arrival, when caught, shows the phone was there) or marked by "
+                + "hand, as each says."
             : ""
         return "About this report: it lists what was recorded in PlowR. A route stop's start is when it became the "
             + "current stop (the route started, or the previous stop was completed), so it includes travel; its "
@@ -210,15 +264,15 @@ enum ProofOfService {
             + "were saved with. \"Taken\" is when PlowR's camera took it. \"File dated\" is the date stored in a "
             + "photo picked from the library, which can be changed, and \"zone assumed\" means the file gave no "
             + "time zone, so it was read in the phone's. A photo with no time is one whose time PlowR doesn't "
-            + "know, and isn't shown to be from that visit.\(weather) Times are \(zone)."
+            + "know, and isn't shown to be from that visit.\(checksNote)\(weather) Times are \(zone)."
     }
 
     /// The report.
     /// `weather`: the estimates (VisitWeather). Not looked up (no pin), the
     /// report leaves weather out; failed, it says so once instead of
     /// showing every day without an estimate.
-    static func pdf(client: Client, place: ReportPlace, period: Period, visits: [Visit], profile: BusinessProfile?,
-                    weather: VisitWeather.Lookup = .notLookedUp, now: Date = .now) -> Data {
+    static func pdf(client: Client, place: ReportPlace, period: Period, visits: [Visit], checks: [Check] = [],
+                    profile: BusinessProfile?, weather: VisitWeather.Lookup = .notLookedUp, now: Date = .now) -> Data {
         PDFPageWriter.document(profile: profile) { page in
             page.header(title: title, subtitle: client.name, profile: profile)
             let day = Date.FormatStyle.dateTime.month(.wide).day().year()
@@ -229,6 +283,10 @@ enum ProofOfService {
                       .systemFont(ofSize: 11), gap: 10)
             page.heading("Summary")
             page.text(visits.count == 1 ? "1 visit recorded" : "\(visits.count) visits recorded", .systemFont(ofSize: 11), gap: 2)
+            if !checks.isEmpty {
+                page.text(checks.count == 1 ? "1 day below the contract's snow trigger"
+                          : "\(checks.count) days below the contract's snow trigger", .systemFont(ofSize: 11), gap: 2)
+            }
             if weather == .failed {
                 page.text("Weather: couldn't be looked up when this report was made.", .systemFont(ofSize: 11),
                           PDFGenerator.inkMid, gap: 2)
@@ -261,9 +319,35 @@ enum ProofOfService {
                 }
                 page.y += 10
             }
+            if !checks.isEmpty {
+                page.y += 6
+                page.heading("Below the Contract's Snow Trigger")
+            }
+            for entry in checks {
+                page.keep(60)
+                page.text(entry.check.day.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().year()),
+                          .systemFont(ofSize: 12, weight: .semibold), gap: 2)
+                for line in lines(of: entry) { page.text(line, .systemFont(ofSize: 10.5), gap: 2) }
+                if case .days(let days) = weather {
+                    page.text(VisitWeather.line(days[VisitWeather.dayString(entry.check.day)]), .systemFont(ofSize: 10.5),
+                              PDFGenerator.inkMid, gap: 2)
+                }
+                if !entry.photos.isEmpty {
+                    page.y += 4
+                    autoreleasepool {
+                        page.photos(entry.photos.compactMap { photo in
+                            UIImage(data: photo.imageData).map {
+                                (image: $0, caption: caption(of: photo, visitDay: entry.check.day))
+                            }
+                        })
+                    }
+                }
+                page.y += 10
+            }
             page.y += 10
             page.keep(60)
-            page.text(note(withWeather: weather != .notLookedUp), .systemFont(ofSize: 9), PDFGenerator.inkMid, gap: 2)
+            page.text(note(withWeather: weather != .notLookedUp, withChecks: !checks.isEmpty), .systemFont(ofSize: 9),
+                      PDFGenerator.inkMid, gap: 2)
             page.text("Prepared with PlowR on \(now.formatted(day)).", .systemFont(ofSize: 9), PDFGenerator.inkMid)
         }
     }

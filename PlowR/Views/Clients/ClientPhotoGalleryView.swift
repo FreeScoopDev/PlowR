@@ -23,7 +23,8 @@ struct ClientPhotoGalleryView: View {
     private var clientPhotos: [StopPhoto] {
         allPhotos
             .filter { $0.clientID == client.id.uuidString }
-            .filter { filterBefore == nil || $0.isBefore == filterBefore }
+            // Before and After are work photos; a below-trigger check's is neither.
+            .filter { filterBefore == nil || (!$0.isCheckPhoto && $0.isBefore == filterBefore) }
             .sorted { $0.displayTime > $1.displayTime }
     }
 
@@ -123,11 +124,12 @@ struct ClientPhotoGalleryView: View {
                     .fill(Color(.systemGray5))
                     .frame(height: 110)
             }
-            Label(photo.isBefore ? "Before" : "After",
-                  systemImage: photo.isBefore ? "clock" : "checkmark")
+            Label(photo.kindLabel,
+                  systemImage: photo.isCheckPhoto ? "arrow.down.circle" : photo.isBefore ? "clock" : "checkmark")
                 .font(.system(size: 9, weight: .semibold))
                 .padding(.horizontal, 5).padding(.vertical, 2)
-                .background(photo.isBefore ? Color.orange.opacity(0.85) : Color.green.opacity(0.85))
+                .background(photo.isCheckPhoto ? Color.gray.opacity(0.85)
+                            : photo.isBefore ? Color.orange.opacity(0.85) : Color.green.opacity(0.85))
                 .foregroundStyle(.white)
                 .clipShape(Capsule())
                 .padding(4)
@@ -278,7 +280,8 @@ private struct PhotoDetailView: View {
                             .padding()
                     }
                     VStack(alignment: .leading, spacing: 8) {
-                        LabeledContent("Type", value: photo.isBefore ? "Before Service" : "After Service")
+                        LabeledContent("Type", value: photo.isCheckPhoto ? "Below Trigger"
+                                       : photo.isBefore ? "Before Service" : "After Service")
                         // When it was taken, or the file's date, or when it was added: said which.
                         LabeledContent(photo.displayTimeLabel) {
                             Text(photo.displayTime, format: .dateTime.month(.abbreviated).day().year().hour().minute())
@@ -290,7 +293,7 @@ private struct PhotoDetailView: View {
                     .padding(.horizontal)
                 }
             }
-            .navigationTitle(photo.isBefore ? "Before Photo" : "After Photo")
+            .navigationTitle("\(photo.kindLabel) Photo")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

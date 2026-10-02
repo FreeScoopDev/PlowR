@@ -90,6 +90,14 @@ extension StopPhoto {
         }
     }
 
+    /// A below-trigger check's photo (TriggerCheck): of the ground, not
+    /// before or after work.
+    var isCheckPhoto: Bool { !checkID.isEmpty }
+
+    /// What it shows: before or after the work, or the ground at a stop found
+    /// below its contract's trigger. The one source, for the app and the report.
+    var kindLabel: String { isCheckPhoto ? "Below Trigger" : isBefore ? "Before" : "After" }
+
     /// A visit's photos in one order, in the app and the report: before,
     /// then after, each by its time.
     static func ordered(_ photos: [StopPhoto]) -> [StopPhoto] {

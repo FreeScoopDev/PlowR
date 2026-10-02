@@ -16,6 +16,7 @@ struct ActiveRouteView: View {
 
     @Query private var allClients: [Client]
     @Query private var allServices: [ServiceItem]
+    @Query private var allContracts: [Contract]
 
     @State private var locationManager = LocationManager()
     @State private var showingNotifyPrompt = false
@@ -32,6 +33,12 @@ struct ActiveRouteView: View {
     /// is up, and a sheet reading the current stop would then have saved this
     /// client's services, photos and invoice on the next one.
     @State private var recorderStop: RouteStop?
+    /// The stop being checked and found below its contract's trigger.
+    @State private var belowTriggerStop: RouteStop?
+    /// What Below Trigger did, acted on once its sheet has closed: iOS won't
+    /// present the recap or an alert over a sheet.
+    @State private var belowTriggerOutcome: TriggerChecks.PassOutcome?
+    @State private var showingBelowTriggerChangedAlert = false
     @State private var showingMassMessage = false
     @State private var showingFirstStopPrompt = false
     /// Siri's "Notify next client": a text to this stop's client, completing
@@ -75,6 +82,7 @@ struct ActiveRouteView: View {
     /// added here, or Control Center's message can try to show over it.
     private var isPresentingSomething: Bool {
         showingFirstStopPrompt || showingNotifyPrompt || textOnlyStop != nil || recorderStop != nil || showingMassMessage
+            || belowTriggerStop != nil || showingBelowTriggerChangedAlert
             || showingRouteRecap || showingNavPicker || showingRouteChangedAlert || showingLocationDeniedAlert
     }
 
@@ -287,6 +295,15 @@ struct ActiveRouteView: View {
         )
         .sheet(isPresented: $showingMassMessage) {
             MassMessageView(stops: sortedStops, allClients: allClients)
+        }
+        .sheet(item: $belowTriggerStop, onDismiss: belowTriggerDismissed) { stop in
+            BelowTriggerSheet(clientName: stop.clientName, triggerLabel: belowTrigger(for: stop)?.label ?? "",
+                              save: { passBelowTrigger(stop, note: $0, photos: $1) })
+        }
+        .alert("Route Changed", isPresented: $showingBelowTriggerChangedAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("This route was changed on another device, so it didn't move on. The below-trigger check was kept. Check the current stop.")
         }
         .sheet(isPresented: $showingRouteRecap) {
             RouteRecapView(
@@ -590,6 +607,23 @@ struct ActiveRouteView: View {
                 .buttonStyle(.plain)
             }
 
+            // A contract with a snow trigger in force today: less may have
+            // fallen here than the forecast said.
+            if belowTrigger(for: stop) != nil {
+                Button {
+                    belowTriggerStop = stop
+                } label: {
+                    Label("Below Trigger", systemImage: "arrow.down.circle")
+                        .font(.subheadline)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 10)
+                        .padding(.horizontal)
+                        .background(Color(.systemGray6))
+                        .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerMedium, style: .continuous))
+                }
+                .buttonStyle(.plain)
+            }
+
             if isLastStop {
                 Button {
                     switch store.completeCurrentStop(expecting: stop.id) {
@@ -825,6 +859,40 @@ struct ActiveRouteView: View {
             return
         }
         didAdvance()
+    }
+
+    /// The contract trigger Below Trigger offers at `stop` today, unless
+    /// Record Services already saved work there this run: that record (and
+    /// any invoice) would stand beside a "not cleared" check.
+    private func belowTrigger(for stop: RouteStop) -> StormWatch.Trigger? {
+        guard let client = client(for: stop), stop.completedServiceIDs.isEmpty else { return nil }
+        if let run = store.runID,
+           ServiceLog.existingRecordForStop(stop, of: client, run: run,
+                                            startedAt: store.stopStartedAt ?? store.runStartedAt ?? .now,
+                                            in: modelContext) != nil { return nil }
+        return TriggerChecks.trigger(for: stop, client: client, on: store.runStartedAt ?? .now,
+                                     contracts: allContracts, services: allServices)
+    }
+
+    /// Below Trigger, saved (TriggerChecks.passBelowTrigger). What follows
+    /// waits for the sheet to close.
+    private func passBelowTrigger(_ stop: RouteStop, note: String, photos: [CapturedPhoto]) {
+        guard let client = client(for: stop) else { return }
+        belowTriggerOutcome = TriggerChecks.passBelowTrigger(stop, of: client, store: store, routeName: route.name,
+                                                             operatorID: route.operatorID, note: note,
+                                                             photos: photos, in: modelContext)
+    }
+
+    private func belowTriggerDismissed() {
+        defer { belowTriggerOutcome = nil }
+        switch belowTriggerOutcome {
+        case .movedOn: didAdvance()
+        case .finishedRoute:
+            hapticSuccess()
+            showingRouteRecap = true
+        case .routeChanged: showingBelowTriggerChangedAlert = true
+        case .alreadyPast, nil: break
+        }
     }
 
     /// After this screen moved the store to the next stop. The new stop's

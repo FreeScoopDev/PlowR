@@ -95,6 +95,8 @@ struct AccountEraserTests {
                                clientAddress: client.address, scheduledDate: Date()),
                 ServiceRecord(operatorID: "op", sourceKey: "visit:\(UUID().uuidString)", source: .visit),
                 SentText(clientID: client.id.uuidString, kind: "text", body: "Hi", sentAt: Date()),
+                TriggerCheck(operatorID: "op", clientID: client.id.uuidString, clientName: client.name,
+                             placeID: client.id.uuidString, day: Date()),
             ]
             others.forEach { context.insert($0) }
             let property = Property(label: "North lot", address: "2 Elm St", operatorID: "op")

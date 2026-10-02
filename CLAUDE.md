@@ -153,6 +153,14 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   "arrival not caught", never a made-up time. `LocationManager` must not place
   or clear areas: replacing an area makes iOS work out afresh whether the
   phone is inside it, and a crossing then is missed.
+- **Below a contract's snow trigger** (`TriggerCheck`, `TriggerChecks`): a
+  day a client's place got less snow than their trigger, though the forecast
+  (the storm card, `StormWatch`) said a storm. Marked by hand (storm card,
+  contract page) or checked at the stop (Below Trigger on the route screen,
+  which calls `ActiveRouteStore.passCurrentStop(expecting:)`: moves on like
+  completing, but records no visit, time or Service Log record). A marked
+  stop starts skipped on its route's page (`TodaysRun.belowTrigger`). The
+  Service Report lists the days, saying which kind each is.
 - **A control that acts in the app needs its intent in both targets.**
   Control Center's `CompleteStopControlIntent` is compiled into the app and
   the widget extension, with `openAppWhenRun`, so the system runs it in the

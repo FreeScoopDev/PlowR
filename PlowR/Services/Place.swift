@@ -56,6 +56,11 @@ struct Place: Equatable {
         propertyID.isEmpty ? client.id.uuidString : propertyID
     }
 
+    /// `id(of:propertyID:)` for a stop, without fetching its client.
+    static func id(ofStop stop: RouteStop) -> String {
+        stop.propertyID.isEmpty ? stop.clientID.uuidString : stop.propertyID
+    }
+
     static func isMain(_ propertyID: String, of client: Client) -> Bool {
         propertyID.isEmpty || propertyID == client.id.uuidString
     }

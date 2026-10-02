@@ -194,6 +194,19 @@ final class ActiveRouteStore {
     /// (`.stopChanged`): a visit is never credited to a client who wasn't visited.
     @discardableResult
     func completeCurrentStop(expecting stopID: UUID) -> CompletionResult {
+        moveOn(expecting: stopID, recording: true)
+    }
+
+    /// Moves past the current stop without recording a visit: no time, no
+    /// visit on the client, nothing in the Service Log. For a stop checked and
+    /// found below its contract's snow trigger (the check is recorded by the
+    /// caller, TriggerChecks). The run's recap shows it as not serviced.
+    @discardableResult
+    func passCurrentStop(expecting stopID: UUID) -> CompletionResult {
+        moveOn(expecting: stopID, recording: false)
+    }
+
+    private func moveOn(expecting stopID: UUID, recording: Bool) -> CompletionResult {
         validate()
         guard isActive else { return .noActiveRoute }
         guard let stop = currentStop else {
@@ -202,7 +215,7 @@ final class ActiveRouteStore {
             return sortedStops.contains { $0.id == stopID } ? .allStopsAlreadyDone : .stopChanged
         }
         guard stopID == stop.id else { return .stopChanged }
-        recordVisit(for: stop)
+        if recording { recordVisit(for: stop) }
         currentStopIndex += 1
         currentStopID = currentStop?.id
         stopStartedAt = now()
