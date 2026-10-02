@@ -140,11 +140,25 @@ enum ProofOfService {
         return text
     }
 
+    /// A route stop's arrival and departure as GPS saw them, if it saw
+    /// either; nil if it saw neither.
+    static func siteTimes(of record: ServiceRecord, timeZone: TimeZone = .current,
+                          locale: Locale = .current) -> String? {
+        guard record.arrivedAt != nil || record.leftAt != nil else { return nil }
+        var time = Date.FormatStyle.dateTime.hour().minute().locale(locale)
+        time.timeZone = timeZone
+        let arrived = record.arrivedAt.map { "Arrived \($0.formatted(time))" } ?? "Arrival not caught"
+        let left = record.leftAt.map { "Left \($0.formatted(time))" } ?? "Departure not caught"
+        return "\(arrived) · \(left) (GPS, within about 100 m)"
+    }
+
     /// What the report says about a visit, line by line (also what tests read).
     static func lines(of visit: Visit, placeAddress: String, timeZone: TimeZone = .current,
                       locale: Locale = .current) -> [String] {
         let record = visit.record
-        var lines = [times(of: record, timeZone: timeZone, locale: locale), source(of: record)]
+        var lines = [times(of: record, timeZone: timeZone, locale: locale)]
+        if let site = siteTimes(of: record, timeZone: timeZone, locale: locale) { lines.append(site) }
+        lines.append(source(of: record))
         if !record.propertyAddress.isEmpty, record.propertyAddress != placeAddress {
             lines.append("At \(record.propertyAddress)")
         }
@@ -188,7 +202,10 @@ enum ProofOfService {
             : ""
         return "About this report: it lists what was recorded in PlowR. A route stop's start is when it became the "
             + "current stop (the route started, or the previous stop was completed), so it includes travel; its "
-            + "completion is when it was marked done. Visits completed from the Schedule or logged by hand have no "
+            + "completion is when it was marked done. \"Arrived\" and \"Left\" are when the phone came into and "
+            + "went out of an area about 100 m around the property's pin, as iOS reported it, which can be a few "
+            + "minutes late; \"not caught\" means it wasn't seen (location off, or already inside when the stop "
+            + "began). Visits completed from the Schedule or logged by hand have no "
             + "recorded time. Records can be edited in PlowR after the work. Photos are shown with the visit they "
             + "were saved with. \"Taken\" is when PlowR's camera took it. \"File dated\" is the date stored in a "
             + "photo picked from the library, which can be changed, and \"zone assumed\" means the file gave no "

@@ -59,6 +59,10 @@ struct PlowRApp: App {
         // preferences, and must leave the simulator's calendar alone.
         if !Self.isRunningUnderTests {
             CalendarSync.shared.configure(context: container.mainContext)
+            // Here, not with the route screen: iOS relaunches the app in the
+            // background when the crew reaches or leaves a job site, and hands
+            // the crossing to the location manager that exists then.
+            _ = SiteMonitor.shared
         }
     }
 

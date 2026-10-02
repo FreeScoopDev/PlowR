@@ -35,6 +35,12 @@ final class ServiceRecord {
 
     var startedAt: Date? = nil
     var performedAt: Date = Date()
+    /// A route stop's arrival and departure as GPS saw them (`SiteTimes`):
+    /// the phone crossing an area about 100 m around the stop's pin. nil
+    /// when it wasn't seen (location off, already inside when the stop
+    /// began, or not a route stop).
+    var arrivedAt: Date? = nil
+    var leftAt: Date? = nil
     var minutes: Double = 0.0
     /// JSON-encoded [ServiceRecord.Line]: the services and their prices then.
     var servicesData: Data = Data()

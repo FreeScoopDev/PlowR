@@ -44,7 +44,8 @@ which still work.
 SwiftData with a CloudKit-backed `ModelContainer`, the `@Model` types listed
 in `PlowRApp.models` (a count here went stale twice). `AuthManager` (Sign in with Apple, Keychain) is
 injected as an environment object. Services under `PlowR/Services/` own the
-platform work: `LocationManager` (geofencing per stop), `ActiveRouteStore`
+platform work: `LocationManager` (the route screen's GPS and ETAs), `SiteMonitor` (job-site
+areas, see below), `ActiveRouteStore`
 (the in-progress route: current stop, stop timer, checkpoint that survives a
 relaunch; Live Activity and widget via `SystemRouteSurfaces`),
 `RouteSessionManager` (what Siri and Control Center hand the route screen:
@@ -140,6 +141,18 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   request in `RouteSessionManager.textRequest`, and the route screen opens
   it once nothing else is up, if `NotifyNextAction.stopToOpen` says it's
   still for the current stop and under two minutes old.
+- **Job-site areas (geofences) belong to `SiteMonitor`, made at launch**,
+  not to a screen: iOS relaunches the app for a crossing and hands it to the
+  location manager that exists then. `ActiveRouteStore` decides what's watched
+  (the current stop, and completed stops awaiting a departure,
+  `SiteDepartures`, for two hours and past End Route) and what a crossing
+  means (`SiteTimes`: arrival and departure, put on the stop's
+  `ServiceRecord` as `arrivedAt` and `leftAt`). Only what GPS saw is kept: an
+  entry within a minute of the stop beginning or of its area being placed
+  (the pin moved, location allowed only then), or an exit with no entry, is
+  "arrival not caught", never a made-up time. `LocationManager` must not place
+  or clear areas: replacing an area makes iOS work out afresh whether the
+  phone is inside it, and a crossing then is missed.
 - **A control that acts in the app needs its intent in both targets.**
   Control Center's `CompleteStopControlIntent` is compiled into the app and
   the widget extension, with `openAppWhenRun`, so the system runs it in the

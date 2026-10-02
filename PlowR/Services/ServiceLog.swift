@@ -155,8 +155,15 @@ enum ServiceLog {
 
     /// The record this run already has for `stop` (the oldest, as `record(forKey:)`).
     private static func runRecord(for stop: RouteStop, run: UUID, in context: ModelContext) -> ServiceRecord? {
+        runRecord(run: run, stop: stop.id, in: context)
+    }
+
+    /// The record run `run` has for the stop with ID `stop`, whatever its key
+    /// (a stop that shared the day's visit is under the visit's). Found by
+    /// IDs, so the stop itself can be gone.
+    static func runRecord(run: UUID, stop: UUID, in context: ModelContext) -> ServiceRecord? {
         let runID = run.uuidString
-        let stopID = stop.id.uuidString
+        let stopID = stop.uuidString
         let descriptor = FetchDescriptor<ServiceRecord>(
             predicate: #Predicate { $0.runID == runID && $0.stopID == stopID })
         return oldest((try? context.fetch(descriptor)) ?? [])
@@ -652,7 +659,8 @@ enum ServiceLog {
     /// takes from the others what it lacks: an invoice together with the
     /// services it billed; the services a route recorded, over a visit's
     /// expected ones (or over a visit record's services edited by hand: the
-    /// merge can't tell those apart); notes; the route's times. Their photos
+    /// merge can't tell those apart); notes; the route's times and GPS
+    /// arrival and departure. Their photos
     /// move to it.
     /// A copy is merged only once it's `mergeAfter` old, and never when both
     /// are on different invoices: that double bill is real and stays in
@@ -693,6 +701,9 @@ enum ServiceLog {
                 survivor.performedAt = record.performedAt
                 survivor.minutes = record.minutes
             }
+            // GPS arrival and departure: only the crew's copy has them.
+            if survivor.arrivedAt == nil { survivor.arrivedAt = record.arrivedAt }
+            if survivor.leftAt == nil { survivor.leftAt = record.leftAt }
             if survivor.runID.isEmpty {
                 survivor.runID = record.runID
                 survivor.stopID = record.stopID

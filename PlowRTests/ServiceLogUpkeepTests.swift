@@ -270,6 +270,8 @@ struct ServiceLogUpkeepTests {
         newer.minutes = 12
         newer.runID = "run"
         newer.routeName = "Tuesday"
+        newer.arrivedAt = h.clock.addingTimeInterval(300)
+        newer.leftAt = h.clock.addingTimeInterval(900)
         let photo = StopPhoto(operatorID: "op", clientID: "", routeID: "", isBefore: false, imageData: Data([1]))
         photo.recordID = newer.id.uuidString
         let older = copy(h, secondsAfter: 0)
@@ -285,6 +287,8 @@ struct ServiceLogUpkeepTests {
         #expect(older.minutes == 12)
         #expect(older.runID == "run")
         #expect(older.routeName == "Tuesday")
+        #expect(older.arrivedAt == h.clock.addingTimeInterval(300))
+        #expect(older.leftAt == h.clock.addingTimeInterval(900))
         #expect(photo.recordID == older.id.uuidString)
     }
 
