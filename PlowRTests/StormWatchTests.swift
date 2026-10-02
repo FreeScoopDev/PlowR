@@ -44,9 +44,30 @@ struct StormWatchTests {
         return contract
     }
 
+    private func snowService(_ h: Harness, operatorID: String = "op", active: Bool = true,
+                             category: String = ServiceCatalog.snowKey) -> ServiceItem {
+        let service = ServiceItem(name: "Clearing", category: category, unitType: "flat", pricePerUnit: 50,
+                                  operatorID: operatorID)
+        service.isActive = active
+        h.context.insert(service)
+        return service
+    }
+
+    /// Every contract's client active.
+    private func book(_ contracts: [Contract], services: [ServiceItem]) -> StormWatch.Book {
+        StormWatch.Book(contracts: contracts, services: services,
+                        activeClientIDs: Set(contracts.map(\.clientID)), operatorID: "op")
+    }
+
     private func storm(_ days: [DayForecast], _ contracts: [Contract], offersSnow: Bool = true) -> StormWatch.Storm? {
-        StormWatch.storm(in: days, contracts: contracts, operatorID: "op", offersSnow: offersSnow,
-                         now: now, calendar: calendar)
+        let services: [ServiceItem] = offersSnow ? [snowServiceDetached()] : []
+        return StormWatch.storm(in: days, book: book(contracts, services: services), now: now, calendar: calendar)
+    }
+
+    /// A snow service not in any store (the book only reads its fields).
+    private func snowServiceDetached() -> ServiceItem {
+        ServiceItem(name: "Clearing", category: ServiceCatalog.snowKey, unitType: "flat", pricePerUnit: 50,
+                    operatorID: "op")
     }
 
     @Test func aForecastReachingATriggerIsAStormWithTheClientsItReaches() throws {
@@ -95,13 +116,70 @@ struct StormWatchTests {
             contract(h, "Twice", trigger: 5),
             contract(h, "Twice", trigger: 3)
         ]
-        let triggers = StormWatch.triggers(on: day(1, snow: nil).date, contracts: contracts, operatorID: "op",
+        let triggers = StormWatch.triggers(on: day(1, snow: nil).date, book: book(contracts, services: []),
                                            calendar: calendar)
         #expect(triggers.map(\.clientName) == ["Twice"])
         #expect(triggers.first?.inches == 3)
         // Their lowest trigger sets the storm, not the default.
         #expect(storm([day(1, snow: 1.5)], contracts) == nil)
         #expect(storm([day(1, snow: 3)], contracts)?.met.map(\.clientName) == ["Twice"])
+    }
+
+    @Test func everySnowfallIsReachedByAnyMeasurableForecast() throws {
+        let h = try Harness(stopCount: 0)
+        let snow = snowService(h)
+        let every = contract(h, "Every", trigger: 0)
+        every.serviceIDs = [snow.id.uuidString]
+        let four = contract(h, "Four", trigger: 4)
+        let found = try #require(StormWatch.storm(in: [day(1, snow: 2)], book: book([every, four], services: [snow]),
+                                                  now: now, calendar: calendar))
+        #expect(found.met.map(\.clientName) == ["Every"])
+        #expect(found.met.first?.label == "Every snowfall")
+        #expect(found.notMet.map(\.clientName) == ["Four"])
+        // A trace isn't snowfall.
+        #expect(StormWatch.storm(in: [day(1, snow: 0.04)], book: book([every], services: [snow]),
+                                 now: now, calendar: calendar) == nil)
+        #expect(StormWatch.storm(in: [day(1, snow: 0.1)], book: book([every], services: [snow]),
+                                 now: now, calendar: calendar) != nil)
+        // A contract with no snow service and no trigger isn't a snow contract.
+        let lawn = contract(h, "Lawn", trigger: 0)
+        #expect(StormWatch.triggers(on: now, book: book([lawn], services: [snow]), calendar: calendar).isEmpty)
+    }
+
+    @Test func aDeletedOrInactiveClientsContractIsntWaitingOnAStorm() throws {
+        let h = try Harness(stopCount: 0)
+        let gone = contract(h, "Gone", trigger: 1)
+        let resting = contract(h, "Resting", trigger: 1)
+        let active = contract(h, "Active", trigger: 3)
+        var b = book([gone, resting, active], services: [])
+        b.activeClientIDs = [active.clientID]
+        #expect(StormWatch.triggers(on: now, book: b, calendar: calendar).map(\.clientName) == ["Active"])
+        // Nor lowers the threshold.
+        #expect(StormWatch.storm(in: [day(1, snow: 2)], book: b, now: now, calendar: calendar) == nil)
+    }
+
+    @Test func onlyAnActiveSnowServiceOfTheBusinessCountsAsOfferingSnow() throws {
+        let h = try Harness(stopCount: 0)
+        #expect(StormWatch.offersSnow([snowService(h)], operatorID: "op"))
+        #expect(!StormWatch.offersSnow([snowService(h, category: "lawn")], operatorID: "op"))
+        #expect(!StormWatch.offersSnow([snowService(h, active: false)], operatorID: "op"))
+        #expect(!StormWatch.offersSnow([snowService(h, operatorID: "other")], operatorID: "op"))
+    }
+
+    @Test func snowfallIsReadInCentimetresAndAMissingValueKeepsTheDay() throws {
+        let json = """
+        {"daily":{"time":["2027-01-12","2027-01-13"],"weather_code":[73,3],"temperature_2m_max":[30,32],
+        "temperature_2m_min":[20,22],"precipitation_sum":[10,0],"snowfall_sum":[10.16,null]}}
+        """
+        let days = try WeatherService.forecast(from: Data(json.utf8))
+        #expect(days.count == 2)
+        #expect(abs((days[0].snowfallInches ?? 0) - 4) < 0.0001)
+        #expect(days[1].snowfallInches == nil)
+        let without = """
+        {"daily":{"time":["2027-01-12"],"weather_code":[3],"temperature_2m_max":[30],
+        "temperature_2m_min":[20],"precipitation_sum":[0]}}
+        """
+        #expect(try WeatherService.forecast(from: Data(without.utf8)).first?.snowfallInches == nil)
     }
 
     @Test func amountsAndDays() {
@@ -121,20 +199,43 @@ struct StormWatchTests {
                                      notMet: [])
         let request = try #require(NotificationService.shared.weatherAlertRequest(
             for: [], storm: storm, now: now, calendar: calendar))
-        #expect(request.content.body.hasPrefix("About 4 in of snow forecast"))
-        #expect(request.content.body.contains("2 clients' contract triggers are at or below it"))
+        #expect(request.content.body.hasPrefix("When PlowR last checked, about 4 in of snow was forecast"))
+        #expect(request.content.body.contains("That reaches 2 clients' contract triggers."))
         let trigger = try #require(request.trigger as? UNCalendarNotificationTrigger)
         #expect(trigger.dateComponents.day == 12 && trigger.dateComponents.hour == 18)    // this evening
         // One client.
         var one = storm
         one.met.removeLast()
-        #expect(StormWatch.alertBody(one).contains("1 client's contract trigger is at or below it"))
+        #expect(StormWatch.alertBody(one).contains("That reaches 1 client's contract trigger."))
     }
 
-    @Test func aStormTodayLeavesTheAlertToTheForecast() throws {
+    private func adverse(_ offset: Int, code: Int) -> DayForecast {
+        let base = day(offset, snow: nil)
+        return DayForecast(date: base.date, maxTempF: 30, minTempF: 20, weatherCode: code, precipitationMm: 5)
+    }
+
+    @Test func aStormTodayLeavesTomorrowsAlertToTheForecast() throws {
         let today = StormWatch.Storm(day: now, inches: 4, met: [], notMet: [])
-        // Nothing adverse after today: no alert (its evening has passed).
-        #expect(NotificationService.shared.weatherAlertRequest(for: [day(0, snow: 4)], storm: today,
-                                                               now: now, calendar: calendar) == nil)
+        let request = try #require(NotificationService.shared.weatherAlertRequest(
+            for: [adverse(0, code: 0), adverse(1, code: 73)], storm: today, now: now, calendar: calendar))
+        #expect(request.content.body.hasPrefix("Snow expected"))
+        let trigger = try #require(request.trigger as? UNCalendarNotificationTrigger)
+        #expect(trigger.dateComponents.day == 12 && trigger.dateComponents.hour == 18)
+    }
+
+    @Test func anEarlierAdverseDayKeepsItsAlertOverALaterStorm() throws {
+        // Freezing rain tomorrow, the storm the day after: tonight's warning stays.
+        let later = StormWatch.Storm(day: day(2, snow: nil).date, inches: 4, met: [], notMet: [])
+        let forecasts = [adverse(0, code: 0), adverse(1, code: 67), adverse(2, code: 75)]
+        let request = try #require(NotificationService.shared.weatherAlertRequest(
+            for: forecasts, storm: later, now: now, calendar: calendar))
+        #expect(request.content.body.hasPrefix("Freezing Rain expected"))
+        let trigger = try #require(request.trigger as? UNCalendarNotificationTrigger)
+        #expect(trigger.dateComponents.day == 12)
+        // The same day: the storm speaks for it.
+        let same = StormWatch.Storm(day: day(1, snow: nil).date, inches: 4, met: [], notMet: [])
+        let sameDay = try #require(NotificationService.shared.weatherAlertRequest(
+            for: forecasts, storm: same, now: now, calendar: calendar))
+        #expect(sameDay.content.body.hasPrefix("When PlowR last checked"))
     }
 }

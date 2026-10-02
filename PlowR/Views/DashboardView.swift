@@ -71,8 +71,10 @@ struct DashboardView: View {
     /// A storm coming, if the business offers a snow service or has a
     /// contract trigger (StormWatch).
     private var storm: StormWatch.Storm? {
-        StormWatch.storm(in: forecastDays, contracts: allContracts, operatorID: authManager.userID,
-                         offersSnow: StormWatch.offersSnow(allServices, operatorID: authManager.userID))
+        StormWatch.storm(in: forecastDays, book: StormWatch.Book(
+            contracts: allContracts, services: allServices,
+            activeClientIDs: Set(myClients.filter(\.isActive).map(\.id.uuidString)),
+            operatorID: authManager.userID))
     }
 
     private var myRoutes: [PlowRoute] {
@@ -92,7 +94,7 @@ struct DashboardView: View {
                     iCloudBanner
                     profileCard
                     if let w = dashWeather { dashWeatherStrip(w) }
-                    if let storm { StormCard(storm: storm, routes: myRoutes) }
+                    if let storm { StormCard(storm: storm, routes: myRoutes, clients: myClients) }
                     todayCard
                     financeRow
                     readyToSendRow
@@ -636,7 +638,8 @@ struct DashboardView: View {
 
 // MARK: - Card Container
 
-private struct DashCard<Content: View>: View {
+/// A Dashboard card's container; the storm card uses it too.
+struct DashCard<Content: View>: View {
     @ViewBuilder let content: Content
     var body: some View {
         VStack(spacing: 0) { content }

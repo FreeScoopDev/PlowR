@@ -38,14 +38,20 @@ final class NotificationService {
 
     /// The weather alert for `forecasts`: 6 PM the evening before the first
     /// adverse day in the next two, or nil if there's none or that evening has
-    /// passed. A storm (StormWatch) after today takes its place, with its
-    /// snowfall and contract triggers. A value, so a test can check when it fires.
+    /// passed. A storm (StormWatch) after today speaks for its own day, with
+    /// its snowfall and contract triggers; an adverse day before it (freezing
+    /// rain tomorrow, the storm the day after) keeps its own alert, the
+    /// earlier warning. A value, so a test can check when it fires.
     func weatherAlertRequest(for forecasts: [DayForecast], storm: StormWatch.Storm? = nil, now: Date = Date(),
                              calendar: Calendar = .current) -> UNNotificationRequest? {
         let today = calendar.startOfDay(for: now)
-        let upcomingStorm = storm.flatMap { calendar.startOfDay(for: $0.day) > today ? $0 : nil }
-        let alertDate = upcomingStorm?.day ?? adverseForecastDay(from: forecasts)?.date
-        guard let alertDate,
+        let adverse = adverseForecastDay(from: forecasts)
+        var upcomingStorm = storm.flatMap { calendar.startOfDay(for: $0.day) > today ? $0 : nil }
+        if let stormDay = upcomingStorm?.day, let adverseDay = adverse?.date,
+           calendar.startOfDay(for: adverseDay) < calendar.startOfDay(for: stormDay) {
+            upcomingStorm = nil
+        }
+        guard let alertDate = upcomingStorm?.day ?? adverse?.date,
               let evenBefore = calendar.date(byAdding: .day, value: -1, to: alertDate) else { return nil }
         var components = calendar.dateComponents([.year, .month, .day], from: evenBefore)
         components.hour = 18
@@ -56,7 +62,7 @@ final class NotificationService {
         content.title = "Weather Alert"
         if let upcomingStorm {
             content.body = StormWatch.alertBody(upcomingStorm)
-        } else if let alertDay = adverseForecastDay(from: forecasts) {
+        } else if let alertDay = adverse {
             let dayName = alertDay.date.formatted(.dateTime.weekday(.wide))
             content.body = "\(alertDay.description) expected \(dayName). Review your schedule."
         }

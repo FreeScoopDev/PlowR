@@ -21,7 +21,11 @@ struct MassMessageView: View {
     /// Why sending one at a time stopped, and who's left.
     @State private var stoppedNote: String?
 
-    private let presets: [(String, String)] = [
+    /// What the texts are kept as on each client's Timeline.
+    private let kind: TextLog.Kind
+    private let presets: [(String, String)]
+
+    static let routePresets: [(String, String)] = [
         ("Coming Today",  "Just letting you know we'll be at your property today."),
         ("On My Way",     "I'll be at your property soon."),
         ("Move Vehicles", "Please move any vehicles from the driveway when you get a chance."),
@@ -30,7 +34,12 @@ struct MassMessageView: View {
         ("Almost Done",   "I'm nearly finished and will be on my way shortly.")
     ]
 
-    init(stops: [RouteStop], allClients: [Client]) {
+    /// `presets` and `kind`: a screen texting for its own reason (the storm
+    /// card) brings its own quick texts, and what its texts are kept as.
+    init(stops: [RouteStop], allClients: [Client], presets: [(String, String)] = MassMessageView.routePresets,
+         kind: TextLog.Kind = .routeMessage) {
+        self.presets = presets
+        self.kind = kind
         let messageable = stops.filter { !$0.isCustomStop && !$0.clientPhone.isEmpty }
         self.stops = messageable
         self.allClients = allClients
@@ -266,7 +275,7 @@ struct MassMessageView: View {
         groupPhones = []
         showingComposer = false
         if outcome == .sent {
-            TextLog.record(.routeMessage, body: messageText, to: groupClientIDs, in: modelContext)
+            TextLog.record(kind, body: messageText, to: groupClientIDs, in: modelContext)
             dismiss()
         }
     }
@@ -278,7 +287,7 @@ struct MassMessageView: View {
         showingComposer = false
         guard let current = run else { return }
         if let clientID = current.textedClient(outcome) {
-            TextLog.record(.routeMessage, body: messageText, to: [clientID], in: modelContext)
+            TextLog.record(kind, body: messageText, to: [clientID], in: modelContext)
         }
         let step = MessageRun.step(current, outcome: outcome, selection: includedIDs)
         run = step.run

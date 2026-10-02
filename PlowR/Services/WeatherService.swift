@@ -113,6 +113,11 @@ actor WeatherService {
         let urlStr = "https://api.open-meteo.com/v1/forecast?latitude=\(lat)&longitude=\(lon)&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,snowfall_sum&temperature_unit=fahrenheit&forecast_days=7&timezone=auto"
         guard let url = URL(string: urlStr) else { throw URLError(.badURL) }
         let (data, _) = try await URLSession.shared.data(from: url)
+        return try Self.forecast(from: data)
+    }
+
+    /// Open-Meteo's daily forecast, as days. Snowfall comes in centimetres.
+    static func forecast(from data: Data) throws -> [DayForecast] {
         let resp = try JSONDecoder().decode(ForecastResponse.self, from: data)
         let d = resp.daily
         return d.time.indices.compactMap { i -> DayForecast? in
@@ -120,7 +125,7 @@ actor WeatherService {
                   i < d.temperature_2m_max.count,
                   i < d.temperature_2m_min.count,
                   i < d.precipitation_sum.count,
-                  let date = Self.dateParser.date(from: d.time[i]) else { return nil }
+                  let date = dateParser.date(from: d.time[i]) else { return nil }
             return DayForecast(
                 date: date,
                 maxTempF: d.temperature_2m_max[i],

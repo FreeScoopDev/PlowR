@@ -10,12 +10,18 @@ import Foundation
 /// and it only offers the route and the texts. Nothing is started or sent
 /// by itself.
 enum StormWatch {
-    /// A contract client and their trigger.
+    /// A contract client and their trigger. 0 is "Every snowfall", as the
+    /// contract's own page says it.
     struct Trigger: Equatable, Identifiable {
         var clientID: String
         var clientName: String
         var inches: Double
         var id: String { clientID }
+
+        /// The forecast that reaches it: "every snowfall" is any measurable one.
+        var reachedFrom: Double { max(inches, StormWatch.measurable) }
+        /// "2 in or more", "Every snowfall".
+        var label: String { inches > 0 ? "\(StormWatch.amount(inches)) or more" : "Every snowfall" }
     }
 
     struct Storm: Equatable {
@@ -30,15 +36,30 @@ enum StormWatch {
     /// Without a contract trigger, the forecast that counts as a storm for a
     /// business with snow services.
     static let defaultThreshold = 1.0
+    /// The least snowfall that counts as any: a tenth of an inch, as shown.
+    static let measurable = 0.1
     /// Today and the next two days.
     static let daysAhead = 3
 
-    /// The storm in `days`, if any. Contracts count when signed, with a
-    /// trigger, and in force that day; each client once, at their lowest
-    /// trigger. A business with no contract trigger counts a storm from
-    /// `defaultThreshold`, and only if it offers a snow service at all.
-    static func storm(in days: [DayForecast], contracts: [Contract], operatorID: String, offersSnow: Bool,
-                      now: Date = .now, calendar: Calendar = .current) -> Storm? {
+    /// What a storm is measured against: the business's contracts, its
+    /// services (which say whether a contract covers snow, and whether the
+    /// business offers it at all) and its active clients.
+    struct Book {
+        var contracts: [Contract]
+        var services: [ServiceItem]
+        /// Active clients' IDs (uuidString): a deleted or inactive client's
+        /// contract, kept as a record, isn't waiting on a storm.
+        var activeClientIDs: Set<String>
+        var operatorID: String
+    }
+
+    /// The storm in `days`, if any. A contract counts when it's for snow
+    /// (a snow service, or a trigger), signed, in force that day, and for an
+    /// active client; each client once, at their lowest trigger. Without any,
+    /// a business offering a snow service counts a storm from
+    /// `defaultThreshold`; one that doesn't, never.
+    static func storm(in days: [DayForecast], book: Book, now: Date = .now,
+                      calendar: Calendar = .current) -> Storm? {
         let today = calendar.startOfDay(for: now)
         guard let end = calendar.date(byAdding: .day, value: daysAhead, to: today) else { return nil }
         let ahead = days
@@ -49,27 +70,29 @@ enum StormWatch {
             // while reading "2 in".
             guard let raw = day.snowfallInches, raw > 0 else { continue }
             let inches = (raw * 10).rounded() / 10
-            let triggers = triggers(on: day.date, contracts: contracts, operatorID: operatorID, calendar: calendar)
-            let threshold = triggers.map(\.inches).min() ?? (offersSnow ? defaultThreshold : .infinity)
+            let triggers = triggers(on: day.date, book: book, calendar: calendar)
+            let offersSnow = offersSnow(book.services, operatorID: book.operatorID)
+            let threshold = triggers.map(\.reachedFrom).min() ?? (offersSnow ? defaultThreshold : .infinity)
             guard inches >= threshold else { continue }
             return Storm(day: day.date, inches: inches,
-                         met: triggers.filter { inches >= $0.inches },
-                         notMet: triggers.filter { inches < $0.inches })
+                         met: triggers.filter { inches >= $0.reachedFrom },
+                         notMet: triggers.filter { inches < $0.reachedFrom })
         }
         return nil
     }
 
     /// Whether the business offers an active snow service.
     static func offersSnow(_ services: [ServiceItem], operatorID: String) -> Bool {
-        let snow = ServiceCatalog.standardCategories.first?.key ?? "snow"
-        return services.contains { $0.operatorID == operatorID && $0.isActive && $0.category == snow }
+        services.contains { $0.operatorID == operatorID && $0.isActive && $0.category == ServiceCatalog.snowKey }
     }
 
     /// The clients with a contract trigger in force on `day`, by name.
-    static func triggers(on day: Date, contracts: [Contract], operatorID: String,
-                         calendar: Calendar = .current) -> [Trigger] {
+    static func triggers(on day: Date, book: Book, calendar: Calendar = .current) -> [Trigger] {
         var lowest: [String: Trigger] = [:]
-        for contract in contracts where contract.operatorID == operatorID && contract.triggerInches > 0 {
+        for contract in book.contracts where contract.operatorID == book.operatorID
+            && book.activeClientIDs.contains(contract.clientID)
+            && (contract.triggerInches > 0
+                || Contracts.coversSnow(Set(contract.serviceIDs), catalog: book.services)) {
             guard contract.placeIDs.contains(where: {
                 Contracts.covers(contract, placeID: $0, on: day, calendar: calendar)
             }) else { continue }
@@ -96,15 +119,15 @@ enum StormWatch {
         return day.formatted(.dateTime.weekday(.wide))
     }
 
-    /// The alert's line: "About 4 in of snow forecast Tuesday. 7 clients'
-    /// contract triggers are at or below it."
+    /// The alert's line. Said as of when PlowR last looked: the alert is set
+    /// then, and the forecast can change before it shows.
     static func alertBody(_ storm: Storm) -> String {
         let day = storm.day.formatted(.dateTime.weekday(.wide))
-        var body = "About \(amount(storm.inches)) of snow forecast \(day) for your area."
+        var body = "When PlowR last checked, about \(amount(storm.inches)) of snow was forecast \(day) for your area."
         let count = storm.met.count
         if count > 0 {
-            body += " \(count) client\(count == 1 ? "'s" : "s'") contract trigger\(count == 1 ? " is" : "s are") at or below it."
+            body += " That reaches \(count) client\(count == 1 ? "'s" : "s'") contract trigger\(count == 1 ? "" : "s")."
         }
-        return body + " Review your routes."
+        return body + " Open PlowR for the latest."
     }
 }

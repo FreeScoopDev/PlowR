@@ -1,29 +1,70 @@
 import SwiftUI
 
 /// The Dashboard's storm card (StormWatch): the snowfall forecast, which
-/// contract clients' triggers it reaches, and the routes, each opening its
-/// page, where Message All Clients and Start are. Snow-only, so it lives
-/// apart from the shared Dashboard.
+/// contract clients' triggers it reaches, a text to those clients, and the
+/// routes, each opening its page, where Message All Clients and Start are.
+/// Snow-only, so it lives apart from the shared Dashboard.
 struct StormCard: View {
     let storm: StormWatch.Storm
     let routes: [PlowRoute]
+    let clients: [Client]
+
+    /// Stand-in stops for the clients being texted: the message screen works
+    /// from stops. Never saved.
+    @State private var textStops: [RouteStop]?
+
+    static let presets: [(String, String)] = [
+        ("Storm Coming", "Snow is in the forecast. We'll be out to clear your property once it reaches the depth in your contract."),
+        ("Clearing Today", "We're out clearing snow today and will be at your property as soon as we can."),
+        ("Please Move Vehicles", "Please move any vehicles from the driveway so we can clear it fully.")
+    ]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Label("Storm", systemImage: "cloud.snow.fill")
                 .font(.subheadline.weight(.semibold))
-            VStack(alignment: .leading, spacing: 0) {
-                forecast.padding(14)
-                if !storm.met.isEmpty || !storm.notMet.isEmpty {
+            DashCard {
+                VStack(alignment: .leading, spacing: 0) {
+                    forecast.padding(14)
+                    if !storm.met.isEmpty || !storm.notMet.isEmpty {
+                        Divider()
+                        triggers.padding(14)
+                    }
+                    if !reachedWithPhones.isEmpty {
+                        Divider()
+                        textButton
+                    }
                     Divider()
-                    triggers.padding(14)
+                    routeLinks
                 }
-                Divider()
-                routeLinks
             }
-            .background(Color(.secondarySystemGroupedBackground))
-            .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
         }
+        .sheet(isPresented: Binding(get: { textStops != nil }, set: { if !$0 { textStops = nil } })) {
+            MassMessageView(stops: textStops ?? [], allClients: clients, presets: Self.presets, kind: .text)
+        }
+    }
+
+    /// The clients whose trigger the forecast reaches, with a phone on file.
+    private var reachedWithPhones: [Client] {
+        let ids = Set(storm.met.map(\.clientID))
+        return clients.filter { ids.contains($0.id.uuidString) && !$0.phone.isEmpty }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    private var textButton: some View {
+        Button {
+            textStops = reachedWithPhones.enumerated().map { RouteStop(order: $0.offset, client: $0.element) }
+        } label: {
+            let count = reachedWithPhones.count
+            Label("Text \(count) Client\(count == 1 ? "" : "s") Whose Trigger It Reaches",
+                  systemImage: "bubble.left.and.bubble.right")
+                .font(.subheadline.weight(.semibold))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(14)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.tint)
     }
 
     private var forecast: some View {
@@ -42,17 +83,19 @@ struct StormCard: View {
                 DisclosureGroup {
                     names(storm.met)
                 } label: {
-                    Label("\(count(storm.met)) at or below the forecast", systemImage: "checkmark.circle.fill")
-                        .font(.subheadline)
-                        .foregroundStyle(.primary)
+                    Label {
+                        Text("\(count(storm.met)) reached")
+                    } icon: {
+                        Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                    }
+                    .font(.subheadline)
                 }
-                .tint(.green)
             }
             if !storm.notMet.isEmpty {
                 DisclosureGroup {
                     names(storm.notMet)
                 } label: {
-                    Label("\(count(storm.notMet)) above it", systemImage: "circle")
+                    Label("\(count(storm.notMet)) not reached", systemImage: "circle")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -70,7 +113,7 @@ struct StormCard: View {
                 HStack {
                     Text(trigger.clientName.isEmpty ? "Client" : trigger.clientName)
                     Spacer()
-                    Text("\(StormWatch.amount(trigger.inches)) trigger").foregroundStyle(.secondary)
+                    Text(trigger.label).foregroundStyle(.secondary)
                 }
                 .font(.subheadline)
             }
