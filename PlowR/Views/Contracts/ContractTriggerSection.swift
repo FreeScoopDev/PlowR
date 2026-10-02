@@ -2,7 +2,7 @@ import SwiftUI
 
 /// A snow contract's trigger: work starts at this depth of snow. Its own
 /// file, as snow-only features are, and shown only when the contract covers
-/// a snow service. Kept for the storm trigger to use.
+/// a snow service. The Dashboard's storm card goes by it (StormWatch).
 struct ContractTriggerSection: View {
     @Binding var inches: Double
 
@@ -12,7 +12,7 @@ struct ContractTriggerSection: View {
                 LabeledContent("Snow Trigger", value: inches > 0 ? "\(inches.formatted()) in or more" : "Every snowfall")
             }
         } footer: {
-            Text("Snow clearing starts at this depth. Recorded with the contract for now.")
+            Text("Snow clearing starts at this depth. The Dashboard shows a storm card when the forecast reaches it.")
         }
     }
 }

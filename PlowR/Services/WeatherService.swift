@@ -20,6 +20,9 @@ struct DayForecast {
     let minTempF: Double
     let weatherCode: Int
     let precipitationMm: Double
+    /// The weather model's snowfall for the whole day, in inches; nil when
+    /// it gave none (StormWatch).
+    var snowfallInches: Double?
 
     var symbolName: String { wmoInfo(weatherCode).1 }
     var description: String { wmoInfo(weatherCode).0 }
@@ -45,6 +48,8 @@ private struct ForecastResponse: Decodable {
         let temperature_2m_max: [Double]
         let temperature_2m_min: [Double]
         let precipitation_sum: [Double]
+        /// Centimetres. Optional: a missing value mustn't lose the forecast.
+        let snowfall_sum: [Double?]?
     }
     let daily: Daily
 }
@@ -105,9 +110,14 @@ actor WeatherService {
     func fetchForecast(latitude: Double, longitude: Double) async throws -> [DayForecast] {
         let lat = RoundedCoordinates.round(latitude)
         let lon = RoundedCoordinates.round(longitude)
-        let urlStr = "https://api.open-meteo.com/v1/forecast?latitude=\(lat)&longitude=\(lon)&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum&temperature_unit=fahrenheit&forecast_days=7&timezone=auto"
+        let urlStr = "https://api.open-meteo.com/v1/forecast?latitude=\(lat)&longitude=\(lon)&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,snowfall_sum&temperature_unit=fahrenheit&forecast_days=7&timezone=auto"
         guard let url = URL(string: urlStr) else { throw URLError(.badURL) }
         let (data, _) = try await URLSession.shared.data(from: url)
+        return try Self.forecast(from: data)
+    }
+
+    /// Open-Meteo's daily forecast, as days. Snowfall comes in centimetres.
+    static func forecast(from data: Data) throws -> [DayForecast] {
         let resp = try JSONDecoder().decode(ForecastResponse.self, from: data)
         let d = resp.daily
         return d.time.indices.compactMap { i -> DayForecast? in
@@ -115,13 +125,14 @@ actor WeatherService {
                   i < d.temperature_2m_max.count,
                   i < d.temperature_2m_min.count,
                   i < d.precipitation_sum.count,
-                  let date = Self.dateParser.date(from: d.time[i]) else { return nil }
+                  let date = dateParser.date(from: d.time[i]) else { return nil }
             return DayForecast(
                 date: date,
                 maxTempF: d.temperature_2m_max[i],
                 minTempF: d.temperature_2m_min[i],
                 weatherCode: d.weather_code[i],
-                precipitationMm: d.precipitation_sum[i]
+                precipitationMm: d.precipitation_sum[i],
+                snowfallInches: d.snowfall_sum.flatMap { i < $0.count ? $0[i] : nil }.map { $0 / 2.54 }
             )
         }
     }

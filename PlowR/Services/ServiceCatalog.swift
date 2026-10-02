@@ -19,11 +19,14 @@ enum ServiceCatalog {
 
     /// In the order the catalog lists them. Services the user adds are "custom".
     static let standardCategories = [
-        Category(key: "snow", label: "Snow Removal"),
+        Category(key: snowKey, label: "Snow Removal"),
         Category(key: "lawn", label: "Lawn Care"),
         Category(key: "cleanup", label: "Cleanup")
     ]
     static let custom = Category(key: "custom", label: "Custom Services")
+    /// The snow category's key: snow-only features (contract triggers, the
+    /// storm card) go by it.
+    static let snowKey = "snow"
 
     /// What a business has to pick from.
     enum Coverage: Equatable {

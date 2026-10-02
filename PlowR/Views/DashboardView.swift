@@ -14,8 +14,14 @@ struct DashboardView: View {
     @Query private var allProposals: [Proposal]
     @Query private var allRecords: [ServiceRecord]
     @Query private var allContracts: [Contract]
+    @Query private var allServices: [ServiceItem]
 
     @State private var dashWeather: WeatherCondition?
+    /// The coming days' forecast, for the storm card.
+    @State private var forecastDays: [DayForecast] = []
+    /// Stand-in stops for the storm card's text (the message screen works
+    /// from stops). Never saved.
+    @State private var stormTextStops: [RouteStop]?
     private let iCloud = ICloudStatus.shared
 
     @State private var showingSettings = false
@@ -65,6 +71,20 @@ struct DashboardView: View {
         Payments.owed(myProposals)
     }
 
+    /// A storm coming, if the business offers a snow service or has a
+    /// contract trigger (StormWatch).
+    private var storm: StormWatch.Storm? {
+        StormWatch.storm(in: forecastDays, book: StormWatch.Book(
+            contracts: allContracts, services: allServices,
+            activeClientIDs: Set(myClients.filter(\.isActive).map(\.id.uuidString)),
+            operatorID: authManager.userID))
+    }
+
+    private var myRoutes: [PlowRoute] {
+        allRoutes.filter { $0.operatorID == authManager.userID }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
     private var overdueCount: Int { myProposals.filter { $0.invoiceStatus == .overdue }.count }
     private var draftCount:   Int { myProposals.filter { $0.invoiceStatus == .draft   }.count }
 
@@ -77,6 +97,11 @@ struct DashboardView: View {
                     iCloudBanner
                     profileCard
                     if let w = dashWeather { dashWeatherStrip(w) }
+                    if let storm {
+                        StormCard(storm: storm, routes: myRoutes, clients: myClients) { clients in
+                            stormTextStops = clients.enumerated().map { RouteStop(order: $0.offset, client: $0.element) }
+                        }
+                    }
                     todayCard
                     financeRow
                     readyToSendRow
@@ -105,6 +130,10 @@ struct DashboardView: View {
         .sheet(isPresented: $showingContactScanner) { ContactScannerView() }
         .sheet(isPresented: $showingCreateRoute) { CreateRouteView() }
         .sheet(isPresented: $showingAddVisit)   { AddVisitView() }
+        .sheet(isPresented: Binding(get: { stormTextStops != nil }, set: { if !$0 { stormTextStops = nil } })) {
+            MassMessageView(stops: stormTextStops ?? [], allClients: myClients,
+                            presets: StormCard.presets, kind: .text)
+        }
         .task {
             iCloud.watch()
             NotificationService.shared.requestAuthorization()
@@ -188,7 +217,8 @@ struct DashboardView: View {
         async let forecast = WeatherService.shared.fetchForecast(latitude: lat, longitude: lon)
         dashWeather = try? await currentWeather
         if let days = try? await forecast {
-            NotificationService.shared.scheduleWeatherAlert(for: days)
+            forecastDays = days
+            NotificationService.shared.scheduleWeatherAlert(for: days, storm: storm)
         }
     }
 
@@ -619,7 +649,8 @@ struct DashboardView: View {
 
 // MARK: - Card Container
 
-private struct DashCard<Content: View>: View {
+/// A Dashboard card's container; the storm card uses it too.
+struct DashCard<Content: View>: View {
     @ViewBuilder let content: Content
     var body: some View {
         VStack(spacing: 0) { content }

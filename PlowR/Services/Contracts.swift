@@ -110,8 +110,7 @@ enum Contracts {
     /// Whether these services include a snow one: only then does a
     /// contract keep a snow trigger.
     static func coversSnow(_ serviceIDs: Set<String>, catalog: [ServiceItem]) -> Bool {
-        let snow = ServiceCatalog.standardCategories.first?.key ?? "snow"
-        return catalog.contains { serviceIDs.contains($0.id.uuidString) && $0.category == snow }
+        catalog.contains { serviceIDs.contains($0.id.uuidString) && $0.category == ServiceCatalog.snowKey }
     }
 
     /// The name a contract gets when none is typed: its months.
