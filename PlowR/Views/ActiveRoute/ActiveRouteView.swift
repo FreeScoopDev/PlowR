@@ -839,22 +839,22 @@ struct ActiveRouteView: View {
         textOnlyStop = NotifyNextAction.stopToOpen(request, in: store)
     }
 
-    /// The Complete button and leaving a stop's geofence land here.
     /// After Below Trigger moved on: the client now current is offered the
     /// "on my way" text, as after Done (unless they'd rather not be texted).
-    /// The passed stop is behind the current one, so the prompt's advance
-    /// only confirms it (`advance(completing:)`), completing nothing.
+    /// It names no stop to complete (`promptStopID` nil), so its Send or
+    /// Skip completes nothing, even if iCloud brings the passed stop back.
     /// Returns whether it was offered.
     private func offerHeadsUp(after passedID: UUID) -> Bool {
         guard let next = currentStop, !showingNotifyPrompt, store.isBehindCurrentStop(passedID),
               client(for: next)?.skipNotificationPrompt != true else { return false }
-        promptStopID = passedID
+        promptStopID = nil
         promptNextStop = next
         haptic(.light)
         showingNotifyPrompt = true
         return true
     }
 
+    /// The Complete button and leaving a stop's geofence land here.
     private func openNotifyPrompt() {
         guard let next = nextStop, !showingNotifyPrompt else { return }
         promptStopID = currentStop?.id
@@ -863,15 +863,10 @@ struct ActiveRouteView: View {
         showingNotifyPrompt = true
     }
 
+    /// `stopID`: the stop to complete; nil for the heads-up after Below
+    /// Trigger, which completes nothing (NotifyAdvance).
     private func advance(completing stopID: UUID?) {
-        guard let stopID else { return }
-        // Completed meanwhile by Siri or Control Center, with the notify sheet
-        // up: done, not "changed on another device".
-        if store.isBehindCurrentStop(stopID) {
-            didAdvance()
-            return
-        }
-        if store.completeCurrentStop(expecting: stopID) == .stopChanged {
+        if NotifyAdvance.run(completing: stopID, store: store) == .stopChanged {
             if showingNotifyPrompt { routeChangedAfterSheet = true } else { showingRouteChangedAlert = true }
             return
         }
