@@ -19,7 +19,7 @@ enum ServiceCatalog {
 
     /// In the order the catalog lists them. Services the user adds are "custom".
     static let standardCategories = [
-        Category(key: "snow", label: "Snow Removal"),
+        Category(key: snowKey, label: "Snow Removal"),
         Category(key: "lawn", label: "Lawn Care"),
         Category(key: "cleanup", label: "Cleanup")
     ]

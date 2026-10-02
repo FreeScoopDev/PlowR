@@ -8,10 +8,10 @@ struct StormCard: View {
     let storm: StormWatch.Storm
     let routes: [PlowRoute]
     let clients: [Client]
-
-    /// Stand-in stops for the clients being texted: the message screen works
-    /// from stops. Never saved.
-    @State private var textStops: [RouteStop]?
+    /// Opens the message screen for these clients. The Dashboard holds the
+    /// sheet: this card goes when the storm does (midnight, a synced change),
+    /// and mustn't take a send part-way through with it.
+    let text: ([Client]) -> Void
 
     static let presets: [(String, String)] = [
         ("Storm Coming", "Snow is in the forecast. We'll be out to clear your property once it reaches the depth in your contract."),
@@ -39,9 +39,6 @@ struct StormCard: View {
                 }
             }
         }
-        .sheet(isPresented: Binding(get: { textStops != nil }, set: { if !$0 { textStops = nil } })) {
-            MassMessageView(stops: textStops ?? [], allClients: clients, presets: Self.presets, kind: .text)
-        }
     }
 
     /// The clients whose trigger the forecast reaches, with a phone on file.
@@ -52,12 +49,10 @@ struct StormCard: View {
     }
 
     private var textButton: some View {
-        Button {
-            textStops = reachedWithPhones.enumerated().map { RouteStop(order: $0.offset, client: $0.element) }
-        } label: {
-            let count = reachedWithPhones.count
-            Label("Text \(count) Client\(count == 1 ? "" : "s") Whose Trigger It Reaches",
-                  systemImage: "bubble.left.and.bubble.right")
+        // No count: clients who'd rather not be texted are listed but start
+        // unticked, as on a route's Message All.
+        Button { text(reachedWithPhones) } label: {
+            Label("Text Clients Whose Trigger It Reaches", systemImage: "bubble.left.and.bubble.right")
                 .font(.subheadline.weight(.semibold))
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(14)

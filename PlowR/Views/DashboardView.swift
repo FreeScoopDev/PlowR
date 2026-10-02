@@ -19,6 +19,9 @@ struct DashboardView: View {
     @State private var dashWeather: WeatherCondition?
     /// The coming days' forecast, for the storm card.
     @State private var forecastDays: [DayForecast] = []
+    /// Stand-in stops for the storm card's text (the message screen works
+    /// from stops). Never saved.
+    @State private var stormTextStops: [RouteStop]?
     private let iCloud = ICloudStatus.shared
 
     @State private var showingSettings = false
@@ -94,7 +97,11 @@ struct DashboardView: View {
                     iCloudBanner
                     profileCard
                     if let w = dashWeather { dashWeatherStrip(w) }
-                    if let storm { StormCard(storm: storm, routes: myRoutes, clients: myClients) }
+                    if let storm {
+                        StormCard(storm: storm, routes: myRoutes, clients: myClients) { clients in
+                            stormTextStops = clients.enumerated().map { RouteStop(order: $0.offset, client: $0.element) }
+                        }
+                    }
                     todayCard
                     financeRow
                     readyToSendRow
@@ -123,6 +130,10 @@ struct DashboardView: View {
         .sheet(isPresented: $showingContactScanner) { ContactScannerView() }
         .sheet(isPresented: $showingCreateRoute) { CreateRouteView() }
         .sheet(isPresented: $showingAddVisit)   { AddVisitView() }
+        .sheet(isPresented: Binding(get: { stormTextStops != nil }, set: { if !$0 { stormTextStops = nil } })) {
+            MassMessageView(stops: stormTextStops ?? [], allClients: myClients,
+                            presets: StormCard.presets, kind: .text)
+        }
         .task {
             iCloud.watch()
             NotificationService.shared.requestAuthorization()

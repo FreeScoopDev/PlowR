@@ -41,12 +41,21 @@ final class NotificationService {
     /// passed. A storm (StormWatch) after today speaks for its own day, with
     /// its snowfall and contract triggers; an adverse day before it (freezing
     /// rain tomorrow, the storm the day after) keeps its own alert, the
-    /// earlier warning. A value, so a test can check when it fires.
+    /// earlier warning. Under an inch, a storm alerts only on a day already
+    /// adverse. A value, so a test can check when it fires.
     func weatherAlertRequest(for forecasts: [DayForecast], storm: StormWatch.Storm? = nil, now: Date = Date(),
                              calendar: Calendar = .current) -> UNNotificationRequest? {
         let today = calendar.startOfDay(for: now)
         let adverse = adverseForecastDay(from: forecasts)
         var upcomingStorm = storm.flatMap { calendar.startOfDay(for: $0.day) > today ? $0 : nil }
+        // A flurry reaching an "Every snowfall" contract shows on the card;
+        // an evening alert takes a real storm: an inch, or a day the
+        // forecast already calls adverse. Otherwise it's ignored for its noise.
+        if let small = upcomingStorm, small.inches < StormWatch.defaultThreshold,
+           !forecasts.contains(where: { calendar.isDate($0.date, inSameDayAs: small.day)
+               && adverseCodes.contains($0.weatherCode) }) {
+            upcomingStorm = nil
+        }
         if let stormDay = upcomingStorm?.day, let adverseDay = adverse?.date,
            calendar.startOfDay(for: adverseDay) < calendar.startOfDay(for: stormDay) {
             upcomingStorm = nil

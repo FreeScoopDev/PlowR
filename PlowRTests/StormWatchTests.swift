@@ -214,6 +214,22 @@ struct StormWatchTests {
         return DayForecast(date: base.date, maxTempF: 30, minTempF: 20, weatherCode: code, precipitationMm: 5)
     }
 
+    @Test func aFlurryShowsOnTheCardButAlertsOnlyOnAnAdverseDay() throws {
+        let flurry = StormWatch.Storm(day: day(1, snow: nil).date, inches: 0.3, met: [], notMet: [])
+        // Overcast with a flurry: no evening alert.
+        #expect(NotificationService.shared.weatherAlertRequest(
+            for: [adverse(0, code: 0), adverse(1, code: 3)], storm: flurry, now: now, calendar: calendar) == nil)
+        // Snow showers forecast that day: the storm speaks for it.
+        let request = try #require(NotificationService.shared.weatherAlertRequest(
+            for: [adverse(0, code: 0), adverse(1, code: 85)], storm: flurry, now: now, calendar: calendar))
+        #expect(request.content.body.hasPrefix("When PlowR last checked"))
+        // An inch alerts whatever the code.
+        var inch = flurry
+        inch.inches = StormWatch.defaultThreshold
+        #expect(NotificationService.shared.weatherAlertRequest(
+            for: [adverse(0, code: 0), adverse(1, code: 3)], storm: inch, now: now, calendar: calendar) != nil)
+    }
+
     @Test func aStormTodayLeavesTomorrowsAlertToTheForecast() throws {
         let today = StormWatch.Storm(day: now, inches: 4, met: [], notMet: [])
         let request = try #require(NotificationService.shared.weatherAlertRequest(
