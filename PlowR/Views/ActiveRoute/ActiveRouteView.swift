@@ -38,6 +38,8 @@ struct ActiveRouteView: View {
     /// What Below Trigger did, acted on once its sheet has closed: iOS won't
     /// present the recap or an alert over a sheet.
     @State private var belowTriggerOutcome: TriggerChecks.PassOutcome?
+    /// The stop Below Trigger moved past, for the heads-up offered after it.
+    @State private var belowTriggerPassedID: UUID?
     @State private var showingBelowTriggerChangedAlert = false
     @State private var showingMassMessage = false
     @State private var showingFirstStopPrompt = false
@@ -838,6 +840,21 @@ struct ActiveRouteView: View {
     }
 
     /// The Complete button and leaving a stop's geofence land here.
+    /// After Below Trigger moved on: the client now current is offered the
+    /// "on my way" text, as after Done (unless they'd rather not be texted).
+    /// The passed stop is behind the current one, so the prompt's advance
+    /// only confirms it (`advance(completing:)`), completing nothing.
+    /// Returns whether it was offered.
+    private func offerHeadsUp(after passedID: UUID) -> Bool {
+        guard let next = currentStop, !showingNotifyPrompt, store.isBehindCurrentStop(passedID),
+              client(for: next)?.skipNotificationPrompt != true else { return false }
+        promptStopID = passedID
+        promptNextStop = next
+        haptic(.light)
+        showingNotifyPrompt = true
+        return true
+    }
+
     private func openNotifyPrompt() {
         guard let next = nextStop, !showingNotifyPrompt else { return }
         promptStopID = currentStop?.id
@@ -878,15 +895,22 @@ struct ActiveRouteView: View {
     /// waits for the sheet to close.
     private func passBelowTrigger(_ stop: RouteStop, note: String, photos: [CapturedPhoto]) {
         guard let client = client(for: stop) else { return }
+        belowTriggerPassedID = stop.id
         belowTriggerOutcome = TriggerChecks.passBelowTrigger(stop, of: client, store: store, routeName: route.name,
                                                              operatorID: route.operatorID, note: note,
                                                              photos: photos, in: modelContext)
     }
 
     private func belowTriggerDismissed() {
-        defer { belowTriggerOutcome = nil }
+        defer {
+            belowTriggerOutcome = nil
+            belowTriggerPassedID = nil
+        }
         switch belowTriggerOutcome {
-        case .movedOn: didAdvance()
+        case .movedOn:
+            // The prompt's own advance plays the haptic; without it, play it here.
+            if let passed = belowTriggerPassedID, offerHeadsUp(after: passed) { break }
+            didAdvance()
         case .finishedRoute:
             hapticSuccess()
             showingRouteRecap = true
