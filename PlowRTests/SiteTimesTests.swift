@@ -1,4 +1,5 @@
 import Foundation
+import CoreLocation
 import SwiftData
 import Testing
 @testable import PlowR
@@ -255,15 +256,26 @@ struct SiteTimesTests {
         let placed = h.clock + 600
         store.siteEntered(id(stop), at: placed + 5, placedAt: placed)
         #expect(store.site.arrivedAt == nil && store.site.arrivalUnseen)
-        // Placed before the stop began: the stop's own start counts.
-        let other = SiteTimesTests.entered(after: 30, stopStart: start, placedAt: start - 3600)
-        #expect(other.arrivalUnseen)
     }
 
-    private static func entered(after seconds: TimeInterval, stopStart: Date, placedAt: Date) -> SiteTimes {
-        var site = SiteTimes()
-        site.entered(at: stopStart + seconds, settleFrom: max(stopStart, placedAt))
-        return site
+    @Test func anAreaPlacedBeforeTheStopBeganSettlesFromTheStop() throws {
+        let h = try Harness()
+        pin(h)
+        let store = h.makeStore()
+        store.start(h.route)
+        // Placed an hour ago (a completed stop's, say): the stop's own start counts.
+        store.siteEntered(id(h.route.sortedStops[0]), at: h.clock + 30, placedAt: h.clock - 3600)
+        #expect(store.site.arrivedAt == nil && store.site.arrivalUnseen)
+    }
+
+    @Test func onlyLocationAllowedNowResettles() {
+        // iOS calls back at every launch with nothing changed: no resettle,
+        // or a relaunch for an arrival would throw the arrival away.
+        #expect(!SiteMonitor.isNewlyAllowed(from: .authorizedAlways, to: .authorizedAlways))
+        #expect(!SiteMonitor.isNewlyAllowed(from: .authorizedWhenInUse, to: .authorizedAlways))
+        #expect(SiteMonitor.isNewlyAllowed(from: .notDetermined, to: .authorizedAlways))
+        #expect(SiteMonitor.isNewlyAllowed(from: .denied, to: .authorizedWhenInUse))
+        #expect(!SiteMonitor.isNewlyAllowed(from: .authorizedAlways, to: .denied))
     }
 
     @Test func anEntryFromBeforeTheStopBeganIsIgnored() throws {

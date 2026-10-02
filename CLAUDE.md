@@ -148,7 +148,8 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   `SiteDepartures`, for two hours and past End Route) and what a crossing
   means (`SiteTimes`: arrival and departure, put on the stop's
   `ServiceRecord` as `arrivedAt` and `leftAt`). Only what GPS saw is kept: an
-  entry within a minute of the stop beginning, or an exit with no entry, is
+  entry within a minute of the stop beginning or of its area being placed
+  (the pin moved, location allowed only then), or an exit with no entry, is
   "arrival not caught", never a made-up time. `LocationManager` must not place
   or clear areas: replacing an area makes iOS work out afresh whether the
   phone is inside it, and a crossing then is missed.

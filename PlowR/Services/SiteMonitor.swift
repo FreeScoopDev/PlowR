@@ -39,8 +39,18 @@ final class SiteMonitor: NSObject, CLLocationManagerDelegate, SiteWatching {
     /// When each area was placed, this launch. An entry soon after isn't an
     /// arrival (`SiteTimes.settleTime`).
     private var placedAt: [String: Date] = [:]
+    /// The status last seen. iOS calls the authorization callback when the
+    /// manager is made too, with nothing changed.
+    private var authorization: CLAuthorizationStatus
+
+    /// Whether going from `old` to `new` means location was allowed only now.
+    static func isNewlyAllowed(from old: CLAuthorizationStatus, to new: CLAuthorizationStatus) -> Bool {
+        let allowed: (CLAuthorizationStatus) -> Bool = { $0 == .authorizedAlways || $0 == .authorizedWhenInUse }
+        return allowed(new) && !allowed(old)
+    }
 
     override private init() {
+        authorization = manager.authorizationStatus
         super.init()
         manager.delegate = self
         for region in manager.monitoredRegions {
@@ -65,8 +75,12 @@ final class SiteMonitor: NSObject, CLLocationManagerDelegate, SiteWatching {
                 && abs($0.longitude - area.longitude) < 1e-7 } ?? area
         }
         let plan = SiteArea.plan(placed: placed, wanted: areas)
-        for region in manager.monitoredRegions where plan.stop.contains(region.identifier) {
-            manager.stopMonitoring(for: region)
+        // By identifier, which is how iOS matches a stop: its own list of
+        // what's watched may not show an area placed moments ago.
+        for area in placed where plan.stop.contains(area.id) {
+            manager.stopMonitoring(for: CLCircularRegion(
+                center: CLLocationCoordinate2D(latitude: area.latitude, longitude: area.longitude),
+                radius: Self.radius, identifier: area.id))
         }
         for area in plan.place {
             let region = CLCircularRegion(center: CLLocationCoordinate2D(latitude: area.latitude,
@@ -88,9 +102,11 @@ final class SiteMonitor: NSObject, CLLocationManagerDelegate, SiteWatching {
             guard let self else { return }
             // Allowed only now: iOS starts working out where the phone is
             // only now, so an entry it reports next may not be an arrival.
-            if status == .authorizedAlways || status == .authorizedWhenInUse {
+            // Not on every launch: a relaunch for an arrival would lose it.
+            if Self.isNewlyAllowed(from: authorization, to: status) {
                 for area in placed { placedAt[area.id] = Date() }
             }
+            authorization = status
             if let wanted { watch(wanted) }
         }
     }
