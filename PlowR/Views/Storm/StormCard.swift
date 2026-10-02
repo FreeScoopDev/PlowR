@@ -12,6 +12,9 @@ struct StormCard: View {
     /// sheet: this card goes when the storm does (midnight, a synced change),
     /// and mustn't take a send part-way through with it.
     let text: ([Client]) -> Void
+    /// Marks a client below their trigger that day (true), or takes the mark
+    /// off (false): less fell at their place than the forecast said.
+    let mark: (StormWatch.Trigger, Bool) -> Void
 
     static let presets: [(String, String)] = [
         ("Storm Coming", "Snow is in the forecast. We'll be out to clear your property once it reaches the depth in your contract."),
@@ -26,7 +29,7 @@ struct StormCard: View {
             DashCard {
                 VStack(alignment: .leading, spacing: 0) {
                     forecast.padding(14)
-                    if !storm.met.isEmpty || !storm.notMet.isEmpty {
+                    if !storm.met.isEmpty || !storm.notMet.isEmpty || !storm.markedBelow.isEmpty {
                         Divider()
                         triggers.padding(14)
                     }
@@ -76,7 +79,7 @@ struct StormCard: View {
         VStack(alignment: .leading, spacing: 10) {
             if !storm.met.isEmpty {
                 DisclosureGroup {
-                    names(storm.met)
+                    names(storm.met, marked: false)
                 } label: {
                     Label {
                         Text("\(count(storm.met)) reached")
@@ -88,13 +91,26 @@ struct StormCard: View {
             }
             if !storm.notMet.isEmpty {
                 DisclosureGroup {
-                    names(storm.notMet)
+                    names(storm.notMet, marked: false)
                 } label: {
                     Label("\(count(storm.notMet)) not reached", systemImage: "circle")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
             }
+            if !storm.markedBelow.isEmpty {
+                DisclosureGroup {
+                    names(storm.markedBelow, marked: true)
+                } label: {
+                    Label("\(storm.markedBelow.count) marked below trigger at the property",
+                          systemImage: "arrow.down.circle")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Text("Less fell at a client's place than forecast? Mark them below trigger: they're left out of the text, and their stops start skipped on the route.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -102,13 +118,27 @@ struct StormCard: View {
         "\(triggers.count) contract trigger\(triggers.count == 1 ? "" : "s")"
     }
 
-    private func names(_ triggers: [StormWatch.Trigger]) -> some View {
+    private func names(_ triggers: [StormWatch.Trigger], marked: Bool) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             ForEach(triggers) { trigger in
                 HStack {
                     Text(trigger.clientName.isEmpty ? "Client" : trigger.clientName)
                     Spacer()
                     Text(trigger.label).foregroundStyle(.secondary)
+                    Menu {
+                        if marked {
+                            Button("Not Below Trigger", systemImage: "arrow.uturn.backward") { mark(trigger, false) }
+                        } else {
+                            Button("Below Trigger at Their Place", systemImage: "arrow.down.circle") {
+                                mark(trigger, true)
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .frame(minWidth: 44, minHeight: 32)     // In gloves, too.
+                            .contentShape(Rectangle())
+                    }
+                    .accessibilityLabel("Options for \(trigger.clientName)")
                 }
                 .font(.subheadline)
             }

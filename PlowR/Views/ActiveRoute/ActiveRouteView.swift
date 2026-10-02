@@ -16,6 +16,7 @@ struct ActiveRouteView: View {
 
     @Query private var allClients: [Client]
     @Query private var allServices: [ServiceItem]
+    @Query private var allContracts: [Contract]
 
     @State private var locationManager = LocationManager()
     @State private var showingNotifyPrompt = false
@@ -32,6 +33,8 @@ struct ActiveRouteView: View {
     /// is up, and a sheet reading the current stop would then have saved this
     /// client's services, photos and invoice on the next one.
     @State private var recorderStop: RouteStop?
+    /// The stop being checked and found below its contract's trigger.
+    @State private var belowTriggerStop: RouteStop?
     @State private var showingMassMessage = false
     @State private var showingFirstStopPrompt = false
     /// Siri's "Notify next client": a text to this stop's client, completing
@@ -75,6 +78,7 @@ struct ActiveRouteView: View {
     /// added here, or Control Center's message can try to show over it.
     private var isPresentingSomething: Bool {
         showingFirstStopPrompt || showingNotifyPrompt || textOnlyStop != nil || recorderStop != nil || showingMassMessage
+            || belowTriggerStop != nil
             || showingRouteRecap || showingNavPicker || showingRouteChangedAlert || showingLocationDeniedAlert
     }
 
@@ -287,6 +291,10 @@ struct ActiveRouteView: View {
         )
         .sheet(isPresented: $showingMassMessage) {
             MassMessageView(stops: sortedStops, allClients: allClients)
+        }
+        .sheet(item: $belowTriggerStop) { stop in
+            BelowTriggerSheet(clientName: stop.clientName, triggerLabel: contractTrigger(for: stop)?.label ?? "",
+                              save: { passBelowTrigger(stop, note: $0, photos: $1) })
         }
         .sheet(isPresented: $showingRouteRecap) {
             RouteRecapView(
@@ -590,6 +598,23 @@ struct ActiveRouteView: View {
                 .buttonStyle(.plain)
             }
 
+            // A contract with a snow trigger in force today: less may have
+            // fallen here than the forecast said.
+            if !stop.isCustomStop, contractTrigger(for: stop) != nil {
+                Button {
+                    belowTriggerStop = stop
+                } label: {
+                    Label("Below Trigger", systemImage: "arrow.down.circle")
+                        .font(.subheadline)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 10)
+                        .padding(.horizontal)
+                        .background(Color(.systemGray6))
+                        .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerMedium, style: .continuous))
+                }
+                .buttonStyle(.plain)
+            }
+
             if isLastStop {
                 Button {
                     switch store.completeCurrentStop(expecting: stop.id) {
@@ -830,6 +855,48 @@ struct ActiveRouteView: View {
     /// After this screen moved the store to the next stop. The new stop's
     /// geofence follows the store (`onChange(of: store.currentStopID)`), so it
     /// also moves when Siri or Control Center completes a stop.
+    /// The contract trigger in force today for `stop`'s client, if any (StormWatch).
+    private func contractTrigger(for stop: RouteStop) -> StormWatch.Trigger? {
+        let book = StormWatch.Book(contracts: allContracts, services: allServices,
+                                   activeClientIDs: [stop.clientID.uuidString], operatorID: route.operatorID)
+        return StormWatch.triggers(on: .now, book: book).first
+    }
+
+    /// Below Trigger, saved: moves past the stop without crediting a visit,
+    /// then keeps the check, with the GPS arrival if one was caught. Nothing
+    /// is kept if the stop changed (another device moved the route on).
+    private func passBelowTrigger(_ stop: RouteStop, note: String, photos: [CapturedPhoto]) {
+        guard let client = client(for: stop) else { return }
+        let arrivedAt = store.currentStopID == stop.id ? store.site.arrivedAt : nil
+        let run = store.runID
+        let result = store.passCurrentStop(expecting: stop.id)
+        switch result {
+        case .stopChanged:
+            showingRouteChangedAlert = true
+            return
+        case .noActiveRoute, .allStopsAlreadyDone:
+            return
+        case .advanced, .finishedLastStop:
+            break
+        }
+        let check = TriggerChecks.checkAtStop(stop, of: client, run: run, routeName: route.name, arrivedAt: arrivedAt,
+                                              note: note, operatorID: route.operatorID, in: modelContext)
+        for captured in photos {
+            guard let photo = StopPhoto.make(from: captured, isBefore: true, operatorID: route.operatorID,
+                                             clientID: client.id.uuidString, routeID: route.id.uuidString,
+                                             recordID: "") else { continue }
+            photo.checkID = check.id.uuidString
+            modelContext.insert(photo)
+        }
+        try? modelContext.save()
+        if result == .finishedLastStop {
+            hapticSuccess()
+            showingRouteRecap = true
+        } else {
+            didAdvance()
+        }
+    }
+
     private func didAdvance() {
         haptic()
     }

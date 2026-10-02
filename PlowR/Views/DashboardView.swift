@@ -15,6 +15,7 @@ struct DashboardView: View {
     @Query private var allRecords: [ServiceRecord]
     @Query private var allContracts: [Contract]
     @Query private var allServices: [ServiceItem]
+    @Query private var allChecks: [TriggerCheck]
 
     @State private var dashWeather: WeatherCondition?
     /// The coming days' forecast, for the storm card.
@@ -77,7 +78,7 @@ struct DashboardView: View {
         StormWatch.storm(in: forecastDays, book: StormWatch.Book(
             contracts: allContracts, services: allServices,
             activeClientIDs: Set(myClients.filter(\.isActive).map(\.id.uuidString)),
-            operatorID: authManager.userID))
+            operatorID: authManager.userID, checks: allChecks))
     }
 
     private var myRoutes: [PlowRoute] {
@@ -98,9 +99,11 @@ struct DashboardView: View {
                     profileCard
                     if let w = dashWeather { dashWeatherStrip(w) }
                     if let storm {
-                        StormCard(storm: storm, routes: myRoutes, clients: myClients) { clients in
+                        StormCard(storm: storm, routes: myRoutes, clients: myClients, text: { clients in
                             stormTextStops = clients.enumerated().map { RouteStop(order: $0.offset, client: $0.element) }
-                        }
+                        }, mark: { trigger, below in
+                            markBelowTrigger(trigger, on: storm.day, below: below)
+                        })
                     }
                     todayCard
                     financeRow
@@ -176,6 +179,17 @@ struct DashboardView: View {
             .padding(14)
             .background(Color(.secondarySystemGroupedBackground))
             .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
+        }
+    }
+
+    /// The storm card's mark: the client's contracted places, that day.
+    private func markBelowTrigger(_ trigger: StormWatch.Trigger, on day: Date, below: Bool) {
+        if below {
+            TriggerChecks.mark(clientID: trigger.clientID, clientName: trigger.clientName,
+                               places: TriggerChecks.contractPlaces(of: trigger.clientID, on: day, contracts: allContracts),
+                               on: day, operatorID: authManager.userID, in: modelContext)
+        } else {
+            TriggerChecks.unmark(trigger.clientID, on: day, in: modelContext)
         }
     }
 

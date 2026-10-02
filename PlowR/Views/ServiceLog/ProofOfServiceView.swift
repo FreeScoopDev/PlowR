@@ -39,6 +39,10 @@ struct ProofOfServiceView: View {
             ?? ProofOfService.Period(label: "This Year", start: .now, end: .now)
     }
 
+    private var checks: [ProofOfService.Check] {
+        ProofOfService.checks(of: client, placeID: placeID, from: period.start, to: period.end, in: modelContext)
+    }
+
     private var visits: [ProofOfService.Visit] {
         ProofOfService.visits(of: client, placeID: placeID, from: period.start, to: period.end, in: modelContext)
     }
@@ -63,6 +67,10 @@ struct ProofOfServiceView: View {
                     let visits = visits
                     LabeledContent("Visits", value: "\(visits.count)")
                     LabeledContent("Photos", value: "\(visits.reduce(0) { $0 + $1.photos.count })")
+                    let checks = checks
+                    if !checks.isEmpty {
+                        LabeledContent("Days Below Trigger", value: "\(checks.count)")
+                    }
                 } footer: {
                     Text("What PlowR recorded (route stops' times, including travel to them, where each record came from, the services, notes and photos), and each visit day's estimated weather, looked up when it's made.")
                 }
@@ -124,18 +132,20 @@ struct ProofOfServiceView: View {
         let place: ProofOfService.ReportPlace
         let period: ProofOfService.Period
         let visits: [ProofOfService.Visit]
+        let checks: [ProofOfService.Check]
     }
 
     private func makePDF() {
         let snapshot = Snapshot(
             place: places.first { $0.id == placeID }
                 ?? ProofOfService.ReportPlace(id: placeID, label: client.name, address: client.address),
-            period: period, visits: visits)
+            period: period, visits: visits, checks: checks)
         isMaking = true
         Task { @MainActor in
             let weather = await VisitWeather.lookUp(
                 latitude: snapshot.place.latitude, longitude: snapshot.place.longitude,
-                visitDays: snapshot.visits.map { $0.record.startedAt ?? $0.record.performedAt })
+                visitDays: snapshot.visits.map { $0.record.startedAt ?? $0.record.performedAt }
+                    + snapshot.checks.map(\.check.day))
             isMaking = false
             if weather == .failed {
                 failedSnapshot = snapshot
@@ -148,7 +158,8 @@ struct ProofOfServiceView: View {
     private func write(_ snapshot: Snapshot, weather: VisitWeather.Lookup) {
         let profile = allProfiles.first { $0.operatorID == client.operatorID }
         let data = ProofOfService.pdf(client: client, place: snapshot.place, period: snapshot.period,
-                                      visits: snapshot.visits, profile: profile, weather: weather)
+                                      visits: snapshot.visits, checks: snapshot.checks, profile: profile,
+                                      weather: weather)
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent(ProofOfService.fileName(client: client, period: snapshot.period))
         if (try? data.write(to: url)) != nil { pdfURL = url }

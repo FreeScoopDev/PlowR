@@ -8,8 +8,23 @@ import Foundation
 struct TodaysRun: Equatable {
     /// The route's stops, in order.
     var routeStops: [UUID]
-    /// Left out today. IDs no longer on the route are ignored.
-    var skipped: Set<UUID> = []
+    /// Left out today by hand. IDs no longer on the route are ignored.
+    var skippedByHand: Set<UUID> = []
+    /// Stops whose place is marked below its contract's snow trigger today
+    /// (TriggerCheck): left out unless included anyway.
+    var belowTrigger: Set<UUID> = []
+    var includedAnyway: Set<UUID> = []
+
+    init(routeStops: [UUID], skipped: Set<UUID> = [], belowTrigger: Set<UUID> = [],
+         includedAnyway: Set<UUID> = []) {
+        self.routeStops = routeStops
+        self.skippedByHand = skipped
+        self.belowTrigger = belowTrigger
+        self.includedAnyway = includedAnyway
+    }
+
+    /// Left out today: by hand, or below trigger and not included anyway.
+    var skipped: Set<UUID> { skippedByHand.union(belowTrigger.subtracting(includedAnyway)) }
 
     /// The skipped stops still on the route.
     var skippedOnRoute: Set<UUID> { skipped.intersection(routeStops) }
@@ -25,7 +40,13 @@ struct TodaysRun: Equatable {
     }
 
     mutating func toggle(_ stop: UUID) {
-        if skipped.contains(stop) { skipped.remove(stop) } else { skipped.insert(stop) }
+        if belowTrigger.contains(stop) {
+            if includedAnyway.contains(stop) { includedAnyway.remove(stop) } else { includedAnyway.insert(stop) }
+        } else if skippedByHand.contains(stop) {
+            skippedByHand.remove(stop)
+        } else {
+            skippedByHand.insert(stop)
+        }
     }
 
     /// What to leave out when starting from the stop at `index`: the stops

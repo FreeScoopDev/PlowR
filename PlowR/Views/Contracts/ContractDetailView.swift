@@ -60,7 +60,10 @@ struct ContractDetailView: View {
             }
             visitsSection
             paymentsSection
-            if contract.triggerInches > 0 {
+            if contract.signedAt != nil,
+               contract.triggerInches > 0 || Contracts.coversSnow(Set(contract.serviceIDs), catalog: allServiceItems) {
+                ContractTriggerChecksSection(contract: contract)
+            } else if contract.triggerInches > 0 {
                 Section { ContractTriggerRow(inches: contract.triggerInches) }
             }
             if !contract.notes.isEmpty {

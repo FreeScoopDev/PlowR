@@ -8,6 +8,7 @@ struct RouteDetailView: View {
     @Environment(ActiveRouteStore.self) private var activeRoute
     @Query private var allClients: [Client]
     @Query private var allServices: [ServiceItem]
+    @Query private var allChecks: [TriggerCheck]
 
     @State private var showingEditRoute = false
     @State private var showingOptimizeConfirm = false
@@ -19,9 +20,21 @@ struct RouteDetailView: View {
     /// then: this page stays alive under the route screen, and last week's
     /// skips mustn't quietly apply to the next run.
     @State private var skippedToday: Set<UUID> = []
+    /// Stops marked below their contract's trigger today, included anyway.
+    @State private var includedToday: Set<UUID> = []
 
     private var todaysRun: TodaysRun {
-        TodaysRun(routeStops: route.sortedStops.map(\.id), skipped: skippedToday)
+        TodaysRun(routeStops: route.sortedStops.map(\.id), skipped: skippedToday,
+                  belowTrigger: belowTriggerToday, includedAnyway: includedToday)
+    }
+
+    /// Stops whose place is marked below its contract's trigger today
+    /// (TriggerCheck): less fell there than the forecast said.
+    private var belowTriggerToday: Set<UUID> {
+        Set(route.sortedStops.filter { stop in
+            let place = stop.propertyID.isEmpty ? stop.clientID.uuidString : stop.propertyID
+            return TriggerChecks.isMarked(stop.clientID.uuidString, placeID: place, on: .now, in: allChecks)
+        }.map(\.id))
     }
 
     /// Today's stops, as models.
@@ -81,7 +94,8 @@ struct RouteDetailView: View {
                                 stopRow(stop: stop, index: index)
                                     .opacity(isSkipped ? 0.4 : 1)
                                 if isSkipped {
-                                    StatusChip("Skipped Today", color: .secondary)
+                                    StatusChip(belowTriggerToday.contains(stop.id) ? "Below Trigger" : "Skipped Today",
+                                               color: .secondary)
                                 }
                                 Image(systemName: "chevron.right")
                                     .font(.caption.weight(.semibold))
@@ -156,6 +170,7 @@ struct RouteDetailView: View {
                 Button {
                     activeRoute.start(route, skipping: todaysRun.skippedOnRoute)
                     skippedToday = []
+                    includedToday = []
                 } label: {
                     Text(todaysRun.startTitle)
                         .font(.headline)
@@ -259,7 +274,8 @@ struct RouteDetailView: View {
     private func toggleSkip(_ stop: RouteStop) {
         var run = todaysRun
         run.toggle(stop.id)
-        skippedToday = run.skipped
+        skippedToday = run.skippedByHand
+        includedToday = run.includedAnyway
     }
 
     /// Starts at the stop at `index`: the ones before it are left out of
@@ -267,6 +283,7 @@ struct RouteDetailView: View {
     private func start(from index: Int) {
         activeRoute.start(route, skipping: todaysRun.skipping(from: index))
         skippedToday = []
+        includedToday = []
     }
 
     /// Any of today's stops with a client and a phone to text.

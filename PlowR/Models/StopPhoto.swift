@@ -8,6 +8,7 @@ final class StopPhoto {
     var clientID: String = ""      // for querying all photos for a client
     var routeID: String = ""       // for querying photos from a specific route
     var recordID: String = ""      // the Service Log record (ServiceRecord) it shows the work of
+    var checkID: String = ""       // or the below-trigger check (TriggerCheck) it shows
     var isBefore: Bool = true      // before or after service
     var caption: String = ""
     /// When it was saved in PlowR (despite the name: kept for older builds).

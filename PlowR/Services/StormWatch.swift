@@ -31,6 +31,9 @@ enum StormWatch {
         /// Clients whose trigger the forecast reaches, and those it doesn't.
         var met: [Trigger]
         var notMet: [Trigger]
+        /// Clients marked below their trigger that day (TriggerCheck): less
+        /// fell at their place than the forecast said. Neither of the above.
+        var markedBelow: [Trigger] = []
     }
 
     /// Without a contract trigger, the forecast that counts as a storm for a
@@ -51,6 +54,8 @@ enum StormWatch {
         /// contract, kept as a record, isn't waiting on a storm.
         var activeClientIDs: Set<String>
         var operatorID: String
+        /// Days marked below trigger (TriggerCheck).
+        var checks: [TriggerCheck] = []
     }
 
     /// The storm in `days`, if any. A contract counts when it's for snow
@@ -74,9 +79,13 @@ enum StormWatch {
             let offersSnow = offersSnow(book.services, operatorID: book.operatorID)
             let threshold = triggers.map(\.reachedFrom).min() ?? (offersSnow ? defaultThreshold : .infinity)
             guard inches >= threshold else { continue }
+            let marked = TriggerChecks.markedClients(on: day.date, in: book.checks, operatorID: book.operatorID,
+                                                     calendar: calendar)
+            let open = triggers.filter { !marked.contains($0.clientID) }
             return Storm(day: day.date, inches: inches,
-                         met: triggers.filter { inches >= $0.reachedFrom },
-                         notMet: triggers.filter { inches < $0.reachedFrom })
+                         met: open.filter { inches >= $0.reachedFrom },
+                         notMet: open.filter { inches < $0.reachedFrom },
+                         markedBelow: triggers.filter { marked.contains($0.clientID) })
         }
         return nil
     }

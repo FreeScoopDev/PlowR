@@ -108,6 +108,8 @@ enum ClientRemoval {
         if !keepingRecords {
             for document in documents(of: id, in: context) { context.delete(document) }
             for record in ServiceLog.records(ofClient: id, in: context) { context.delete(record) }
+            // Days below the contract's trigger are records too.
+            for check in TriggerChecks.of(clientID: id, in: context) { context.delete(check) }
         }
         // Signed contracts are records, kept (with the client's name) or
         // deleted as the invoices are; a draft never agreed just goes.

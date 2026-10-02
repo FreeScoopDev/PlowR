@@ -29,6 +29,7 @@ struct PlowRApp: App {
         Property.self,
         SentText.self,
         Contract.self,
+        TriggerCheck.self,
     ]
 
     init() {
