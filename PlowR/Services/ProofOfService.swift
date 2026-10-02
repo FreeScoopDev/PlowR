@@ -226,8 +226,7 @@ enum ProofOfService {
     /// pass as this visit's.
     static func caption(of photo: StopPhoto, visitDay: Date, timeZone: TimeZone = .current,
                         locale: Locale = .current, calendar: Calendar = .current) -> String {
-        // A below-trigger check's photo is of the ground, not before or after work.
-        let kind = !photo.checkID.isEmpty ? "Photo" : photo.isBefore ? "Before" : "After"
+        let kind = photo.kindLabel
         guard let taken = photo.capturedAt else { return kind }
         var time = Date.FormatStyle.dateTime.hour().minute().locale(locale)
         time.timeZone = timeZone

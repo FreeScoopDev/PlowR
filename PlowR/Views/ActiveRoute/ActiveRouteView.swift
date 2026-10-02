@@ -82,7 +82,7 @@ struct ActiveRouteView: View {
     /// added here, or Control Center's message can try to show over it.
     private var isPresentingSomething: Bool {
         showingFirstStopPrompt || showingNotifyPrompt || textOnlyStop != nil || recorderStop != nil || showingMassMessage
-            || belowTriggerStop != nil
+            || belowTriggerStop != nil || showingBelowTriggerChangedAlert
             || showingRouteRecap || showingNavPicker || showingRouteChangedAlert || showingLocationDeniedAlert
     }
 

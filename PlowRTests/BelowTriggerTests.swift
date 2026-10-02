@@ -308,14 +308,15 @@ struct BelowTriggerTests {
         #expect(!offered())
     }
 
-    @Test func aChecksPhotoIsCaptionedAsAPhotoNotBeforeOrAfter() {
+    @Test func aChecksPhotoIsCaptionedBelowTriggerNotBeforeOrAfter() {
         let photo = StopPhoto(operatorID: "op", clientID: "c", routeID: "", isBefore: true, imageData: Data())
         photo.checkID = UUID().uuidString
         photo.capturedAt = now
         photo.captureSourceRaw = CaptureSource.camera.rawValue
         let caption = ProofOfService.caption(of: photo, visitDay: now, timeZone: calendar.timeZone,
                                              locale: Locale(identifier: "en_US"), calendar: calendar)
-        #expect(caption.hasPrefix("Photo, taken"))
+        #expect(caption.hasPrefix("Below Trigger, taken"))
+        #expect(photo.kindLabel == "Below Trigger")
     }
 
     // MARK: - Deleting a client

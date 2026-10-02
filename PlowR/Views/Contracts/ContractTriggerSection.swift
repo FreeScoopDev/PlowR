@@ -64,16 +64,18 @@ struct ContractTriggerChecksSection: View {
             if let range {
                 DatePicker("Day", selection: $day, in: range, displayedComponents: .date)
                 let sameDay = checks.filter { Calendar.current.isDate($0.day, inSameDayAs: day) }
+                // Places not yet marked that day (one may be checked at the stop already).
+                let unmarked = places.filter { place in !sameDay.contains { $0.placeID == place } }
+                if !unmarked.isEmpty {
+                    Button(sameDay.isEmpty ? "Mark Below Trigger That Day" : "Mark Its Other Places That Day") {
+                        TriggerChecks.mark(clientID: contract.clientID, clientName: contract.clientName,
+                                           places: unmarked, on: day, operatorID: contract.operatorID, in: modelContext)
+                    }
+                }
                 if sameDay.contains(where: { !$0.isFromStop }) {
-                    Button("Remove the Mark That Day") {
+                    Button("Remove the Marks by Hand That Day") {
                         TriggerChecks.unmark(contract.clientID, places: contract.placeIDs, on: day, in: modelContext)
                     }
-                } else if sameDay.isEmpty {
-                    Button("Mark Below Trigger That Day") {
-                        TriggerChecks.mark(clientID: contract.clientID, clientName: contract.clientName,
-                                           places: places, on: day, operatorID: contract.operatorID, in: modelContext)
-                    }
-                    .disabled(places.isEmpty)
                 }
             }
             ForEach(checks) { check in
