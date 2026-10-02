@@ -30,19 +30,23 @@ final class NotificationService {
     /// Schedule a weather alert if adverse conditions (snow, heavy rain, storms) are
     /// forecast in the next 2 days. Fires the evening before at 6 PM.
     /// Works for snow removal, lawn care, and any outdoor service industry.
-    func scheduleWeatherAlert(for forecasts: [DayForecast]) {
+    func scheduleWeatherAlert(for forecasts: [DayForecast], storm: StormWatch.Storm? = nil) {
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: ["weather_alert"])
-        if let request = weatherAlertRequest(for: forecasts) { center.add(request) }
+        if let request = weatherAlertRequest(for: forecasts, storm: storm) { center.add(request) }
     }
 
     /// The weather alert for `forecasts`: 6 PM the evening before the first
     /// adverse day in the next two, or nil if there's none or that evening has
-    /// passed. A value, so a test can check when it fires.
-    func weatherAlertRequest(for forecasts: [DayForecast], now: Date = Date(),
+    /// passed. A storm (StormWatch) after today takes its place, with its
+    /// snowfall and contract triggers. A value, so a test can check when it fires.
+    func weatherAlertRequest(for forecasts: [DayForecast], storm: StormWatch.Storm? = nil, now: Date = Date(),
                              calendar: Calendar = .current) -> UNNotificationRequest? {
-        guard let alertDay = adverseForecastDay(from: forecasts),
-              let evenBefore = calendar.date(byAdding: .day, value: -1, to: alertDay.date) else { return nil }
+        let today = calendar.startOfDay(for: now)
+        let upcomingStorm = storm.flatMap { calendar.startOfDay(for: $0.day) > today ? $0 : nil }
+        let alertDate = upcomingStorm?.day ?? adverseForecastDay(from: forecasts)?.date
+        guard let alertDate,
+              let evenBefore = calendar.date(byAdding: .day, value: -1, to: alertDate) else { return nil }
         var components = calendar.dateComponents([.year, .month, .day], from: evenBefore)
         components.hour = 18
         components.minute = 0
@@ -50,8 +54,12 @@ final class NotificationService {
 
         let content = UNMutableNotificationContent()
         content.title = "Weather Alert"
-        let dayName = alertDay.date.formatted(.dateTime.weekday(.wide))
-        content.body = "\(alertDay.description) expected \(dayName). Review your schedule."
+        if let upcomingStorm {
+            content.body = StormWatch.alertBody(upcomingStorm)
+        } else if let alertDay = adverseForecastDay(from: forecasts) {
+            let dayName = alertDay.date.formatted(.dateTime.weekday(.wide))
+            content.body = "\(alertDay.description) expected \(dayName). Review your schedule."
+        }
         content.sound = .default
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
         return UNNotificationRequest(identifier: "weather_alert", content: content, trigger: trigger)

@@ -14,8 +14,11 @@ struct DashboardView: View {
     @Query private var allProposals: [Proposal]
     @Query private var allRecords: [ServiceRecord]
     @Query private var allContracts: [Contract]
+    @Query private var allServices: [ServiceItem]
 
     @State private var dashWeather: WeatherCondition?
+    /// The coming days' forecast, for the storm card.
+    @State private var forecastDays: [DayForecast] = []
     private let iCloud = ICloudStatus.shared
 
     @State private var showingSettings = false
@@ -65,6 +68,18 @@ struct DashboardView: View {
         Payments.owed(myProposals)
     }
 
+    /// A storm coming, if the business offers a snow service or has a
+    /// contract trigger (StormWatch).
+    private var storm: StormWatch.Storm? {
+        StormWatch.storm(in: forecastDays, contracts: allContracts, operatorID: authManager.userID,
+                         offersSnow: StormWatch.offersSnow(allServices, operatorID: authManager.userID))
+    }
+
+    private var myRoutes: [PlowRoute] {
+        allRoutes.filter { $0.operatorID == authManager.userID }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
     private var overdueCount: Int { myProposals.filter { $0.invoiceStatus == .overdue }.count }
     private var draftCount:   Int { myProposals.filter { $0.invoiceStatus == .draft   }.count }
 
@@ -77,6 +92,7 @@ struct DashboardView: View {
                     iCloudBanner
                     profileCard
                     if let w = dashWeather { dashWeatherStrip(w) }
+                    if let storm { StormCard(storm: storm, routes: myRoutes) }
                     todayCard
                     financeRow
                     readyToSendRow
@@ -188,7 +204,8 @@ struct DashboardView: View {
         async let forecast = WeatherService.shared.fetchForecast(latitude: lat, longitude: lon)
         dashWeather = try? await currentWeather
         if let days = try? await forecast {
-            NotificationService.shared.scheduleWeatherAlert(for: days)
+            forecastDays = days
+            NotificationService.shared.scheduleWeatherAlert(for: days, storm: storm)
         }
     }
 
