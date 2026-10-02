@@ -126,7 +126,10 @@ struct StormCard: View {
                     Spacer()
                     Text(trigger.label).foregroundStyle(.secondary)
                     Menu {
-                        if marked {
+                        if marked && storm.checkedAtStop.contains(trigger.clientID) {
+                            // The crew's record, with its photos: removed only on the contract's page.
+                            Text("Checked at the stop. Change it on the contract's page.")
+                        } else if marked {
                             Button("Not Below Trigger", systemImage: "arrow.uturn.backward") { mark(trigger, false) }
                         } else {
                             Button("Below Trigger at Their Place", systemImage: "arrow.down.circle") {

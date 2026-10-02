@@ -29,13 +29,16 @@ struct ContractTriggerRow: View {
 
 /// A signed snow contract's trigger and the days marked below it at the
 /// client's places (TriggerCheck): from the office, or after the fact. A
-/// check made at the stop on a route is listed too, and can be removed here.
+/// check made at the stop on a route is listed too; it's the crew's record,
+/// with photos, so removing one asks first.
 struct ContractTriggerChecksSection: View {
     let contract: Contract
 
     @Environment(\.modelContext) private var modelContext
     @Query private var allChecks: [TriggerCheck]
+    @Query private var allServices: [ServiceItem]
     @State private var day = Date()
+    @State private var removing: TriggerCheck?
 
     /// This contract's places' marks, the newest day first.
     private var checks: [TriggerCheck] {
@@ -43,36 +46,41 @@ struct ContractTriggerChecksSection: View {
             .sorted { ($0.day, $0.checkedAt) > ($1.day, $1.checkedAt) }
     }
 
-    /// Days the contract covers, up to today.
-    private var range: ClosedRange<Date> {
+    /// Days the contract covers, up to today; nil before it starts.
+    private var range: ClosedRange<Date>? {
         let end = min(contract.endDate, Date())
-        return min(contract.startDate, end)...end
+        guard contract.startDate <= end else { return nil }
+        return contract.startDate...end
     }
 
     private var places: [String] {
-        TriggerChecks.contractPlaces(of: contract.clientID, on: day, contracts: [contract])
+        TriggerChecks.contractPlaces(of: contract.clientID, on: day, contracts: [contract], services: allServices)
     }
 
     var body: some View {
         Section {
             LabeledContent("Snow Trigger",
                            value: contract.triggerInches > 0 ? "\(contract.triggerInches.formatted()) in or more" : "Every snowfall")
-            DatePicker("Day", selection: $day, in: range, displayedComponents: .date)
-            let marked = TriggerChecks.isMarked(contract.clientID, on: day, in: checks)
-            Button(marked ? "Not Below Trigger That Day" : "Mark Below Trigger That Day") {
-                if marked {
-                    TriggerChecks.unmark(contract.clientID, places: contract.placeIDs, on: day, in: modelContext)
-                } else {
-                    TriggerChecks.mark(clientID: contract.clientID, clientName: contract.clientName, places: places,
-                                       on: day, operatorID: contract.operatorID, in: modelContext)
+            if let range {
+                DatePicker("Day", selection: $day, in: range, displayedComponents: .date)
+                let sameDay = checks.filter { Calendar.current.isDate($0.day, inSameDayAs: day) }
+                if sameDay.contains(where: { !$0.isFromStop }) {
+                    Button("Remove the Mark That Day") {
+                        TriggerChecks.unmark(contract.clientID, places: contract.placeIDs, on: day, in: modelContext)
+                    }
+                } else if sameDay.isEmpty {
+                    Button("Mark Below Trigger That Day") {
+                        TriggerChecks.mark(clientID: contract.clientID, clientName: contract.clientName,
+                                           places: places, on: day, operatorID: contract.operatorID, in: modelContext)
+                    }
+                    .disabled(places.isEmpty)
                 }
             }
-            .disabled(!marked && places.isEmpty)
             ForEach(checks) { check in
                 VStack(alignment: .leading, spacing: 2) {
                     Text(check.day.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().year()))
                     Text(check.isFromStop
-                         ? "Checked at the stop\(check.routeName.isEmpty ? "" : " on \(check.routeName)")"
+                         ? "Checked on a route\(check.routeName.isEmpty ? "" : " (\(check.routeName))")"
                          : "Marked by hand")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -82,15 +90,39 @@ struct ContractTriggerChecksSection: View {
                 }
                 .swipeActions {
                     Button("Remove", role: .destructive) {
-                        TriggerChecks.delete(check, in: modelContext)
-                        try? modelContext.save()
+                        if check.isFromStop {
+                            removing = check
+                        } else {
+                            TriggerChecks.delete(check, in: modelContext)
+                            try? modelContext.save()
+                        }
                     }
                 }
             }
         } header: {
             Text("Snow Trigger")
         } footer: {
-            Text("Less fell at the property than the trigger? Mark the day: the storm card and route leave the client out, and the Service Report lists it.")
+            Text(range == nil
+                 ? "Days below the trigger can be marked once the contract starts."
+                 : "Less fell at the property than the trigger? Mark the day: the storm card and route leave the client out, and the Service Report lists it.")
+        }
+        .onAppear {
+            // Start on a day the picker offers: an ended contract's last day.
+            if let range, !range.contains(day) { day = range.upperBound }
+        }
+        .confirmationDialog("Remove this check?", isPresented: Binding(get: { removing != nil },
+                                                                        set: { if !$0 { removing = nil } }),
+                            titleVisibility: .visible) {
+            Button("Remove Check and Photos", role: .destructive) {
+                if let removing {
+                    TriggerChecks.delete(removing, in: modelContext)
+                    try? modelContext.save()
+                }
+                removing = nil
+            }
+            Button("Keep", role: .cancel) { removing = nil }
+        } message: {
+            Text("It was made at the stop on a route, with its photos. It comes off every device and the Service Report.")
         }
     }
 }

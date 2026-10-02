@@ -129,11 +129,10 @@ enum ProofOfService {
         time.timeZone = timeZone
         var lines: [String]
         if check.isFromStop {
-            lines = ["Checked at the property on a route at \(check.checkedAt.formatted(time)): below the contract's "
-                     + "snow trigger, not cleared"]
-            if let arrived = check.arrivedAt {
-                lines.append("Arrived \(arrived.formatted(time)) (GPS, within about 100 m)")
-            }
+            lines = ["Checked on a route at \(check.checkedAt.formatted(time)): below the contract's snow trigger, "
+                     + "not cleared"]
+            lines.append(check.arrivedAt.map { "Arrived \($0.formatted(time)) (GPS, within about 100 m)" }
+                         ?? "Arrival not caught (GPS)")
             if !check.routeName.isEmpty { lines.append("Route: \(check.routeName)") }
         } else {
             var when = Date.FormatStyle.dateTime.month(.abbreviated).day().hour().minute().locale(locale)
@@ -244,12 +243,17 @@ enum ProofOfService {
     }
 
     /// The note at the end: what the times and photos are, and the zone.
-    static func note(withWeather: Bool = false, timeZone: TimeZone = .current) -> String {
+    static func note(withWeather: Bool = false, withChecks: Bool = false, timeZone: TimeZone = .current) -> String {
         let zone = timeZone.localizedName(for: .generic, locale: .current) ?? timeZone.identifier
         let weather = withWeather
             ? " Weather figures are estimates from a weather model (Open-Meteo's historical forecast archive, "
                 + "open-meteo.com) for the area within about 1 km: whole-day totals, before and after the visit, not "
                 + "measurements at the property, and not available before 2022 or for today."
+            : ""
+        let checksNote = withChecks
+            ? " A day below the contract's snow trigger was either checked on a route (Below Trigger saved on the "
+                + "route screen at that stop; its GPS arrival, when caught, shows the phone was there) or marked by "
+                + "hand, as each says."
             : ""
         return "About this report: it lists what was recorded in PlowR. A route stop's start is when it became the "
             + "current stop (the route started, or the previous stop was completed), so it includes travel; its "
@@ -261,9 +265,7 @@ enum ProofOfService {
             + "were saved with. \"Taken\" is when PlowR's camera took it. \"File dated\" is the date stored in a "
             + "photo picked from the library, which can be changed, and \"zone assumed\" means the file gave no "
             + "time zone, so it was read in the phone's. A photo with no time is one whose time PlowR doesn't "
-            + "know, and isn't shown to be from that visit. A day below the contract's snow trigger was either checked "
-            + "at the property on a route (PlowR's record of being there) or marked by hand, as each says."
-            + "\(weather) Times are \(zone)."
+            + "know, and isn't shown to be from that visit.\(checksNote)\(weather) Times are \(zone)."
     }
 
     /// The report.
@@ -345,7 +347,8 @@ enum ProofOfService {
             }
             page.y += 10
             page.keep(60)
-            page.text(note(withWeather: weather != .notLookedUp), .systemFont(ofSize: 9), PDFGenerator.inkMid, gap: 2)
+            page.text(note(withWeather: weather != .notLookedUp, withChecks: !checks.isEmpty), .systemFont(ofSize: 9),
+                      PDFGenerator.inkMid, gap: 2)
             page.text("Prepared with PlowR on \(now.formatted(day)).", .systemFont(ofSize: 9), PDFGenerator.inkMid)
         }
     }

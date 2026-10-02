@@ -186,7 +186,8 @@ struct DashboardView: View {
     private func markBelowTrigger(_ trigger: StormWatch.Trigger, on day: Date, below: Bool) {
         if below {
             TriggerChecks.mark(clientID: trigger.clientID, clientName: trigger.clientName,
-                               places: TriggerChecks.contractPlaces(of: trigger.clientID, on: day, contracts: allContracts),
+                               places: TriggerChecks.contractPlaces(of: trigger.clientID, on: day, contracts: allContracts,
+                                                                    services: allServices),
                                on: day, operatorID: authManager.userID, in: modelContext)
         } else {
             TriggerChecks.unmark(trigger.clientID, on: day, in: modelContext)

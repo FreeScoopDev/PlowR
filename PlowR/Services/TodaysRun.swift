@@ -39,11 +39,14 @@ struct TodaysRun: Equatable {
         skippedOnRoute.isEmpty ? "Start Route" : "Start Route · \(stops.count) of \(routeStops.count) Stops"
     }
 
+    /// Skips an included stop, or includes a skipped one, whichever way it
+    /// came to be skipped (by hand, below trigger, or both).
     mutating func toggle(_ stop: UUID) {
-        if belowTrigger.contains(stop) {
-            if includedAnyway.contains(stop) { includedAnyway.remove(stop) } else { includedAnyway.insert(stop) }
-        } else if skippedByHand.contains(stop) {
+        if skipped.contains(stop) {
             skippedByHand.remove(stop)
+            if belowTrigger.contains(stop) { includedAnyway.insert(stop) }
+        } else if belowTrigger.contains(stop) {
+            includedAnyway.remove(stop)
         } else {
             skippedByHand.insert(stop)
         }

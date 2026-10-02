@@ -31,9 +31,13 @@ enum StormWatch {
         /// Clients whose trigger the forecast reaches, and those it doesn't.
         var met: [Trigger]
         var notMet: [Trigger]
-        /// Clients marked below their trigger that day (TriggerCheck): less
-        /// fell at their place than the forecast said. Neither of the above.
+        /// Clients marked below their trigger that day (TriggerCheck), at every
+        /// place under a snow contract: less fell there than the forecast
+        /// said. Neither of the above.
         var markedBelow: [Trigger] = []
+        /// Of those, clients with a check made at the stop: the card can't
+        /// take that mark off (the contract's page can).
+        var checkedAtStop: Set<String> = []
     }
 
     /// Without a contract trigger, the forecast that counts as a storm for a
@@ -79,13 +83,19 @@ enum StormWatch {
             let offersSnow = offersSnow(book.services, operatorID: book.operatorID)
             let threshold = triggers.map(\.reachedFrom).min() ?? (offersSnow ? defaultThreshold : .infinity)
             guard inches >= threshold else { continue }
-            let marked = TriggerChecks.markedClients(on: day.date, in: book.checks, operatorID: book.operatorID,
-                                                     calendar: calendar)
+            let checks = book.checks.filter { $0.operatorID == book.operatorID }
+            let marked = Set(triggers.map(\.clientID).filter {
+                TriggerChecks.isClientMarked($0, on: day.date, contracts: book.contracts, services: book.services,
+                                             in: checks, calendar: calendar)
+            })
             let open = triggers.filter { !marked.contains($0.clientID) }
             return Storm(day: day.date, inches: inches,
                          met: open.filter { inches >= $0.reachedFrom },
                          notMet: open.filter { inches < $0.reachedFrom },
-                         markedBelow: triggers.filter { marked.contains($0.clientID) })
+                         markedBelow: triggers.filter { marked.contains($0.clientID) },
+                         checkedAtStop: Set(marked.filter {
+                             TriggerChecks.hasStopCheck($0, on: day.date, in: checks, calendar: calendar)
+                         }))
         }
         return nil
     }

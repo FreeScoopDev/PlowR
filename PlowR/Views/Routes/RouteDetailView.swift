@@ -31,9 +31,8 @@ struct RouteDetailView: View {
     /// Stops whose place is marked below its contract's trigger today
     /// (TriggerCheck): less fell there than the forecast said.
     private var belowTriggerToday: Set<UUID> {
-        Set(route.sortedStops.filter { stop in
-            let place = stop.propertyID.isEmpty ? stop.clientID.uuidString : stop.propertyID
-            return TriggerChecks.isMarked(stop.clientID.uuidString, placeID: place, on: .now, in: allChecks)
+        Set(route.sortedStops.filter {
+            TriggerChecks.isMarked($0.clientID.uuidString, placeID: Place.id(ofStop: $0), on: .now, in: allChecks)
         }.map(\.id))
     }
 
