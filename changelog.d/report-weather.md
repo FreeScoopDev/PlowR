@@ -1,0 +1,7 @@
+### Added
+- The Service Report shows each visit day's estimated weather at the property: "Estimated weather that day (whole day, weather model): 3.24 in of snow, 0.41 in of precipitation, low 18°F, high 29°F". It comes from Open-Meteo's historical forecast archive, looked up when the report is made, with the property's coordinates rounded to about 1 km. The report says on every line, and in its note, that these are a weather model's whole-day estimates for the area, before and after the visit, not measurements at the property; it never says "no snow", only the number. A storm on the day is the first thing a claim asks about.
+- Only days the archive really covers are asked for: from 2022, up to yesterday (before 2022 it answers zeros rather than refusing, and today's figures are partly forecast); other days say there's no estimate. If the lookup fails (no signal, the service down), PlowR asks: Try Again, or make the report without weather, which then says once that it couldn't be looked up, rather than showing every day without an estimate. A place with no pin shows no weather. The place, period and visits are taken when Make PDF is tapped and the form is locked while it's made, so changing them meanwhile can't mix two properties in one report.
+- The privacy policy's Open-Meteo lines include this use: the property's rounded coordinates and the dates.
+
+### Internal
+- One rounding for coordinates sent to Open-Meteo (`RoundedCoordinates`), used by the Dashboard's weather and the report's.

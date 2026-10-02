@@ -18,6 +18,8 @@ struct ProofOfServiceView: View {
     @State private var customEnd = Date.now
     @State private var pdfURL: URL?
     @State private var isMaking = false
+    /// A report whose weather couldn't be looked up, while that's asked.
+    @State private var failedSnapshot: Snapshot?
 
     init(client: Client) {
         self.client = client
@@ -62,7 +64,7 @@ struct ProofOfServiceView: View {
                     LabeledContent("Visits", value: "\(visits.count)")
                     LabeledContent("Photos", value: "\(visits.reduce(0) { $0 + $1.photos.count })")
                 } footer: {
-                    Text("Only what PlowR recorded: route stops' times (including travel to them), where each record came from, the services, notes and photos.")
+                    Text("What PlowR recorded (route stops' times, including travel to them, where each record came from, the services, notes and photos), and each visit day's estimated weather, looked up when it's made.")
                 }
                 Section {
                     if let pdfURL {
@@ -85,6 +87,22 @@ struct ProofOfServiceView: View {
                     Text("Every visit at the property in the period: for an insurer, a lawyer, or a client who asks.")
                 }
             }
+            // Nothing changes under a report being made.
+            .disabled(isMaking)
+            .alert("Weather couldn't be looked up", isPresented: Binding(get: { failedSnapshot != nil },
+                                                                         set: { if !$0 { failedSnapshot = nil } })) {
+                Button("Try Again") {
+                    failedSnapshot = nil
+                    makePDF()
+                }
+                Button("Make Without Weather") {
+                    if let snapshot = failedSnapshot { write(snapshot, weather: .failed) }
+                    failedSnapshot = nil
+                }
+                Button("Cancel", role: .cancel) { failedSnapshot = nil }
+            } message: {
+                Text("No signal, or the weather service didn't answer. Without it, the report says the weather couldn't be looked up.")
+            }
             .navigationTitle("Service Report")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -100,18 +118,39 @@ struct ProofOfServiceView: View {
         }
     }
 
+    /// What a report is made from, taken when Make PDF is tapped: changing
+    /// the place or period while the weather is looked up can't mix them.
+    private struct Snapshot {
+        let place: ProofOfService.ReportPlace
+        let period: ProofOfService.Period
+        let visits: [ProofOfService.Visit]
+    }
+
     private func makePDF() {
+        let snapshot = Snapshot(
+            place: places.first { $0.id == placeID }
+                ?? ProofOfService.ReportPlace(id: placeID, label: client.name, address: client.address),
+            period: period, visits: visits)
         isMaking = true
         Task { @MainActor in
-            await Task.yield()
-            let place = places.first { $0.id == placeID }
-                ?? ProofOfService.ReportPlace(id: placeID, label: client.name, address: client.address)
-            let profile = allProfiles.first { $0.operatorID == client.operatorID }
-            let data = ProofOfService.pdf(client: client, place: place, period: period, visits: visits, profile: profile)
-            let url = FileManager.default.temporaryDirectory
-                .appendingPathComponent(ProofOfService.fileName(client: client, period: period))
-            if (try? data.write(to: url)) != nil { pdfURL = url }
+            let weather = await VisitWeather.lookUp(
+                latitude: snapshot.place.latitude, longitude: snapshot.place.longitude,
+                visitDays: snapshot.visits.map { $0.record.startedAt ?? $0.record.performedAt })
             isMaking = false
+            if weather == .failed {
+                failedSnapshot = snapshot
+            } else {
+                write(snapshot, weather: weather)
+            }
         }
+    }
+
+    private func write(_ snapshot: Snapshot, weather: VisitWeather.Lookup) {
+        let profile = allProfiles.first { $0.operatorID == client.operatorID }
+        let data = ProofOfService.pdf(client: client, place: snapshot.place, period: snapshot.period,
+                                      visits: snapshot.visits, profile: profile, weather: weather)
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent(ProofOfService.fileName(client: client, period: snapshot.period))
+        if (try? data.write(to: url)) != nil { pdfURL = url }
     }
 }
