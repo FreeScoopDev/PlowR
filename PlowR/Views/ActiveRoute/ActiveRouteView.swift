@@ -238,11 +238,10 @@ struct ActiveRouteView: View {
         .onChange(of: currentStopIndex) { _, _ in
             if followDriver { recenterMap() }
         }
-        .onChange(of: SiteMonitor.shared.lastExitedRegionID) { _, regionID in
-            guard let regionID,
+        .onChange(of: SiteMonitor.shared.lastExit) { _, exit in
+            guard let exit,
                   let stop = currentStop,
-                  stop.id.uuidString == regionID else { return }
-            SiteMonitor.shared.lastExitedRegionID = nil
+                  stop.id.uuidString == exit.stopID else { return }
             triggerNotifyPrompt()
         }
         // Siri's "Notify next client", once nothing else is up.

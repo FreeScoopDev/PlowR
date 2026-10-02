@@ -158,11 +158,6 @@ final class ActiveRouteStore {
     /// Replaces any route already active.
     func start(_ route: PlowRoute, skipping: Set<UUID> = []) {
         if isActive { end() }
-        // A departure still awaited from one of these stops would be read as
-        // leaving this run's stop.
-        let stopIDs = Set((route.stops ?? []).map(\.id))
-        departures.removeAll { stopIDs.contains($0.stopID) }
-        SiteDepartures.save(departures, to: defaults)
         // A new run. Last run's times and recorded services would otherwise
         // show its stops as done before they're visited.
         for stop in route.stops ?? [] {
@@ -251,10 +246,11 @@ final class ActiveRouteStore {
     /// The phone came into the area around the stop with this ID
     /// (`SiteMonitor`): the current stop's arrival, or, for a completed stop
     /// still awaiting its departure, a sign the crew wasn't there when it was
-    /// completed, so a later exit isn't leaving it.
-    func siteEntered(_ id: String, at time: Date) {
+    /// completed, so a later exit isn't leaving it. `placedAt`: when the
+    /// area was placed this launch, if it was.
+    func siteEntered(_ id: String, at time: Date, placedAt: Date? = nil) {
         if let currentStopID, id == currentStopID.uuidString, let stopStartedAt, time >= stopStartedAt {
-            site.entered(at: time, stopStartedAt: stopStartedAt)
+            site.entered(at: time, settleFrom: max(stopStartedAt, placedAt ?? stopStartedAt))
             saveCheckpoint()
         }
         if departures.contains(where: { $0.stopID.uuidString == id }) {
@@ -287,9 +283,14 @@ final class ActiveRouteStore {
 
     /// Has iOS watch the current stop's area and those of completed stops
     /// still awaiting a departure, and nothing else. A stop with no pin
-    /// (0, 0) has no area.
+    /// (0, 0) has no area. Not while a saved route is waiting to be restored:
+    /// its stop's area would be removed, then placed again.
     private func updateSites() {
-        let current = SiteDepartures.current(departures, now: now())
+        if route == nil, defaults.data(forKey: Self.checkpointKey) != nil { return }
+        var current = SiteDepartures.current(departures, now: now())
+        // A stop awaiting a departure from an earlier run that's current
+        // again (the route run a second time): leaving it now is this run's.
+        if let currentStopID { current.removeAll { $0.stopID == currentStopID } }
         if current != departures {
             departures = current
             SiteDepartures.save(departures, to: defaults)

@@ -18,14 +18,17 @@ struct SiteTimes: Codable, Equatable {
     /// been seen to come in. A later entry isn't the arrival either.
     var arrivalUnseen = false
 
-    /// An entry this soon after the stop began isn't an arrival: iOS can
-    /// report a phone that was already inside the area once it's placed.
+    /// An entry this soon after the stop began, or after its area was placed
+    /// (again: its pin moved, or location was allowed only then), isn't an
+    /// arrival: iOS can report a phone already inside an area once it's placed.
     static let settleTime: TimeInterval = 60
 
-    mutating func entered(at time: Date, stopStartedAt: Date) {
+    /// `settleFrom`: the later of when the stop began and when its area was
+    /// last placed.
+    mutating func entered(at time: Date, settleFrom: Date) {
         leftAt = nil        // Back in: going out wasn't leaving.
         guard arrivedAt == nil, !arrivalUnseen else { return }
-        if time.timeIntervalSince(stopStartedAt) < Self.settleTime {
+        if time.timeIntervalSince(settleFrom) < Self.settleTime {
             arrivalUnseen = true
         } else {
             arrivedAt = time
@@ -84,6 +87,14 @@ struct SiteArea: Equatable {
     var id: String
     var latitude: Double
     var longitude: Double
+
+    /// What to change to watch `wanted` when `placed` are watched: areas to
+    /// stop (gone, or moved) and areas to place. Those placed already, where
+    /// they are now, are left alone: placing one afresh makes iOS work out
+    /// again whether the phone is inside it.
+    static func plan(placed: [SiteArea], wanted: [SiteArea]) -> (stop: [String], place: [SiteArea]) {
+        (placed.filter { !wanted.contains($0) }.map(\.id), wanted.filter { !placed.contains($0) })
+    }
 }
 
 /// What watches the areas: `SiteMonitor` in the app, nothing in tests.

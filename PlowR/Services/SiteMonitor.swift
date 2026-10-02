@@ -16,66 +16,100 @@ final class SiteMonitor: NSObject, CLLocationManagerDelegate, SiteWatching {
     /// About a property's size; also iOS's practical minimum.
     static let radius: CLLocationDistance = 100
 
-    /// The last area the phone went out of, for the route screen's offer to
-    /// text the next client.
-    var lastExitedRegionID: String?
+    /// The phone went out of the current stop's area: for the route screen's
+    /// offer to text the next client. Each exit is a new value, so one left
+    /// over from an exit the screen wasn't up for can't hide the next from
+    /// `onChange`.
+    struct Exit: Equatable {
+        var stopID: String
+        var token = UUID()
+    }
+    var lastExit: Exit?
 
     private let manager = CLLocationManager()
     /// What the route wants watched, placed again once location is allowed.
     /// nil until the route has said: iOS keeps areas across launches, and
     /// they mustn't be cleared before the route is restored.
     private var wanted: [SiteArea]?
+    /// What's placed, kept here rather than read back from iOS (whose copy
+    /// may lag, or round a centre). At launch, the areas iOS kept from before,
+    /// if they're this version's kind; any other is stopped on the first watch.
+    private var placed: [SiteArea] = []
+    private var stale: [CLRegion] = []
+    /// When each area was placed, this launch. An entry soon after isn't an
+    /// arrival (`SiteTimes.settleTime`).
+    private var placedAt: [String: Date] = [:]
 
     override private init() {
         super.init()
         manager.delegate = self
+        for region in manager.monitoredRegions {
+            if let circle = region as? CLCircularRegion, circle.radius == Self.radius,
+               circle.notifyOnEntry, circle.notifyOnExit {
+                placed.append(SiteArea(id: circle.identifier, latitude: circle.center.latitude,
+                                       longitude: circle.center.longitude))
+            } else {
+                stale.append(region)
+            }
+        }
     }
 
     func watch(_ areas: [SiteArea]) {
         wanted = areas
         guard CLLocationManager.isMonitoringAvailable(for: CLCircularRegion.self) else { return }
-        let placed = manager.monitoredRegions.compactMap { $0 as? CLCircularRegion }
-        for region in placed where !areas.contains(where: { Self.matches(region, $0) }) {
+        for region in stale { manager.stopMonitoring(for: region) }
+        stale = []
+        // A kept area whose centre came back from iOS a hair off is the same area.
+        placed = placed.map { area in
+            areas.first { $0.id == area.id && abs($0.latitude - area.latitude) < 1e-7
+                && abs($0.longitude - area.longitude) < 1e-7 } ?? area
+        }
+        let plan = SiteArea.plan(placed: placed, wanted: areas)
+        for region in manager.monitoredRegions where plan.stop.contains(region.identifier) {
             manager.stopMonitoring(for: region)
         }
-        for area in areas where !placed.contains(where: { Self.matches($0, area) }) {
+        for area in plan.place {
             let region = CLCircularRegion(center: CLLocationCoordinate2D(latitude: area.latitude,
                                                                          longitude: area.longitude),
                                           radius: Self.radius, identifier: area.id)
             region.notifyOnEntry = true        // a completed stop's entry drops its departure
             region.notifyOnExit = true
             manager.startMonitoring(for: region)
+            placedAt[area.id] = Date()
         }
-    }
-
-    /// Placed already, where the area is now (its pin can move with the client's).
-    private static func matches(_ region: CLCircularRegion, _ area: SiteArea) -> Bool {
-        region.identifier == area.id
-            && abs(region.center.latitude - area.latitude) < 1e-7
-            && abs(region.center.longitude - area.longitude) < 1e-7
+        placed = areas
     }
 
     // MARK: - CLLocationManagerDelegate
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        let status = manager.authorizationStatus
         DispatchQueue.main.async { [weak self] in
-            guard let self, let wanted else { return }
-            watch(wanted)
+            guard let self else { return }
+            // Allowed only now: iOS starts working out where the phone is
+            // only now, so an entry it reports next may not be an arrival.
+            if status == .authorizedAlways || status == .authorizedWhenInUse {
+                for area in placed { placedAt[area.id] = Date() }
+            }
+            if let wanted { watch(wanted) }
         }
     }
 
     func locationManager(_ manager: CLLocationManager, didEnterRegion region: CLRegion) {
         let time = Date()
-        DispatchQueue.main.async {
-            ActiveRouteStore.shared.siteEntered(region.identifier, at: time)
+        DispatchQueue.main.async { [weak self] in
+            let placedAt = self?.placedAt[region.identifier]
+            ActiveRouteStore.shared.siteEntered(region.identifier, at: time, placedAt: placedAt)
         }
     }
 
     func locationManager(_ manager: CLLocationManager, didExitRegion region: CLRegion) {
         let time = Date()
         DispatchQueue.main.async { [weak self] in
-            ActiveRouteStore.shared.siteExited(region.identifier, at: time)
-            self?.lastExitedRegionID = region.identifier
+            let store = ActiveRouteStore.shared
+            let isCurrentStop = store.currentStopID?.uuidString == region.identifier
+            store.siteExited(region.identifier, at: time)
+            if isCurrentStop { self?.lastExit = Exit(stopID: region.identifier) }
         }
     }
 

@@ -659,7 +659,8 @@ enum ServiceLog {
     /// takes from the others what it lacks: an invoice together with the
     /// services it billed; the services a route recorded, over a visit's
     /// expected ones (or over a visit record's services edited by hand: the
-    /// merge can't tell those apart); notes; the route's times. Their photos
+    /// merge can't tell those apart); notes; the route's times and GPS
+    /// arrival and departure. Their photos
     /// move to it.
     /// A copy is merged only once it's `mergeAfter` old, and never when both
     /// are on different invoices: that double bill is real and stays in
@@ -700,6 +701,9 @@ enum ServiceLog {
                 survivor.performedAt = record.performedAt
                 survivor.minutes = record.minutes
             }
+            // GPS arrival and departure: only the crew's copy has them.
+            if survivor.arrivedAt == nil { survivor.arrivedAt = record.arrivedAt }
+            if survivor.leftAt == nil { survivor.leftAt = record.leftAt }
             if survivor.runID.isEmpty {
                 survivor.runID = record.runID
                 survivor.stopID = record.stopID
