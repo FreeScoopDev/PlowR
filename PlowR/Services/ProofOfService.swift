@@ -60,16 +60,23 @@ enum ProofOfService {
         let id: String
         let label: String
         let address: String
+        /// Its pin, for the weather; none for a place only records name.
+        var latitude: Double = 0
+        var longitude: Double = 0
     }
 
     /// The client's places, then any their records name that isn't one any
     /// more: a property made inactive or removed after the season is the one
     /// a claim is most likely about.
     static func places(of client: Client, in context: ModelContext) -> [ReportPlace] {
-        var places = Place.all(of: client).map { ReportPlace(id: $0.id, label: $0.isMain ? "Main Address" : $0.label, address: $0.address) }
+        var places = Place.all(of: client).map {
+            ReportPlace(id: $0.id, label: $0.isMain ? "Main Address" : $0.label, address: $0.address,
+                        latitude: $0.latitude, longitude: $0.longitude)
+        }
         for property in Place.ordered(client.properties ?? []) where !places.contains(where: { $0.id == property.id.uuidString }) {
             let place = Place.of(property)
-            places.append(ReportPlace(id: place.id, label: "\(place.label) (inactive)", address: place.address))
+            places.append(ReportPlace(id: place.id, label: "\(place.label) (inactive)", address: place.address,
+                                      latitude: place.latitude, longitude: place.longitude))
         }
         let records = ServiceLog.records(ofClient: client.id.uuidString, in: context)
         for record in records {
@@ -186,8 +193,13 @@ enum ProofOfService {
     }
 
     /// The note at the end: what the times and photos are, and the zone.
-    static func note(timeZone: TimeZone = .current) -> String {
+    static func note(withWeather: Bool = false, timeZone: TimeZone = .current) -> String {
         let zone = timeZone.localizedName(for: .generic, locale: .current) ?? timeZone.identifier
+        let weather = withWeather
+            ? " Weather figures are estimates from a weather model (Open-Meteo's historical forecast archive, "
+                + "open-meteo.com) for the area within about 1 km: whole-day totals, before and after the visit, not "
+                + "measurements at the property, and not available before 2022 or for today."
+            : ""
         return "About this report: it lists what was recorded in PlowR. A route stop's start is when it became the "
             + "current stop (the route started, or the previous stop was completed), so it includes travel; its "
             + "completion is when it was marked done. \"Arrived\" and \"Left\" are when the phone came into and "
@@ -198,12 +210,15 @@ enum ProofOfService {
             + "were saved with. \"Taken\" is when PlowR's camera took it. \"File dated\" is the date stored in a "
             + "photo picked from the library, which can be changed, and \"zone assumed\" means the file gave no "
             + "time zone, so it was read in the phone's. A photo with no time is one whose time PlowR doesn't "
-            + "know, and isn't shown to be from that visit. Times are \(zone)."
+            + "know, and isn't shown to be from that visit.\(weather) Times are \(zone)."
     }
 
     /// The report.
+    /// `weather`: the estimates (VisitWeather). Not looked up (no pin), the
+    /// report leaves weather out; failed, it says so once instead of
+    /// showing every day without an estimate.
     static func pdf(client: Client, place: ReportPlace, period: Period, visits: [Visit], profile: BusinessProfile?,
-                    now: Date = .now) -> Data {
+                    weather: VisitWeather.Lookup = .notLookedUp, now: Date = .now) -> Data {
         PDFPageWriter.document(profile: profile) { page in
             page.header(title: title, subtitle: client.name, profile: profile)
             let day = Date.FormatStyle.dateTime.month(.wide).day().year()
@@ -213,7 +228,12 @@ enum ProofOfService {
             page.text("\(period.label): \(period.start.formatted(day)) to \(period.end.formatted(day))",
                       .systemFont(ofSize: 11), gap: 10)
             page.heading("Summary")
-            page.text(visits.count == 1 ? "1 visit recorded" : "\(visits.count) visits recorded", .systemFont(ofSize: 11), gap: 14)
+            page.text(visits.count == 1 ? "1 visit recorded" : "\(visits.count) visits recorded", .systemFont(ofSize: 11), gap: 2)
+            if weather == .failed {
+                page.text("Weather: couldn't be looked up when this report was made.", .systemFont(ofSize: 11),
+                          PDFGenerator.inkMid, gap: 2)
+            }
+            page.y += 12
             page.heading("Visits")
             if visits.isEmpty {
                 page.text("No work recorded at this property in this period.", .systemFont(ofSize: 11), PDFGenerator.inkMid)
@@ -224,6 +244,10 @@ enum ProofOfService {
                     .formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().year())
                 page.text(date, .systemFont(ofSize: 12, weight: .semibold), gap: 2)
                 for line in lines(of: visit, placeAddress: place.address) { page.text(line, .systemFont(ofSize: 10.5), gap: 2) }
+                if case .days(let days) = weather {
+                    let key = VisitWeather.dayString(visit.record.startedAt ?? visit.record.performedAt)
+                    page.text(VisitWeather.line(days[key]), .systemFont(ofSize: 10.5), PDFGenerator.inkMid, gap: 2)
+                }
                 if !visit.photos.isEmpty {
                     page.y += 4
                     // One visit's photos in memory at a time.
@@ -239,7 +263,7 @@ enum ProofOfService {
             }
             page.y += 10
             page.keep(60)
-            page.text(note(), .systemFont(ofSize: 9), PDFGenerator.inkMid, gap: 2)
+            page.text(note(withWeather: weather != .notLookedUp), .systemFont(ofSize: 9), PDFGenerator.inkMid, gap: 2)
             page.text("Prepared with PlowR on \(now.formatted(day)).", .systemFont(ofSize: 9), PDFGenerator.inkMid)
         }
     }

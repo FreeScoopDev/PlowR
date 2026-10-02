@@ -84,9 +84,9 @@ actor WeatherService {
     }()
 
     func fetch(latitude: Double, longitude: Double) async throws -> WeatherCondition {
-        // Round to 2 decimal places (~1.1 km) — sufficient for weather, reduces location precision sent to Open-Meteo
-        let lat = (latitude  * 100).rounded() / 100
-        let lon = (longitude * 100).rounded() / 100
+        // Rounded (~1.1 km): enough for weather, and less of the location sent to Open-Meteo.
+        let lat = RoundedCoordinates.round(latitude)
+        let lon = RoundedCoordinates.round(longitude)
         let urlStr = "https://api.open-meteo.com/v1/forecast?latitude=\(lat)&longitude=\(lon)&current=temperature_2m,weather_code,wind_speed_10m,wind_direction_10m&temperature_unit=fahrenheit&wind_speed_unit=mph&forecast_days=1"
         guard let url = URL(string: urlStr) else { throw URLError(.badURL) }
         let (data, _) = try await URLSession.shared.data(from: url)
@@ -103,8 +103,8 @@ actor WeatherService {
     }
 
     func fetchForecast(latitude: Double, longitude: Double) async throws -> [DayForecast] {
-        let lat = (latitude  * 100).rounded() / 100
-        let lon = (longitude * 100).rounded() / 100
+        let lat = RoundedCoordinates.round(latitude)
+        let lon = RoundedCoordinates.round(longitude)
         let urlStr = "https://api.open-meteo.com/v1/forecast?latitude=\(lat)&longitude=\(lon)&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum&temperature_unit=fahrenheit&forecast_days=7&timezone=auto"
         guard let url = URL(string: urlStr) else { throw URLError(.badURL) }
         let (data, _) = try await URLSession.shared.data(from: url)
