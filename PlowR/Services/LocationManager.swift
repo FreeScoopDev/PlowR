@@ -8,7 +8,6 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
 
     var currentLocation: CLLocation?
     var authorizationStatus: CLAuthorizationStatus = .notDetermined
-    var lastExitedRegionID: String?
 
     override init() {
         super.init()
@@ -29,46 +28,10 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
 
     func stopTracking() {
         manager.stopUpdatingLocation()
-        clearAllGeofences()
-    }
-
-    func startMonitoringStop(_ stop: RouteStop) {
-        guard CLLocationManager.isMonitoringAvailable(for: CLCircularRegion.self) else { return }
-        guard stop.latitude != 0.0 || stop.longitude != 0.0 else { return }
-
-        let region = CLCircularRegion(
-            center: CLLocationCoordinate2D(latitude: stop.latitude, longitude: stop.longitude),
-            radius: 100,
-            identifier: stop.id.uuidString
-        )
-        region.notifyOnExit = true
-        region.notifyOnEntry = false
-        manager.startMonitoring(for: region)
     }
 
     var isAuthorized: Bool {
         authorizationStatus == .authorizedAlways || authorizationStatus == .authorizedWhenInUse
-    }
-
-    /// Keeps `stop`'s job-site zone where its pin is, placing it again only
-    /// if it's missing or the pin moved: a zone placed afresh first has to
-    /// work out that the phone is inside it, and an exit in that moment is
-    /// missed.
-    func keepMonitoring(_ stop: RouteStop?) {
-        guard let stop else { return clearAllGeofences() }
-        let regions = manager.monitoredRegions
-        if regions.count == 1, let placed = regions.first as? CLCircularRegion,
-           placed.identifier == stop.id.uuidString,
-           abs(placed.center.latitude - stop.latitude) < 1e-7,
-           abs(placed.center.longitude - stop.longitude) < 1e-7 { return }
-        clearAllGeofences()
-        startMonitoringStop(stop)
-    }
-
-    func clearAllGeofences() {
-        for region in manager.monitoredRegions {
-            manager.stopMonitoring(for: region)
-        }
     }
 
     func calculateETA(to stop: RouteStop) async -> Int? {
@@ -103,15 +66,5 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         authorizationStatus = manager.authorizationStatus
-    }
-
-    func locationManager(_ manager: CLLocationManager, didExitRegion region: CLRegion) {
-        DispatchQueue.main.async { [weak self] in
-            self?.lastExitedRegionID = region.identifier
-        }
-    }
-
-    func locationManager(_ manager: CLLocationManager, monitoringDidFailFor region: CLRegion?, withError error: Error) {
-        // Geofencing failure is non-fatal; the operator can manually advance stops
     }
 }

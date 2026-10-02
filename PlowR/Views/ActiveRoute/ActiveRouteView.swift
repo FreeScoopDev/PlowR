@@ -102,23 +102,15 @@ struct ActiveRouteView: View {
 
     var body: some View {
         screenWithSheets
+        // The job-site areas follow the route by themselves (ActiveRouteStore,
+        // SiteMonitor), with or without this screen.
         .onChange(of: store.currentStopID) { _, _ in
-            locationManager.clearAllGeofences()
-            if let stop = currentStop { locationManager.startMonitoringStop(stop) }
             if scenePhase == .active { store.markCurrentStopSeen() }
-        }
-        // The current stop's pin moved with its client's, say corrected on
-        // another device: the job-site zone moves too.
-        .onChange(of: currentStop.map { [$0.latitude, $0.longitude] }) { _, _ in
-            locationManager.keepMonitoring(currentStop)
         }
         // Back in the app with this screen up: whatever stop it shows is seen.
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
             store.markCurrentStopSeen()
-            // The current stop's pin may have moved while the screen couldn't
-            // redraw (the phone locked, say): its job-site zone follows.
-            if locationManager.isAuthorized { locationManager.keepMonitoring(currentStop) }
         }
         // Control Center's Complete Stop, when it couldn't complete the stop.
         // Held while something else is up: iOS won't present an alert over a
@@ -135,7 +127,6 @@ struct ActiveRouteView: View {
             switch status {
             case .authorizedAlways, .authorizedWhenInUse:
                 locationManager.startTracking()
-                if let stop = currentStop { locationManager.startMonitoringStop(stop) }
             case .denied, .restricted:
                 showingLocationDeniedAlert = true
             default: break
@@ -247,11 +238,11 @@ struct ActiveRouteView: View {
         .onChange(of: currentStopIndex) { _, _ in
             if followDriver { recenterMap() }
         }
-        .onChange(of: locationManager.lastExitedRegionID) { _, regionID in
+        .onChange(of: SiteMonitor.shared.lastExitedRegionID) { _, regionID in
             guard let regionID,
                   let stop = currentStop,
                   stop.id.uuidString == regionID else { return }
-            locationManager.lastExitedRegionID = nil
+            SiteMonitor.shared.lastExitedRegionID = nil
             triggerNotifyPrompt()
         }
         // Siri's "Notify next client", once nothing else is up.
@@ -761,16 +752,15 @@ struct ActiveRouteView: View {
 
     // MARK: - Route Logic
 
-    /// Starts GPS and geofencing for the current stop. Runs every time the
-    /// screen appears, including after a relaunch restores the route; only a
-    /// freshly started route offers to notify its first client.
+    /// Starts GPS for the map and ETA (the job-site areas are SiteMonitor's).
+    /// Runs every time the screen appears, including after a relaunch restores
+    /// the route; only a freshly started route offers to notify its first client.
     private func beginTracking() {
         switch locationManager.authorizationStatus {
         case .notDetermined:
             locationManager.requestPermission()
         case .authorizedAlways, .authorizedWhenInUse:
             locationManager.startTracking()
-            if let stop = currentStop { locationManager.startMonitoringStop(stop) }
         case .denied, .restricted:
             showingLocationDeniedAlert = true
         @unknown default:

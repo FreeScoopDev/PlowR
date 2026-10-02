@@ -70,14 +70,16 @@ struct ActiveRouteStoreTests {
         /// observe saves. A closed app can't react to changes; a configured
         /// store here would quietly fix its own checkpoint and hide bugs (two
         /// tests were contaminated that way, found in review).
-        func makeClosedAppStore() -> ActiveRouteStore {
-            ActiveRouteStore(defaults: defaults, surfaces: FakeRouteSurfaces(), now: { [unowned self] in clock })
+        func makeClosedAppStore(sites: SiteWatching = NoSiteWatching()) -> ActiveRouteStore {
+            ActiveRouteStore(defaults: defaults, surfaces: FakeRouteSurfaces(), sites: sites,
+                             now: { [unowned self] in clock })
         }
 
         /// A store as the app would build one at launch: same defaults and data.
-        func makeStore(_ surfaces: FakeRouteSurfaces = FakeRouteSurfaces(),
+        func makeStore(_ surfaces: FakeRouteSurfaces = FakeRouteSurfaces(), sites: SiteWatching = NoSiteWatching(),
                        fetchRoutes: ((ModelContext) throws -> [PlowRoute])? = nil) -> ActiveRouteStore {
-            let store = ActiveRouteStore(defaults: defaults, surfaces: surfaces, now: { [unowned self] in clock },
+            let store = ActiveRouteStore(defaults: defaults, surfaces: surfaces, sites: sites,
+                                         now: { [unowned self] in clock },
                                          fetchRoutes: fetchRoutes ?? { try $0.fetch(FetchDescriptor<PlowRoute>()) })
             store.configure(context: context)
             return store

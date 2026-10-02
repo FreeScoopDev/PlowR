@@ -15,7 +15,7 @@ import SwiftData
 /// route; no view lifecycle event does.
 @Observable
 final class ActiveRouteStore {
-    static let shared = ActiveRouteStore()
+    static let shared = ActiveRouteStore(sites: SystemSiteWatching())
 
     /// What survives the app being killed. Deliberately tiny: the route and
     /// its stops are already in SwiftData, so only the position is saved.
@@ -38,6 +38,9 @@ final class ActiveRouteStore {
         var runStartedAt: Date?
         /// `skippedStopIDs`, kept. nil in a checkpoint from before it existed.
         var skippedStopIDs: [UUID]?
+        /// `site`, kept. nil when nothing was seen yet, or in a checkpoint
+        /// from before it existed.
+        var site: SiteTimes?
     }
 
     /// What completing the current stop did, so callers (the screen, Siri,
@@ -87,19 +90,29 @@ final class ActiveRouteStore {
     /// hasn't seen: at the old stop, they'd credit the next client's visit.
     private(set) var stopChangedUnseen = false
 
+    /// When the crew got to the current stop and left it, as GPS saw it.
+    private(set) var site = SiteTimes()
+    /// Completed stops still waiting on GPS to see the crew leave. Not the
+    /// route's: they outlive End Route.
+    private(set) var departures: [PendingDeparture]
+
     private var context: ModelContext?
     private let defaults: UserDefaults
     private let surfaces: RouteSurfaces
+    private let sites: SiteWatching
     private let now: () -> Date
     private let fetchRoutes: (ModelContext) throws -> [PlowRoute]
     static let checkpointKey = "activeRouteCheckpoint"
 
     init(defaults: UserDefaults = .standard,
          surfaces: RouteSurfaces = SystemRouteSurfaces(),
+         sites: SiteWatching = NoSiteWatching(),
          now: @escaping () -> Date = Date.init,
          fetchRoutes: @escaping (ModelContext) throws -> [PlowRoute] = { try $0.fetch(FetchDescriptor<PlowRoute>()) }) {
         self.defaults = defaults
         self.surfaces = surfaces
+        self.sites = sites
+        departures = SiteDepartures.load(from: defaults)
         self.now = now
         self.fetchRoutes = fetchRoutes
     }
@@ -130,6 +143,7 @@ final class ActiveRouteStore {
     func configure(context: ModelContext) {
         self.context = context
         restore()
+        updateSites()
         // A route (or its stops) can be deleted or reordered on another device
         // while this one is mid-route. Re-check whenever the store changes;
         // the app also calls validate() when it becomes active.
@@ -144,6 +158,11 @@ final class ActiveRouteStore {
     /// Replaces any route already active.
     func start(_ route: PlowRoute, skipping: Set<UUID> = []) {
         if isActive { end() }
+        // A departure still awaited from one of these stops would be read as
+        // leaving this run's stop.
+        let stopIDs = Set((route.stops ?? []).map(\.id))
+        departures.removeAll { stopIDs.contains($0.stopID) }
+        SiteDepartures.save(departures, to: defaults)
         // A new run. Last run's times and recorded services would otherwise
         // show its stops as done before they're visited.
         for stop in route.stops ?? [] {
@@ -160,11 +179,13 @@ final class ActiveRouteStore {
         currentStopIndex = 0
         currentStopID = currentStop?.id
         stopStartedAt = now()
+        site = SiteTimes()
         isFirstStopPromptPending = true
         stopChangedUnseen = false
         saveCheckpoint()
         lastProgress = progress
         surfaces.start(progress)
+        updateSites()
     }
 
     /// Records the current stop's visit on its client and in the Service Log,
@@ -190,10 +211,12 @@ final class ActiveRouteStore {
         currentStopIndex += 1
         currentStopID = currentStop?.id
         stopStartedAt = now()
+        site = SiteTimes()
         stopChangedUnseen = false
         saveCheckpoint()
         lastProgress = progress
         surfaces.update(progress)
+        updateSites()
         // Saved now, not left to autosave: Siri completes stops with the app
         // in the background, which may be suspended before autosave runs.
         try? context?.save()
@@ -220,6 +243,62 @@ final class ActiveRouteStore {
         guard isActive else { return }
         surfaces.end(progress)
         clearState()
+        updateSites()
+    }
+
+    // MARK: - Arrival and departure (GPS)
+
+    /// The phone came into the area around the stop with this ID
+    /// (`SiteMonitor`): the current stop's arrival, or, for a completed stop
+    /// still awaiting its departure, a sign the crew wasn't there when it was
+    /// completed, so a later exit isn't leaving it.
+    func siteEntered(_ id: String, at time: Date) {
+        if let currentStopID, id == currentStopID.uuidString, let stopStartedAt, time >= stopStartedAt {
+            site.entered(at: time, stopStartedAt: stopStartedAt)
+            saveCheckpoint()
+        }
+        if departures.contains(where: { $0.stopID.uuidString == id }) {
+            departures.removeAll { $0.stopID.uuidString == id }
+            SiteDepartures.save(departures, to: defaults)
+            updateSites()
+        }
+    }
+
+    /// The phone went out of the area around the stop with this ID: for the
+    /// current stop, leaving it (unless it comes back in); for a completed
+    /// stop awaiting its departure, the departure, added to its record.
+    func siteExited(_ id: String, at time: Date) {
+        if let currentStopID, id == currentStopID.uuidString, let stopStartedAt, time >= stopStartedAt {
+            site.exited(at: time)
+            saveCheckpoint()
+        }
+        guard let index = departures.firstIndex(where: { $0.stopID.uuidString == id }) else { return }
+        let pending = departures.remove(at: index)
+        SiteDepartures.save(departures, to: defaults)
+        let elapsed = time.timeIntervalSince(pending.completedAt)
+        if elapsed >= 0, elapsed <= SiteDepartures.window, let context,
+           let record = ServiceLog.runRecord(run: pending.runID, stop: pending.stopID, in: context) {
+            record.leftAt = time
+            // Saved now: iOS woke the app in the background for this.
+            try? context.save()
+        }
+        updateSites()
+    }
+
+    /// Has iOS watch the current stop's area and those of completed stops
+    /// still awaiting a departure, and nothing else. A stop with no pin
+    /// (0, 0) has no area.
+    private func updateSites() {
+        let current = SiteDepartures.current(departures, now: now())
+        if current != departures {
+            departures = current
+            SiteDepartures.save(departures, to: defaults)
+        }
+        var areas = departures.map { SiteArea(id: $0.stopID.uuidString, latitude: $0.latitude, longitude: $0.longitude) }
+        if let stop = currentStop, stop.latitude != 0 || stop.longitude != 0 {
+            areas.append(SiteArea(id: stop.id.uuidString, latitude: stop.latitude, longitude: stop.longitude))
+        }
+        sites.watch(areas)
     }
 
     private enum Lookup {
@@ -235,18 +314,22 @@ final class ActiveRouteStore {
             // A launch that couldn't read the store left the route unrestored;
             // try again now (this runs on saves and whenever the app is active).
             if context != nil, defaults.data(forKey: Self.checkpointKey) != nil { restore() }
+            // Departures awaited after End Route stop being watched in time.
+            updateSites()
             return
         }
         if route.isDeleted || lookup(routeID).isMissing {
             // Never read the deleted models: end with what was last shown.
             surfaces.end(lastProgress ?? progress)
             clearState()
+            updateSites()
             return
         }
         let beforeProgress = lastProgress
         let stopChanged = reconcile(stopID: currentStopID, index: currentStopIndex)
         if stopChanged {
             stopStartedAt = now()
+            site = SiteTimes()
             stopChangedUnseen = true
         }
         if stopChanged || progress != beforeProgress {
@@ -254,6 +337,8 @@ final class ActiveRouteStore {
             lastProgress = progress
             surfaces.update(progress)
         }
+        // Also when only the current stop's pin moved, with its client's.
+        updateSites()
     }
 
     /// The one rule for "where are we now", shared by `validate()` and
@@ -279,6 +364,9 @@ final class ActiveRouteStore {
         end()
         defaults.removeObject(forKey: Self.checkpointKey)
         surfaces.clear()
+        departures = []
+        SiteDepartures.save([], to: defaults)
+        updateSites()
     }
 
     // MARK: - Progress for the Live Activity and widget
@@ -313,9 +401,20 @@ final class ActiveRouteStore {
         client.totalVisits += 1
         client.totalServiceMinutes += minutes
         client.lastServiceDate = finishedAt
-        if let runID {
-            ServiceLog.recordStop(stop, of: client, run: runID, operatorID: route?.operatorID ?? client.operatorID,
-                                  startedAt: startedAt, finishedAt: finishedAt, minutes: minutes, in: context)
+        guard let runID else { return }
+        let record = ServiceLog.recordStop(stop, of: client, run: runID,
+                                           operatorID: route?.operatorID ?? client.operatorID,
+                                           startedAt: startedAt, finishedAt: finishedAt, minutes: minutes,
+                                           in: context)
+        record.arrivedAt = site.arrivedAt
+        record.leftAt = site.leftAt
+        // Not seen leaving yet: still there, or never seen there at all.
+        // Watched for its departure (SiteDepartures says for how long).
+        if site.leftAt == nil, stop.latitude != 0 || stop.longitude != 0 {
+            departures.removeAll { $0.stopID == stop.id }
+            departures.append(PendingDeparture(runID: runID, stopID: stop.id, completedAt: finishedAt,
+                                               latitude: stop.latitude, longitude: stop.longitude))
+            SiteDepartures.save(departures, to: defaults)
         }
     }
 
@@ -330,6 +429,7 @@ final class ActiveRouteStore {
         currentStopIndex = 0
         currentStopID = nil
         stopStartedAt = nil
+        site = SiteTimes()
         isFirstStopPromptPending = false
         stopChangedUnseen = false
         defaults.removeObject(forKey: Self.checkpointKey)
@@ -351,7 +451,8 @@ final class ActiveRouteStore {
                                     currentStopID: currentStopID, stopStartedAt: stopStartedAt,
                                     stopChangedUnseen: stopChangedUnseen, runID: runID,
                                     runStartedAt: runStartedAt,
-                                    skippedStopIDs: skippedStopIDs.isEmpty ? nil : Array(skippedStopIDs))
+                                    skippedStopIDs: skippedStopIDs.isEmpty ? nil : Array(skippedStopIDs),
+                                    site: site == SiteTimes() ? nil : site)
         if let data = try? JSONEncoder().encode(checkpoint) {
             defaults.set(data, forKey: Self.checkpointKey)
         }
@@ -390,6 +491,7 @@ final class ActiveRouteStore {
         let stopChanged = reconcile(stopID: checkpoint.currentStopID, index: checkpoint.currentStopIndex)
         // The saved timer belongs to the saved stop only.
         stopStartedAt = stopChanged ? now() : checkpoint.stopStartedAt
+        site = stopChanged ? SiteTimes() : (checkpoint.site ?? SiteTimes())
         // Changed now, or before the app was ended and not seen since.
         stopChangedUnseen = stopChanged || (checkpoint.stopChangedUnseen ?? false)
         isFirstStopPromptPending = false

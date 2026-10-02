@@ -583,8 +583,8 @@
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "PlowR adds your visits to a “PlowR” calendar and updates or removes those events when visits change. It doesn’t read or change your other events.";
 				INFOPLIST_KEY_NSCalendarsUsageDescription = "PlowR adds your visits to a “PlowR” calendar and updates or removes those events when visits change. It doesn’t read or change your other events.";
 				INFOPLIST_KEY_NSCameraUsageDescription = "PlowR uses your camera to capture before and after photos of service stops, and to scan business cards when adding new clients.";
-				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "During a route, PlowR uses your location in the background to notice when you leave a stop, so it can prompt you to notify the next client.";
-				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "During a route, PlowR uses your location in the background to notice when you leave a stop, so it can prompt you to notify the next client.";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "During a route, PlowR uses your location in the background to notice when you arrive at and leave a stop, so it can record those times on the job and prompt you to notify the next client.";
+				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "During a route, PlowR uses your location in the background to notice when you arrive at and leave a stop, so it can record those times on the job and prompt you to notify the next client.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "PlowR uses your location to show where you are on the route map, estimate arrival times for your clients, and show your local weather.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "PlowR saves a job photo to your photo library when you choose Save Image.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
@@ -628,8 +628,8 @@
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "PlowR adds your visits to a “PlowR” calendar and updates or removes those events when visits change. It doesn’t read or change your other events.";
 				INFOPLIST_KEY_NSCalendarsUsageDescription = "PlowR adds your visits to a “PlowR” calendar and updates or removes those events when visits change. It doesn’t read or change your other events.";
 				INFOPLIST_KEY_NSCameraUsageDescription = "PlowR uses your camera to capture before and after photos of service stops, and to scan business cards when adding new clients.";
-				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "During a route, PlowR uses your location in the background to notice when you leave a stop, so it can prompt you to notify the next client.";
-				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "During a route, PlowR uses your location in the background to notice when you leave a stop, so it can prompt you to notify the next client.";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "During a route, PlowR uses your location in the background to notice when you arrive at and leave a stop, so it can record those times on the job and prompt you to notify the next client.";
+				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "During a route, PlowR uses your location in the background to notice when you arrive at and leave a stop, so it can record those times on the job and prompt you to notify the next client.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "PlowR uses your location to show where you are on the route map, estimate arrival times for your clients, and show your local weather.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "PlowR saves a job photo to your photo library when you choose Save Image.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;

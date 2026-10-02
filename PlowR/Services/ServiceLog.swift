@@ -155,8 +155,15 @@ enum ServiceLog {
 
     /// The record this run already has for `stop` (the oldest, as `record(forKey:)`).
     private static func runRecord(for stop: RouteStop, run: UUID, in context: ModelContext) -> ServiceRecord? {
+        runRecord(run: run, stop: stop.id, in: context)
+    }
+
+    /// The record run `run` has for the stop with ID `stop`, whatever its key
+    /// (a stop that shared the day's visit is under the visit's). Found by
+    /// IDs, so the stop itself can be gone.
+    static func runRecord(run: UUID, stop: UUID, in context: ModelContext) -> ServiceRecord? {
         let runID = run.uuidString
-        let stopID = stop.id.uuidString
+        let stopID = stop.uuidString
         let descriptor = FetchDescriptor<ServiceRecord>(
             predicate: #Predicate { $0.runID == runID && $0.stopID == stopID })
         return oldest((try? context.fetch(descriptor)) ?? [])
