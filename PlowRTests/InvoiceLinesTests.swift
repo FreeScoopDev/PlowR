@@ -191,6 +191,7 @@ struct InvoiceLineAmountTests {
             for: Proposal.self, ProposalLineItem.self, Client.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         )
+        container.mainContext.autosaveEnabled = false   // see ActiveRouteStoreTests.Harness
         let context = container.mainContext
         let client = Client(name: "Pat", phone: "", address: "1 Main St", operatorID: "op")
         context.insert(client)

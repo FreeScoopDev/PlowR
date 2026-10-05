@@ -84,6 +84,7 @@ struct InvoiceNumberingStoreTests {
             for: Proposal.self, ProposalLineItem.self, Client.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         )
+        container.mainContext.autosaveEnabled = false   // see ActiveRouteStoreTests.Harness
         return ModelContext(container)
     }
 

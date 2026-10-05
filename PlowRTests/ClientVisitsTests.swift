@@ -24,6 +24,7 @@ struct ClientVisitsTests {
         container = try ModelContainer(
             for: Client.self, PlowRoute.self, RouteStop.self, ScheduledVisit.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
+        container.mainContext.autosaveEnabled = false   // see ActiveRouteStoreTests.Harness
         context = container.mainContext
         pat = Client(name: "Pat Doe", phone: "555-0100", address: "1 Main St", operatorID: "op")
         sam = Client(name: "Sam Roe", phone: "555-0200", address: "2 Elm St", operatorID: "op")
