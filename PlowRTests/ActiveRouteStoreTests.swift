@@ -50,6 +50,11 @@ struct ActiveRouteStoreTests {
                 configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
             )
             context = container.mainContext
+            // Tests save when they mean to. An autosave left pending fires on
+            // the main run loop after the test has let its store go, and
+            // SwiftData traps there, taking every test in the run with it
+            // ("Test crashed with signal trap", seen on CI and iOS 26.5).
+            context.autosaveEnabled = false
             defaults = try #require(UserDefaults(suiteName: "ActiveRouteStoreTests-\(UUID().uuidString)"))
             route = PlowRoute(name: "Tuesday", operatorID: "op")
             context.insert(route)

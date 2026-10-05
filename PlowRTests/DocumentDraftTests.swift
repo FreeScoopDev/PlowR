@@ -72,6 +72,7 @@ struct DocumentDraftSaveTests {
             for: Proposal.self, ProposalLineItem.self, Client.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         )
+        container.mainContext.autosaveEnabled = false   // see ActiveRouteStoreTests.Harness
         let context = container.mainContext
         var d = DocumentDraft(
             services: [.init(id: "mow", name: "Mowing", unitType: "perSqFt", pricePerUnit: 0.08),

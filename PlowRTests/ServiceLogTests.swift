@@ -342,6 +342,7 @@ struct ServiceLogTests {
             container = try ModelContainer(
                 for: Schema(PlowRApp.models),
                 configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
+            container.mainContext.autosaveEnabled = false   // see ActiveRouteStoreTests.Harness
             context = container.mainContext
             client = Client(name: "Pat Doe", phone: "555-0100", address: "1 Main St", operatorID: "op")
             context.insert(client)

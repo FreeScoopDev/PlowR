@@ -35,6 +35,7 @@ struct StoreArchiveTests {
         let url = dir.appending(path: "default.store")
         let container = try ModelContainer(for: StoreV1.Item.self,
                                            configurations: ModelConfiguration(url: url, cloudKitDatabase: .none))
+        container.mainContext.autosaveEnabled = false   // see ActiveRouteStoreTests.Harness
         container.mainContext.insert(StoreV1.Item())
         try container.mainContext.save()
         return url
@@ -105,6 +106,7 @@ struct StoreArchiveTests {
         #expect(verdict(url, [StoreV2.Item.self]) == .opensWithoutICloud)
         let container = try ModelContainer(for: StoreV2.Item.self,
                                            configurations: ModelConfiguration(url: url, cloudKitDatabase: .none))
+        container.mainContext.autosaveEnabled = false   // see ActiveRouteStoreTests.Harness
         container.mainContext.insert(StoreV2.Item())
         try container.mainContext.save()
         #expect(try container.mainContext.fetchCount(FetchDescriptor<StoreV2.Item>()) == 2)
@@ -167,6 +169,7 @@ struct StoreArchiveTests {
         do {
             let container = try ModelContainer(for: Schema(PlowRApp.models),
                                                configurations: ModelConfiguration(url: url, cloudKitDatabase: .none))
+            container.mainContext.autosaveEnabled = false   // see ActiveRouteStoreTests.Harness
             let context = container.mainContext
             let client = Client(name: "Pat Doe", phone: "", address: "", operatorID: "op")
             let route = PlowRoute(name: "Tuesday", operatorID: "op")

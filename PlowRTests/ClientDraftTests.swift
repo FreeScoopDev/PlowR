@@ -21,6 +21,7 @@ struct ClientDraftTests {
         container = try ModelContainer(
             for: Client.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
+        container.mainContext.autosaveEnabled = false   // see ActiveRouteStoreTests.Harness
         pat = Client(name: "Pat Doe", phone: "555-0100", address: "1 Main St", operatorID: "op")
         pat.email = "pat@example.com"
         pat.skipNotificationPrompt = true

@@ -21,6 +21,7 @@ struct ServiceCatalogTests {
         container = try ModelContainer(for: Schema(PlowRApp.models),
                                        configurations: ModelConfiguration(isStoredInMemoryOnly: true,
                                                                           cloudKitDatabase: .none))
+        container.mainContext.autosaveEnabled = false   // see ActiveRouteStoreTests.Harness
     }
 
     private func service(_ name: String, category: String, operatorID: String = "op", order: Int = 0) -> ServiceItem {

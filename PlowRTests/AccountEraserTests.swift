@@ -62,6 +62,7 @@ struct AccountEraserTests {
             let container = try ModelContainer(for: Schema(PlowRApp.models),
                                                configurations: ModelConfiguration(isStoredInMemoryOnly: true,
                                                                                   cloudKitDatabase: .none))
+            container.mainContext.autosaveEnabled = false   // see ActiveRouteStoreTests.Harness
             self.suite = suite
             self.defaults = defaults
             self.folder = folder
@@ -265,6 +266,7 @@ struct AccountEraserTests {
         let schema = Schema(PlowRApp.models)
         let disk = try ModelContainer(for: schema, configurations: ModelConfiguration(
             schema: schema, url: account.storeFolder.appending(path: "photos.store"), cloudKitDatabase: .none))
+        disk.mainContext.autosaveEnabled = false   // see ActiveRouteStoreTests.Harness
         disk.mainContext.insert(StopPhoto(operatorID: "op", clientID: "c", routeID: "r", isBefore: true,
                                           imageData: Data(repeating: 7, count: 1_000_000)))
         try disk.mainContext.save()
@@ -294,6 +296,7 @@ struct AccountEraserTests {
         let schema = Schema(PlowRApp.models)
         let disk = try ModelContainer(for: schema, configurations: ModelConfiguration(
             schema: schema, url: account.storeFolder.appending(path: "live.store"), cloudKitDatabase: .none))
+        disk.mainContext.autosaveEnabled = false   // see ActiveRouteStoreTests.Harness
         let paths = AccountEraser.archiveFolders(for: disk).map(\.standardizedFileURL.path)
         #expect(paths.contains(account.storeFolder.standardizedFileURL.path))
         #expect(paths.contains(URL.applicationSupportDirectory.standardizedFileURL.path))

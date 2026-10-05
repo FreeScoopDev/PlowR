@@ -101,6 +101,7 @@ struct CalendarSyncTests {
             container = try ModelContainer(for: Schema(PlowRApp.models),
                                            configurations: ModelConfiguration(isStoredInMemoryOnly: true,
                                                                               cloudKitDatabase: .none))
+            container.mainContext.autosaveEnabled = false   // see ActiveRouteStoreTests.Harness
             sync = CalendarSync(store: store, defaults: defaults, now: { now }, delay: delay)
             sync.configure(context: container.mainContext)
             sync.operatorID = "op"
