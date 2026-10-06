@@ -81,7 +81,11 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   every CI runner. No `catch` can reach it. `PlowRApp.isRunningUnderTests`
   skips CloudKit mirroring; without it the host app dies with "Test crashed
   with signal trap before establishing connection." That kept CI red from
-  2026-08-27 until #1 (2026-09-26).
+  2026-08-27 until #1 (2026-09-26). Every test database also turns off
+  autosave (`mainContext.autosaveEnabled = false`): a pending autosave fired
+  after a test had let its store go and trapped in `ModelContext.autosave`,
+  intermittently crashing the test host mid-run and taking the remaining
+  tests with it (#99). A new test container needs that line too.
 - **`ICloudStatus` asks CloudKit for the account's status** (the Dashboard
   card, Settings > Data & Backup). `PlowRApp.isCloudKitAvailable` only says
   whether the iCloud database opened, and it opens fine for a user who isn't
