@@ -734,7 +734,6 @@ struct PDFGenerator {
         let pageH:  CGFloat = 792
         let margin: CGFloat = 54
         let contentW = pageW - margin * 2
-        let colorPDFs = profile?.colorPDFs ?? true
         let accent = Self.accent(for: profile)
 
         let invoices         = proposals.filter { $0.isInvoice }
