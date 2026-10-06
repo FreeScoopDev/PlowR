@@ -1,0 +1,2 @@
+### Changed
+- The privacy policy's "Location — When In Use" row now says everything PlowR does with it. It said location was used on the device only during a route. In fact it's also used to set a client's location and to find local weather, and the on-my-way text can include a map link with your location when you turn that on. That link goes only to the client you text, and the Timeline's copy of the text leaves it out.
