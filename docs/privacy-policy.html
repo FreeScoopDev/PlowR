@@ -20,12 +20,12 @@
 <body>
 
 <h1>Privacy Policy</h1>
-<p class="updated">Last updated: October 6, 2026</p>
+<p class="updated">Last updated: October 7, 2026</p>
 
-<p>This Privacy Policy describes how PlowR ("the App", "We", "Us") handles your information when you use our iOS application. PlowR is built for property-service operators — snow removal, lawn care, landscaping, and related trades — to manage clients, plan routes, and generate proposals and invoices. People looking for a service can also use it to find a local business and send them a request.</p>
+<p>This Privacy Policy describes how PlowR ("the App", "We", "Us") handles your information when you use our iOS application, and when you use the pages on getplowr.app that a business's request link, or the Add to PlowR link in a request, opens. PlowR is built for property-service operators — snow removal, lawn care, landscaping, and related trades — to manage clients, plan routes, and generate proposals and invoices. People looking for a service can also use it to find a local business and send them a request.</p>
 
 <h2>Summary</h2>
-<p>PlowR is a local-first app. We do not operate servers, do not sell your data, and do not run ads, analytics or tracking. Your business and client data is kept on your device and in your own private iCloud account; the developer has no access to it, and it is never sent to us. To work, PlowR sends some data to the services listed under <a href="#third-parties">Third-Party Services</a>: addresses and locations to Apple Maps for maps, directions and arrival estimates, and coordinates to two free weather and elevation services. Like any internet request, these requests carry your device's IP address.</p>
+<p>PlowR is a local-first app. We do not operate servers, do not sell your data, and do not run ads, analytics or tracking. Our website, getplowr.app, is hosted by GitHub Pages; its request pages work entirely on your device (see <a href="#request-pages">Request Pages</a>). Your business and client data is kept on your device and in your own private iCloud account; the developer has no access to it, and it is never sent to us. To work, PlowR sends some data to the services listed under <a href="#third-parties">Third-Party Services</a>: addresses and locations to Apple Maps for maps, directions and arrival estimates, and coordinates to two free weather and elevation services. Like any internet request, these requests carry your device's IP address.</p>
 
 <h2>What We Access and Why</h2>
 <table>
@@ -110,12 +110,29 @@
         <td>Kept only on your device: your contact details in the app's settings, your requests in a file protected by iOS data protection. Not synced to iCloud, though, like other app data, they're included in your device's iCloud or computer backup if you make one. A request goes to a business only when you send it yourself, through the share sheet. <strong>Delete My Data</strong> (the menu on the home screen) removes them.</td>
     </tr>
     <tr>
+        <td>Requests from your request link (businesses)</td>
+        <td>When you tap Add to PlowR in a request someone texted or emailed you: their name, phone, email, address, the service and how often, and their notes, filled in for you to check</td>
+        <td>Saved only when you tap Save Lead, as a lead in your Pipeline, like any other client: on your device and in your private iCloud. When it's saved, its address is sent to Apple Maps to put it on the map (see Addresses and map searches). The request link you share carries only your business name, phone, optional email, the services you chose for the form and your welcome line, and anyone with the link can see them.</td>
+    </tr>
+    <tr>
         <td>Documents, exports and photos you share</td>
         <td>Proposals, invoices, contracts, Service Reports and business reports as PDFs, Export Data's CSV files, and job photos</td>
         <td>Made on your device. They go only where you send or save them (Messages, Mail, Files and the like), through the share sheet. Copies left in the app's temporary folder are removed by Delete Account &amp; Data.</td>
     </tr>
 </table>
 <p>You can turn off any of these permissions at any time in <strong>iOS Settings → PlowR</strong>.</p>
+
+<h2 id="request-pages">Request Pages on getplowr.app</h2>
+<p>A business using PlowR can share a request link. It opens a page on getplowr.app where you can ask that business for service, without the app.</p>
+<ul>
+    <li><strong>What you type stays on your device.</strong> The page builds your request on your device. On a phone, Send Request opens your texting app with it, addressed to the business; on a computer you can open your email app with it, if the business gave an email, or copy it. Copy Request puts it on your device's clipboard for you to paste. Nothing is sent until you send it yourself, and it goes to the business as a normal text or email from you.</li>
+    <li><strong>Nothing you type reaches this website.</strong> The business's details are in the part of the link after the "#", which browsers never send to a website; your request is built on the page, and the Add to PlowR link in your message carries it after the "#" too. The pages have no forms that submit anywhere, no cookies, no storage, no analytics and no third-party code.</li>
+    <li><strong>If the link opens inside another app</strong> (Facebook, Instagram, TikTok and the like), it opens in that app's own browser, and that app's privacy policy covers what it can see on the page, including what you type. The page warns you when it recognizes one; to avoid it, open the link in Safari or Chrome first.</li>
+    <li><strong>The page reads your browser's name and device type</strong> (its user agent) on your device, only to open the right kind of text link and to warn you when it's inside another app. It isn't sent anywhere.</li>
+    <li><strong>The request includes an Add to PlowR link</strong> carrying what you typed, so the business can add you as a lead after checking your details. It's part of the message you send, and it goes only where the message goes. If the business saves it in PlowR, your address is looked up with Apple Maps to place it on their map.</li>
+    <li><strong>The site is hosted by GitHub Pages.</strong> Like any website host, GitHub receives your IP address and browser details when a page loads, and logs and keeps the IP address for security, under <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" target="_blank">GitHub's Privacy Statement</a>. It never receives what's after the "#". We don't get these logs.</li>
+    <li>To have a business delete what you sent, contact that business: your request is in their records, not ours.</li>
+</ul>
 
 <h2>Data We Do Not Collect</h2>
 <ul>
@@ -132,6 +149,7 @@
     <li><strong>Apple</strong> — Sign in with Apple, iCloud sync (CloudKit), Apple Maps (address suggestions and lookups, directions and arrival estimates, Look Around, business search) and Siri, governed by <a href="https://www.apple.com/legal/privacy/" target="_blank">Apple's Privacy Policy</a>.</li>
     <li><strong>Open-Meteo</strong> (<a href="https://open-meteo.com" target="_blank">open-meteo.com</a>) — weather conditions, the 7-day forecast, and past weather for a Service Report, based on coordinates rounded to about 1 km. Free and keyless.</li>
     <li><strong>Open Topo Data</strong> (<a href="https://www.opentopodata.org" target="_blank">opentopodata.org</a>) — terrain elevation for the areas you measure on a property. Free and keyless.</li>
+    <li><strong>GitHub Pages</strong> — hosts getplowr.app, including this policy and the request pages (see <a href="#request-pages">Request Pages</a>).</li>
     <li><strong>Google Maps or Waze</strong> — only if you choose one for directions; the stop's destination is handed to that app.</li>
 </ul>
 
