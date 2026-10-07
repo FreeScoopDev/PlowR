@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex">
+    <title>Request Service</title>
+    <style>
+        :root { color-scheme: light dark; --text: #1c1c1e; --muted: #6e6e73; --link: #0071e3; --card: #f2f2f7; --bg: #ffffff; --line: #d1d1d6; --warn: #b25000; --fill: #0071e3; }
+        @media (prefers-color-scheme: dark) {
+            :root { --text: #f2f2f7; --muted: #a1a1a6; --link: #4da3ff; --card: #1c1c1e; --bg: #000000; --line: #3a3a3c; --warn: #ff9f0a; --fill: #0062c4; }
+        }
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 560px; margin: 24px auto; padding: 0 16px; color: var(--text); background: var(--bg); line-height: 1.5; }
+        h1 { font-size: 1.7em; margin: 0 0 4px; }
+        .welcome { color: var(--muted); margin-top: 0; }
+        form { display: grid; gap: 14px; margin-top: 20px; }
+        label { font-weight: 600; display: block; }
+        .hint { font-weight: 400; color: var(--muted); font-size: 0.9em; }
+        input[type=text], input[type=tel], input[type=email], textarea {
+            width: 100%; font: inherit; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px;
+            background: var(--bg); color: var(--text); margin-top: 4px; }
+        textarea { min-height: 90px; resize: vertical; }
+        fieldset { border: 0; padding: 0; margin: 0; }
+        legend { font-weight: 600; padding: 0; margin-bottom: 4px; }
+        .choices { display: flex; flex-wrap: wrap; gap: 8px; }
+        .choices label { font-weight: 400; display: inline-flex; align-items: center; gap: 6px; background: var(--card);
+            border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+        button, .button { font: inherit; font-weight: 600; border: 0; border-radius: 12px; padding: 14px; width: 100%;
+            background: var(--fill); color: #fff; cursor: pointer; text-align: center; text-decoration: none; display: block; }
+        .secondary { background: var(--card); color: var(--text); }
+        .notice { background: var(--card); border-radius: 12px; padding: 12px 14px; }
+        .warn { color: var(--warn); }
+        .error { color: var(--warn); font-size: 0.9em; margin-top: 4px; }
+        #sent { display: grid; gap: 12px; }
+        footer { margin-top: 28px; color: var(--muted); font-size: 0.85em; }
+        footer a { color: var(--muted); }
+        [hidden] { display: none !important; }
+    </style>
+</head>
+<body>
+
+<main id="page">
+    <noscript><p class="notice">This page needs JavaScript to build your request. Please turn it on, or contact the business directly.</p></noscript>
+
+    <section id="broken" hidden>
+        <h1>This link isn't complete</h1>
+        <p>It's missing the business's details. Ask them to send their request link again.</p>
+    </section>
+
+    <section id="request" hidden>
+        <h1 id="business"></h1>
+        <p class="welcome" id="welcome">Request service. It takes about a minute.</p>
+        <p class="notice warn" id="in-app" hidden>This page is open inside another app, which may not let it start a text. If Send doesn't open Messages, open this page in Safari or Chrome (the ⋯ or share menu), or press Send Request, then Copy Request.</p>
+
+        <form id="form" novalidate>
+            <div>
+                <label for="name">Your name</label>
+                <input type="text" id="name" maxlength="100" autocomplete="name" required>
+            </div>
+            <div>
+                <label for="phone">Your phone <span class="hint">so they can reach you</span></label>
+                <input type="tel" id="phone" maxlength="30" autocomplete="tel" required aria-describedby="phone-error">
+                <div class="error" id="phone-error" role="alert" hidden>Enter a phone number they can call or text.</div>
+            </div>
+            <div>
+                <label for="address">Address of the property</label>
+                <input type="text" id="address" maxlength="200" autocomplete="street-address" required>
+            </div>
+            <fieldset id="services-set" hidden>
+                <legend>What do you need?</legend>
+                <div class="choices" id="services"></div>
+            </fieldset>
+            <fieldset>
+                <legend>How often?</legend>
+                <div class="choices" id="when"></div>
+            </fieldset>
+            <div>
+                <label for="notes">Anything else? <span class="hint">optional</span></label>
+                <textarea id="notes" maxlength="1000" placeholder="Size of the area, gate codes, when you need it…"></textarea>
+            </div>
+            <div>
+                <label for="email">Your email <span class="hint">optional</span></label>
+                <input type="email" id="email" maxlength="120" autocomplete="email" aria-describedby="email-error">
+                <div class="error" id="email-error" role="alert" hidden>That doesn't look like an email address. Fix it, or leave it empty.</div>
+            </div>
+            <div class="error" id="form-error" role="alert" hidden>Please fill in your name, phone and address.</div>
+            <button type="submit" id="send">Send Request</button>
+        </form>
+
+        <section id="sent" hidden>
+            <p class="notice" id="sent-note" tabindex="-1"></p>
+            <a class="button" id="text-link" href="#">Open Messages Again</a>
+            <a class="button secondary" id="email-link" href="#" hidden>Send by Email Instead</a>
+            <button class="secondary" type="button" id="copy">Copy Request</button>
+            <p class="hint" id="copied" aria-live="polite" hidden>Copied. Paste it into a text or email to <span id="copy-to"></span>.</p>
+            <button class="secondary" type="button" id="edit">Change Something</button>
+        </section>
+
+        <footer>
+            <p>Your request goes straight to the business, as a text or email you send yourself. Nothing you type is sent to or kept by this website. <a href="../privacy-policy.html">Privacy</a> · Made with PlowR</p>
+        </footer>
+    </section>
+</main>
+
+<script src="../request-link.js"></script>
+<script>
+(function () {
+    "use strict";
+    var R = window.RequestLink, L = R.LIMITS;
+    var fields = R.fields();
+    var business = fields && {
+        name: R.clean(fields.get("n"), L.name),
+        phone: R.clean(fields.get("p"), L.phone),
+        email: R.validEmail(fields.get("e")),
+        welcome: R.clean(fields.get("w"), L.welcome),
+        services: (fields.get("s") || "").split("|").map(function (s) { return R.clean(s, L.service); })
+            .filter(function (s) { return s; }).slice(0, L.services)
+    };
+    var businessDigits = business && R.phoneDigits(business.phone);
+    if (!business || !R.hasLetterOrDigit(business.name) || !businessDigits) {
+        document.getElementById("broken").hidden = false;
+        return;
+    }
+
+    document.title = "Request Service · " + business.name;
+    document.getElementById("business").textContent = business.name;
+    if (business.welcome) document.getElementById("welcome").textContent = business.welcome;
+    document.getElementById("request").hidden = false;
+
+    if (business.services.length) {
+        var box = document.getElementById("services");
+        business.services.concat(["Something else"]).forEach(function (service) {
+            var label = document.createElement("label");
+            var input = document.createElement("input");
+            input.type = "radio"; input.name = "service"; input.value = service;
+            label.appendChild(input);
+            label.appendChild(document.createTextNode(" " + service));
+            box.appendChild(label);
+        });
+        document.getElementById("services-set").hidden = false;
+    }
+
+    // How often: the choices the app knows (RequestLink.When).
+    var whenBox = document.getElementById("when");
+    Object.keys(R.WHEN).forEach(function (key) {
+        var label = document.createElement("label");
+        var input = document.createElement("input");
+        input.type = "radio"; input.name = "when"; input.value = key;
+        label.appendChild(input);
+        label.appendChild(document.createTextNode(" " + R.WHEN[key]));
+        whenBox.appendChild(label);
+    });
+
+    var ua = navigator.userAgent || "";
+    var isApple = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+    var isAndroid = /Android/i.test(ua);
+    var isPhone = isApple || isAndroid;
+    var inApp = /FBAN|FBAV|FB_IAB|Instagram|Line\/|Snapchat|TikTok|LinkedInApp|Twitter/i.test(ua);
+    document.getElementById("in-app").hidden = !inApp;
+
+    function value(id) { return document.getElementById(id).value; }
+    function checked(name) {
+        var input = document.querySelector("input[name=" + name + "]:checked");
+        return input ? input.value : "";
+    }
+
+    function readForm() {
+        return {
+            n: R.clean(value("name"), L.name),
+            p: R.clean(value("phone"), L.phone),
+            e: R.validEmail(value("email")),
+            a: R.clean(value("address"), L.address),
+            s: R.clean(checked("service"), L.service),
+            w: checked("when"),
+            t: R.clean(value("notes"), L.notes, true)
+        };
+    }
+
+    function message(request) {
+        var lines = ["Hi " + business.name + ", I'd like to request service.", "",
+                     "Name: " + request.n, "Phone: " + request.p, "Address: " + request.a];
+        if (request.s) lines.push("Service: " + request.s);
+        if (request.w) lines.push("How often: " + R.when(request.w));
+        if (request.e) lines.push("Email: " + request.e);
+        if (request.t) lines.push("", request.t);
+        lines.push("", "Add to PlowR: " + R.link("/lead/", request));
+        return lines.join("\n");
+    }
+
+    function textURL(body) {
+        // iPhone and Android write a text link's body differently.
+        var to = (business.phone.trim().charAt(0) === "+" ? "+" : "") + businessDigits;
+        return "sms:" + to + (isApple ? "&" : "?") + "body=" + encodeURIComponent(body);
+    }
+
+    function emailURL(body) {
+        return "mailto:" + encodeURIComponent(business.email) + "?subject=" +
+            encodeURIComponent("Service request") + "&body=" + encodeURIComponent(body);
+    }
+
+    function invalid(id, bad) {
+        document.getElementById(id).setAttribute("aria-invalid", bad ? "true" : "false");
+        return bad;
+    }
+
+    var lastBody = "";
+    document.getElementById("form").addEventListener("submit", function (event) {
+        event.preventDefault();
+        var request = readForm();
+        var badName = invalid("name", !R.hasLetterOrDigit(request.n));
+        var badPhone = invalid("phone", !R.phoneDigits(request.p));
+        var badAddress = invalid("address", !request.a);
+        // A typed email that isn't one would be dropped: said, not silent.
+        var badEmail = invalid("email", !!value("email").trim() && !request.e);
+        document.getElementById("phone-error").hidden = !badPhone || !request.p;
+        document.getElementById("email-error").hidden = !badEmail;
+        document.getElementById("form-error").hidden = !(badName || badPhone || badAddress);
+        if (badName || badPhone || badAddress || badEmail) {
+            document.getElementById(badName ? "name" : badPhone ? "phone" : badAddress ? "address" : "email").focus();
+            return;
+        }
+
+        lastBody = message(request);
+        var text = document.getElementById("text-link");
+        var email = document.getElementById("email-link");
+        text.href = textURL(lastBody);
+        text.hidden = !isPhone;
+        email.href = business.email ? emailURL(lastBody) : "#";
+        email.hidden = !business.email;
+        document.getElementById("copy-to").textContent = business.name + " (" + business.phone + ")";
+        var note = document.getElementById("sent-note");
+        note.textContent = isPhone
+            ? "Your Messages app should open with the request to " + business.name + ". Check it and tap send. Nothing has been sent until you do."
+            : business.email
+                ? "On a computer, send your request by email, or copy it and text it from your phone to " + business.phone + "."
+                : "On a computer, copy your request and text it from your phone to " + business.phone + ".";
+        document.getElementById("form").hidden = true;
+        document.getElementById("sent").hidden = false;
+        note.focus();
+        if (isPhone) location.href = textURL(lastBody);
+    });
+
+    document.getElementById("copy").addEventListener("click", function () {
+        var done = function () { document.getElementById("copied").hidden = false; };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(lastBody).then(done, function () { window.prompt("Copy your request:", lastBody); });
+        } else {
+            window.prompt("Copy your request:", lastBody);
+        }
+    });
+    document.getElementById("edit").addEventListener("click", function () {
+        document.getElementById("sent").hidden = true;
+        document.getElementById("copied").hidden = true;
+        document.getElementById("form").hidden = false;
+        document.getElementById("name").focus();
+    });
+})();
+</script>
+</body>
+</html>

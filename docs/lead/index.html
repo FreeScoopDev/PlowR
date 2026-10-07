@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex">
+    <title>Service Request · PlowR</title>
+    <style>
+        :root { color-scheme: light dark; --text: #1c1c1e; --muted: #6e6e73; --link: #0071e3; --card: #f2f2f7; --bg: #ffffff; --fill: #0071e3; }
+        @media (prefers-color-scheme: dark) {
+            :root { --text: #f2f2f7; --muted: #a1a1a6; --link: #4da3ff; --card: #1c1c1e; --bg: #000000; --fill: #0062c4; }
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 560px; margin: 24px auto; padding: 0 16px; color: var(--text); background: var(--bg); line-height: 1.5; }
+        h1 { font-size: 1.6em; margin-bottom: 4px; }
+        dl { background: var(--card); border-radius: 12px; padding: 12px 16px; margin: 16px 0; }
+        dt { color: var(--muted); font-size: 0.85em; margin-top: 8px; }
+        dt:first-child { margin-top: 0; }
+        dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+        .button { display: block; text-align: center; font-weight: 600; border-radius: 12px; padding: 14px; background: var(--fill); color: #fff; text-decoration: none; }
+        p.hint { color: var(--muted); font-size: 0.9em; }
+        a { color: var(--link); }
+        [hidden] { display: none !important; }
+    </style>
+</head>
+<body>
+
+<noscript><p>This page needs JavaScript to show the request.</p></noscript>
+
+<section id="broken" hidden>
+    <h1>This request link isn't complete</h1>
+    <p>Part of it may have been cut off. The request itself is in the text message it came with.</p>
+</section>
+
+<section id="lead" hidden>
+    <h1>Service Request</h1>
+    <p class="hint">Sent through a PlowR request link.</p>
+    <dl id="details"></dl>
+    <a class="button" id="open">Open in PlowR</a>
+    <p class="hint">If you run the business this was sent to: Open in PlowR adds the request to your Pipeline as a lead, after you check it. PlowR isn't installed on this device? Copy the details into your own records instead.</p>
+    <p class="hint">Nothing in this request is sent to or kept by this website. <a href="../privacy-policy.html">Privacy</a></p>
+</section>
+
+<script src="../request-link.js"></script>
+<script>
+(function () {
+    "use strict";
+    var R = window.RequestLink, L = R.LIMITS;
+    var fields = R.fields();
+    var name = fields && R.clean(fields.get("n"), L.name), phone = fields && R.clean(fields.get("p"), L.phone);
+    if (!fields || !R.hasLetterOrDigit(name) || !R.phoneDigits(phone)) {
+        document.getElementById("broken").hidden = false;
+        return;
+    }
+    // As the app will keep them: the same limits and cleaning.
+    var rows = [["Name", name], ["Phone", phone], ["Address", R.clean(fields.get("a"), L.address)],
+                ["Service", R.clean(fields.get("s"), L.service)], ["How often", R.when(fields.get("w"))],
+                ["Email", R.validEmail(fields.get("e"))], ["Notes", R.clean(fields.get("t"), L.notes, true)]];
+    var list = document.getElementById("details");
+    rows.forEach(function (row) {
+        if (!row[1]) return;
+        var dt = document.createElement("dt"); dt.textContent = row[0];
+        var dd = document.createElement("dd"); dd.textContent = row[1];
+        list.appendChild(dt); list.appendChild(dd);
+    });
+    document.getElementById("open").href = "plowr://lead#" + location.hash.replace(/^#/, "");
+    document.getElementById("lead").hidden = false;
+})();
+</script>
+</body>
+</html>
