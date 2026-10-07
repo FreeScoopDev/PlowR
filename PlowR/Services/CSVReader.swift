@@ -33,6 +33,17 @@ nonisolated enum CSVReader {
         var rows: [[String]]
         /// The file line where a quote opened and never closed, if one did.
         var unclosedQuoteLine: Int?
+        /// Each row's number as a spreadsheet shows it (blank rows count, a
+        /// line break inside quotes doesn't, and Excel's "sep=" line isn't
+        /// shown), so a problem can name its row. Empty for a table not read
+        /// from a file.
+        var rowNumbers: [Int] = []
+
+        /// The spreadsheet row of `rows[index]`; without `rowNumbers`, the
+        /// header is row 1.
+        func rowNumber(_ index: Int) -> Int {
+            rowNumbers.indices.contains(index) ? rowNumbers[index] : index + 2
+        }
     }
 
     enum Problem: Error, Equatable {
@@ -57,7 +68,8 @@ nonisolated enum CSVReader {
         let rows = all.dropFirst().map { row in
             row.count < width ? row + Array(repeating: "", count: width - row.count) : row
         }
-        return Table(header: header, rows: Array(rows), unclosedQuoteLine: parsed.unclosedQuoteLine)
+        return Table(header: header, rows: Array(rows), unclosedQuoteLine: parsed.unclosedQuoteLine,
+                     rowNumbers: Array(parsed.numbers.dropFirst(leading.count + 1)))
     }
 
     // MARK: - Text
@@ -140,11 +152,14 @@ nonisolated enum CSVReader {
 
     // MARK: - Fields
 
-    /// Every row's fields, RFC 4180, blank rows dropped; and the line an
+    /// Every row's fields, RFC 4180, blank rows dropped; each kept row's
+    /// number counting the blank ones (`numbers`, from 1); and the line an
     /// unclosed quote opened on, if any.
     static func parse(_ text: some StringProtocol, separator: Character,
-                      firstLine: Int = 1) -> (rows: [[String]], unclosedQuoteLine: Int?) {
+                      firstLine: Int = 1) -> (rows: [[String]], unclosedQuoteLine: Int?, numbers: [Int]) {
         var rows: [[String]] = []
+        var numbers: [Int] = []
+        var record = 0
         var row: [String] = []
         var field = ""
         var inQuotes = false
@@ -164,7 +179,11 @@ nonisolated enum CSVReader {
         }
         func endRow() {
             endField()
-            if row.contains(where: { !$0.isEmpty }) { rows.append(row) }
+            record += 1
+            if row.contains(where: { !$0.isEmpty }) {
+                rows.append(row)
+                numbers.append(record)
+            }
             row = []
         }
         for character in text {
@@ -207,7 +226,7 @@ nonisolated enum CSVReader {
         }
         let unclosed = inQuotes ? quoteLine : nil
         if !field.isEmpty || !row.isEmpty || wasQuoted { endRow() }
-        return (rows, unclosed)
+        return (rows, unclosed, numbers)
     }
 
     /// A field as kept: trimmed of spaces and line breaks (quoted or not),
