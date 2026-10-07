@@ -78,8 +78,11 @@ struct ClientPhotoGalleryView: View {
         .onChange(of: selectedPickerItem) { _, newItem in
             Task {
                 guard let item = newItem else { return }
-                if let data = try? await item.loadTransferable(type: Data.self) {
-                    pendingImageData = data
+                // Off the main thread: a large photo can need encoding again.
+                if let data = try? await item.loadTransferable(type: Data.self),
+                   let kept = await Task.detached(operation: { PhotoCapture.removingLocation(from: data) }).value {
+                    // The time is read from the original; the location isn't kept.
+                    pendingImageData = kept
                     pendingCapture = PhotoCapture.fromLibrary(data)
                     showingPhotoTypePrompt = true
                 }
