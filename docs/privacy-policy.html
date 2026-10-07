@@ -22,13 +22,12 @@
 <h1>Privacy Policy</h1>
 <p class="updated">Last updated: October 6, 2026</p>
 
-<p>This Privacy Policy describes how PlowR ("the App", "We", "Us") handles your information when you use our iOS application. PlowR is built for property-service operators — snow removal, lawn care, landscaping, and related trades — to manage clients, plan routes, and generate proposals and invoices.</p>
+<p>This Privacy Policy describes how PlowR ("the App", "We", "Us") handles your information when you use our iOS application. PlowR is built for property-service operators — snow removal, lawn care, landscaping, and related trades — to manage clients, plan routes, and generate proposals and invoices. People looking for a service can also use it to find a local business and send them a request.</p>
 
 <h2>Summary</h2>
-<p>PlowR is a local-first app. We do not operate servers, do not sell your data, and do not run ads or analytics. All your business and client data stays on your device and in your own private iCloud account — the developer has no access to it. A small amount of anonymous location data is sent to free public APIs solely to retrieve weather and elevation information.</p>
+<p>PlowR is a local-first app. We do not operate servers, do not sell your data, and do not run ads, analytics or tracking. Your business and client data is kept on your device and in your own private iCloud account; the developer has no access to it, and it is never sent to us. To work, PlowR sends some data to the services listed under <a href="#third-parties">Third-Party Services</a>: addresses and locations to Apple Maps for maps, directions and arrival estimates, and coordinates to two free weather and elevation services. Like any internet request, these requests carry your device's IP address.</p>
 
 <h2>What We Access and Why</h2>
-
 <table>
     <tr>
         <th>Data</th>
@@ -36,82 +35,117 @@
         <th>Stored or shared?</th>
     </tr>
     <tr>
-        <td>Apple Sign In (anonymized user ID)</td>
-        <td>Authenticate your operator account</td>
-        <td>Stored in your device's Keychain only. Apple provides an anonymized identifier — we never receive your Apple ID email or password.</td>
+        <td>Sign in with Apple</td>
+        <td>Sign in to your business account. PlowR asks Apple only for your name, not your email.</td>
+        <td>Apple gives PlowR an anonymized account identifier. It's kept in your device's Keychain and tags the records you create, so it's also in your private iCloud with them. Your name is kept in the app's settings on your device, to greet you in Settings. We never receive your Apple ID or password.</td>
     </tr>
     <tr>
-        <td>Business &amp; client data (names, phones, addresses, routes, service history, proposals, invoices, photos, and texts sent to clients from the app)</td>
+        <td>Business &amp; client data: clients and their properties (names, phones, emails, addresses, map pins, notes), routes and stops, scheduled visits, each job's record (services, prices, notes, start and completion times, GPS arrival and departure times), days marked below a contract's snow trigger, proposals, invoices, payments you record, contracts, job photos (with when they were taken), texts sent to clients from the app, and your business profile (company name, phone, email, licence number, logo) and payment details (handles or links shown on your invoices)</td>
         <td>Core app functionality</td>
-        <td>Stored on your device and synced to your own <strong>private iCloud account</strong> via Apple CloudKit. The developer cannot access this data. Never transmitted to any other server.</td>
+        <td>Stored on your device and synced to your own <strong>private iCloud account</strong> via Apple CloudKit, so your other devices signed in to the same Apple ID see it. After <em>Remove from This Device</em> (below), sync is off for PlowR on that device: what's made there stays there and your iCloud data doesn't come to it, until you turn sync back on in Settings → Data &amp; Backup. The developer cannot access it, and it isn't sent to any server except iCloud and the services listed below, which get the parts PlowR needs from them (addresses and locations), and to the people you choose to send documents or texts to.</td>
     </tr>
     <tr>
-        <td>Location — When In Use</td>
-        <td>Display your position on the map (during a route, and when you set a client's location), calculate stop ETAs, find your local weather (see Approximate location below), and, only when you turn it on for a text, add a map link with your current location to the text you send a client</td>
-        <td>Used on-device and not stored. The map link goes only to the client you text, through Messages, and only when you choose to include it; the copy of the text kept on the client's Timeline leaves the link out.</td>
+        <td>Location — While Using the App</td>
+        <td>Show where you are on the map (during a route, and when you set a client's location), following your location continuously while a route's screen is open, including when PlowR is in the background; estimate when you'll reach each stop; find your local weather; and, when the "include my location" option is on in the text to your next client, add a map link with your current location to that text</td>
+        <td>Your current position is sent to Apple Maps to work out the arrival estimate for each stop. It isn't stored. The map link goes only to the client you text, through Messages; the option is remembered for next time and shown in each text, and the copy of the text kept on the client's Timeline leaves the link out.</td>
     </tr>
     <tr>
-        <td>Location — Background (Always)</td>
-        <td>Detect when you arrive at and leave a job site during a route (geofencing), to prompt client notification and to record your arrival and departure times on the job</td>
-        <td>Handled on-device by iOS region monitoring. Only the arrival and departure times are kept, with the job, on your device and in your own private iCloud account; your location itself is not stored, and is not transmitted to any server for geofencing.</td>
+        <td>Location — Always (background)</td>
+        <td>During a route, notice when you arrive at and leave each stop (geofencing), even when PlowR isn't open, to record those times on the job and offer to text your next client. A stop you've completed is watched for up to two hours, even after the route ends, so its departure is caught.</td>
+        <td>Arrivals and departures are handled on your device by iOS. Only the arrival and departure times are kept, with the job, on your device and in your private iCloud; your location itself isn't stored, and isn't sent anywhere for geofencing.</td>
     </tr>
     <tr>
-        <td>Approximate location (~1 km precision)</td>
-        <td>Retrieve local weather for the Dashboard and next-day weather alerts, and the estimated past weather at a client's property on the days of a Service Report (the property's rounded coordinates and the dates)</td>
-        <td>Sent to <a href="https://open-meteo.com" target="_blank">Open-Meteo</a> — a free, keyless public weather API. Coordinates are rounded before transmission. No user identity is included.</td>
+        <td>Approximate location (about 1 km)</td>
+        <td>Local weather for the Dashboard, the Schedule and the route screen, the evening weather alert, and the estimated past weather at a client's property on the days of a Service Report</td>
+        <td>Your or the property's coordinates, rounded to about 1 km, and for a Service Report the dates, are sent to <a href="https://open-meteo.com" target="_blank">Open-Meteo</a>. No account information is included.</td>
     </tr>
     <tr>
-        <td>Property coordinates</td>
-        <td>Retrieve terrain elevation during property scans</td>
-        <td>Sent to <a href="https://www.opentopodata.org" target="_blank">Open Topo Data</a> — a free, keyless public API. No user identity is included.</td>
+        <td>Property coordinates (precise)</td>
+        <td>Terrain elevation, to work out a property's slope when you measure its areas on the map</td>
+        <td>The corners of the areas you draw (precise to about 1 m) are sent to <a href="https://www.opentopodata.org" target="_blank">Open Topo Data</a>. No account information is included.</td>
+    </tr>
+    <tr>
+        <td>Addresses and map searches</td>
+        <td>Suggest addresses as you type, place a client's address on the map and name the place at a pin, show Look Around imagery, give driving directions and arrival estimates, put a route's stops in order, and, for people looking for a service, search for nearby businesses</td>
+        <td>What you type, addresses, coordinates and your current position are sent to Apple Maps (Apple's MapKit and geocoding services), governed by <a href="https://www.apple.com/legal/privacy/" target="_blank">Apple's Privacy Policy</a>. PlowR sends no account information with these requests.</td>
+    </tr>
+    <tr>
+        <td>Navigation</td>
+        <td>Directions to a stop in the maps app you choose</td>
+        <td>The stop's address or coordinates are handed to that app: Apple Maps, or Google Maps or Waze if you choose them, whose own privacy policies then apply.</td>
+    </tr>
+    <tr>
+        <td>Lock Screen, widget, Control Center and Siri</td>
+        <td>Show your route's progress in a Live Activity, on the home-screen widget and in the Control Center control; complete a stop or text your next client by voice</td>
+        <td>Clients' names and addresses from your route are shown there, so they're visible on your Lock Screen while a route runs. To do this they're kept in storage shared between PlowR and its widget, on your device only. Siri's replies speak client names.</td>
     </tr>
     <tr>
         <td>Camera</td>
-        <td>Capture before/after photos at job sites; scan business cards to auto-fill a new client (on-device OCR)</td>
-        <td>Photos are stored on your device and synced to your private iCloud. Business card scanning is performed entirely on-device using Apple's Vision framework — no image is transmitted externally.</td>
+        <td>Take before and after photos at job sites; scan business cards to fill in a new client (on-device text recognition)</td>
+        <td>Photos are stored on your device and synced to your private iCloud. Business card scanning happens entirely on your device using Apple's Vision framework; no image is sent anywhere.</td>
+    </tr>
+    <tr>
+        <td>Photo library (optional)</td>
+        <td>Add a job photo or your business logo from your library; save a job photo to your library when you choose Save Image</td>
+        <td>Picking uses Apple's system photo picker: PlowR receives only the photos you choose. A photo keeps the date stored in its file; any location stored in a photo is removed before it's saved. Saving asks for add-only access: PlowR can't see the rest of your library.</td>
     </tr>
     <tr>
         <td>Contacts (optional)</td>
-        <td>Pre-fill client name, phone, and address when adding a new client</td>
-        <td>Uses Apple's system contact picker — the app receives only the single contact you choose. No contacts data is transmitted externally.</td>
+        <td>Fill in a new client's name, phone, email and address</td>
+        <td>Uses Apple's system contact picker: PlowR receives only the contact you choose. Nothing is sent anywhere.</td>
     </tr>
     <tr>
         <td>Calendar (optional)</td>
         <td>When you turn on Add Visits to Calendar in Settings: show your visits in a “PlowR” calendar with a 1-hour reminder, and update or remove those events when visits change</td>
-        <td>Full calendar access through Apple's EventKit, used only for the “PlowR” calendar: PlowR doesn't read or change your other events. The calendar is kept in your iCloud calendars, which sync to your other devices, or on this device if you don't use iCloud calendars. Turning the setting off, or deleting your account, removes the events PlowR added. That needs PlowR's calendar access: if you've turned it off, PlowR says so, and you can delete the “PlowR” calendar in the Calendar app.</td>
+        <td>Each event holds the visit's time and the client's name, address and visit notes. Full calendar access through Apple's EventKit, used only for the “PlowR” calendar: PlowR doesn't read or change your other events. The calendar is kept in your iCloud calendars, which sync to your other devices, or on this device if you don't use iCloud calendars. Turning the setting off, or deleting your account, removes the events PlowR added. That needs PlowR's calendar access: if you've turned it off, PlowR says so, and you can delete the “PlowR” calendar in the Calendar app.</td>
     </tr>
     <tr>
         <td>Notifications</td>
-        <td>Weather alerts the evening before severe forecast days; overdue invoice reminders</td>
+        <td>Weather alerts the evening before severe forecast days (for a snow business, with how much snow is forecast and which clients' contract triggers it reaches); overdue invoice reminders; reminders to follow up on a proposal with no reply</td>
         <td>Local notifications only — no server or push token is involved.</td>
     </tr>
+    <tr>
+        <td>Service requests (people looking for a service)</td>
+        <td>Your name, phone and email, kept to fill in your next request; and each request you make: the business, your property's address and measured area, the service you want, your notes, and the message sent</td>
+        <td>Kept only on your device: your contact details in the app's settings, your requests in a file protected by iOS data protection. Not synced to iCloud, though, like other app data, they're included in your device's iCloud or computer backup if you make one. A request goes to a business only when you send it yourself, through the share sheet. <strong>Delete My Data</strong> (the menu on the home screen) removes them.</td>
+    </tr>
+    <tr>
+        <td>Documents, exports and photos you share</td>
+        <td>Proposals, invoices, contracts, Service Reports and business reports as PDFs, Export Data's CSV files, and job photos</td>
+        <td>Made on your device. They go only where you send or save them (Messages, Mail, Files and the like), through the share sheet. Copies left in the app's temporary folder are removed by Delete Account &amp; Data.</td>
+    </tr>
 </table>
-
-<p>You can revoke any of these permissions at any time in <strong>iOS Settings → PlowR</strong>.</p>
+<p>You can turn off any of these permissions at any time in <strong>iOS Settings → PlowR</strong>.</p>
 
 <h2>Data We Do Not Collect</h2>
 <ul>
-    <li>We do not use analytics, crash-reporting SDKs, or usage tracking of any kind</li>
-    <li>We do not use advertising or tracking frameworks</li>
-    <li>We do not process payments — PlowR generates invoice PDFs for your own use only</li>
-    <li>We do not operate any servers that receive your business or client data</li>
-    <li>We do not sell or share your data with third parties for any purpose</li>
+    <li>We do not use analytics, crash-reporting SDKs, or usage tracking of any kind. If you choose to share analytics with app developers in iOS Settings, Apple may give us crash reports and overall usage figures; they don't contain your PlowR data.</li>
+    <li>We do not use advertising or tracking frameworks, and nothing in PlowR tracks you across other companies' apps or websites.</li>
+    <li>We do not process payments. PlowR records payments you tell it you've received, and an invoice PDF can show your own payment details (a payment handle or QR code) for your client to pay you directly; no money moves through PlowR.</li>
+    <li>We do not operate any servers, and none of your data is sent to us.</li>
+    <li>We do not sell your data, or share it with anyone for advertising or any purpose of theirs. It goes to the services below only so they can answer PlowR's request.</li>
 </ul>
 
-<h2>Third-Party Services</h2>
-<p>PlowR uses the following external services. All are free, keyless public APIs that receive no account information or personal identifiers:</p>
+<h2 id="third-parties">Third-Party Services</h2>
+<p>PlowR uses the following services. None receives your account information, and none is told who you are; like any internet request, each sees your device's IP address, and may keep it in its own logs under its own policy.</p>
 <ul>
-    <li><strong>Open-Meteo</strong> (<a href="https://open-meteo.com" target="_blank">open-meteo.com</a>) — weather conditions, the 7-day forecast, and past weather for a Service Report, based on rounded coordinates.</li>
-    <li><strong>Open Topo Data</strong> (<a href="https://www.opentopodata.org" target="_blank">opentopodata.org</a>) — terrain elevation for property-grade calculations.</li>
+    <li><strong>Apple</strong> — Sign in with Apple, iCloud sync (CloudKit), Apple Maps (address suggestions and lookups, directions and arrival estimates, Look Around, business search) and Siri, governed by <a href="https://www.apple.com/legal/privacy/" target="_blank">Apple's Privacy Policy</a>.</li>
+    <li><strong>Open-Meteo</strong> (<a href="https://open-meteo.com" target="_blank">open-meteo.com</a>) — weather conditions, the 7-day forecast, and past weather for a Service Report, based on coordinates rounded to about 1 km. Free and keyless.</li>
+    <li><strong>Open Topo Data</strong> (<a href="https://www.opentopodata.org" target="_blank">opentopodata.org</a>) — terrain elevation for the areas you measure on a property. Free and keyless.</li>
+    <li><strong>Google Maps or Waze</strong> — only if you choose one for directions; the stop's destination is handed to that app.</li>
 </ul>
-<p>Authentication and iCloud sync use Apple's own infrastructure and are governed by <a href="https://www.apple.com/legal/privacy/" target="_blank">Apple's Privacy Policy</a>.</p>
 
 <h2>Account Data and Deletion</h2>
-<p>Because all data is stored in your private iCloud account, you are in full control of it at all times. To delete your account and all associated data:</p>
+<p>Your data is stored on your device and in your private iCloud account, so you're in control of it. To delete it:</p>
 <ul>
-    <li><strong>In-app:</strong> Go to <em>Settings → Delete Account &amp; Data</em>. This removes all clients, routes, proposals, and settings from your device and signs you out.</li>
-    <li><strong>iCloud data:</strong> After signing out, go to <em>iOS Settings → [your name] → iCloud → Manage Account Storage → PlowR</em> to remove the iCloud copy.</li>
-    <li><strong>Uninstall:</strong> Deleting the app also removes all local data from your device.</li>
+    <li><strong>In-app (business):</strong> Go to <em>Settings → Delete Account &amp; Data</em> and choose one:
+        <ul>
+            <li><strong>Remove from This Device</strong> removes PlowR's data from this device only: your iCloud and your other devices keep it. It signs you out, removes PlowR's settings, the route in progress, notifications and shared files, turns iCloud sync off for PlowR on this device, and removes PlowR's database when PlowR next opens. Anything the device hasn't sent to iCloud yet is lost, so be online first. The “PlowR” calendar is left, since it's part of your calendars. Turn sync back on in Settings → Data &amp; Backup to bring your data back.</li>
+            <li><strong>Delete Everything</strong> removes all clients, properties, routes, visits, service history, proposals, invoices, payments, contracts, photos, service requests and settings from your device, ends any route in progress, removes the “PlowR” calendar's events, and signs you out. When iCloud sync is working on this device, it also removes your data from your private iCloud, and so from your other devices signed in to the same Apple ID. Do it with your device online: the deletion reaches iCloud while PlowR is open and connected. While sync is off on a device, after Remove from This Device, Delete Everything isn't offered there, since it couldn't reach iCloud: turn sync back on and reopen PlowR first, or delete from another device.</li>
+        </ul>
+    </li>
+    <li><strong>In-app (people looking for a service):</strong> On the home screen, open the menu and choose <em>Delete My Data</em>. This removes your saved requests and contact details. Requests you've already sent stay with the businesses you sent them to.</li>
+    <li><strong>Uninstall:</strong> Deleting the app removes its data from your device. It doesn't remove the “PlowR” calendar (delete it in the Calendar app, or turn off Add Visits to Calendar first), and it doesn't remove your data from iCloud: use Delete Account &amp; Data → Delete Everything for that before deleting the app. iOS may also keep PlowR's sign-in identifier in your Keychain.</li>
 </ul>
 
 <h2>Children's Privacy</h2>
