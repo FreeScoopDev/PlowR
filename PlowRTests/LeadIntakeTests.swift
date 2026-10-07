@@ -67,10 +67,16 @@ struct LeadIntakeTests {
         #expect(LeadIntake.isRequestTag("Requested Oct 7"))
         #expect(!LeadIntake.isRequestTag("Requested quote") && !LeadIntake.isRequestTag("Requested 2 quotes"))
         // The date is written the phone's way; whichever it is, the tag is known.
-        for id in ["en_US", "en_GB", "fr_CA", "de_DE", "ja_JP", "es_US"] {
+        // ja_JP, zh_CN and ko_KR write the year first: only the year format reads them.
+        for id in ["en_US", "en_GB", "fr_CA", "de_DE", "ja_JP", "zh_CN", "ko_KR", "es_US"] {
             let locale = Locale(identifier: id)
             let tag = LeadIntake.tag(for: now, locale: locale, timeZone: .gmt)
             #expect(LeadIntake.isRequestTag(tag, locale: locale), "\(id): \(tag)")
+            // 1.5.0's tag, written without the year in that language.
+            var noYear = Date.FormatStyle.dateTime.month(.abbreviated).day().locale(locale)
+            noYear.timeZone = .gmt
+            let oldTag = LeadIntake.tagPrefix + now.formatted(noYear)
+            #expect(LeadIntake.isRequestTag(oldTag, locale: locale), "\(id): \(oldTag)")
             #expect(!LeadIntake.isRequestTag("Requested quote", locale: locale), "\(id)")
         }
         #expect(client.notes == "Requested service through your request link on Oct 7, 2026.\nService: Lawn Care\nHow often: For the season\n\nBack gate.")

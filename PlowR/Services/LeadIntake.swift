@@ -30,9 +30,14 @@ enum LeadIntake {
 
     static func tag(for date: Date, locale: Locale = .current, timeZone: TimeZone = .current) -> String {
         // With the year: a lead from last winter isn't mistaken for this one's.
+        tagPrefix + date.formatted(dateStyle(locale: locale, timeZone: timeZone))
+    }
+
+    /// The request's day, as the tag and the notes both write it ("Oct 7, 2026").
+    private static func dateStyle(locale: Locale, timeZone: TimeZone) -> Date.FormatStyle {
         var style = Date.FormatStyle.dateTime.year().month(.abbreviated).day().locale(locale)
         style.timeZone = timeZone
-        return tagPrefix + date.formatted(style)
+        return style
     }
 
     /// The client already in PlowR with the request's phone number, if any:
@@ -48,9 +53,8 @@ enum LeadIntake {
     /// asked for, and what the person wrote.
     static func notes(for request: RequestLink.Request, date: Date, locale: Locale = .current,
                       timeZone: TimeZone = .current) -> String {
-        var style = Date.FormatStyle.dateTime.month(.abbreviated).day().year().locale(locale)
-        style.timeZone = timeZone
-        var lines = ["Requested service through your request link on \(date.formatted(style))."]
+        let day = date.formatted(dateStyle(locale: locale, timeZone: timeZone))
+        var lines = ["Requested service through your request link on \(day)."]
         if !request.service.isEmpty { lines.append("Service: \(request.service)") }
         if let when = request.when { lines.append("How often: \(when.title)") }
         if !request.notes.isEmpty { lines.append(""); lines.append(request.notes) }
