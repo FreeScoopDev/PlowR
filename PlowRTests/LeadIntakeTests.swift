@@ -62,7 +62,9 @@ struct LeadIntakeTests {
         let client = LeadIntake.save(request, operatorID: "op", in: context, now: now,
                                      locale: Locale(identifier: "en_US"), timeZone: .gmt)
         #expect(client.name == "Kim Doe" && client.phone == "+1 603 555 0199" && client.email == "kim@example.com")
-        #expect(client.tags == ["Requested Oct 7"] && client.customerSince == nil)
+        #expect(client.tags == ["Requested Oct 7, 2026"] && client.customerSince == nil)
+        // 1.5.0's tags had no year, and are still known.
+        #expect(LeadIntake.isRequestTag("Requested Oct 7"))
         #expect(!LeadIntake.isRequestTag("Requested quote") && !LeadIntake.isRequestTag("Requested 2 quotes"))
         // The date is written the phone's way; whichever it is, the tag is known.
         for id in ["en_US", "en_GB", "fr_CA", "de_DE", "ja_JP", "es_US"] {
