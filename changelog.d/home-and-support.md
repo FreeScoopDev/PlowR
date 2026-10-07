@@ -1,2 +1,0 @@
-### Added
-- getplowr.app has a home page and a Support page. The site had only the privacy policy and terms, so its address showed nothing, and the App Store requires a support page. The Support page answers the common questions (where data is kept, sync, importing, exporting, deleting, the Mac, payments) and says how to reach support. Both pages have no tracking or third-party code, and follow light and dark mode.

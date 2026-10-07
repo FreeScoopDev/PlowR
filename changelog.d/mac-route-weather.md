@@ -1,2 +1,0 @@
-### Fixed
-- **Weather on the route screen without GPS.** The weather strip used the phone's location, so on a Mac, or with location turned off, it never appeared. It now shows the weather at your stops: the current stop's when the route screen opens (or the nearest stop on the map), since the stops are where the work is. If location is switched back on during a route, the phone's own weather replaces it.

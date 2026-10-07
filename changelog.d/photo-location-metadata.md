@@ -1,2 +1,0 @@
-### Fixed
-- A photo picked from the library on a client's Photos page, or picked as the business logo, was kept exactly as its file came, including the location many phones store in a photo. It's now kept without that location, in its own format where possible, with the time it was taken still read and kept, as photos added in Record Services and Below Trigger already were. Nothing sent a photo anywhere with its location: shared photos and PDFs were already drawn from the picture alone. Photos saved before this keep what they had (PlowR has only been in testing).
