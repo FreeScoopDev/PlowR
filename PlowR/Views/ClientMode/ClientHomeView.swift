@@ -73,12 +73,12 @@ struct ClientHomeView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This removes your saved requests and the name, phone and email kept for your next request, from this phone. Requests you've already sent stay with the businesses you sent them to.")
+            Text("This removes your saved requests and the name, phone and email kept for your next request, from this device. Requests you've already sent stay with the businesses you sent them to.")
         }
         .alert("Couldn't Delete Everything", isPresented: $deleteFailed) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text("Your saved requests couldn't be removed. Try again, or delete PlowR to remove them.")
+            Text("Your contact details were removed, but your saved requests couldn't be. Try again, or delete PlowR to remove them.")
         }
         .sheet(isPresented: $showingFindService) {
             FindServiceFlow()

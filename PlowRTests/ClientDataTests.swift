@@ -29,4 +29,29 @@ struct ClientDataTests {
         #expect(defaults.string(forKey: "userRole") == "kept")      // only the client's data
         try store.eraseAll()                                          // nothing left: no error
     }
+
+    // A file that can't be removed: the contact details still go, and the
+    // requests aren't shown as gone while they're still on disk.
+    @Test func aStuckFileStillLosesTheContactDetailsAndKeepsTheRequestsShown() throws {
+        let folder = FileManager.default.temporaryDirectory.appending(path: "ClientDataTests-\(UUID().uuidString)")
+        let locked = folder.appending(path: "locked")
+        try FileManager.default.createDirectory(at: locked, withIntermediateDirectories: true)
+        let file = locked.appending(path: "clientWorkOrders.json")
+        let defaults = try #require(UserDefaults(suiteName: "ClientDataTests-\(UUID().uuidString)"))
+        for key in ClientWorkOrderStore.detailKeys { defaults.set("Pat", forKey: key) }
+        defaults.set(Data(), forKey: "clientWorkOrders")       // a pre-file copy, from an old version
+        let store = ClientWorkOrderStore(fileURL: file, defaults: defaults)
+        store.add(ClientWorkOrder(businessName: "North Plow", businessPhone: "", category: "snow",
+                                  propertyAddress: "1 Main St", totalAreaSqFt: 0, notes: "", submittedAt: Date(),
+                                  messageText: ""))
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: locked.path)
+        defer {
+            try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: locked.path)
+            try? FileManager.default.removeItem(at: folder)
+        }
+        #expect(throws: (any Error).self) { try store.eraseAll() }
+        #expect(ClientWorkOrderStore.detailKeys.allSatisfy { defaults.object(forKey: $0) == nil })
+        #expect(defaults.object(forKey: "clientWorkOrders") == nil)
+        #expect(store.orders.count == 1)
+    }
 }

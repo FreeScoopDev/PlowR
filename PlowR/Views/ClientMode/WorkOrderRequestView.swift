@@ -6,9 +6,9 @@ struct WorkOrderRequestView: View {
     let category: String
     let propertyAddress: String
 
-    @AppStorage("clientName") private var clientName = ""
-    @AppStorage("clientPhone") private var clientPhone = ""
-    @AppStorage("clientEmail") private var clientEmail = ""
+    @AppStorage(ClientWorkOrderStore.nameKey) private var clientName = ""
+    @AppStorage(ClientWorkOrderStore.phoneKey) private var clientPhone = ""
+    @AppStorage(ClientWorkOrderStore.emailKey) private var clientEmail = ""
     @Environment(ClientWorkOrderStore.self) private var workOrderStore
     @State private var notes = ""
     @State private var showShareSheet = false

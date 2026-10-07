@@ -19,8 +19,11 @@ final class ClientWorkOrderStore {
     private let defaults: UserDefaults
 
     /// The client's own contact details, kept in settings for the next
-    /// request (WorkOrderRequestView).
-    static let detailKeys = ["clientName", "clientPhone", "clientEmail"]
+    /// request (WorkOrderRequestView reads and writes them by these keys).
+    static let nameKey = "clientName"
+    static let phoneKey = "clientPhone"
+    static let emailKey = "clientEmail"
+    static let detailKeys = [nameKey, phoneKey, emailKey]
     private static let legacyKey = "clientWorkOrders"
 
     init(fileURL: URL = ClientWorkOrderStore.fileURL, defaults: UserDefaults = .standard) {
@@ -47,12 +50,15 @@ final class ClientWorkOrderStore {
     /// Delete My Data, for a client: every saved request and the contact
     /// details kept for the next one. A business deletes everything,
     /// these included, with Delete Account & Data (AccountEraser).
+    /// The contact details go first, so a file that can't be removed still
+    /// leaves none of them; the requests are cleared only once their file is
+    /// gone, so a failure doesn't look like a success.
     func eraseAll() throws {
-        orders = []
+        for key in Self.detailKeys + [Self.legacyKey] { defaults.removeObject(forKey: key) }
         if FileManager.default.fileExists(atPath: fileURL.path) {
             try FileManager.default.removeItem(at: fileURL)
         }
-        for key in Self.detailKeys + [Self.legacyKey] { defaults.removeObject(forKey: key) }
+        orders = []
     }
 
     // MARK: - Storage
