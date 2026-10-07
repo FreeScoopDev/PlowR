@@ -105,11 +105,13 @@ struct AccountEraser {
         var failures: [Failure] = []
         routeStore.eraseAll()
         failures += eraseFromDevice()
-        if failures.isEmpty, let defaultsDomain {
-            defaults.removePersistentDomain(forName: defaultsDomain)
+        // Only when everything else went: the database can't be got back, and
+        // the failures stay on screen (Settings) to retry.
+        if failures.isEmpty {
+            if let defaultsDomain { defaults.removePersistentDomain(forName: defaultsDomain) }
+            // After the preferences go: these are about the device, not the account.
+            DeviceSync.scheduleRemoval(defaults: defaults)
         }
-        // After the preferences go: these are about the device, not the account.
-        DeviceSync.scheduleRemoval(defaults: defaults)
         return failures
     }
 

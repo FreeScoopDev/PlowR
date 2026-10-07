@@ -156,7 +156,7 @@ final class ICloudStatus {
             return Summary(kind: .unknown, title: "iCloud", message: "Checking whether your data is backed up…")
         case .turnedOff:
             return Summary(kind: .unknown, title: "iCloud Sync Is Off on This Device",
-                           message: "Your clients, routes and documents on this device stay on this device, and your iCloud data doesn't come here. Turn sync on below to bring it back.")
+                           message: "You removed PlowR's data from this device. What you add here now stays on this device, and your iCloud data doesn't come here. Turn sync back on below to bring it back; what you've added here then goes to iCloud too.")
         default:
             return Summary(kind: .unknown, title: "iCloud",
                            message: "PlowR couldn't check iCloud just now. When iCloud is on, your clients, routes, and documents sync across your devices through your private iCloud account.")

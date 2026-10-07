@@ -21,9 +21,14 @@ nonisolated enum DeviceSync {
 
     static func isOff(_ defaults: UserDefaults = .standard) -> Bool { defaults.bool(forKey: offKey) }
 
-    /// Takes effect the next time PlowR opens: the database is opened once.
-    static func setOff(_ off: Bool, defaults: UserDefaults = .standard) {
-        defaults.set(off, forKey: offKey)
+    /// Turns sync back on; takes effect the next time PlowR opens (the
+    /// database is opened once). There's no turning it off but Remove from
+    /// This Device: a device with sync off then holds only what was made on it
+    /// since, none of it in iCloud, so turning sync on again can only add.
+    /// Turned off over a synced database, deletions made while off would go
+    /// up when it came back on.
+    static func turnOn(defaults: UserDefaults = .standard) {
+        defaults.removeObject(forKey: offKey)
     }
 
     /// The local database will be removed at the next launch.
@@ -44,11 +49,13 @@ nonisolated enum DeviceSync {
     static func removeDatabaseIfAsked(storeAt url: URL, defaults: UserDefaults = .standard,
                                       fileManager: FileManager = .default) -> Bool {
         guard isRemovalPending(defaults) else { return false }
-        var removedAll = true
-        for part in StoreArchive.parts(of: url) where fileManager.fileExists(atPath: part.path) {
-            do { try fileManager.removeItem(at: part) } catch { removedAll = false }
+        // The database last, stopping at the first part that won't go: a new
+        // database beside an old log is corrupt (StoreArchive), and a whole
+        // old one left in place just opens, with sync still off.
+        for part in StoreArchive.parts(of: url).reversed() where fileManager.fileExists(atPath: part.path) {
+            do { try fileManager.removeItem(at: part) } catch { return true }
         }
-        if removedAll { defaults.removeObject(forKey: removeKey) }
+        defaults.removeObject(forKey: removeKey)
         return true
     }
 }

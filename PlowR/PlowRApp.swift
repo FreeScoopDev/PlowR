@@ -102,9 +102,17 @@ struct PlowRApp: App {
         ModelConfiguration(schema: schema, cloudKitDatabase: .private(iCloudContainer))
     }
 
-    /// The same store without an explicit iCloud database.
+    /// The same store without an explicit iCloud database. Unverified
+    /// whether it stays off iCloud on a signed build: SwiftData's default is
+    /// `.automatic`, which can pick the entitlements' container.
     static func localConfiguration(for schema: Schema) -> ModelConfiguration {
         ModelConfiguration(schema: schema)
+    }
+
+    /// The same store with iCloud off, said so: for a device whose sync was
+    /// turned off (DeviceSync). Not `localConfiguration`, which may sync.
+    static func offlineConfiguration(for schema: Schema) -> ModelConfiguration {
+        ModelConfiguration(schema: schema, cloudKitDatabase: .none)
     }
 
     private static func makeContainer(schema: Schema) -> ModelContainer {
@@ -115,6 +123,14 @@ struct PlowRApp: App {
         if !isRunningUnderTests {
             DeviceSync.removeDatabaseIfAsked(storeAt: localConfiguration(for: schema).url)
             isSyncTurnedOff = DeviceSync.isOff()
+        }
+        if isSyncTurnedOff {
+            isCloudKitAvailable = false
+            do {
+                return try ModelContainer(for: schema, configurations: [offlineConfiguration(for: schema)])
+            } catch {
+                errors.append("sync off: \(error)")
+            }
         }
         // 1. Try CloudKit-backed store (skipped under test — see above)
         if !isRunningUnderTests, !isSyncTurnedOff {

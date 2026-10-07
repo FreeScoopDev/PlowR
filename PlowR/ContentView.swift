@@ -41,7 +41,7 @@ struct RemovedFromDeviceView: View {
         ContentUnavailableView {
             Label("Removed from This Device", systemImage: "iphone.slash")
         } description: {
-            Text("To finish, close PlowR: swipe up from the bottom of the screen, then swipe PlowR away. When it opens again, its data is gone from this device. It's still in your iCloud and on your other devices, and iCloud sync stays off here until you turn it on in Settings.")
+            Text("To finish, close PlowR: swipe up from the bottom of the screen, then swipe PlowR away. When it opens again, its data is gone from this device. What had reached iCloud is still there and on your other devices, and iCloud sync stays off here until you turn it back on in Settings.")
         }
     }
 }

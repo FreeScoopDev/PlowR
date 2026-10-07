@@ -207,6 +207,20 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   saved route, the "PlowR" calendar (`CalendarSync.eraseAll()`), and Keychain
   credentials. Any new persistent store must be added to that path or
   the deletion is incomplete and review can fail on it.
+- **Delete Account & Data has two paths.** *Delete Everything*
+  (`AccountEraser.eraseAll`) deletes every record through SwiftData, and the
+  deletes reach iCloud and the user's other devices (checked on a device,
+  2026-10-06). *Remove from This Device* (`removeFromThisDevice`) deletes no
+  record: it erases what's device-only, then `DeviceSync` turns sync off here
+  and deletes the database's files at the next launch, before it opens.
+  iCloud sync follows the device's iCloud account, not PlowR's sign-in, so a
+  wiped copy on a syncing device comes straight back. With sync off the
+  database opens with `offlineConfiguration` (`cloudKitDatabase: .none`):
+  SwiftData's default, which `localConfiguration` uses, is `.automatic` and
+  can pick the entitlements' container. Sync is turned off only by Remove
+  from This Device, never by itself, so a device with sync off holds only
+  what was made on it since, none of it in iCloud, and turning sync back on
+  can only add; Delete Everything isn't offered while it's off.
 - **Calendar events are matched to visits by their `plowr://visit/<id>`
   link**, not by an ID saved on the visit (`externalCalendarID` is unused): an
   event's ID is only good on the device that made it, and visits sync.

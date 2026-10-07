@@ -16,9 +16,9 @@ struct SettingsView: View {
     @State private var sampleDataInserted = false
     @State private var schemaStatus: String?
     @State private var showingDeleteConfirmation = false
-    /// iCloud sync on this device (DeviceSync); takes effect at the next launch.
+    /// iCloud sync on this device (DeviceSync): off only by Remove from This
+    /// Device; turned back on here, from the next launch.
     @AppStorage(DeviceSync.offKey) private var syncOffHere = false
-    @State private var syncChoiceAtLaunch = PlowRApp.isSyncTurnedOff
     /// What Delete Account & Data couldn't remove, shown under the button.
     @State private var deleteFailures: [AccountEraser.Failure] = []
     private let iCloud = ICloudStatus.shared
@@ -91,14 +91,14 @@ struct SettingsView: View {
                 }
                 .padding(.vertical, 4)
 
-                Toggle("Sync with iCloud on This Device", isOn: Binding(get: { !syncOffHere },
-                                                                       set: { syncOffHere = !$0 }))
-                if syncOffHere != syncChoiceAtLaunch {
-                    Text(syncOffHere
-                         ? "Sync stops the next time PlowR opens. What's on this device stays here."
-                         : "Sync starts the next time PlowR opens: close PlowR and open it again. Your iCloud data comes back to this device, and anything added here goes up.")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
+                if PlowRApp.isSyncTurnedOff {
+                    if syncOffHere {
+                        Button("Turn iCloud Sync Back On") { DeviceSync.turnOn() }
+                    } else {
+                        Text("Close PlowR and open it again to sync. Your iCloud data comes back to this device, and anything added here while sync was off goes to iCloud.")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
                 }
 
                 Button {
@@ -187,12 +187,15 @@ struct SettingsView: View {
         }
         .confirmationDialog("Delete Account & Data", isPresented: $showingDeleteConfirmation, titleVisibility: .visible) {
             Button("Remove from This Device", role: .destructive, action: removeFromThisDevice)
-            Button("Delete Everything", role: .destructive, action: deleteAccount)
+            // With sync off it couldn't reach iCloud (DeviceSync).
+            if !PlowRApp.isSyncTurnedOff {
+                Button("Delete Everything", role: .destructive, action: deleteAccount)
+            }
             Button("Cancel", role: .cancel) {}
         } message: {
             Text(PlowRApp.isSyncTurnedOff
-                 ? "Remove from This Device removes PlowR's data from this device only. iCloud sync is off here, so Delete Everything also reaches only this device: to delete your iCloud data, turn sync on and reopen PlowR first, or delete from another device."
-                 : "Remove from This Device removes PlowR's data from this device only and turns iCloud sync off here; your iCloud and your other devices keep it. Delete Everything permanently removes all your PlowR data: clients, routes, jobs, documents, contracts, photos and settings, from this device and from your iCloud, so also from your other devices. Stay online with PlowR open for a minute afterwards so iCloud gets the deletion.")
+                 ? "iCloud sync is off on this device, so only Remove from This Device is here: it permanently removes what's on this device, which isn't in iCloud. To delete your iCloud data, turn sync back on above, reopen PlowR, then choose Delete Everything, or do it from another device."
+                 : "Remove from This Device takes PlowR's data off this device only and turns iCloud sync off here; your iCloud and your other devices keep it. Anything this device hasn't sent to iCloud yet is lost, so be online and give it a minute first.\n\nDelete Everything permanently removes all your PlowR data: clients, routes, jobs, documents, contracts, photos and settings, from this device and from your iCloud, so also from your other devices. Stay online with PlowR open for a minute afterwards so iCloud gets the deletion.")
         }
     }
 
