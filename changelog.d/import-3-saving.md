@@ -1,0 +1,3 @@
+### Internal
+- Import Clients' saving (`ClientImport.save`): the preview's new clients are added with the import as a tag ("Imported Oct 7, 2:15 PM"), so an import can be found and undone, and the addresses asked for become properties of the right client, new or already in PlowR. Saved in batches, so a long list isn't one huge save. Undo This Import deletes only the clients it added that nothing has used since, and keeps (and counts) any put on a route, booked, invoiced, quoted, photographed or under contract, so undoing never loses work.
+- A client imported as a current customer is marked so (`Client.customerSince`, a new iCloud field) and counts as a customer in the Pipeline. Otherwise a whole client list with no history in PlowR would show up as leads.
