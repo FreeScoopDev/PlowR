@@ -9,15 +9,22 @@ import Foundation
 /// every device (AccountEraser, checked on a device 2026-10-06). So removing
 /// from this device only is two choices kept here, acted on at the next
 /// launch, before the database opens (PlowRApp.makeContainer):
-/// - **Sync off:** the database opens without iCloud, so nothing comes back
-///   down and nothing goes up. Turning it on again brings everything back.
 /// - **Remove the local database:** its files are deleted (never its
 ///   records, which iCloud would copy), then a fresh one is made.
+/// - **Sync off:** the database opens with iCloud said off, every time
+///   (`PlowRApp.fallbackConfiguration`), so nothing comes back down and
+///   nothing goes up. Sync goes off only with the removal, so a device with
+///   it off holds only what was made on it since; turning it back on can
+///   only add, and brings iCloud's data back.
 /// Both are preferences outside what Delete Account & Data removes, written
 /// after it: they're about this device, not the account.
 nonisolated enum DeviceSync {
     static let offKey = "iCloudSyncOffOnThisDevice"
     static let removeKey = "removeLocalDatabaseAtLaunch"
+
+    /// A removal was asked for at this launch and a file wouldn't go: it's
+    /// tried again at the next, and the screen says so meanwhile.
+    nonisolated(unsafe) static var removalFailedAtLaunch = false
 
     static func isOff(_ defaults: UserDefaults = .standard) -> Bool { defaults.bool(forKey: offKey) }
 
@@ -53,7 +60,10 @@ nonisolated enum DeviceSync {
         // database beside an old log is corrupt (StoreArchive), and a whole
         // old one left in place just opens, with sync still off.
         for part in StoreArchive.parts(of: url).reversed() where fileManager.fileExists(atPath: part.path) {
-            do { try fileManager.removeItem(at: part) } catch { return true }
+            do { try fileManager.removeItem(at: part) } catch {
+                removalFailedAtLaunch = true
+                return true
+            }
         }
         defaults.removeObject(forKey: removeKey)
         return true

@@ -41,7 +41,11 @@ struct RemovedFromDeviceView: View {
         ContentUnavailableView {
             Label("Removed from This Device", systemImage: "iphone.slash")
         } description: {
-            Text("To finish, close PlowR: swipe up from the bottom of the screen, then swipe PlowR away. When it opens again, its data is gone from this device. What had reached iCloud is still there and on your other devices, and iCloud sync stays off here until you turn it back on in Settings.")
+            if DeviceSync.removalFailedAtLaunch {
+                Text("PlowR couldn't finish removing its data from this device when it opened. Close it and open it again to try once more; if this stays, restart your phone, or contact support@getplowr.app.")
+            } else {
+                Text("To finish, close PlowR: swipe up from the bottom of the screen, then swipe PlowR away. When it opens again, its data is gone from this device. What had reached iCloud is still there and on your other devices, and iCloud sync stays off here until you turn it back on in Settings.")
+            }
         }
     }
 }

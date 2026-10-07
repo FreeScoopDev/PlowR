@@ -112,19 +112,32 @@ struct RemoveFromDeviceTests {
         #expect(DeviceSync.isOff(defaults))                 // and sync stays off until turned on
     }
 
-    @Test func aFileThatCantGoIsTriedAgainNextLaunch() throws {
+    // Only the photo folder won't go: the database and its log stay with it,
+    // never a new database beside an old log.
+    @Test func aFileThatCantGoLeavesTheDatabaseAndIsTriedAgain() throws {
         let (folder, store) = try storeFolder()
+        let support = folder.appending(path: ".default_SUPPORT")
         let defaults = try #require(UserDefaults(suiteName: "RemoveFromDevice-\(UUID().uuidString)"))
         DeviceSync.scheduleRemoval(defaults: defaults)
-        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: folder.path)
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: support.path)
         defer {
-            try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: folder.path)
+            try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: support.path)
             try? FileManager.default.removeItem(at: folder)
         }
         #expect(DeviceSync.removeDatabaseIfAsked(storeAt: store, defaults: defaults))
         #expect(DeviceSync.isRemovalPending(defaults))
-        // The database goes last: never a new one beside an old log.
         #expect(FileManager.default.fileExists(atPath: store.path))
+        #expect(FileManager.default.fileExists(atPath: folder.appending(path: "default.store-wal").path))
+    }
+
+    // With sync off, the fallback and the reopen after archiving open with
+    // iCloud said off too; otherwise the usual unnamed local configuration.
+    @Test func everyOpenWithSyncOffIsSaidOff() {
+        let schema = Schema(PlowRApp.models)
+        let none = String(describing: ModelConfiguration(schema: schema, cloudKitDatabase: .none).cloudKitDatabase)
+        #expect(String(describing: PlowRApp.fallbackConfiguration(for: schema, syncOff: true).cloudKitDatabase) == none)
+        #expect(String(describing: PlowRApp.fallbackConfiguration(for: schema, syncOff: false).cloudKitDatabase)
+            == String(describing: PlowRApp.localConfiguration(for: schema).cloudKitDatabase))
     }
 
     @Test func turningSyncOnLeavesAPendingRemovalToFinish() throws {

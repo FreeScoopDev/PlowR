@@ -115,6 +115,14 @@ struct PlowRApp: App {
         ModelConfiguration(schema: schema, cloudKitDatabase: .none)
     }
 
+    /// The configuration the store opens with when iCloud's didn't, or wasn't
+    /// tried: with sync off on this device, every open is said off, the
+    /// fallback and the reopen after archiving included, or a new store could
+    /// sync iCloud's records into a device that says it doesn't.
+    static func fallbackConfiguration(for schema: Schema, syncOff: Bool) -> ModelConfiguration {
+        syncOff ? offlineConfiguration(for: schema) : localConfiguration(for: schema)
+    }
+
     private static func makeContainer(schema: Schema) -> ModelContainer {
         var errors: [String] = []
         // 0. Remove from This Device: the local database goes before it opens
@@ -123,14 +131,6 @@ struct PlowRApp: App {
         if !isRunningUnderTests {
             DeviceSync.removeDatabaseIfAsked(storeAt: localConfiguration(for: schema).url)
             isSyncTurnedOff = DeviceSync.isOff()
-        }
-        if isSyncTurnedOff {
-            isCloudKitAvailable = false
-            do {
-                return try ModelContainer(for: schema, configurations: [offlineConfiguration(for: schema)])
-            } catch {
-                errors.append("sync off: \(error)")
-            }
         }
         // 1. Try CloudKit-backed store (skipped under test — see above)
         if !isRunningUnderTests, !isSyncTurnedOff {
@@ -143,9 +143,10 @@ struct PlowRApp: App {
             }
         }
 
-        // 2. Fall back to local store (iCloud unavailable or signed out)
+        // 2. Fall back to local store (iCloud unavailable or signed out), or
+        //    open it with sync off here: iCloud said off, every time.
         isCloudKitAvailable = false
-        let local = localConfiguration(for: schema)
+        let local = fallbackConfiguration(for: schema, syncOff: isSyncTurnedOff)
         do {
             return try ModelContainer(for: schema, configurations: [local])
         } catch {
