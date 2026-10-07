@@ -48,7 +48,7 @@ final class AddressCompleter: NSObject, MKLocalSearchCompleterDelegate {
         willPick(fullAddress)
         let request = MKLocalSearch.Request(completion: completion)
         let coordinate = try? await MKLocalSearch(request: request).start()
-            .mapItems.first?.placemark.coordinate
+            .mapItems.first?.location.coordinate
         return (fullAddress, coordinate)
     }
 

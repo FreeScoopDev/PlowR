@@ -136,7 +136,7 @@ struct BusinessSearchView: View {
             if let coord = coordinate {
                 center = coord
             } else {
-                center = try await geocodeLocation(query)
+                center = try await AddressPin.coordinate(of: query)
             }
             let request = MKLocalSearch.Request()
             request.naturalLanguageQuery = searchQuery
@@ -160,17 +160,6 @@ struct BusinessSearchView: View {
         }
     }
 
-    private func geocodeLocation(_ query: String) async throws -> CLLocationCoordinate2D {
-        try await withCheckedThrowingContinuation { continuation in
-            CLGeocoder().geocodeAddressString(query) { placemarks, error in
-                if let coord = placemarks?.first?.location?.coordinate {
-                    continuation.resume(returning: coord)
-                } else {
-                    continuation.resume(throwing: error ?? NSError(domain: "PlowR.Geocoding", code: 0))
-                }
-            }
-        }
-    }
 }
 
 struct BusinessRow: View {

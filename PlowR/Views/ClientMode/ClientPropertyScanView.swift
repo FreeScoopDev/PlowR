@@ -87,7 +87,7 @@ struct ClientPropertyScanView: View {
         isGeocoding = true
         geocodeError = nil
         do {
-            let coord = try await geocode(addressText)
+            let coord = try await AddressPin.coordinate(of: addressText)
             await MainActor.run {
                 confirmedAddress = addressText
                 cameraPosition = .camera(MapCamera(centerCoordinate: coord, distance: 120, heading: 0, pitch: 0))
@@ -102,17 +102,6 @@ struct ClientPropertyScanView: View {
         }
     }
 
-    private func geocode(_ address: String) async throws -> CLLocationCoordinate2D {
-        try await withCheckedThrowingContinuation { continuation in
-            CLGeocoder().geocodeAddressString(address) { placemarks, error in
-                if let coord = placemarks?.first?.location?.coordinate {
-                    continuation.resume(returning: coord)
-                } else {
-                    continuation.resume(throwing: error ?? NSError(domain: "PlowR.Geocoding", code: 0))
-                }
-            }
-        }
-    }
 
     // MARK: - Map View
 

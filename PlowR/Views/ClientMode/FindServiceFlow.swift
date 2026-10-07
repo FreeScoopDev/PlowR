@@ -14,18 +14,16 @@ struct BusinessResult: Hashable, Identifiable {
     var website: URL? = nil
 
     static func from(_ item: MKMapItem) -> BusinessResult {
-        let addrParts = [
-            item.placemark.subThoroughfare,
-            item.placemark.thoroughfare,
-            item.placemark.locality,
-            item.placemark.administrativeArea,
-        ].compactMap { $0 }
+        // Street, town and state on one line, as the placemark gave them
+        // (MapKit adds the ZIP); its short form, without the state, if that's all.
+        let address = item.addressRepresentations?.fullAddress(includingRegion: false, singleLine: true)
+            ?? item.address?.shortAddress ?? ""
         return BusinessResult(
             name: item.name ?? "Business",
             phone: item.phoneNumber ?? "",
-            address: addrParts.joined(separator: " "),
-            latitude: item.placemark.coordinate.latitude,
-            longitude: item.placemark.coordinate.longitude,
+            address: address,
+            latitude: item.location.coordinate.latitude,
+            longitude: item.location.coordinate.longitude,
             website: item.url
         )
     }
