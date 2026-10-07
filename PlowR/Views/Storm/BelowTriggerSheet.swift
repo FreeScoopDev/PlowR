@@ -58,7 +58,7 @@ struct BelowTriggerSheet: View {
                         }
                     }
                     // No camera (an iPad without one, a Mac): asking for it crashes.
-                    if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                    if CameraPicker.isAvailable {
                         Button { showingCamera = true } label: { Label("Camera", systemImage: "camera") }
                     }
                     PhotosPicker(selection: $pickerItems, maxSelectionCount: 5, matching: .images) {
@@ -85,7 +85,7 @@ struct BelowTriggerSheet: View {
                 }
             }
             .sheet(isPresented: $showingCamera) {
-                CameraPickerView { image, metadata in
+                CameraPicker { image, metadata in
                     photos.append(PhotoCapture.fromCamera(image, metadata: metadata))
                 }
             }

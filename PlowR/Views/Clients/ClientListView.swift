@@ -184,7 +184,7 @@ struct ClientListView: View {
                     } label: {
                         Label("Import from Spreadsheet", systemImage: "square.and.arrow.down.on.square")
                     }
-                    if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                    if CameraPicker.isAvailable {
                         Button {
                             showingContactScanner = true
                         } label: {
