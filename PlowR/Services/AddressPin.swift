@@ -76,11 +76,10 @@ enum AddressPin {
     /// Where `address` is, for screens that only need the spot (the client
     /// side's search and property scan). Throws when it can't be found.
     static func coordinate(of address: String) async throws -> CLLocationCoordinate2D {
-        guard let request = MKGeocodingRequest(addressString: address),
-              let location = try await request.mapItems.first?.location else {
-            throw CLError(.geocodeFoundNoResult)
+        switch await lookUp(address) {
+        case let .found(latitude, longitude): return CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+        case .failed: throw CLError(.geocodeFoundNoResult)
         }
-        return location.coordinate
     }
 
     /// Puts a new client on the map. Nil when their address was found (the
