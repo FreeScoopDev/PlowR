@@ -134,6 +134,7 @@ struct ActiveRouteView: View {
             Text(RouteSessionManager.shared.completeStopMessage ?? "")
         }
         .onChange(of: locationManager.authorizationStatus) { _, status in
+            guard !OnMac.isMac else { return }
             switch status {
             case .authorizedAlways, .authorizedWhenInUse:
                 locationManager.startTracking()
@@ -801,15 +802,18 @@ struct ActiveRouteView: View {
     /// Runs every time the screen appears, including after a relaunch restores
     /// the route; only a freshly started route offers to notify its first client.
     private func beginTracking() {
-        switch locationManager.authorizationStatus {
-        case .notDetermined:
-            locationManager.requestPermission()
-        case .authorizedAlways, .authorizedWhenInUse:
-            locationManager.startTracking()
-        case .denied, .restricted:
-            showingLocationDeniedAlert = true
-        @unknown default:
-            locationManager.requestPermission()
+        // A Mac isn't on the route (OnMac): no location asked for or followed.
+        if !OnMac.isMac {
+            switch locationManager.authorizationStatus {
+            case .notDetermined:
+                locationManager.requestPermission()
+            case .authorizedAlways, .authorizedWhenInUse:
+                locationManager.startTracking()
+            case .denied, .restricted:
+                showingLocationDeniedAlert = true
+            @unknown default:
+                locationManager.requestPermission()
+            }
         }
         guard store.isFirstStopPromptPending else { return }
         store.isFirstStopPromptPending = false

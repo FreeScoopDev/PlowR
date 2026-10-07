@@ -133,6 +133,35 @@ enum CSVExport {
                                  "Total", "Charged", "Billing", "Invoice", "Notes"], rows: rows)
     }
 
+    /// Every proposal (not yet an invoice), oldest first: what was quoted.
+    static func proposals(_ documents: [Proposal], operatorID: String) -> String {
+        let rows = documents.filter { $0.operatorID == operatorID && !$0.isInvoice }
+            .sorted { $0.createdAt < $1.createdAt }
+            .map { proposal -> [Cell] in
+                [day(proposal.createdAt), .text(proposal.clientName), .text(proposal.clientAddress),
+                 .text(proposal.sortedLineItems.map(\.serviceName).joined(separator: "; ")),
+                 money(proposal.subtotal), money(proposal.appliedDiscount), money(proposal.taxAmount),
+                 money(proposal.total), day(proposal.validUntil), .text(proposal.notes)]
+            }
+        return document(header: ["Created", "Client", "Address", "Services", "Subtotal", "Discount", "Tax", "Total",
+                                 "Valid Until", "Notes"], rows: rows)
+    }
+
+    /// Every scheduled visit, by date: the Schedule, past and ahead.
+    static func schedule(_ visits: [ScheduledVisit], operatorID: String, catalog: [ServiceItem]) -> String {
+        let names = Dictionary(catalog.map { ($0.id.uuidString, $0.name) }, uniquingKeysWith: { first, _ in first })
+        let rows = visits.filter { $0.operatorID == operatorID }
+            .sorted { $0.scheduledDate < $1.scheduledDate }
+            .map { visit -> [Cell] in
+                [day(visit.scheduledDate), .text(visit.clientName), .text(visit.clientAddress),
+                 .plain(visit.status.rawValue), .text(visit.visitReason),
+                 .text(visit.expectedServiceIDs.compactMap { names[$0] }.joined(separator: "; ")),
+                 .plain(visit.isRecurring ? "Yes" : "No"), .text(visit.notes)]
+            }
+        return document(header: ["Date", "Client", "Address", "Status", "Reason", "Services", "Repeats", "Notes"],
+                        rows: rows)
+    }
+
     /// Every contract, oldest first: what was agreed, and where it stands.
     static func contracts(_ contracts: [Contract], operatorID: String, catalog: [ServiceItem],
                           now: Date = .now) -> String {

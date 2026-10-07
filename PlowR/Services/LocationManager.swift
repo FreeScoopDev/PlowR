@@ -35,7 +35,8 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
     }
 
     func calculateETA(to stop: RouteStop) async -> Int? {
-        guard let currentLocation,
+        // A Mac isn't on the route: an estimate from where it is would mislead.
+        guard !OnMac.isMac, let currentLocation,
               stop.latitude != 0.0 || stop.longitude != 0.0 else { return nil }
 
         let request = MKDirections.Request()

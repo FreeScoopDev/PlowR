@@ -36,7 +36,7 @@ struct ExportDataView: View {
                 }
             } footer: {
                 Text(failed ? "The files couldn't be made. Try again."
-                     : "Spreadsheet (CSV) files that open in Numbers, Excel or Google Sheets, and import into most accounting software. Money has two decimals; dates are year-month-day.")
+                     : "Spreadsheet (CSV) files that open in Numbers, Excel or Google Sheets, and import into most accounting software. Money has two decimals; dates are year-month-day. They're a copy to keep: they can't be loaded back into PlowR, and routes, photos and settings aren't in them.")
             }
         }
         .navigationTitle("Export Data")
@@ -50,6 +50,7 @@ struct ExportDataView: View {
         let documents = (try? modelContext.fetch(FetchDescriptor<Proposal>())) ?? []
         let records = (try? modelContext.fetch(FetchDescriptor<ServiceRecord>())) ?? []
         let contracts = Contracts.all(in: modelContext)
+        let visits = (try? modelContext.fetch(FetchDescriptor<ScheduledVisit>())) ?? []
         let catalog = (try? modelContext.fetch(FetchDescriptor<ServiceItem>())) ?? []
         do {
             files = [
@@ -61,6 +62,11 @@ struct ExportDataView: View {
                        systemImage: "doc.text",
                        url: try CSVExport.file("Invoices",
                                                contents: CSVExport.invoices(documents, operatorID: operatorID))),
+                Export(title: "Proposals",
+                       detail: "\(documents.filter { $0.operatorID == operatorID && !$0.isInvoice }.count) proposals",
+                       systemImage: "doc.plaintext",
+                       url: try CSVExport.file("Proposals",
+                                               contents: CSVExport.proposals(documents, operatorID: operatorID))),
                 Export(title: "Payments",
                        detail: "\(documents.filter { $0.operatorID == operatorID }.reduce(0) { $0 + ($1.payments?.count ?? 0) }) payments",
                        systemImage: "banknote",
@@ -71,6 +77,11 @@ struct ExportDataView: View {
                        systemImage: "signature",
                        url: try CSVExport.file("Contracts", contents: CSVExport.contracts(contracts, operatorID: operatorID,
                                                                                          catalog: catalog))),
+                Export(title: "Schedule",
+                       detail: "\(visits.filter { $0.operatorID == operatorID }.count) visits",
+                       systemImage: "calendar",
+                       url: try CSVExport.file("Schedule", contents: CSVExport.schedule(visits, operatorID: operatorID,
+                                                                                       catalog: catalog))),
                 Export(title: "Service History",
                        detail: "\(records.filter { $0.operatorID == operatorID }.count) jobs",
                        systemImage: "list.bullet.clipboard",

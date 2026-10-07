@@ -11,8 +11,9 @@ nonisolated enum OnMac {
 
     /// What works differently on a Mac, line by line, for Settings.
     static let limitations = [
-        "Texting clients isn't available: use PlowR on your iPhone to text, or Message All before a route.",
-        "Routes are for planning and records here. GPS arrival and departure times, the offer to text the next client when you leave a stop, and arrival estimates need PlowR on an iPhone on the route.",
+        "Texting clients isn't available on a Mac: send texts, Message All included, from PlowR on your iPhone.",
+        "Routes are for planning and records here: PlowR doesn't follow your location on a Mac, so there are no GPS arrival and departure times, offers to text the next client when you leave a stop, or arrival estimates. Run routes on your iPhone.",
+        "No camera: add photos from your library, and scan business cards on your iPhone.",
         "No Lock Screen Live Activity or Control Center control.",
         "Everything else (clients, the schedule, proposals, invoices, payments, contracts and reports) works the same, and syncs with your iPhone and iPad through iCloud."
     ]
