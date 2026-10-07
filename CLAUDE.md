@@ -34,10 +34,12 @@ that way unless there's a strong reason; adding the first one is a real decision
 
 Deployment target is **iOS 26.0** (was 26.5 until 2026-09-29; nothing needed more). Swift language mode is 5, so the Swift 6
 strict-concurrency diagnostics show as warnings, not errors. Since
-2026-10-06 a Release build has none: pure helpers called off the main actor
-(SwiftUI view initializers, `Codable` decoding in `WeatherService`, the Live
-Activity's attributes) are marked `nonisolated`, as `PlowRColor` is. Keep it at
-none: a new warning is a new spot that isn't proven thread-safe. The build
+2026-10-06 a Release build has none; keep it at none. Two causes, two fixes:
+passing a function by name (`map(Type.init)`, `map(render)`) is checked as
+having no actor, so write a closure (`map { Type($0) }`) instead; and code
+with no actor (nonisolated helpers such as `StopRecording`, the
+`WeatherService` actor, ActivityKit with the Live Activity's attributes)
+can only call what's marked `nonisolated`, as `PlowRColor` is. The build
 still warns about APIs iOS 26 deprecated (`CLGeocoder`, `MKPlacemark` and
 `placemark`, `UIScreen.main`), which still work.
 
