@@ -286,19 +286,22 @@ struct StopServiceRecorderView: View {
             }
 
             HStack(spacing: 12) {
-                Button {
-                    cameraIsBefore = isBefore
-                    showingCamera = true
-                } label: {
-                    Label("Camera", systemImage: "camera")
-                        .font(.subheadline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                        .background(color.opacity(0.1))
-                        .foregroundStyle(color)
-                        .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerSmall, style: .continuous))
+                // No camera (an iPad without one, a Mac): asking for it crashes.
+                if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                    Button {
+                        cameraIsBefore = isBefore
+                        showingCamera = true
+                    } label: {
+                        Label("Camera", systemImage: "camera")
+                            .font(.subheadline)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(color.opacity(0.1))
+                            .foregroundStyle(color)
+                            .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerSmall, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
 
                 PhotosPicker(
                     selection: isBefore ? $beforePickerItems : $afterPickerItems,

@@ -1,5 +1,6 @@
 import PhotosUI
 import SwiftUI
+import UIKit
 
 /// At a stop on a route: less snow fell here than the contract's trigger.
 /// Saves a check (TriggerCheck) with a note and photos, then moves on to the
@@ -56,7 +57,10 @@ struct BelowTriggerSheet: View {
                             .padding(.vertical, 4)
                         }
                     }
-                    Button { showingCamera = true } label: { Label("Camera", systemImage: "camera") }
+                    // No camera (an iPad without one, a Mac): asking for it crashes.
+                    if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                        Button { showingCamera = true } label: { Label("Camera", systemImage: "camera") }
+                    }
                     PhotosPicker(selection: $pickerItems, maxSelectionCount: 5, matching: .images) {
                         Label("Library", systemImage: "photo")
                     }
