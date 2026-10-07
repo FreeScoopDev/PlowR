@@ -188,6 +188,16 @@ struct ActiveRouteView: View {
             ScrollView {
                 VStack(spacing: 0) {
                     progressHeader
+                    if OnMac.isMac {
+                        // No GPS route-following or texting on a Mac (OnMac).
+                        Label("On a Mac, GPS arrival times and texting aren't available. Run routes on your iPhone.",
+                              systemImage: "laptopcomputer")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal)
+                            .padding(.vertical, 8)
+                    }
                     routeMap
                     weatherStrip
                     VStack(spacing: 12) {

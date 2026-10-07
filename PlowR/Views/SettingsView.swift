@@ -16,6 +16,8 @@ struct SettingsView: View {
     @State private var sampleDataInserted = false
     @State private var schemaStatus: String?
     @State private var showingDeleteConfirmation = false
+    /// Export My Data First, from the Delete Account & Data dialog.
+    @State private var showingExportFirst = false
     /// iCloud sync on this device (DeviceSync): off only by Remove from This
     /// Device; turned back on here, from the next launch.
     @AppStorage(DeviceSync.offKey) private var syncOffHere = false
@@ -111,8 +113,18 @@ struct SettingsView: View {
             } header: {
                 Text("Data & Backup")
             } footer: {
-                Text("Need a manual export or have questions about your data?")
+                Text("Your data syncs through your private iCloud to every device signed in to your Apple ID. To take PlowR's data off one device and leave the others alone, use Delete Account & Data → Remove from This Device: that also turns sync off on that device until you turn it back on here. Export Data (under Business) keeps a copy as spreadsheets.")
                     .font(.caption)
+            }
+
+            if OnMac.isMac {
+                Section {
+                    ForEach(OnMac.limitations, id: \.self) { line in
+                        Text(line).font(.subheadline)
+                    }
+                } header: {
+                    Text("On a Mac")
+                }
             }
 
             Section("Account") {
@@ -185,7 +197,9 @@ struct SettingsView: View {
             FindServiceFlow()
                 .environment(workOrderStore)
         }
+        .navigationDestination(isPresented: $showingExportFirst) { ExportDataView() }
         .confirmationDialog("Delete Account & Data", isPresented: $showingDeleteConfirmation, titleVisibility: .visible) {
+            Button("Export My Data First") { showingExportFirst = true }
             Button("Remove from This Device", role: .destructive, action: removeFromThisDevice)
             // With sync off it couldn't reach iCloud (DeviceSync).
             if !PlowRApp.isSyncTurnedOff {
@@ -195,7 +209,7 @@ struct SettingsView: View {
         } message: {
             Text(PlowRApp.isSyncTurnedOff
                  ? "iCloud sync is off on this device, so only Remove from This Device is here: it permanently removes what's on this device, which isn't in iCloud. To delete your iCloud data, turn sync back on above, reopen PlowR, then choose Delete Everything, or do it from another device."
-                 : "Remove from This Device takes PlowR's data off this device only and turns iCloud sync off here; your iCloud and your other devices keep it. Anything this device hasn't sent to iCloud yet is lost, so be online and give it a minute first.\n\nDelete Everything permanently removes all your PlowR data: clients, routes, jobs, documents, contracts, photos and settings, from this device and from your iCloud, so also from your other devices. Stay online with PlowR open for a minute afterwards so iCloud gets the deletion.")
+                 : "Export My Data First saves your clients, invoices, payments, contracts and Service History as spreadsheets (photos aren't included; share them from each client's Photos page).\n\nRemove from This Device takes PlowR's data off this device only and turns iCloud sync off here; your iCloud and your other devices keep it. Anything this device hasn't sent to iCloud yet is lost, so be online and give it a minute first.\n\nDelete Everything permanently removes all your PlowR data: clients, routes, jobs, documents, contracts, photos and settings, from this device and from your iCloud, so also from your other devices. Stay online with PlowR open for a minute afterwards so iCloud gets the deletion.")
         }
     }
 

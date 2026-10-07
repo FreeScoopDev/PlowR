@@ -1,0 +1,4 @@
+### Added
+- Delete Account & Data offers **Export My Data First**, which opens Export Data, and says what it includes (clients, invoices, payments, contracts and the Service History as spreadsheets; photos are shared from each client's Photos page). Joe asked for a way to keep a copy before removing anything.
+- Settings → Data & Backup explains how sync works: through your private iCloud to every device on your Apple ID, Remove from This Device to take the data off one device (which turns sync off there until you turn it back on), and Export Data for a copy.
+- PlowR on a Mac (the iPad app on Apple silicon): Settings has an **On a Mac** section saying what works differently there (no texting; no GPS arrival and departure times, next-client offers on leaving a stop or arrival estimates; no Live Activity or Control Center control; everything else the same, synced through iCloud), and the route screen says the same in a line at the top.
