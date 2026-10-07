@@ -93,7 +93,9 @@ enum ClientRemoval {
     /// Deletes `client`: off every route, with their visits still ahead and
     /// their photos and the texts sent them, and their invoices, proposals and past visits kept for
     /// the books or deleted.
-    static func delete(_ client: Client, keepingRecords: Bool, in context: ModelContext, now: Date = .now) {
+    /// `saving: false` leaves the save to the caller (Undo This Import, many at once).
+    static func delete(_ client: Client, keepingRecords: Bool, in context: ModelContext, now: Date = .now,
+                       saving: Bool = true) {
         let id = client.id.uuidString
         takeOffRoutes(client, in: context)
         for visit in visits(of: id, in: context) {
@@ -121,7 +123,7 @@ enum ClientRemoval {
         // records: they go with the client, as photos do.
         for text in TextLog.texts(ofClient: id, in: context) { context.delete(text) }
         context.delete(client)
-        try? context.save()
+        if saving { try? context.save() }
     }
 
     // MARK: - What the prompts say
@@ -214,11 +216,11 @@ enum PropertyRemoval {
         (stops(of: property, in: context).count, visitsLeft(of: property, in: context, now: now).count)
     }
 
-    static func remove(_ property: Property, in context: ModelContext, now: Date = .now) {
+    static func remove(_ property: Property, in context: ModelContext, now: Date = .now, saving: Bool = true) {
         stops(of: property, in: context).forEach { context.delete($0) }
         visitsLeft(of: property, in: context, now: now).forEach { context.delete($0) }
         context.delete(property)
-        try? context.save()
+        if saving { try? context.save() }
     }
 
     static func stops(of property: Property, in context: ModelContext) -> [RouteStop] {

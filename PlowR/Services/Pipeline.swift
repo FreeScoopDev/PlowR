@@ -5,7 +5,8 @@ import SwiftData
 /// lost. Worked out from what's on file, not typed in, so it can't go
 /// stale: a client with no work, quote or invoice yet is a lead; one sent a
 /// proposal is quoted; work booked or done (a visit scheduled, a stop on a
-/// route, a job, an invoice) makes them a customer. Lost is the one the
+/// route, a job, an invoice) makes them a customer, as does importing them
+/// as a current customer (`Client.customerSince`). Lost is the one the
 /// business sets (and can undo); a proposal made after it puts them back in
 /// Quoted. A quote still waiting for a reply after `followUpDays` is due a
 /// follow-up.
@@ -83,8 +84,10 @@ enum Pipeline {
 
     static func stage(of client: Client, facts: Facts, now: Date = .now) -> Stage {
         let id = client.id.uuidString
-        // Work booked or done, or a contract signed and in force.
-        if client.totalVisits > 0 || facts.withWork.contains(id) || Contracts.hasContractInForce(client, now: now) {
+        // Work booked or done, a contract signed and in force, or imported as
+        // a customer.
+        if client.totalVisits > 0 || facts.withWork.contains(id) || Contracts.hasContractInForce(client, now: now)
+            || client.customerSince != nil {
             return .customer
         }
         let newestProposal = facts.proposals[id]?.first?.createdAt

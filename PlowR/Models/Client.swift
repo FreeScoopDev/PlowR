@@ -35,6 +35,10 @@ final class Client {
     /// Marked lost: a lead or a quote that didn't turn into work (Pipeline).
     /// Nil for everyone else, and again when reopened.
     var lostAt: Date? = nil
+    /// When they became a customer without anything in PlowR to show it: a
+    /// client list imported as current customers (ClientImport). Nil for
+    /// everyone else; their work says it (Pipeline).
+    var customerSince: Date?
     var expectedServiceIDs: [String] = []  // ServiceItem IDs this client typically needs
 
     var averageServiceMinutes: Double {
