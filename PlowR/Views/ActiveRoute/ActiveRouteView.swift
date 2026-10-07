@@ -144,6 +144,7 @@ struct ActiveRouteView: View {
                 locationManager.startTracking()
             case .denied, .restricted:
                 showingLocationDeniedAlert = true
+                Task { await fetchWeatherWithoutGPS() }
             default: break
             }
         }
@@ -263,6 +264,8 @@ struct ActiveRouteView: View {
         .onChange(of: currentStopIndex) { _, _ in
             if followDriver { recenterMap() }
         }
+        // No GPS to fetch weather for (a Mac, location off): the stops' own.
+        .task(id: currentStop?.id) { await fetchWeatherWithoutGPS() }
         .onChange(of: SiteMonitor.shared.lastExit) { _, exit in
             guard let exit,
                   let stop = currentStop,
@@ -746,6 +749,18 @@ struct ActiveRouteView: View {
     }
 
     // MARK: - Navigation
+
+    /// The weather at the stops, where there's no GPS fix to fetch it for.
+    /// With GPS it comes with the first fix (onChange of currentLocation).
+    private func fetchWeatherWithoutGPS() async {
+        let noGPS = OnMac.isMac || locationManager.authorizationStatus == .denied
+            || locationManager.authorizationStatus == .restricted
+        guard weather == nil, noGPS,
+              let spot = RouteWeatherSpot.coordinate(
+                stops: store.sortedStops.map { (latitude: $0.latitude, longitude: $0.longitude) },
+                currentIndex: currentStopIndex) else { return }
+        weather = try? await WeatherService.shared.fetch(latitude: spot.latitude, longitude: spot.longitude)
+    }
 
     private func openWeather() {
         if let url = URL(string: "weather://"), UIApplication.shared.canOpenURL(url) {
