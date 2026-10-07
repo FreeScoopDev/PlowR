@@ -53,6 +53,7 @@ struct AccountEraserTests {
         let notifications = FakeNotifications()
         let regions = FakeRegions()
         var widgetCleared = false
+        var importPinsStopped = false
         var calendarErased = false
 
         init() throws {
@@ -137,6 +138,7 @@ struct AccountEraserTests {
             AccountEraser(context: context, defaults: defaults, defaultsDomain: suite, workOrdersFile: workOrders,
                           temporaryDirectory: tmp, archiveFolders: [storeFolder], notifications: notifications,
                           regions: regions, routeStore: routeStore, clearWidget: { [unowned self] in widgetCleared = true },
+                          stopImportPins: { [unowned self] in importPinsStopped = true },
                           eraseCalendar: { [unowned self] in calendarErased = true })
         }
 
@@ -203,7 +205,7 @@ struct AccountEraserTests {
         // Ended by the eraser, which also clears every Live Activity, not just
         // by the route store noticing its route was deleted.
         #expect(account.surfaces.calls.last == "clear")
-        #expect(account.widgetCleared)
+        #expect(account.widgetCleared && account.importPinsStopped)
     }
 
     // The "PlowR" calendar, with every client's name and address, was left.
@@ -352,7 +354,7 @@ struct AccountEraserTests {
         #expect(try count(Client.self, in: account.context) == 0)
         #expect(account.notifications.pending.isEmpty)
         #expect(account.regions.monitoredRegions.isEmpty)
-        #expect(account.widgetCleared)
+        #expect(account.widgetCleared && account.importPinsStopped)
         #expect(account.defaults.object(forKey: "userRole") != nil)
     }
 }

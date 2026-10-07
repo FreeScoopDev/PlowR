@@ -63,6 +63,8 @@ struct AccountEraser {
     var regions: any RegionMonitoring = CLLocationManager()
     var routeStore: ActiveRouteStore = .shared
     var clearWidget: @MainActor () -> Void = WidgetDataStore.clear
+    /// Map pins an import is still looking up, and the addresses it missed.
+    var stopImportPins: @MainActor () -> Void = { ImportPins.shared.stop() }
     /// The "PlowR" calendar and every event PlowR added: client names and
     /// addresses, with reminders.
     var eraseCalendar: @MainActor () throws -> Void = { try CalendarSync.shared.eraseAll() }
@@ -80,6 +82,7 @@ struct AccountEraser {
         }
         // The route first: ending it shows its last progress, read from its models.
         routeStore.eraseAll()
+        stopImportPins()
         for model in models {
             attempt("\(model) records") { try deleteAll(model) }
         }
@@ -107,6 +110,7 @@ struct AccountEraser {
     func removeFromThisDevice() -> [Failure] {
         var failures: [Failure] = []
         routeStore.eraseAll()
+        stopImportPins()
         failures += eraseFromDevice()
         // Only when everything else went: the database can't be got back, and
         // the failures stay on screen (Settings) to retry.

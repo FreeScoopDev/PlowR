@@ -170,6 +170,24 @@ struct PlowRApp: App {
         }
     }
 
+    /// Pins an import hasn't looked up yet (the rest of a long list), for
+    /// the business signed in here; nothing while signed out or with this
+    /// device's data about to be removed. Runs when the app comes to the
+    /// front and when a business signs in (at launch, Apple's sign-in check
+    /// answers after the app is in front).
+    private func lookUpImportPins() {
+        guard !Self.isRunningUnderTests else { return }
+        guard authManager.isSignedIn, !authManager.userID.isEmpty,
+              UserDefaults.standard.string(forKey: UserRole.key) == UserRole.business,
+              !DeviceSync.isRemovalPending() else {
+            // Signed out (or not a business): a run for whoever was stops.
+            ImportPins.shared.cancelRun()
+            return
+        }
+        let context = container.mainContext, operatorID = authManager.userID
+        Task { await ImportPins.shared.run(in: context, operatorID: operatorID) }
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -179,12 +197,16 @@ struct PlowRApp: App {
                 .tint(PlowRColor.accent)
         }
         .modelContainer(container)
+        // Signed in after the app came to the front (the launch check
+        // answers later): the rest of a long list carries on then.
+        .onChange(of: authManager.userID) { lookUpImportPins() }
         .onChange(of: scenePhase) { _, phase in
             // iCloud may have deleted or reordered the route while the app was away.
             if phase == .active {
                 if !Self.isRunningUnderTests {
                     ClientStops.updateAll(in: container.mainContext)
                     Payments.settleAll(in: container.mainContext)
+                    lookUpImportPins()
                 }
                 ActiveRouteStore.shared.validate()
                 authManager.recheckIfSignedOut()
