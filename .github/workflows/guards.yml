@@ -70,14 +70,30 @@ jobs:
       # opened, or checked for, anywhere else: use CameraPicker and
       # CameraPicker.isAvailable.
       - name: Camera guard
+        if: success() || failure()
         run: |
+          found=0
+          for path in PlowR PlowRWidgets; do
+            if [ ! -e "$path" ]; then
+              echo "::error::$path is listed in the camera guard but doesn't exist. Update guards.yml."
+              found=1
+            fi
+          done
+          # Exempt by path, not file name: another CameraPicker.swift isn't.
           status=0
-          grep -rnE 'UIImagePickerController\(\)|sourceType *= *\.camera|isSourceTypeAvailable' PlowR PlowRWidgets --include='*.swift' --exclude=CameraPicker.swift || status=$?
-          case $status in
-            0) echo "::error::The camera is opened or checked outside CameraPicker. Use CameraPicker and CameraPicker.isAvailable."; exit 1 ;;
-            1) echo "Camera guard passed." ;;
-            *) echo "::error::The camera guard's grep failed, so nothing was checked."; exit 1 ;;
-          esac
+          hits=$(grep -rnE 'UIImagePickerController *(\(|\.init\b|\.SourceType\.camera)|: *UIImagePickerController *= *\.init|sourceType[[:space:]]*=[[:space:]]*\.camera\b|isSourceTypeAvailable|isCameraDeviceAvailable' PlowR PlowRWidgets --include='*.swift') || status=$?
+          if [ "$status" -gt 1 ]; then
+            echo "::error::The camera guard's grep failed, so nothing was checked."
+            exit 1
+          fi
+          hits=$(printf '%s\n' "$hits" | grep -v '^PlowR/Views/Shared/CameraPicker\.swift:' | grep -v '^$' || true)
+          if [ -n "$hits" ]; then
+            printf '%s\n' "$hits"
+            echo "::error::The camera is opened or checked outside CameraPicker. Use CameraPicker and CameraPicker.isAvailable."
+            found=1
+          fi
+          [ "$found" -eq 0 ] && echo "Camera guard passed."
+          exit "$found"
 
   swiftlint:
     name: SwiftLint

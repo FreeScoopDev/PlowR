@@ -122,6 +122,11 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   own. Never add a `swiftlint:disable` to get past it:
   remove the unwrap. Never run `scripts/lint.sh --fix` without
   `scripts/test.sh` after it.
+- **The camera opens only through `CameraPicker`** (`Views/Shared`), and a
+  Camera button shows only when `CameraPicker.isAvailable`: opening it on a
+  device without one (some iPads, a Mac) throws. The `Camera guard` step,
+  inside the required `Service-language guard` job, fails a camera opened or
+  checked anywhere else, so a red check there may be about the camera.
 - **A route in progress lives in `ActiveRouteStore`, never in a view.** Only
   `start(_:)` and `end()` begin and finish it; the route screen can disappear or
   be killed without losing the stop. `MainTabView` shows the route screen

@@ -15,7 +15,7 @@ struct CameraPicker: View {
 
     var body: some View {
         if Self.isAvailable {
-            Capture(onCapture: onCapture).ignoresSafeArea()
+            Capture(onCapture: onCapture)
         } else {
             NoCamera()
         }
@@ -39,7 +39,7 @@ struct CameraPicker: View {
     private struct Capture: UIViewControllerRepresentable {
         let onCapture: (UIImage, [String: Any]?) -> Void
 
-        func makeCoordinator() -> Coordinator { Coordinator(onCapture: onCapture) }
+        func makeCoordinator() -> CameraPickerCoordinator { CameraPickerCoordinator(onCapture: onCapture) }
 
         func makeUIViewController(context: Context) -> UIImagePickerController {
             let picker = UIImagePickerController()
@@ -49,22 +49,22 @@ struct CameraPicker: View {
         }
 
         func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+    }
+}
 
-        final class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
-            let onCapture: (UIImage, [String: Any]?) -> Void
-            init(onCapture: @escaping (UIImage, [String: Any]?) -> Void) { self.onCapture = onCapture }
+private final class CameraPickerCoordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+    let onCapture: (UIImage, [String: Any]?) -> Void
+    init(onCapture: @escaping (UIImage, [String: Any]?) -> Void) { self.onCapture = onCapture }
 
-            func imagePickerController(_ picker: UIImagePickerController,
-                                       didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
-                if let image = info[.originalImage] as? UIImage {
-                    onCapture(image, info[.mediaMetadata] as? [String: Any])
-                }
-                picker.dismiss(animated: true)
-            }
-
-            func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
-                picker.dismiss(animated: true)
-            }
+    func imagePickerController(_ picker: UIImagePickerController,
+                               didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+        if let image = info[.originalImage] as? UIImage {
+            onCapture(image, info[.mediaMetadata] as? [String: Any])
         }
+        picker.dismiss(animated: true)
+    }
+
+    func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+        picker.dismiss(animated: true)
     }
 }
