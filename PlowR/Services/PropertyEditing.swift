@@ -51,7 +51,10 @@ enum PropertyEditing {
         }
         if target.isActive, !draft.isActive { PropertyRemoval.takeOffRoutes(target, in: context) }
         target.label = draft.label.trimmingCharacters(in: .whitespacesAndNewlines)
-        target.address = draft.address.trimmingCharacters(in: .whitespacesAndNewlines)
+        let address = draft.address.trimmingCharacters(in: .whitespacesAndNewlines)
+        // A new address loses the old one's not-found mark: it's looked up once.
+        if address != target.address { target.addressNotFoundAt = nil }
+        target.address = address
         target.latitude = draft.latitude
         target.longitude = draft.longitude
         target.stopNotes = draft.stopNotes

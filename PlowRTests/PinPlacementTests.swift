@@ -197,4 +197,19 @@ struct PinPlacementTests {
         #expect(after == .init(text: "10 Old Rd", original: "10 Old Rd", originalPin: new))
         #expect(after.typed("45 New St").pinForSave == nil)
     }
+
+    // A property's pin screen never opens on the client's house: Confirm
+    // there would give the property the client's pin.
+    @Test func aPropertyWithoutAPinDoesntOpenOnTheClients() {
+        let home = PinPlacement.Pin(latitude: 43.1, longitude: -72.1)
+        let lot = PinPlacement.Pin(latitude: 43.2, longitude: -72.2)
+        let start = PinPlacement.start(startingPin: nil, placeHasPin: false, clientPin: home)
+        #expect(!start.exists)
+        // Opened on the client's house at street zoom, Confirm would be live:
+        // that's what the start avoids.
+        #expect(PinPlacement.canConfirm(hadPin: false, center: home.coordinate, distance: 80))
+        #expect(start != home)
+        #expect(PinPlacement.start(startingPin: lot, placeHasPin: true, clientPin: home) == lot)
+        #expect(PinPlacement.start(startingPin: nil, placeHasPin: nil, clientPin: home) == home)   // the client's own
+    }
 }

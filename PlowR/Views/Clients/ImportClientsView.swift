@@ -284,6 +284,9 @@ struct ImportClientsView: View {
                 LabeledContent("Properties of Clients", value: "\(preview.properties)")
             }
             LabeledContent("Duplicates (Skipped)", value: "\(preview.duplicates)")
+            if preview.samePhones > 0 {
+                LabeledContent("Another Client's Phone (Skipped)", value: "\(preview.samePhones)")
+            }
             if !preview.problems.isEmpty {
                 LabeledContent("Not Imported", value: "\(preview.problems.count)")
             }
@@ -293,10 +296,10 @@ struct ImportClientsView: View {
         } header: {
             Text("What Will Happen")
         } footer: {
-            Text("Duplicates are clients already in PlowR, or listed twice in the file: same name and phone, or same name and address.")
-            if preview.sharedPhones > 0 {
-                Text("\(count(preview.sharedPhones, "new client shares", "new clients share")) a phone number with another client under a different name: a household or an office line, so they're added. Check them in See Every Row.")
-            }
+            Text("Duplicates are clients already in PlowR, or listed twice in the file: same name and phone, or same name and address."
+                 + (preview.samePhones > 0
+                    ? " A row with another client's phone under a different name is skipped too; if it's someone else (a household, an office line), add them by hand. After the import, What Was Skipped lists every row left out."
+                    : ""))
         }
 
         Section {
@@ -384,6 +387,17 @@ struct ImportClientsView: View {
 
         if undone == nil {
             pinSection
+            if let preview, let table, preview.skipped > 0 {
+                Section {
+                    NavigationLink {
+                        ImportPreviewList(preview: preview, table: table, skippedOnly: true)
+                    } label: {
+                        LabeledContent("What Was Skipped", value: "\(preview.skipped)")
+                    }
+                } footer: {
+                    Text("Rows left out of the import, each with its row in the spreadsheet and why. Add any you want by hand.")
+                }
+            }
             Section {
                 Button("Undo This Import", role: .destructive) { askToUndo(result) }
             } footer: {
@@ -414,7 +428,7 @@ struct ImportClientsView: View {
             Text("Map Pins")
         } footer: {
             if !pins.notFound.isEmpty {
-                Text("The map couldn't find \(count(pins.notFound.count, "address", "addresses")). Those clients have no pin, so they aren't on route maps: open each one to check the address or set the pin.")
+                Text("The map couldn't find \(count(pins.notFound.count, "address", "addresses")). Those clients have no pin, so they aren't on route maps. They're marked in your client list, and PlowR won't look them up again: open each one to correct the address or set the pin.")
             } else if pins.isRunning {
                 Text("Apple's map limits lookups, so PlowR places about 30 a minute. This carries on in the background; keep PlowR open to finish sooner.")
             }
@@ -488,6 +502,8 @@ struct ImportClientsView: View {
 struct ImportPreviewList: View {
     let preview: ClientImport.Preview
     let table: CSVReader.Table
+    /// After an import: only the rows left out, to keep (Share).
+    var skippedOnly = false
 
     private struct Row: Identifiable {
         let id: Int
@@ -497,13 +513,15 @@ struct ImportPreviewList: View {
     }
 
     private var groups: [(title: String, rows: [Row])] {
-        var new: [Row] = [], properties: [Row] = [], duplicates: [Row] = [], problems: [Row] = []
+        var new: [Row] = [], properties: [Row] = [], duplicates: [Row] = [], samePhones: [Row] = [], problems: [Row] = []
         for (index, outcome) in preview.outcomes.enumerated() {
             let number = table.rowNumber(index)
             switch outcome {
-            case let .new(draft, shared):
-                new.append(Row(id: number, title: draft.name, detail: detail(draft, number),
-                               note: shared.map { "Same phone as \($0)" }))
+            case let .new(draft):
+                new.append(Row(id: number, title: draft.name, detail: detail(draft, number), note: nil))
+            case let .samePhone(draft, other):
+                samePhones.append(Row(id: number, title: draft.name, detail: detail(draft, number),
+                                      note: "Same phone as \(other)"))
             case let .property(draft, owner, _):
                 properties.append(Row(id: number, title: draft.address, detail: "Row \(number) · \(owner)", note: nil))
             case let .duplicate(draft, existing):
@@ -513,8 +531,11 @@ struct ImportPreviewList: View {
                 problems.append(Row(id: row, title: "Row \(row)", detail: reason, note: nil))
             }
         }
-        return [("Not Imported", problems), ("New Clients", new), ("Properties of Clients", properties),
-                ("Duplicates, Skipped", duplicates)].filter { !$0.rows.isEmpty }
+        let all = [("Not Imported", problems), ("Another Client's Phone, Skipped", samePhones),
+                   ("New Clients", new), ("Properties of Clients", properties), ("Duplicates, Skipped", duplicates)]
+        let skipped: Set = ["Not Imported", "Another Client's Phone, Skipped", "Duplicates, Skipped"]
+        return all.filter { !$0.1.isEmpty && (!skippedOnly || skipped.contains($0.0)) }
+            .map { (title: $0.0, rows: $0.1) }
     }
 
     private func detail(_ draft: ClientImport.Draft, _ number: Int) -> String {
@@ -537,7 +558,25 @@ struct ImportPreviewList: View {
                 }
             }
         }
-        .navigationTitle("Every Row")
+        .navigationTitle(skippedOnly ? "What Was Skipped" : "Every Row")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if skippedOnly {
+                ToolbarItem(placement: .primaryAction) {
+                    ShareLink(item: shareText) {
+                        Label("Share", systemImage: "square.and.arrow.up")
+                    }
+                }
+            }
+        }
+    }
+
+    /// The list as plain text, to keep or send.
+    private var shareText: String {
+        groups.map { group in
+            ([group.title] + group.rows.map { row in
+                "\(row.title): \(row.detail)" + (row.note.map { " (\($0))" } ?? "")
+            }).joined(separator: "\n")
+        }.joined(separator: "\n\n")
     }
 }

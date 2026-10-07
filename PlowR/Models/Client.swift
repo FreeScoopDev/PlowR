@@ -39,6 +39,10 @@ final class Client {
     /// client list imported as current customers (ClientImport). Nil for
     /// everyone else; their work says it (Pipeline).
     var customerSince: Date?
+    /// When the map couldn't find their address (ImportPins): looked up once,
+    /// never again on its own; the client is marked until they have a pin
+    /// (`needsAddressFix`). The business likely knows why.
+    var addressNotFoundAt: Date?
     var expectedServiceIDs: [String] = []  // ServiceItem IDs this client typically needs
 
     var averageServiceMinutes: Double {
@@ -67,6 +71,27 @@ final class Client {
         self.phone = phone
         self.address = address
         self.operatorID = operatorID
+    }
+}
+
+extension Client {
+    /// The map couldn't find their address and they still have no pin:
+    /// marked for the business to fix (ImportPins). A pin, set on their page
+    /// or by a corrected address, clears it.
+    var needsAddressFix: Bool {
+        addressNotFoundAt != nil && !address.isEmpty && !AddressPin.exists(latitude: latitude, longitude: longitude)
+    }
+
+    /// Their address, changed: a mark for the old one goes, and ImportPins
+    /// looks the new one up once (one lookup per address).
+    func changeAddress(to new: String) {
+        if new != address { addressNotFoundAt = nil }
+        address = new
+    }
+
+    /// They, or one of their properties, need an address fixed.
+    var anyAddressNeedsFix: Bool {
+        needsAddressFix || (properties ?? []).contains { $0.needsAddressFix }
     }
 }
 

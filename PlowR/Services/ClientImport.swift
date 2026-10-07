@@ -275,10 +275,13 @@ nonisolated enum ClientImport {
 
     /// What a row would do.
     enum Outcome: Equatable {
-        /// Added as a new client. `sharesPhoneWith`: a client with the same
-        /// phone and another name (a household, or an office line for several
-        /// places), named in the preview so the user can check.
-        case new(Draft, sharesPhoneWith: String?)
+        /// Added as a new client.
+        case new(Draft)
+        /// Another name with the phone of a client PlowR has (or one earlier
+        /// in the file): skipped, and listed with that client's name, so the
+        /// user can add it by hand if it's someone else (Joe's call: skip
+        /// rather than guess).
+        case samePhone(Draft, as: String)
         /// The same as a client PlowR has, or one earlier in the file: skipped.
         case duplicate(Draft, of: String)
         /// The same client at another address, kept as one of their
@@ -291,11 +294,14 @@ nonisolated enum ClientImport {
 
     struct Preview: Equatable {
         var outcomes: [Outcome]
-        var new: [Draft] { outcomes.compactMap { if case let .new(draft, _) = $0 { draft } else { nil } } }
+        var new: [Draft] { outcomes.compactMap { if case let .new(draft) = $0 { draft } else { nil } } }
         var duplicates: Int { outcomes.filter { if case .duplicate = $0 { true } else { false } }.count }
         var properties: Int { outcomes.filter { if case .property = $0 { true } else { false } }.count }
-        /// New clients whose phone another client has.
-        var sharedPhones: Int { outcomes.filter { if case .new(_, .some) = $0 { true } else { false } }.count }
+        /// Skipped for another client's phone under another name.
+        var samePhones: Int { outcomes.filter { if case .samePhone = $0 { true } else { false } }.count }
+        /// Rows not imported for any reason: duplicates, another client's
+        /// phone, problems.
+        var skipped: Int { duplicates + samePhones + problems.count }
         var problems: [(row: Int, reason: String)] {
             outcomes.compactMap { if case let .problem(row, reason) = $0 { (row, reason) } else { nil } }
         }
@@ -309,9 +315,9 @@ nonisolated enum ClientImport {
     /// `addressesAsProperties`, the same name and phone at an address the
     /// client doesn't have is their property instead; a client with no
     /// address isn't given one (duplicates are skipped, not merged). The same
-    /// phone at the same address is a duplicate whatever the name; with
-    /// another name at another address it's a new client, noted (a
-    /// household's second place, or an office line). Rows match each other
+    /// phone under another name is skipped too (`samePhone`): at the same
+    /// address it's the same client renamed, elsewhere it may be a household
+    /// or an office line, and the user adds those by hand. Rows match each other
     /// too, so a client listed twice is added once. Row numbers are the
     /// spreadsheet's (`Table.rowNumber`).
     static func preview(_ table: CSVReader.Table, fields: [Field], existing: [Known],
@@ -354,7 +360,11 @@ nonisolated enum ClientImport {
                     outcomes.append(.duplicate(draft, of: owner.name))
                 }
             } else {
-                outcomes.append(.new(draft, sharesPhoneWith: samePhone.first?.known.name))
+                if let other = samePhone.first?.known {
+                    outcomes.append(.samePhone(draft, as: other.name))
+                    continue
+                }
+                outcomes.append(.new(draft))
                 add(Known(id: "row:\(index)", name: draft.name, phone: draft.phone, address: draft.address))
             }
         }

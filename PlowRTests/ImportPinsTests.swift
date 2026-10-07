@@ -296,4 +296,71 @@ struct ImportPinsTests {
         await importPins.run(in: context, operatorID: "b")
         #expect(importPins.notFound.isEmpty && importPins.done == 1 && importPins.total == 1)
     }
+
+    // An address the map doesn't know: looked up once, the client marked,
+    // and never looked up again on its own, after a relaunch too (Joe's call).
+    // A pin clears the mark.
+    @Test func anAddressNotFoundIsMarkedAndNotTriedAgain() async throws {
+        try importRows([["Lee Poe", "", "0 Nowhere"], ["Pat Doe", "603-555-0100", "1 Main St"],
+                        ["Pat Doe", "603-555-0100", "9 Nowhere Rd"]])
+        let map = FakeMap(["1 Main St": (1, 1)])
+        await ImportPins(lookUp: { map.lookUp($0) }, pause: { _ in }, now: { self.date }).run(in: context, operatorID: "op")
+        let lee = try client("Lee Poe"), pat = try client("Pat Doe")
+        let lake = try #require(pat.properties?.first)
+        #expect(lee.addressNotFoundAt == date && lee.needsAddressFix && lee.anyAddressNeedsFix)
+        #expect(lake.needsAddressFix && pat.anyAddressNeedsFix && !pat.needsAddressFix)
+        #expect(!context.hasChanges)                                         // the marks are saved
+        // A relaunch: a new ImportPins finds nothing to look up.
+        let relaunched = FakeMap([:])
+        await pins(relaunched).run(in: context, operatorID: "op")
+        #expect(relaunched.asked.isEmpty)
+        // The business sets the pin: the mark goes.
+        lee.latitude = 43
+        lee.longitude = -72
+        #expect(!lee.needsAddressFix)
+    }
+
+    // A run where the map knows nothing still saves its marks.
+    @Test func marksAreSavedWhenNothingIsFound() async throws {
+        try importRows([["Lee Poe", "", "0 Nowhere"], ["Kim Roe", "", "1 Nowhere"]])
+        await pins(FakeMap([:])).run(in: context, operatorID: "op")
+        #expect(!context.hasChanges)
+        let lee = try client("Lee Poe"), kim = try client("Kim Roe")
+        #expect(lee.needsAddressFix && kim.needsAddressFix)
+    }
+
+    // The business fixes it: a new address (on the client's page or the
+    // property's) drops the mark and is looked up once; a pin set by hand
+    // clears it for a property too.
+    @Test func fixingTheAddressClearsTheMark() async throws {
+        try importRows([["Pat Doe", "603-555-0100", "0 Nowhere"], ["Pat Doe", "603-555-0100", "9 Nowhere Rd"]])
+        await pins(FakeMap([:])).run(in: context, operatorID: "op")
+        let pat = try client("Pat Doe")
+        let lake = try #require(pat.properties?.first)
+        #expect(pat.needsAddressFix && lake.needsAddressFix)
+
+        pat.changeAddress(to: "1 Main St")
+        #expect(!pat.needsAddressFix && pat.addressNotFoundAt == nil)
+        pat.changeAddress(to: "1 Main St")                                  // the same address: nothing to clear
+        var draft = PropertyEditing.Draft(lake)
+        draft.latitude = 43
+        draft.longitude = -72                                                 // Set Pin on the Map
+        PropertyEditing.save(draft, to: lake, of: pat, in: context)
+        #expect(!lake.needsAddressFix && !pat.anyAddressNeedsFix)
+
+        let fixed = FakeMap(["1 Main St": (1, 1)])
+        await pins(fixed).run(in: context, operatorID: "op")
+        #expect(fixed.asked == ["1 Main St"] && pat.latitude == 1)
+    }
+
+    @Test func aNewPropertyAddressDropsItsMark() async throws {
+        try importRows([["Pat Doe", "603-555-0100", "1 Main St"], ["Pat Doe", "603-555-0100", "9 Nowhere Rd"]])
+        await pins(FakeMap(["1 Main St": (1, 1)])).run(in: context, operatorID: "op")
+        let pat = try client("Pat Doe")
+        let lake = try #require(pat.properties?.first)
+        var draft = PropertyEditing.Draft(lake)
+        draft.address = "9 Lake Rd"
+        PropertyEditing.save(draft, to: lake, of: pat, in: context)
+        #expect(lake.addressNotFoundAt == nil)
+    }
 }

@@ -33,20 +33,26 @@ struct LocationAdjustView: View {
     /// An address typed on the client's page and not saved yet: the one
     /// kept with the pin unless the user takes the map's.
     private let pendingAddress: String?
+    /// Whose address the toggle keeps: the client's, or a property's.
+    private let placeNoun: String
 
     /// `startingPin` is where a pin for `pendingAddress` already is (a picked
     /// address suggestion's), so the map opens at the new house, not the
     /// old one.
+    /// `placeHasPin`: for a place that isn't the client's own (a property,
+    /// with `onSave`), whether it has a pin; the client's says otherwise.
     init(client: Client, pendingAddress: String? = nil, startingPin: PinPlacement.Pin? = nil,
+         placeHasPin: Bool? = nil, placeNoun: String = "Client's",
          onAddressChosen: ((String) -> Void)? = nil,
          onSave: ((CLLocationCoordinate2D, String) -> Void)? = nil) {
         self.client = client
         self.pendingAddress = pendingAddress
+        self.placeNoun = placeNoun
         self.onAddressChosen = onAddressChosen
         self.onSave = onSave
-        hadPin = AddressPin.exists(latitude: client.latitude, longitude: client.longitude)
-        let start = startingPin.map(\.coordinate)
-            ?? CLLocationCoordinate2D(latitude: client.latitude, longitude: client.longitude)
+        hadPin = placeHasPin ?? AddressPin.exists(latitude: client.latitude, longitude: client.longitude)
+        let start = PinPlacement.start(startingPin: startingPin, placeHasPin: placeHasPin,
+                                       clientPin: .init(latitude: client.latitude, longitude: client.longitude)).coordinate
         opensOnPin = AddressPin.exists(latitude: start.latitude, longitude: start.longitude)
         openedAt = start
         _cameraPosition = State(initialValue: opensOnPin
@@ -156,7 +162,7 @@ struct LocationAdjustView: View {
                             Text("The map shows \(offered) here.")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
-                            Button(suggestion.chosen ? "Keep Client's Address" : "Use This Address") {
+                            Button(suggestion.chosen ? "Keep \(placeNoun) Address" : "Use This Address") {
                                 suggestion.chosen.toggle()
                             }
                             .font(.caption.weight(.semibold))

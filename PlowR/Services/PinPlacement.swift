@@ -25,6 +25,17 @@ nonisolated enum PinPlacement {
             .distance(from: CLLocation(latitude: to.latitude, longitude: to.longitude)) > 2
     }
 
+    /// Where the pin screen opens: on `startingPin` if given, else on the
+    /// place's own pin. A place that isn't the client's own (a property)
+    /// never opens on the client's pin: Confirm there would give it the
+    /// client's house. Without a pin it opens like a pinless client's map
+    /// (0,0: the user's location, or around the other clients).
+    static func start(startingPin: Pin?, placeHasPin: Bool?, clientPin: Pin) -> Pin {
+        if let startingPin { return startingPin }
+        if placeHasPin == false { return Pin(latitude: 0, longitude: 0) }
+        return clientPin
+    }
+
     /// Whether Confirm can be tapped: for a pin set by hand only on a real
     /// spot at street zoom. It doesn't wait for the address lookup: its
     /// answer is only offered, and nothing of it is saved unless chosen.

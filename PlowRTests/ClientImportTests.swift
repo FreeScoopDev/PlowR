@@ -93,18 +93,22 @@ struct ClientImportTests {
                                                          ["Kim Doe", "603-555-0100", "9 Lake Rd"]])
         let household = ClientImport.preview(other, fields: [.name, .phone, .address], existing: [],
                                              addressesAsProperties: true)
-        #expect(household.new.map(\.name) == ["Pat Doe", "Kim Doe"] && household.properties == 0)
+        #expect(household.new.map(\.name) == ["Pat Doe"] && household.samePhones == 1 && household.properties == 0)
     }
 
-    // A household or an office line: the same phone, another name. A new
-    // client, said in the preview, not skipped as a duplicate.
-    @Test func aSharedPhoneWithAnotherNameIsANewClientNoted() {
-        let t = table(["Name", "Phone"], [["Kim Doe", "(603) 555-0100"], ["Pat Doe", "603 555 0100"]])
+    // The same phone under another name (a household, an office line, or
+    // the same client renamed): skipped and listed, never guessed at (Joe's
+    // call). Within the file too: the second name with a phone is skipped.
+    @Test func aSharedPhoneWithAnotherNameIsSkippedAndSaysWhose() {
+        let t = table(["Name", "Phone"], [["Kim Doe", "(603) 555-0100"], ["Lee Roe", "603-555-0300"],
+                                          ["Ann Roe", "603 555 0300"]])
         let existing = [ClientImport.Known(id: "c1", name: "Patricia Doe", phone: "6035550100", address: "1 Main St")]
         let preview = ClientImport.preview(t, fields: [.name, .phone], existing: existing)
-        #expect(preview.new.count == 2 && preview.duplicates == 0 && preview.sharedPhones == 2)
-        #expect(preview.outcomes[0] == .new(ClientImport.Draft(name: "Kim Doe", phone: "(603) 555-0100"),
-                                            sharesPhoneWith: "Patricia Doe"))
+        #expect(preview.new.map(\.name) == ["Lee Roe"] && preview.samePhones == 2 && preview.skipped == 2)
+        #expect(preview.outcomes[0] == .samePhone(ClientImport.Draft(name: "Kim Doe", phone: "(603) 555-0100"),
+                                                  as: "Patricia Doe"))
+        #expect(preview.outcomes[2] == .samePhone(ClientImport.Draft(name: "Ann Roe", phone: "603 555 0300"),
+                                                  as: "Lee Roe"))
     }
 
     @Test func theSameNameAtAnEmptyAddressIsNotAMatch() {
@@ -300,7 +304,7 @@ struct ClientImportTests {
         let t = table(["Name", "Phone", "Address"], [["Pat & Kim Doe", "603-555-0100", "1 Main Street"],
                                                      ["Kim Doe", "603-555-0100", "9 Lake Rd"]])
         let preview = ClientImport.preview(t, fields: [.name, .phone, .address], existing: existing)
-        #expect(preview.duplicates == 1 && preview.new.map(\.name) == ["Kim Doe"] && preview.sharedPhones == 1)
+        #expect(preview.duplicates == 1 && preview.new.isEmpty && preview.samePhones == 1)
     }
 
     // A blank row in the file still counts, so "row 5" is row 5.
