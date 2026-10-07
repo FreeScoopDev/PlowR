@@ -4,9 +4,10 @@ import Foundation
 /// Google Sheets, another app's export, or PlowR's own (CSVExport). No
 /// third-party code, so what it handles is written and tested here:
 /// - **Text encoding:** UTF-8 (with or without a byte-order mark), UTF-16
-///   with a byte-order mark (Excel's "Unicode Text"), then Windows Latin-1
-///   (Excel on Windows), then ISO Latin-1, which reads any bytes: a text file
-///   always reads, even if an older encoding's accents come out wrong.
+///   with a byte-order mark (Excel's "Unicode Text"), and otherwise Windows
+///   Latin-1 (Excel on Windows), read byte by byte so a text file always
+///   reads: the five bytes it leaves undefined become "�", visible in the
+///   preview, rather than the whole file being refused or read wrong.
 /// - **Separator:** comma, semicolon (Excel where a comma is the decimal
 ///   mark) or tab, whichever the header line has most of outside quotes
 ///   (blank lines before it skipped; ties go comma, semicolon, tab), or as
@@ -45,11 +46,15 @@ nonisolated enum CSVReader {
     /// The table in `data`: the first row is the header.
     static func read(_ data: Data) throws -> Table {
         guard let text = decode(data) else { throw Problem.notText }
-        let (hint, body) = separatorHint(in: text)
-        let parsed = parse(body, separator: hint ?? separator(of: body))
-        guard let header = parsed.rows.first else { throw Problem.empty }
+        let (hint, body, linesBefore) = separatorHint(in: text)
+        let parsed = parse(body, separator: hint ?? separator(of: body), firstLine: linesBefore + 1)
+        // Before the header, a line of only separators and quotes is blank,
+        // whichever separator the file uses (as `separator(of:)` treats it).
+        let leading = parsed.rows.prefix { row in row.joined().allSatisfy { ",;\t\" ".contains($0) } }
+        let all = Array(parsed.rows.dropFirst(leading.count))
+        guard let header = all.first else { throw Problem.empty }
         let width = header.count
-        let rows = parsed.rows.dropFirst().map { row in
+        let rows = all.dropFirst().map { row in
             row.count < width ? row + Array(repeating: "", count: width - row.count) : row
         }
         return Table(header: header, rows: Array(rows), unclosedQuoteLine: parsed.unclosedQuoteLine)
@@ -61,13 +66,31 @@ nonisolated enum CSVReader {
     /// which start "PK", or anything else with NUL bytes, like an old .xls).
     static func decode(_ data: Data) -> String? {
         let bytes = [UInt8](data.prefix(4))
-        if bytes.starts(with: [0xEF, 0xBB, 0xBF]) { return String(data: data.dropFirst(3), encoding: .utf8) }
+        if bytes.starts(with: [0xEF, 0xBB, 0xBF]) {
+            let rest = data.dropFirst(3)
+            return String(data: rest, encoding: .utf8) ?? windows1252(rest)
+        }
         if bytes.starts(with: [0xFF, 0xFE]) { return String(data: data.dropFirst(2), encoding: .utf16LittleEndian) }
         if bytes.starts(with: [0xFE, 0xFF]) { return String(data: data.dropFirst(2), encoding: .utf16BigEndian) }
         if bytes.starts(with: [0x50, 0x4B]) || data.contains(0) { return nil }    // "PK": a zip
-        return String(data: data, encoding: .utf8)
-            ?? String(data: data, encoding: .windowsCP1252)
-            ?? String(data: data, encoding: .isoLatin1)
+        return String(data: data, encoding: .utf8) ?? windows1252(data)
+    }
+
+    /// Windows Latin-1, byte by byte: what Excel on Windows writes. Foundation
+    /// refuses a file with one of the five bytes it leaves undefined, and
+    /// ISO Latin-1 would turn its smart quotes, dashes and € into invisible
+    /// control characters; here those five become "�" and the rest read.
+    static func windows1252(_ data: some Collection<UInt8>) -> String {
+        let high: [UInt32] = [0x20AC, 0xFFFD, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021,
+                              0x02C6, 0x2030, 0x0160, 0x2039, 0x0152, 0xFFFD, 0x017D, 0xFFFD,
+                              0xFFFD, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014,
+                              0x02DC, 0x2122, 0x0161, 0x203A, 0x0153, 0xFFFD, 0x017E, 0x0178]
+        var text = String.UnicodeScalarView()
+        for byte in data {
+            let value = (0x80...0x9F).contains(byte) ? high[Int(byte) - 0x80] : UInt32(byte)
+            text.append(Unicode.Scalar(value) ?? "\u{FFFD}")
+        }
+        return String(text)
     }
 
     /// A line ending: CR, LF or CRLF (one Character in Swift).
@@ -75,16 +98,19 @@ nonisolated enum CSVReader {
         character == "\n" || character == "\r" || character == "\r\n"
     }
 
-    /// Excel's "sep=;" first line, and the text after it. No hint: nil and
-    /// the whole text.
-    static func separatorHint(in text: String) -> (Character?, Substring) {
+    /// Excel's "sep=;" first line, the text after it, and how many lines it
+    /// took (so line numbers stay the file's). No hint: nil, the whole text, 0.
+    static func separatorHint(in text: String) -> (Character?, Substring, Int) {
         let firstLine = text.prefix { !isLineEnd($0) }
         // Spaces only: "sep=" + a tab is a hint too.
         let trimmed = firstLine.trimmingCharacters(in: CharacterSet(charactersIn: " ")).lowercased()
         guard trimmed.hasPrefix("sep="), trimmed.count == 5, let separator = trimmed.last else {
-            return (nil, text[...])
+            return (nil, text[...], 0)
         }
-        return (separator, text.dropFirst(firstLine.count).drop { isLineEnd($0) })
+        // The hint's line and its one line ending: blank lines after it count.
+        var rest = text.dropFirst(firstLine.count)
+        if let end = rest.first, isLineEnd(end) { rest = rest.dropFirst() }
+        return (separator, rest, 1)
     }
 
     /// Comma, semicolon or tab: whichever the header line (the first with
@@ -99,9 +125,12 @@ nonisolated enum CSVReader {
             if character == "\"" { inQuotes.toggle() }
             if !inQuotes, isLineEnd(character) {
                 if lineHasContent { break }
+                counts = [:]        // a blank line's separators aren't the header's
                 continue
             }
-            if !character.isWhitespace || character == "\t" { lineHasContent = true }
+            // A line of only separators and quotes (",,," or "") is blank, as
+            // parse() treats it.
+            if !character.isWhitespace, !order.contains(character), character != "\"" { lineHasContent = true }
             if !inQuotes, order.contains(character) { counts[character, default: 0] += 1 }
         }
         var best: Character = ","
@@ -113,7 +142,8 @@ nonisolated enum CSVReader {
 
     /// Every row's fields, RFC 4180, blank rows dropped; and the line an
     /// unclosed quote opened on, if any.
-    static func parse(_ text: some StringProtocol, separator: Character) -> (rows: [[String]], unclosedQuoteLine: Int?) {
+    static func parse(_ text: some StringProtocol, separator: Character,
+                      firstLine: Int = 1) -> (rows: [[String]], unclosedQuoteLine: Int?) {
         var rows: [[String]] = []
         var row: [String] = []
         var field = ""
@@ -123,7 +153,7 @@ nonisolated enum CSVReader {
         /// end, kept if more text follows ("Smith" Lawn Co).
         var afterQuote = false
         var heldSpaces = ""
-        var line = 1
+        var line = firstLine
         var quoteLine = 0
         func endField() {
             row.append(tidy(field, quoted: wasQuoted))

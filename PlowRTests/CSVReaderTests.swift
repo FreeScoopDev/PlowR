@@ -135,4 +135,32 @@ struct CSVReaderTests {
         #expect(CSVReader.separator(of: "a;b\tc\n") == ";")
         #expect(CSVReader.separator(of: "a,b;c\n") == ",")
     }
+
+    // Characters only Windows Latin-1 has (’ is 0x92, € 0x80): pins that
+    // encoding, which ISO Latin-1 would read as invisible control characters.
+    @Test func windowsOnlyCharactersReadBack() throws {
+        let t = try table("Name,Owed\nO\u{2019}Brien,\u{20AC}5\n", encoding: .windowsCP1252)
+        #expect(t.rows == [["O\u{2019}Brien", "\u{20AC}5"]])
+        // One undefined byte doesn't spoil the rest of the file.
+        let stray = (try #require("Name\nO\u{2019}Brien".data(using: .windowsCP1252))) + Data([0x81, 0x0A])
+        #expect(try CSVReader.read(stray).rows == [["O\u{2019}Brien\u{FFFD}"]])
+    }
+
+    @Test func aByteOrderMarkBeforeOtherBytesStillReads() throws {
+        let data = Data([0xEF, 0xBB, 0xBF]) + Data("Name\nRen".utf8) + Data([0xE9, 0x0A])
+        #expect(try CSVReader.read(data).rows == [["René"]])
+    }
+
+    // Line numbers are the file's: the sep= line counts, and so do line
+    // breaks inside quoted fields before the unclosed one.
+    @Test func anUnclosedQuotesLineCountsEveryLine() throws {
+        #expect(try table("sep=;\r\n\r\nName;Notes\r\nPat;\"open\n").unclosedQuoteLine == 4)
+        #expect(try table("Name,Notes\nPat,\"a\nb\"\nSam,\"open\n").unclosedQuoteLine == 4)
+    }
+
+    @Test func aLineOfOnlySeparatorsOrQuotesIsntTheHeader() throws {
+        #expect(try table("\t\nName,Phone\nPat,1\n").rows == [["Pat", "1"]])
+        #expect(try table(",,,\nName;Phone\nPat;1\n").rows == [["Pat", "1"]])
+        #expect(try table("\"\"\nName;Phone\nPat;1\n").rows == [["Pat", "1"]])
+    }
 }
