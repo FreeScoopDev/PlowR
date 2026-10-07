@@ -9,11 +9,12 @@ import SwiftData
 /// the map can't be reached, and marked if the map doesn't know it.
 @MainActor
 enum LeadIntake {
-    /// How every request's tag begins ("Requested Oct 7").
+    /// How every request's tag begins ("Requested Oct 7, 2026").
     static let tagPrefix = "Requested "
 
-    /// One of PlowR's request tags ("Requested Oct 7", "Requested 7 Oct",
-    /// "Requested 10月7日": the date is written in the phone's own way), not
+    /// One of PlowR's request tags ("Requested Oct 7, 2026", "Requested
+    /// 7 Oct 2026", "Requested 2026年10月7日": the date is written in the
+    /// phone's own way; 1.5.0's had no year, "Requested Oct 7"), not
     /// a tag of the user's own that begins the same way ("Requested quote",
     /// "Requested 2 quotes"): what follows the prefix must read back as a
     /// date in `locale` (or in US English, for a phone whose language changed).
@@ -21,15 +22,22 @@ enum LeadIntake {
         guard tag.hasPrefix(tagPrefix) else { return false }
         let rest = String(tag.dropFirst(tagPrefix.count))
         return [locale, Locale(identifier: "en_US")].contains { locale in
-            let style = Date.FormatStyle.dateTime.month(.abbreviated).day().locale(locale)
-            return (try? Date(rest, strategy: style.parseStrategy)) != nil
+            let withYear = Date.FormatStyle.dateTime.year().month(.abbreviated).day().locale(locale)
+            let noYear = Date.FormatStyle.dateTime.month(.abbreviated).day().locale(locale)
+            return [withYear, noYear].contains { (try? Date(rest, strategy: $0.parseStrategy)) != nil }
         }
     }
 
     static func tag(for date: Date, locale: Locale = .current, timeZone: TimeZone = .current) -> String {
-        var style = Date.FormatStyle.dateTime.month(.abbreviated).day().locale(locale)
+        // With the year: a lead from last winter isn't mistaken for this one's.
+        tagPrefix + date.formatted(dateStyle(locale: locale, timeZone: timeZone))
+    }
+
+    /// The request's day, as the tag and the notes both write it ("Oct 7, 2026").
+    private static func dateStyle(locale: Locale, timeZone: TimeZone) -> Date.FormatStyle {
+        var style = Date.FormatStyle.dateTime.year().month(.abbreviated).day().locale(locale)
         style.timeZone = timeZone
-        return tagPrefix + date.formatted(style)
+        return style
     }
 
     /// The client already in PlowR with the request's phone number, if any:
@@ -45,9 +53,8 @@ enum LeadIntake {
     /// asked for, and what the person wrote.
     static func notes(for request: RequestLink.Request, date: Date, locale: Locale = .current,
                       timeZone: TimeZone = .current) -> String {
-        var style = Date.FormatStyle.dateTime.month(.abbreviated).day().year().locale(locale)
-        style.timeZone = timeZone
-        var lines = ["Requested service through your request link on \(date.formatted(style))."]
+        let day = date.formatted(dateStyle(locale: locale, timeZone: timeZone))
+        var lines = ["Requested service through your request link on \(day)."]
         if !request.service.isEmpty { lines.append("Service: \(request.service)") }
         if let when = request.when { lines.append("How often: \(when.title)") }
         if !request.notes.isEmpty { lines.append(""); lines.append(request.notes) }
