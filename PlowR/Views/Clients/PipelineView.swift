@@ -36,6 +36,13 @@ struct PipelineView: View {
         }
         .navigationTitle("Pipeline")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                NavigationLink { RequestLinkView() } label: {
+                    Label("Request Link", systemImage: "link")
+                }
+            }
+        }
     }
 
     @ViewBuilder
