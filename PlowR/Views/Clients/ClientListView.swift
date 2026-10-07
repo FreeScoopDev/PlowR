@@ -23,6 +23,7 @@ struct ClientListView: View {
     @Query private var allStops: [RouteStop]
     @State private var showingAddClient = false
     @State private var showingContactScanner = false
+    @State private var showingImport = false
     @State private var clientToDelete: Client?
     @State private var clientToDeactivate: Client?
     /// What deleting or deactivating the client above touches, worked out
@@ -135,13 +136,20 @@ struct ClientListView: View {
     var body: some View {
         Group {
             if clients.isEmpty && myClients.isEmpty {
-                ContentUnavailableView(
-                    isFiltered ? "No Clients Match" : "No Clients Yet",
-                    systemImage: isFiltered ? "line.3.horizontal.decrease.circle" : "person.badge.plus",
-                    description: Text(isFiltered
+                ContentUnavailableView {
+                    Label(isFiltered ? "No Clients Match" : "No Clients Yet",
+                          systemImage: isFiltered ? "line.3.horizontal.decrease.circle" : "person.badge.plus")
+                } description: {
+                    Text(isFiltered
                         ? "Try adjusting your filter or search."
-                        : "Add your first client to get started.")
-                )
+                        : "Add your first client to get started, or bring in your client list from a spreadsheet.")
+                } actions: {
+                    if !isFiltered {
+                        Button("Add a Client") { showingAddClient = true }
+                            .buttonStyle(.borderedProminent)
+                        Button("Import from a Spreadsheet") { showingImport = true }
+                    }
+                }
             } else {
                 List {
                     if !myClients.isEmpty {
@@ -170,6 +178,11 @@ struct ClientListView: View {
                         showingAddClient = true
                     } label: {
                         Label("Add Manually", systemImage: "person.badge.plus")
+                    }
+                    Button {
+                        showingImport = true
+                    } label: {
+                        Label("Import from Spreadsheet", systemImage: "square.and.arrow.down.on.square")
                     }
                     if UIImagePickerController.isSourceTypeAvailable(.camera) {
                         Button {
@@ -246,6 +259,9 @@ struct ClientListView: View {
         }
         .sheet(isPresented: $showingContactScanner) {
             ContactScannerView()
+        }
+        .sheet(isPresented: $showingImport) {
+            NavigationStack { ImportClientsView(isSheet: true) }
         }
         .sheet(item: $statsClient) { client in
             ClientVisitSummaryView(client: client)

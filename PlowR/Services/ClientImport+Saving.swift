@@ -14,7 +14,7 @@ extension ClientImport {
     }
 
     /// What an import saved.
-    struct Result: Equatable {
+    struct Result: Hashable {
         /// The tag on every client it added.
         var tag: String
         /// When, to the second: every client and property it added was made
@@ -28,6 +28,20 @@ extension ClientImport {
 
     /// How every import's tag begins.
     static let tagPrefix = "Imported "
+
+    /// One of PlowR's import tags: the prefix and a time ("Imported Oct 7 at
+    /// 2:15 PM"). A tag of the user's own such as "Imported from my old app"
+    /// isn't.
+    static func isImportTag(_ tag: String) -> Bool {
+        tag.hasPrefix(tagPrefix) && tag.range(of: #"\d{1,2}[:.]\d{2}"#, options: .regularExpression) != nil
+    }
+
+    /// Made at a whole second, as an import makes clients and properties
+    /// (`save`); one made by hand almost always has a fraction of a second.
+    static func isImportMoment(_ date: Date) -> Bool {
+        let seconds = date.timeIntervalSinceReferenceDate
+        return seconds == seconds.rounded(.down)
+    }
 
     /// Saved every this many new clients, so a long list isn't one huge save.
     static let batchSize = 250
@@ -43,7 +57,10 @@ extension ClientImport {
     /// per place (their own address and each property's), inactive ones too,
     /// so an import doesn't bring back a client the business let go.
     static func known(in context: ModelContext, operatorID: String) -> [Known] {
-        let clients = (try? context.fetch(FetchDescriptor<Client>(predicate: #Predicate { $0.operatorID == operatorID }))) ?? []
+        // In a fixed order: the preview is worked out again just before
+        // saving and compared, and the order decides which name a match shows.
+        let clients = ((try? context.fetch(FetchDescriptor<Client>(predicate: #Predicate { $0.operatorID == operatorID }))) ?? [])
+            .sorted { $0.id.uuidString < $1.id.uuidString }
         return clients.flatMap { client in
             let id = client.id.uuidString
             return [Known(id: id, name: client.name, phone: client.phone, address: client.address)]
@@ -73,7 +90,10 @@ extension ClientImport {
                                         operatorID: operatorID)
                     client.email = draft.email
                     client.notes = draft.notes
-                    client.tags = unique(draft.tags.filter { !isTag($0, tag) } + [tag])
+                    // An import tag in the file (a re-imported PlowR export) is
+                    // an old import's: only this one's is kept, so Recent
+                    // Imports and Undo find each client under one import.
+                    client.tags = unique(draft.tags.filter { !isImportTag($0) } + [tag])
                     client.createdAt = date
                     client.customerSince = kind == .customers ? date : nil
                     context.insert(client)
@@ -157,6 +177,25 @@ extension ClientImport {
         return (try? context.fetch(FetchDescriptor<Property>(predicate: #Predicate {
             $0.createdAt > from && $0.createdAt < to
         }))) ?? []
+    }
+
+    /// `operatorID`'s imports whose clients are still here with the tag,
+    /// newest first: what Import Clients can still undo, after a relaunch
+    /// too. Counted by the clients left; properties aren't counted. Only
+    /// clients made at a whole second (as an import makes them) count, so a
+    /// client added by hand with a tag of the user's own that happens to
+    /// begin "Imported " isn't taken for an import.
+    static func recentImports(in context: ModelContext, operatorID: String) -> [Result] {
+        let clients = (try? context.fetch(FetchDescriptor<Client>(predicate: #Predicate { $0.operatorID == operatorID }))) ?? []
+        var found: [String: Result] = [:]
+        for client in clients {
+            guard isImportMoment(client.createdAt),
+                  let tag = client.tags.last(where: { isImportTag($0) }) else { continue }
+            let second = client.createdAt
+            let key = "\(tag)|\(second.timeIntervalSinceReferenceDate)"
+            found[key, default: Result(tag: tag, date: second, clients: 0, properties: 0)].clients += 1
+        }
+        return found.values.sorted { $0.date > $1.date }
     }
 
     // MARK: - Undo
