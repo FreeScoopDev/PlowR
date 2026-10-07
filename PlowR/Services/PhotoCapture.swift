@@ -66,20 +66,24 @@ enum PhotoCapture {
         return jpeg
     }
 
-    /// Whether the image in `data` carries a location: a GPS block, or GPS
-    /// tags in its metadata.
+    /// Whether any image in `data` carries a location: a GPS block, or GPS
+    /// tags in its metadata (IPTC's nested location among them). Every image
+    /// in the file: a multi-page one can have it on a later page.
     nonisolated static func hasLocation(_ data: Data) -> Bool {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return false }
-        let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
-        if properties?[kCGImagePropertyGPSDictionary] != nil { return true }
-        guard let metadata = CGImageSourceCopyMetadataAtIndex(source, 0, nil) else { return false }
-        var found = false
-        CGImageMetadataEnumerateTagsUsingBlock(metadata, nil,
-                                               [kCGImageMetadataEnumerateRecursively: true] as CFDictionary) { path, _ in
-            if (path as String).range(of: "gps", options: .caseInsensitive) != nil { found = true }
-            return !found
+        for index in 0..<CGImageSourceGetCount(source) {
+            let properties = CGImageSourceCopyPropertiesAtIndex(source, index, nil) as? [CFString: Any]
+            if properties?[kCGImagePropertyGPSDictionary] != nil { return true }
+            guard let metadata = CGImageSourceCopyMetadataAtIndex(source, index, nil) else { continue }
+            var found = false
+            CGImageMetadataEnumerateTagsUsingBlock(metadata, nil,
+                                                   [kCGImageMetadataEnumerateRecursively: true] as CFDictionary) { path, _ in
+                if (path as String).range(of: "gps", options: .caseInsensitive) != nil { found = true }
+                return !found
+            }
+            if found { return true }
         }
-        return found
+        return false
     }
 
     /// The time in a photo's EXIF properties ("{Exif}": DateTimeOriginal,
