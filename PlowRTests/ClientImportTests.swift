@@ -198,7 +198,7 @@ struct ClientImportTests {
     @Test func longerHeadersByTheirWords() {
         #expect(ClientImport.guess(["Account #", "Client Phone #", "Customer Email Address", "Mailing Address",
                                     "Zip/Postal", "Gate Notes"])
-            == [.ignore, .phone, .email, .street, .zip, .notes])
+            == [.ignore, .phone, .email, .address, .zip, .notes])
         #expect(ClientImport.guess(["Address1", "Address2", "Phone2"]) == [.street, .street2, .phone])
         #expect(ClientImport.guess(["Estate Name"]) == [.ignore])      // "state" only as a word
     }
@@ -228,5 +228,82 @@ struct ClientImportTests {
                                            existing: existing)
         #expect(preview.new.count == 5_000)
         #expect(Date().timeIntervalSince(start) < 5)
+    }
+
+    // Google Contacts puts a "- Label" column before each "- Value": the
+    // value is the field, not the label beside it.
+    @Test func googleContactsColumns() {
+        let header = ["First Name", "Middle Name", "Last Name", "Phonetic First Name", "Organization Name",
+                      "Organization Title", "Notes", "Labels", "E-mail 1 - Label", "E-mail 1 - Value",
+                      "Phone 1 - Label", "Phone 1 - Value", "Address 1 - Label", "Address 1 - Formatted",
+                      "Address 1 - Street", "Address 1 - City", "Address 1 - PO Box", "Address 1 - Region",
+                      "Address 1 - Postal Code", "Address 1 - Country", "Address 1 - Extended Address"]
+        let fields = ClientImport.guess(header)
+        #expect(fields == [.firstName, .ignore, .lastName, .ignore, .company, .ignore, .notes, .tags,
+                           .ignore, .email, .ignore, .phone, .ignore, .address, .street, .city, .ignore, .state,
+                           .zip, .ignore, .ignore])
+        let row = ["Pat", "", "Doe", "", "", "", "", "* myContacts ::: Weekly", "* Home", "pat@example.com",
+                   "Mobile", "(603) 555-0100", "Home", "1 Main St\nClaremont, NH 03743\nUS", "1 Main St",
+                   "Claremont", "", "NH", "03743", "US", ""]
+        let draft = ClientImport.draft(from: row, fields: fields)
+        #expect(draft.name == "Pat Doe" && draft.phone == "(603) 555-0100" && draft.email == "pat@example.com")
+        #expect(draft.address == "1 Main St, Claremont, NH 03743, US")
+        #expect(draft.tags == ["Weekly"])
+        #expect(ClientImport.addressKey(draft.address) == ClientImport.addressKey("1 Main Street, Claremont, NH 03743"))
+    }
+
+    @Test func aColumnAboutAFieldIsntTheField() {
+        #expect(ClientImport.guess(["Phone Type", "Phone", "Email Opt In", "Email"]) == [.ignore, .phone, .ignore, .email])
+    }
+
+    // A full address beside City, State and ZIP columns isn't given them twice.
+    @Test func aFullAddressBesideItsPartsIsntDoubled() {
+        let billing = ["Name", "Billing Address", "Billing City", "Billing State", "Billing ZIP"]
+        let fields = ClientImport.guess(billing)
+        #expect(fields == [.name, .address, .city, .state, .zip])
+        let row = ["Pat Doe", "1 Main St, Claremont, NH 03743", "Claremont", "NH", "03743"]
+        #expect(ClientImport.draft(from: row, fields: fields).address == "1 Main St, Claremont, NH 03743")
+        let full = ClientImport.guess(["Name", "Full Address", "City"])
+        #expect(ClientImport.draft(from: ["Pat Doe", "1 Main St, Claremont, NH 03743", "Claremont"], fields: full).address
+            == "1 Main St, Claremont, NH 03743")
+        // A street named for the town still gets the town.
+        let street = ClientImport.draft(from: ["Pat Doe", "12 Claremont Rd", "Claremont", "NH"],
+                                        fields: [.name, .street, .city, .state])
+        #expect(street.address == "12 Claremont Rd, Claremont, NH")
+    }
+
+    // Outlook lists Business, Home and Mobile columns: the filled one wins.
+    @Test func theFilledColumnWinsAmongLikeOnes() {
+        let header = ["Name", "Business Phone", "Home Phone", "Mobile Phone"]
+        let rows = [["Pat Doe", "", "", "603-555-0100"], ["Sam Roe", "", "603-555-0200", "603-555-0201"]]
+        #expect(ClientImport.guess(header, rows: rows) == [.name, .ignore, .ignore, .phone])
+        #expect(ClientImport.guess(header) == [.name, .phone, .ignore, .ignore])     // no rows: the first
+    }
+
+    @Test func wordsWithAnXArentAnExtension() {
+        #expect(ClientImport.phoneKey("Text only: 603-555-0100") == "6035550100")
+        #expect(ClientImport.phoneKey("Fax 603-555-0100") == "6035550100")
+        #expect(ClientImport.phoneKey("Box 12, 603-555-0100") == "126035550100")
+        #expect(ClientImport.phoneKey("603-555-0100 X 4") == "6035550100")
+    }
+
+    // Renamed in the spreadsheet: the same phone at the same place is them.
+    @Test func theSamePhoneAtTheSamePlaceIsADuplicateUnderAnyName() {
+        let existing = [ClientImport.Known(id: "c1", name: "Pat Doe", phone: "6035550100", address: "1 Main St")]
+        let t = table(["Name", "Phone", "Address"], [["Pat & Kim Doe", "603-555-0100", "1 Main Street"],
+                                                     ["Kim Doe", "603-555-0100", "9 Lake Rd"]])
+        let preview = ClientImport.preview(t, fields: [.name, .phone, .address], existing: existing)
+        #expect(preview.duplicates == 1 && preview.new.map(\.name) == ["Kim Doe"] && preview.sharedPhones == 1)
+    }
+
+    // A blank row in the file still counts, so "row 5" is row 5.
+    @Test func problemRowsAreTheSpreadsheetsRows() throws {
+        let text = "Name,Phone\nPat Doe,1\n\n\"Sam\nRoe\",2\n,3\n"
+        let t = try CSVReader.read(Data(text.utf8))
+        #expect(t.rowNumbers == [2, 4, 5])
+        let preview = ClientImport.preview(t, fields: [.name, .phone], existing: [])
+        #expect(preview.problems.map(\.row) == [5])
+        let hinted = try CSVReader.read(Data("sep=,\n\nName\nPat\n".utf8))
+        #expect(hinted.rowNumbers == [3])         // Excel hides the sep= line
     }
 }

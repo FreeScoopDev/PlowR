@@ -61,7 +61,7 @@ nonisolated enum ClientImport {
                         "service zip code", "billing zip", "billing zip code", "service postal code",
                         "home postal code", "business postal code"]
             case .notes: ["notes", "note", "comments", "comment", "description"]
-            case .tags: ["tags", "tag", "labels", "label", "groups", "group"]
+            case .tags: ["tags", "tag", "labels", "label", "groups", "group", "group membership"]
             }
         }
 
@@ -75,13 +75,18 @@ nonisolated enum ClientImport {
             (.street2, ["address 2", "line 2", "street 2"]),
             (.street, ["street"]),
             (.city, ["city"]),
-            (.state, ["state", "province"]),
+            (.state, ["state", "province", "region"]),
             (.firstName, ["first name"]),
             (.lastName, ["last name"]),
             (.company, ["company", "organization"]),
             (.address, ["address"]),
             (.notes, ["note", "notes", "comment", "comments"])
         ]
+
+        /// Words that make a header about a field, not the field itself:
+        /// Google's "Phone 1 - Label" before "Phone 1 - Value", "Email Opt In",
+        /// "Address Country". Never matched by a keyword.
+        static let notTheField = ["type", "label", "opt", "status", "country", "verified", "date", "id"]
     }
 
     /// Text as compared: lowercased, punctuation as spaces, letters apart
@@ -98,38 +103,72 @@ nonisolated enum ClientImport {
         return out.trimmingCharacters(in: .whitespaces)
     }
 
-    /// The field a header names: exactly, else by a word in it.
-    static func field(for header: String) -> Field {
+    /// The field a header names exactly, if it does.
+    static func exactField(for header: String) -> Field? {
         let name = normalized(header)
-        if let exact = Field.allCases.first(where: { $0.headers.contains(name) }) { return exact }
-        let words = " \(name) "
-        return Field.keywords.first { _, keys in keys.contains { words.contains(" \($0) ") } }?.0 ?? .ignore
+        return Field.allCases.first { $0.headers.contains(name) }
     }
 
-    /// Each column's field, guessed from the header. A field goes to the first
-    /// column that names it (a second phone isn't imported); notes may come
-    /// from several. A service address wins over a billing one: it's where
-    /// the work is. Beside City, State, ZIP or Apt columns, an "Address"
-    /// column is the street, so those columns aren't lost.
-    static func guess(_ header: [String]) -> [Field] {
+    /// The field a header names by a word in it ("Client Phone #"), unless
+    /// it's about the field rather than the field ("Phone Type").
+    static func keywordField(for header: String) -> Field? {
+        let words = " \(normalized(header)) "
+        guard !Field.notTheField.contains(where: { words.contains(" \($0) ") }) else { return nil }
+        return Field.keywords.first { _, keys in keys.contains { words.contains(" \($0) ") } }?.0
+    }
+
+    /// The field a header names: exactly, else by a word in it.
+    static func field(for header: String) -> Field {
+        exactField(for: header) ?? keywordField(for: header) ?? .ignore
+    }
+
+    /// Each column's field, guessed from the header, and from `rows` when
+    /// given. Each field goes to one column (a second phone isn't imported);
+    /// notes may come from several. Headers that name a field exactly claim
+    /// it before those that only have its word, so Google's "Phone 1 - Value"
+    /// isn't beaten by a column beside it. Among columns that name a field
+    /// alike, the one with the most filled in wins (Outlook's empty Business
+    /// columns before the Home ones), then the first. A service address wins
+    /// over a billing one: it's where the work is. Beside City, State, ZIP or
+    /// Apt columns, a bare "Address" column is the street.
+    static func guess(_ header: [String], rows: [[String]] = []) -> [Field] {
         let names = header.map(normalized)
-        var fields = header.map(field(for:))
+        var exact = header.map(exactField(for:))
+        var byWord = header.map(keywordField(for:))
         let addressFields: Set<Field> = [.address, .street, .street2, .city, .state, .zip]
         let hasServiceAddress = names.indices.contains {
-            names[$0].hasPrefix("service ") && addressFields.contains(fields[$0])
+            names[$0].hasPrefix("service ") && addressFields.contains(exact[$0] ?? byWord[$0] ?? .ignore)
         }
         if hasServiceAddress {
-            for index in names.indices where names[index].hasPrefix("billing ") { fields[index] = .ignore }
+            for index in names.indices where names[index].hasPrefix("billing ") {
+                exact[index] = nil
+                byWord[index] = nil
+            }
         }
-        let hasParts = fields.contains { [.street2, .city, .state, .zip].contains($0) }
-        if hasParts, !fields.contains(.street), let address = fields.firstIndex(of: .address) {
-            fields[address] = .street
+        let parts: [Field] = [.street2, .city, .state, .zip]
+        let hasParts = names.indices.contains { parts.contains(exact[$0] ?? byWord[$0] ?? .ignore) }
+        let hasStreet = names.indices.contains { (exact[$0] ?? byWord[$0]) == .street }
+        if hasParts, !hasStreet,
+           let bare = names.indices.first(where: { ["address", "location"].contains(names[$0]) }) {
+            exact[bare] = .street
         }
-        var taken = Set<Field>()
-        return fields.map { field in
-            guard field != .ignore, field != .notes else { return field }
-            return taken.insert(field).inserted ? field : .ignore
+        let filled = header.indices.map { column in
+            rows.reduce(0) { $0 + (column < $1.count && !$1[column].isEmpty ? 1 : 0) }
         }
+        var fields = Array(repeating: Field.ignore, count: header.count)
+        for candidates in [exact, byWord] {
+            let claimed = Set(fields)
+            let wanted = Dictionary(grouping: header.indices.filter { candidates[$0] != nil && fields[$0] == .ignore },
+                                    by: { candidates[$0] ?? .ignore })
+            for (field, columns) in wanted where !claimed.contains(field) || field == .notes {
+                if field == .notes {
+                    columns.forEach { fields[$0] = .notes }
+                } else if let best = columns.max(by: { (filled[$0], -$0) < (filled[$1], -$1) }) {
+                    fields[best] = field
+                }
+            }
+        }
+        return fields
     }
 
     /// A client as a row gives it.
@@ -154,14 +193,17 @@ nonisolated enum ClientImport {
         draft.name = person.isEmpty ? company : person
         draft.phone = value(.phone)
         draft.email = value(.email)
-        // A full address, with any Apt, City, State or ZIP column it doesn't
-        // already hold; or the address from its parts.
+        // The full address (or the street), with any Apt, City, State or ZIP
+        // column it doesn't already hold after its street ("12 Claremont Rd"
+        // still needs Claremont).
         let full = value(.address).split(whereSeparator: \.isNewline).joined(separator: ", ")
-        let held = " \(normalized(full)) "
-        let stateZip = [value(.state), value(.zip)].filter { !$0.isEmpty }.joined(separator: " ")
-        let parts = [full.isEmpty ? value(.street) : "", value(.street2), value(.city), stateZip]
-            .filter { !$0.isEmpty && !held.contains(" \(normalized($0)) ") }
-        draft.address = ([full] + parts).filter { !$0.isEmpty }.joined(separator: ", ")
+        let base = full.isEmpty ? value(.street) : full
+        let held = " \(normalized(String(base.drop { $0 != "," }))) "
+        func lacking(_ part: String) -> Bool { !part.isEmpty && !held.contains(" \(normalized(part)) ") }
+        // State and ZIP side by side, as written: "NH 03743".
+        let stateZip = [value(.state), value(.zip)].filter(lacking).joined(separator: " ")
+        let parts = [value(.street2), value(.city)].filter(lacking) + [stateZip]
+        draft.address = ([base] + parts).filter { !$0.isEmpty }.joined(separator: ", ")
         var notes = fields.indices.filter { fields[$0] == .notes && row.indices.contains($0) && !row[$0].isEmpty }
             .map { row[$0] }
         // A company beside a person's name is kept, in the notes.
@@ -185,8 +227,13 @@ nonisolated enum ClientImport {
     /// be a phone number: nil.
     static func phoneKey(_ phone: String) -> String? {
         let lower = phone.lowercased()
-        let cut = lower.range(of: "ext") ?? lower.range(of: "x")
-        var digits = (cut.map { lower[..<$0.lowerBound] } ?? lower[...]).filter(\.isNumber)
+        // An extension ends the number: "x" or "ext" then digits, after a
+        // whole number ("Fax 603…" and "Box 12, 603…" aren't extensions).
+        var digits = lower.filter(\.isNumber)
+        if let ext = lower.range(of: #"(ext\.?|x)\s*\d{1,6}\s*$"#, options: .regularExpression) {
+            let before = lower[..<ext.lowerBound].filter(\.isNumber)
+            if before.count >= 7 { digits = before }
+        }
         if digits.count == 11, digits.hasPrefix("1") { digits.removeFirst() }
         return digits.count >= 7 ? digits : nil
     }
@@ -197,7 +244,7 @@ nonisolated enum ClientImport {
         "street": "st", "avenue": "ave", "av": "ave", "road": "rd", "drive": "dr", "lane": "ln", "court": "ct",
         "boulevard": "blvd", "place": "pl", "terrace": "ter", "circle": "cir", "parkway": "pkwy", "highway": "hwy",
         "route": "rte", "north": "n", "south": "s", "east": "e", "west": "w", "apartment": "apt", "suite": "ste",
-        "usa": ""
+        "usa": "", "us": ""
     ]
 
     /// An address as compared: `normalized`, street words short, no country.
@@ -254,9 +301,11 @@ nonisolated enum ClientImport {
     /// `addressesAsProperties`, the same name and phone at an address the
     /// client doesn't have is their property instead; a client with no
     /// address isn't given one (duplicates are skipped, not merged). The same
-    /// phone with another name is a new client, noted. Rows match each other
-    /// too, so a client listed twice is added once. Row numbers count the
-    /// header as row 1, as a spreadsheet shows them.
+    /// phone at the same address is a duplicate whatever the name; with
+    /// another name at another address it's a new client, noted (a
+    /// household's second place, or an office line). Rows match each other
+    /// too, so a client listed twice is added once. Row numbers are the
+    /// spreadsheet's (`Table.rowNumber`).
     static func preview(_ table: CSVReader.Table, fields: [Field], existing: [Known],
                         addressesAsProperties: Bool = false) -> Preview {
         // Indexed by phone and by name and address: each row is a lookup,
@@ -276,13 +325,18 @@ nonisolated enum ClientImport {
         for (index, row) in table.rows.enumerated() {
             let draft = draft(from: row, fields: fields)
             guard !draft.name.isEmpty else {
-                outcomes.append(.problem(row: index + 2, reason: "No name"))
+                outcomes.append(.problem(row: table.rowNumber(index), reason: "No name"))
                 continue
             }
             let name = normalized(draft.name), address = addressKey(draft.address)
             let samePhone = phoneKey(draft.phone).flatMap { byPhone[$0] } ?? []
             if !address.isEmpty, let match = byNameAddress[name + "|" + address] {
                 outcomes.append(.duplicate(draft, of: match.name))
+            } else if !address.isEmpty,
+                      let sameDoor = samePhone.first(where: { addresses[$0.known.id]?.contains(address) == true }) {
+                // The same phone at the same place is the same client under
+                // another name ("Pat & Kim Doe" for "Pat Doe").
+                outcomes.append(.duplicate(draft, of: sameDoor.known.name))
             } else if let owner = samePhone.first(where: { $0.name == name })?.known {
                 let theirs = addresses[owner.id] ?? []
                 if addressesAsProperties, !address.isEmpty, !theirs.contains(address), !theirs.contains("") {
