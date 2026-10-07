@@ -456,7 +456,8 @@ private struct CalendarDotView: UIViewRepresentable {
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: UICalendarView, context: Context) -> CGSize? {
-        let width = proposal.width ?? UIScreen.main.bounds.width
+        // No width proposed: the screen's, from the view's own window.
+        let width = proposal.width ?? uiView.window?.windowScene?.screen.bounds.width ?? 390
         let height = uiView.sizeThatFits(
             CGSize(width: width, height: UIView.layoutFittingCompressedSize.height)
         ).height

@@ -39,9 +39,11 @@ passing a function by name (`map(Type.init)`, `map(render)`) is checked as
 having no actor, so write a closure (`map { Type($0) }`) instead; and code
 with no actor (nonisolated helpers such as `StopRecording`, the
 `WeatherService` actor, ActivityKit with the Live Activity's attributes)
-can only call what's marked `nonisolated`, as `PlowRColor` is. The build
-still warns about APIs iOS 26 deprecated (`CLGeocoder`, `MKPlacemark` and
-`placemark`, `UIScreen.main`), which still work.
+can only call what's marked `nonisolated`, as `PlowRColor` is. Since the
+same day a Release build has no warnings at all: the APIs iOS 26 deprecated
+(`CLGeocoder`, `MKPlacemark` and `placemark`, `UIScreen.main`) were replaced.
+Look addresses up with `AddressPin` (`MKGeocodingRequest`), and read a map
+item's `location` and `address`.
 
 ## Architecture in one paragraph
 

@@ -432,8 +432,10 @@ struct RouteDetailView: View {
             for (idx, candidate) in withGPS.enumerated() {
                 let candCoord = CLLocationCoordinate2D(latitude: candidate.latitude, longitude: candidate.longitude)
                 let req = MKDirections.Request()
-                req.source = MKMapItem(placemark: MKPlacemark(coordinate: lastCoord))
-                req.destination = MKMapItem(placemark: MKPlacemark(coordinate: candCoord))
+                req.source = MKMapItem(location: CLLocation(latitude: lastCoord.latitude, longitude: lastCoord.longitude),
+                                       address: nil)
+                req.destination = MKMapItem(location: CLLocation(latitude: candCoord.latitude,
+                                                                 longitude: candCoord.longitude), address: nil)
                 req.transportType = .automobile
                 let score: Double
                 if let resp = try? await MKDirections(request: req).calculate(),
