@@ -31,7 +31,7 @@ struct DayForecast {
 
 // MARK: - Private decoders
 
-private struct OpenMeteoResponse: Decodable {
+nonisolated private struct OpenMeteoResponse: Decodable {
     struct Current: Decodable {
         let temperature_2m: Double
         let weather_code: Int
@@ -41,7 +41,7 @@ private struct OpenMeteoResponse: Decodable {
     let current: Current
 }
 
-private struct ForecastResponse: Decodable {
+nonisolated private struct ForecastResponse: Decodable {
     struct Daily: Decodable {
         let time: [String]
         let weather_code: [Int]
@@ -56,7 +56,7 @@ private struct ForecastResponse: Decodable {
 
 // MARK: - WMO weather code lookup (file-scope so DayForecast can use it)
 
-private func wmoInfo(_ code: Int) -> (String, String) {
+nonisolated private func wmoInfo(_ code: Int) -> (String, String) {
     switch code {
     case 0:          return ("Clear", "sun.max.fill")
     case 1:          return ("Mostly Clear", "sun.min.fill")

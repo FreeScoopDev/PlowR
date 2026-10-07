@@ -33,11 +33,15 @@ Zero third-party dependencies — every import is an Apple framework. Keep it
 that way unless there's a strong reason; adding the first one is a real decision.
 
 Deployment target is **iOS 26.0** (was 26.5 until 2026-09-29; nothing needed more). Swift language mode is 5, so the Swift 6
-strict-concurrency diagnostics show as warnings, not errors. A Release build on
-2026-09-29 had five: three in `WeatherService`, and one each in
-`EventKitVisitCalendarStore` and `BusinessProfileView`. It also warns about APIs
-iOS 26 deprecated (`CLGeocoder`, `MKPlacemark` and `placemark`, `UIScreen.main`),
-which still work.
+strict-concurrency diagnostics show as warnings, not errors. Since
+2026-10-06 a Release build has none; keep it at none. Two causes, two fixes:
+passing a function by name (`map(Type.init)`, `map(render)`) is checked as
+having no actor, so write a closure (`map { Type($0) }`) instead; and code
+with no actor (nonisolated helpers such as `StopRecording`, the
+`WeatherService` actor, ActivityKit with the Live Activity's attributes)
+can only call what's marked `nonisolated`, as `PlowRColor` is. The build
+still warns about APIs iOS 26 deprecated (`CLGeocoder`, `MKPlacemark` and
+`placemark`, `UIScreen.main`), which still work.
 
 ## Architecture in one paragraph
 

@@ -32,7 +32,7 @@ struct PropertyEditView: View {
     init(client: Client, property: Property?) {
         self.client = client
         self.property = property
-        let draft = property.map(PropertyEditing.Draft.init) ?? PropertyEditing.Draft()
+        let draft = property.map { PropertyEditing.Draft($0) } ?? PropertyEditing.Draft()
         _draft = State(initialValue: draft)
         originalAddress = draft.address
     }

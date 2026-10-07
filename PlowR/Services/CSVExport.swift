@@ -16,7 +16,7 @@ enum CSVExport {
     /// A whole file: a header row, then the rows, with CRLF line endings
     /// (RFC 4180) and a byte-order mark so Excel reads accents correctly.
     static func document(header: [String], rows: [[Cell]]) -> String {
-        let lines = [header.map { escape($0) }] + rows.map { $0.map(render) }
+        let lines = [header.map { escape($0) }] + rows.map { row in row.map { render($0) } }
         return "\u{FEFF}" + lines.map { $0.joined(separator: ",") }.joined(separator: "\r\n") + "\r\n"
     }
 

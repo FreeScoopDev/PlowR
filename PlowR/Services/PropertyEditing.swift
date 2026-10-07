@@ -17,7 +17,7 @@ enum PropertyEditing {
 
         init() {}
 
-        init(_ property: Property) {
+        nonisolated init(_ property: Property) {
             label = property.label
             address = property.address
             latitude = property.latitude

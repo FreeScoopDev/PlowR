@@ -16,7 +16,7 @@ struct ContractEditView: View {
     init(client: Client, contract: Contract?) {
         self.client = client
         self.contract = contract
-        _draft = State(initialValue: contract.map(Contracts.Draft.init) ?? Contracts.Draft(for: client))
+        _draft = State(initialValue: contract.map { Contracts.Draft($0) } ?? Contracts.Draft(for: client))
     }
 
     /// A new contract starting from `draft`: made from a proposal, or a renewal.

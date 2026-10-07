@@ -4,7 +4,7 @@ import UIKit
 /// The "PlowR" calendar, through EventKit. Only reads and changes PlowR's
 /// calendars; `VisitCalendar` decides what goes in them.
 final class EventKitVisitCalendarStore: VisitCalendarStore {
-    static let calendarTitle = "PlowR"
+    nonisolated static let calendarTitle = "PlowR"
     /// The calendar PlowR made or found, so renaming it in Calendar doesn't
     /// lose it.
     static let calendarIDKey = "calendarSyncCalendarID"

@@ -12,7 +12,7 @@ import Foundation
 /// for the main one: a job there isn't the main house's, its stored address
 /// isn't overwritten with the main one, and it isn't priced by the main
 /// house's measurements.
-struct Place: Equatable {
+nonisolated struct Place: Equatable {
     let id: String
     let label: String
     let address: String
@@ -47,7 +47,7 @@ struct Place: Equatable {
     /// their own, nil when it's missing.
     static func of(_ client: Client, propertyID: String) -> Place? {
         if isMain(propertyID, of: client) { return main(of: client) }
-        return (client.properties ?? []).first { $0.id.uuidString == propertyID }.map(of)
+        return (client.properties ?? []).first { $0.id.uuidString == propertyID }.map { of($0) }
     }
 
     /// The ID of `client`'s place with `propertyID`, found or not: which
@@ -68,7 +68,7 @@ struct Place: Equatable {
     /// The client's places work can be booked at: the main one, then their
     /// active properties in order.
     static func all(of client: Client) -> [Place] {
-        [main(of: client)] + ordered(client.properties ?? []).filter(\.isActive).map(of)
+        [main(of: client)] + ordered(client.properties ?? []).filter(\.isActive).map { of($0) }
     }
 
     /// What a picker offers for something already at `propertyID`: the
