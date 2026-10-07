@@ -31,7 +31,10 @@ extension CLLocationManager: RegionMonitoring {}
 /// archives, the route in progress, the widget's copy of it and the "PlowR"
 /// calendar. `AccountEraserTests` writes each one and checks it's gone.
 ///
-/// Not here yet: the iCloud copy.
+/// The iCloud copy goes too: the store is mirrored to the private database,
+/// so the deletes are exported there, and from there to the user's other
+/// devices (confirmed on a device with a control, against the Development
+/// database, 2026-10-07). The export runs while the app is open and online.
 @MainActor
 struct AccountEraser {
     /// A step that failed. The other steps still run.

@@ -6,7 +6,7 @@ import Foundation
 /// iCloud sync follows the device's iCloud account, not PlowR's sign-in, so
 /// a copy wiped from a syncing device comes straight back. And deleting the
 /// records through the database is what tells iCloud to delete them, from
-/// every device (AccountEraser; seen on a device 2026-10-06, to be confirmed). So removing
+/// every device (AccountEraser; confirmed on a device with a control, 2026-10-07). So removing
 /// from this device only is two choices kept here, acted on at the next
 /// launch, before the database opens (PlowRApp.makeContainer):
 /// - **Remove the local database:** its files are deleted (never its
