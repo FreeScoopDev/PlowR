@@ -8,11 +8,12 @@ import SwiftData
 /// list. Apple's map limits how fast addresses can be looked up, so a long
 /// list takes a while: about 30 a minute, slowing down when the map says
 /// it's busy, and stopping until the app next comes to the front if it keeps
-/// saying so. Nothing is kept but the pins: what's left is found again from
-/// the store (`waiting`), so it carries on after a relaunch. Addresses the
-/// map doesn't know are listed for this session (`notFound`) and tried again
-/// at the next launch; their clients are imported all the same, without a
-/// pin, as a client saved without one is. Only the signed-in business's
+/// saying so. Nothing is kept but the pins and the marks: what's left is
+/// found again from the store (`waiting`), so it carries on after a
+/// relaunch. An address the map doesn't know is looked up once, never again
+/// on its own (Joe's call: no time spent on it): its client or property is
+/// marked (`addressNotFoundAt`, shown until it has a pin) for the business to
+/// fix, and listed for this session (`notFound`). Only the signed-in business's
 /// clients are looked up, and nothing at all after Delete Account or Remove
 /// from This Device (`stop`) until the next import or launch.
 @MainActor
@@ -47,7 +48,8 @@ final class ImportPins {
 
     private let lookUp: (String) async -> AddressPin.Lookup
     private let pause: (Duration) async -> Void
-    /// This session's misses, not looked up again until the next launch.
+    private let now: () -> Date
+    /// This session's misses (marked in the store too).
     private var missedIDs = Set<UUID>()
     /// Counted in `total` already, and done: `done` is how many of those
     /// are finished, so it never passes `total`.
@@ -64,9 +66,11 @@ final class ImportPins {
     private var stopped = false
 
     init(lookUp: @escaping (String) async -> AddressPin.Lookup = { await AddressPin.lookUp($0) },
-         pause: @escaping (Duration) async -> Void = { try? await Task.sleep(for: $0) }) {
+         pause: @escaping (Duration) async -> Void = { try? await Task.sleep(for: $0) },
+         now: @escaping () -> Date = { .now }) {
         self.lookUp = lookUp
         self.pause = pause
+        self.now = now
     }
 
     /// A client or property awaiting its pin, by ID: fetched afresh each
@@ -88,6 +92,8 @@ final class ImportPins {
         var address: String
         var name: String
         var pin: (Double, Double) -> Void
+        /// The map didn't know it: marked for the business, not tried again.
+        var markNotFound: (Date) -> Void
     }
 
     private func spot(_ target: Target, in context: ModelContext) -> Spot? {
@@ -95,21 +101,21 @@ final class ImportPins {
         case let .client(id):
             guard let client = try? context.fetch(FetchDescriptor<Client>(predicate: #Predicate { $0.id == id })).first,
                   !AddressPin.exists(latitude: client.latitude, longitude: client.longitude) else { return nil }
-            return Spot(address: client.address, name: client.name) { latitude, longitude in
+            return Spot(address: client.address, name: client.name, pin: { latitude, longitude in
                 client.latitude = latitude
                 client.longitude = longitude
                 ClientStops.update(for: client)
-            }
+            }, markNotFound: { client.addressNotFoundAt = $0 })
         case let .property(id):
             guard let property = try? context.fetch(FetchDescriptor<Property>(predicate: #Predicate { $0.id == id })).first,
                   !AddressPin.exists(latitude: property.latitude, longitude: property.longitude) else { return nil }
             let name = [property.client?.name, property.label].compactMap { $0 }.filter { !$0.isEmpty }
                 .joined(separator: ", ")
-            return Spot(address: property.address, name: name) { latitude, longitude in
+            return Spot(address: property.address, name: name, pin: { latitude, longitude in
                 property.latitude = latitude
                 property.longitude = longitude
                 if let owner = property.client { ClientStops.update(for: owner) }
-            }
+            }, markNotFound: { property.addressNotFoundAt = $0 })
         }
     }
 
@@ -127,12 +133,12 @@ final class ImportPins {
             sortBy: [SortDescriptor(\.createdAt)]))) ?? []
         func hasAddress(_ address: String) -> Bool { !address.trimmingCharacters(in: .whitespaces).isEmpty }
         let fromClients = clients
-            .filter { client in hasAddress(client.address) && !skipped.contains(client.id)
+            .filter { client in hasAddress(client.address) && !skipped.contains(client.id) && client.addressNotFoundAt == nil
                 && client.tags.contains { ClientImport.isImportTag($0) } }
             .map { Target.client($0.id) }
         let fromProperties = properties
             .filter { property in
-                hasAddress(property.address) && !skipped.contains(property.id)
+                hasAddress(property.address) && !skipped.contains(property.id) && property.addressNotFoundAt == nil
                     && ClientImport.isImportMoment(property.createdAt)
             }
             .map { Target.property($0.id) }
@@ -193,6 +199,8 @@ final class ImportPins {
                 refusals = 0
             case .failed(.notFound):
                 if let after {
+                    after.markNotFound(now())
+                    unsaved += 1
                     missedIDs.insert(target.id)
                     notFound.append(Missed(id: target.id, name: after.name, address: address))
                 }

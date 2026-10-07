@@ -27,6 +27,9 @@ struct PropertyEditView: View {
     @State private var removal: (stops: Int, visits: Int)?
     /// The routes Save would take it off, while that's asked.
     @State private var leavingRoutes: [String] = []
+    @State private var showingPinMap = false
+    /// The pin was set on the map here: saved as it is, not looked up.
+    @State private var pinnedByHand = false
     private let originalAddress: String
 
     init(client: Client, property: Property?) {
@@ -111,6 +114,19 @@ struct PropertyEditView: View {
                     }
                 }
             }
+            .sheet(isPresented: $showingPinMap) {
+                NavigationStack {
+                    LocationAdjustView(client: client, pendingAddress: draft.address,
+                                       startingPin: draft.hasPin ? .init(latitude: draft.latitude, longitude: draft.longitude) : nil,
+                                       placeHasPin: draft.hasPin, placeNoun: "Property's",
+                                       onSave: { coordinate, address in
+                        draft.latitude = coordinate.latitude
+                        draft.longitude = coordinate.longitude
+                        if !address.isEmpty { draft.address = address }
+                        pinnedByHand = true
+                    })
+                }
+            }
             .addressLookupAlert($lookupProblem, saveWithoutPin: {
                 commit(address: lookedUpAddress, latitude: 0, longitude: 0)
             }, tryAgain: {
@@ -146,7 +162,7 @@ struct PropertyEditView: View {
     }
 
     private var addressSection: some View {
-        Section("Address") {
+        Section {
             TextField("Street Address", text: $draft.address)
                 .textContentType(.fullStreetAddress)
                 .onChange(of: draft.address) { _, text in
@@ -163,6 +179,7 @@ struct PropertyEditView: View {
                         let result = await addressCompleter.resolve(completion)
                         draft.address = result.address
                         pickedCoordinate = result.coordinate
+                        pinnedByHand = false            // the suggestion's pin, not the earlier one
                         addressCompleter.clear()
                     }
                 } label: {
@@ -174,7 +191,17 @@ struct PropertyEditView: View {
                     }
                 }
             }
+            if draft.canSave {
+                Button(draft.hasPin ? "Adjust Pin" : "Set Pin on the Map") { showingPinMap = true }
+            }
+        } header: {
+            Text("Address")
+        } footer: {
+            if property?.needsAddressFix == true, !draft.hasPin {
+                AddressNotFoundLabel(detail: "The map couldn't find this address, so this property has no pin and isn't on route maps. Correct the address, or set the pin on the map.")
+            }
         }
+
     }
 
     private var servicesSection: some View {
@@ -208,6 +235,9 @@ struct PropertyEditView: View {
     /// A new address is put on the map first: a picked suggestion's pin, or
     /// looked up. The same address keeps the pin it has.
     private func save() {
+        if pinnedByHand {
+            return commit(address: draft.address, latitude: draft.latitude, longitude: draft.longitude)
+        }
         guard draft.address != originalAddress || property == nil else {
             return commit(address: draft.address, latitude: draft.latitude, longitude: draft.longitude)
         }

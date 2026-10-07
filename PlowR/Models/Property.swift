@@ -23,11 +23,19 @@ final class Property {
     var sortOrder: Int = 0
     var createdAt: Date = Date()
     var client: Client?
+    /// As `Client.addressNotFoundAt`.
+    var addressNotFoundAt: Date?
 
     init(label: String, address: String, operatorID: String) {
         self.label = label
         self.address = address
         self.operatorID = operatorID
+    }
+
+    /// The map couldn't find its address and it still has no pin: marked
+    /// for the business to fix.
+    var needsAddressFix: Bool {
+        addressNotFoundAt != nil && !address.isEmpty && !AddressPin.exists(latitude: latitude, longitude: longitude)
     }
 
     /// Where a new property of `client` goes: after their others.

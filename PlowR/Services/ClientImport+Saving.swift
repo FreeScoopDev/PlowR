@@ -85,7 +85,7 @@ extension ClientImport {
         do {
             for (index, outcome) in preview.outcomes.enumerated() {
                 switch outcome {
-                case let .new(draft, _):
+                case let .new(draft):
                     let client = Client(name: draft.name, phone: draft.phone, address: draft.address,
                                         operatorID: operatorID)
                     client.email = draft.email
@@ -112,7 +112,7 @@ extension ClientImport {
                     context.insert(property)
                     property.client = owner
                     result.properties += 1
-                case .duplicate, .problem:
+                case .duplicate, .samePhone, .problem:
                     continue
                 }
             }

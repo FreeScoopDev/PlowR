@@ -114,7 +114,7 @@ struct EditClientView: View {
         }
         .addressLookupAlert($lookupProblem, saveWithoutPin: {
             // A client with no pin yet: saved without one.
-            client.address = lookedUpAddress
+            client.changeAddress(to: lookedUpAddress)
             client.latitude = 0
             client.longitude = 0
             ClientStops.update(for: client)
@@ -124,7 +124,7 @@ struct EditClientView: View {
         }, keepCurrentPin: AddressPin.exists(latitude: client.latitude, longitude: client.longitude) ? {
             // The new address with the pin the client has (a corrected spelling
             // of the same house, say); Adjust Pin moves it if it's a new place.
-            client.address = lookedUpAddress
+            client.changeAddress(to: lookedUpAddress)
             ClientStops.update(for: client)
             dismiss()
         } : nil)
@@ -564,7 +564,7 @@ struct EditClientView: View {
     // MARK: - Service Address Section
 
     private var serviceAddressSection: some View {
-        Section("Service Address") {
+        Section {
             TextField("Street Address", text: $draft.address)
                 .textContentType(.fullStreetAddress)
                 .onChange(of: draft.address) { _, v in
@@ -599,6 +599,12 @@ struct EditClientView: View {
                     }
                 }
             }
+        } header: {
+            Text("Service Address")
+        } footer: {
+            if client.needsAddressFix {
+                AddressNotFoundLabel(detail: "The map couldn't find this address, so this client has no pin and isn't on route maps. Correct the address, or set the pin with Set Pin on the Map, under Main Property.")
+            }
         }
     }
 
@@ -624,6 +630,9 @@ struct EditClientView: View {
                             }
                         }
                         Spacer()
+                        if property.needsAddressFix {
+                            StatusChip("Address not found", systemImage: AddressNotFoundLabel.symbol, color: AddressNotFoundLabel.color)
+                        }
                         if !property.isActive { StatusChip("Inactive", color: .gray) }
                     }
                 }
@@ -1161,7 +1170,7 @@ struct EditClientView: View {
         // A picked suggestion's pin, or one set by hand (typing keeps it).
         let pinForSave = geocodedCoordinate ?? handPin.map { CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude) }
         if let coord = pinForSave, draft.address != originalAddress {
-            client.address = draft.address
+            client.changeAddress(to: draft.address)
             client.latitude = coord.latitude
             client.longitude = coord.longitude
             ClientStops.update(for: client)
@@ -1180,7 +1189,7 @@ struct EditClientView: View {
                 isSaving = false
                 switch lookup {
                 case let .found(latitude, longitude):
-                    client.address = typed
+                    client.changeAddress(to: typed)
                     client.latitude = latitude
                     client.longitude = longitude
                     ClientStops.update(for: client)
@@ -1191,7 +1200,7 @@ struct EditClientView: View {
                 }
             }
         } else {
-            client.address = draft.address
+            client.changeAddress(to: draft.address)
             ClientStops.update(for: client)
             isSaving = false
             dismiss()

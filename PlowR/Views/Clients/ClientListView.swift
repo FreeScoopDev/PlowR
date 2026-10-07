@@ -448,6 +448,10 @@ struct ClientRowView: View {
                 Text(client.name)
                     .font(.subheadline.weight(.semibold))
                     .lineLimit(1)
+                if client.anyAddressNeedsFix {
+                    AddressNotFoundLabel()
+                        .font(.caption2)
+                }
                 if !client.phone.isEmpty {
                     Text(client.phone)
                         .font(.caption)
