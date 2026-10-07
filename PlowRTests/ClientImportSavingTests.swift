@@ -292,4 +292,72 @@ struct ClientImportSavingTests {
         #expect(try context.fetchCount(FetchDescriptor<Client>()) == 0)
         #expect(!context.hasChanges)
     }
+
+    // Undo is offered later too: each import still tagged, newest first,
+    // two in one minute apart, and only this business's.
+    @Test func recentImportsAreFoundFromTheStore() throws {
+        let first = try save(preview([["Sam Roe", "", "2 Elm St"], ["Lee Poe", "", "4 Pine St"]]))
+        let second = try save(preview([["Ann Coe", "", "7 Ash St"]]), at: now.addingTimeInterval(5))
+        let theirs = Client(name: "Kim Poe", phone: "", address: "", operatorID: "someone else")
+        theirs.tags = [first.tag]
+        context.insert(theirs)
+        try context.save()
+        let recent = ClientImport.recentImports(in: context, operatorID: "op")
+        #expect(recent.map(\.date) == [second.date, first.date])
+        #expect(recent.map(\.clients) == [1, 2])
+        #expect(try ClientImport.undo(try #require(recent.last), in: context).removable.count == 2)
+        #expect(ClientImport.recentImports(in: context, operatorID: "op").map(\.date) == [second.date])
+    }
+
+    // A PlowR export re-imported carries the old import's tag: only the new
+    // one is kept, so Recent Imports lists the import once, under its date.
+    @Test func anOldImportTagInTheFileIsDropped() throws {
+        let result = try save(preview([["Sam Roe", "", "2 Elm St", "Imported Oct 1 at 3:00 PM; VIP"]]))
+        let sam = try #require(try clients().first)
+        #expect(sam.tags == ["VIP", result.tag])
+        #expect(ClientImport.recentImports(in: context, operatorID: "op") == [result])
+    }
+
+    // A client added by hand with a tag of the user's own beginning
+    // "Imported " isn't taken for an import (it would offer to undo it).
+    @Test func aHandMadeClientIsntAnImport() throws {
+        let kim = Client(name: "Kim Poe", phone: "", address: "", operatorID: "op")
+        kim.tags = ["Imported from my old app"]
+        kim.createdAt = now.addingTimeInterval(0.25)
+        context.insert(kim)
+        try context.save()
+        #expect(ClientImport.recentImports(in: context, operatorID: "op").isEmpty)
+    }
+
+    // What Import Clients brings back from PlowR's own Clients export, as
+    // Export Data says: names, phones, emails, addresses, tags and notes.
+    @Test func plowrsOwnExportComesBack() throws {
+        let pat = Client(name: "Pat Doe", phone: "603-555-0100", address: "1 Main St, Claremont, NH 03743",
+                         operatorID: "op")
+        pat.email = "pat@example.com"
+        pat.tags = ["Weekly", "VIP"]
+        pat.notes = "Gate 1234"
+        pat.isActive = false
+        context.insert(pat)
+        try context.save()
+        let table = try CSVReader.read(Data(CSVExport.clients([pat], operatorID: "op").utf8))
+        let fields = ClientImport.guess(table.header, rows: table.rows)
+        let draft = ClientImport.draft(from: try #require(table.rows.first), fields: fields)
+        #expect(draft == ClientImport.Draft(name: "Pat Doe", phone: "603-555-0100", email: "pat@example.com",
+                                            address: "1 Main St, Claremont, NH 03743", notes: "Gate 1234",
+                                            tags: ["Weekly", "VIP"]))
+        // Into another business's PlowR, as a new client; into this one, a duplicate.
+        #expect(ClientImport.preview(table, fields: fields, existing: []).new.count == 1)
+        #expect(ClientImport.preview(table, fields: fields,
+                                     existing: ClientImport.known(in: context, operatorID: "op")).duplicates == 1)
+    }
+
+    // Only PlowR's own import tags are dropped from a file; the user's are kept.
+    @Test func aUsersOwnImportedTagIsKept() throws {
+        let result = try save(preview([["Sam Roe", "", "2 Elm St", "Imported from Jobber; Imported Oct 1 at 3:00 PM; VIP"]]))
+        let sam = try #require(try clients().first)
+        #expect(sam.tags == ["Imported from Jobber", "VIP", result.tag])
+        #expect(ClientImport.recentImports(in: context, operatorID: "op").map(\.tag) == [result.tag])
+        #expect(ClientImport.isImportTag(result.tag) && !ClientImport.isImportTag("Imported from Jobber"))
+    }
 }

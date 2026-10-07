@@ -119,7 +119,6 @@ final class ImportPins {
     /// hand has a fraction of a second, but the rare one that doesn't is
     /// only given the pin it lacks. Clients first, oldest first.
     static func waiting(in context: ModelContext, operatorID: String, skipping skipped: Set<UUID> = []) -> [Target] {
-        let prefix = ClientImport.tagPrefix
         let clients = (try? context.fetch(FetchDescriptor<Client>(
             predicate: #Predicate { $0.operatorID == operatorID && $0.latitude == 0 && $0.longitude == 0 },
             sortBy: [SortDescriptor(\.createdAt)]))) ?? []
@@ -129,12 +128,12 @@ final class ImportPins {
         func hasAddress(_ address: String) -> Bool { !address.trimmingCharacters(in: .whitespaces).isEmpty }
         let fromClients = clients
             .filter { client in hasAddress(client.address) && !skipped.contains(client.id)
-                && client.tags.contains { $0.hasPrefix(prefix) } }
+                && client.tags.contains { ClientImport.isImportTag($0) } }
             .map { Target.client($0.id) }
         let fromProperties = properties
             .filter { property in
-                let seconds = property.createdAt.timeIntervalSinceReferenceDate
-                return hasAddress(property.address) && !skipped.contains(property.id) && seconds == seconds.rounded(.down)
+                hasAddress(property.address) && !skipped.contains(property.id)
+                    && ClientImport.isImportMoment(property.createdAt)
             }
             .map { Target.property($0.id) }
         return fromClients + fromProperties
