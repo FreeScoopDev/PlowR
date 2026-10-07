@@ -26,6 +26,8 @@ struct ActiveRouteView: View {
     @State private var showingLocationDeniedAlert = false
 
     @State private var weather: WeatherCondition? = nil
+    /// The weather is the stops', fetched without GPS: a GPS fix replaces it.
+    @State private var weatherFromStops = false
     @State private var etaMinutes: Int? = nil
     @State private var showingNavPicker = false
     @State private var navStop: RouteStop? = nil
@@ -251,12 +253,16 @@ struct ActiveRouteView: View {
         }
         .onChange(of: locationManager.currentLocation) { _, loc in
             guard let loc else { return }
-            if weather == nil {
+            // GPS weather wins over the stops' (location switched back on).
+            if weather == nil || weatherFromStops {
                 Task {
-                    weather = try? await WeatherService.shared.fetch(
+                    if let fetched = try? await WeatherService.shared.fetch(
                         latitude: loc.coordinate.latitude,
                         longitude: loc.coordinate.longitude
-                    )
+                    ) {
+                        weather = fetched
+                        weatherFromStops = false
+                    }
                 }
             }
             if followDriver { recenterMap() }
@@ -265,6 +271,7 @@ struct ActiveRouteView: View {
             if followDriver { recenterMap() }
         }
         // No GPS to fetch weather for (a Mac, location off): the stops' own.
+        // Keyed by stop only to retry a fetch that failed.
         .task(id: currentStop?.id) { await fetchWeatherWithoutGPS() }
         .onChange(of: SiteMonitor.shared.lastExit) { _, exit in
             guard let exit,
@@ -752,14 +759,18 @@ struct ActiveRouteView: View {
 
     /// The weather at the stops, where there's no GPS fix to fetch it for.
     /// With GPS it comes with the first fix (onChange of currentLocation).
+    /// Fetched once per screen, like the GPS weather: a failed fetch is
+    /// tried again at the next stop.
     private func fetchWeatherWithoutGPS() async {
-        let noGPS = OnMac.isMac || locationManager.authorizationStatus == .denied
-            || locationManager.authorizationStatus == .restricted
-        guard weather == nil, noGPS,
+        guard weather == nil,
+              RouteWeatherSpot.usesStops(isMac: OnMac.isMac, status: locationManager.authorizationStatus),
               let spot = RouteWeatherSpot.coordinate(
                 stops: store.sortedStops.map { (latitude: $0.latitude, longitude: $0.longitude) },
-                currentIndex: currentStopIndex) else { return }
-        weather = try? await WeatherService.shared.fetch(latitude: spot.latitude, longitude: spot.longitude)
+                currentIndex: currentStopIndex),
+              let fetched = try? await WeatherService.shared.fetch(latitude: spot.latitude, longitude: spot.longitude),
+              weather == nil else { return }
+        weather = fetched
+        weatherFromStops = true
     }
 
     private func openWeather() {

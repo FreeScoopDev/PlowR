@@ -29,6 +29,23 @@ struct RouteWeatherSpotTests {
         #expect(spot([(43.1, -72.1)], at: 5)?.latitude == 43.1)
     }
 
+    @Test func aPinOnTheEquatorOrPrimeMeridianCounts() {
+        #expect(spot([(0, -72.1)], at: 0)?.longitude == -72.1)
+        #expect(spot([(43.1, 0)], at: 0)?.latitude == 43.1)
+    }
+
+    @Test func stopsOnlyWithoutGPS() {
+        let statuses: [CLAuthorizationStatus] = [.notDetermined, .authorizedWhenInUse, .authorizedAlways, .denied, .restricted]
+        for status in statuses {
+            #expect(RouteWeatherSpot.usesStops(isMac: true, status: status), "Mac, \(status.rawValue)")
+        }
+        #expect(!RouteWeatherSpot.usesStops(isMac: false, status: .notDetermined))
+        #expect(!RouteWeatherSpot.usesStops(isMac: false, status: .authorizedWhenInUse))
+        #expect(!RouteWeatherSpot.usesStops(isMac: false, status: .authorizedAlways))
+        #expect(RouteWeatherSpot.usesStops(isMac: false, status: .denied))
+        #expect(RouteWeatherSpot.usesStops(isMac: false, status: .restricted))
+    }
+
     @Test func anImpossibleCoordinateIsSkipped() {
         #expect(spot([(200, -72.1), (43.2, -72.2)], at: 0)?.latitude == 43.2)
     }
