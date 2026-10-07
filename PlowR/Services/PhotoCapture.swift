@@ -31,6 +31,28 @@ struct CapturedPhoto: Identifiable {
 /// photo, the time in its file. A photo whose time isn't known keeps none:
 /// the Service Report doesn't guess.
 enum PhotoCapture {
+    /// `data` without the location a photo file can carry (its GPS block),
+    /// for a picked photo or logo kept as it came: the file's own format and
+    /// quality, untouched otherwise. A format ImageIO can't copy that way
+    /// (HEIC, say) is made a JPEG, which keeps no metadata at all. Nil if
+    /// `data` isn't an image.
+    nonisolated static func removingLocation(from data: Data) -> Data? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let type = CGImageSourceGetType(source) else { return nil }
+        let copy = NSMutableData()
+        // The file's metadata has to be handed back, or the copy keeps none
+        // (its time included); the GPS block is left out of it.
+        var options: [CFString: Any] = [kCGImageMetadataShouldExcludeGPS: true]
+        if let metadata = CGImageSourceCopyMetadataAtIndex(source, 0, nil) {
+            options[kCGImageDestinationMetadata] = metadata
+        }
+        if let destination = CGImageDestinationCreateWithData(copy, type, 1, nil),
+           CGImageDestinationCopyImageSource(destination, source, options as CFDictionary, nil) {
+            return copy as Data
+        }
+        return UIImage(data: data)?.jpegData(compressionQuality: 0.85)
+    }
+
     /// The time in a photo's EXIF properties ("{Exif}": DateTimeOriginal,
     /// and OffsetTimeOriginal when the camera wrote it), and whether it had
     /// its zone. Without one, read in `timeZone` (the phone's).
