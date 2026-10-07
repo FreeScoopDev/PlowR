@@ -72,6 +72,10 @@ struct PlowRApp: App {
     // status, which ICloudStatus asks CloudKit for.
     static private(set) var isCloudKitAvailable = true
 
+    /// iCloud sync was turned off on this device (DeviceSync), so the database
+    /// opened without it on purpose.
+    static private(set) var isSyncTurnedOff = false
+
     // True when the process is running under XCTest. Unit tests inject into the
     // host app, so XCTestConfigurationFilePath is set in the environment.
     //
@@ -105,8 +109,15 @@ struct PlowRApp: App {
 
     private static func makeContainer(schema: Schema) -> ModelContainer {
         var errors: [String] = []
-        // 1. Try CloudKit-backed store (skipped under test — see above)
+        // 0. Remove from This Device: the local database goes before it opens
+        //    (its files, never its records, which iCloud would copy), and with
+        //    sync off here it opens without iCloud, so nothing comes back.
         if !isRunningUnderTests {
+            DeviceSync.removeDatabaseIfAsked(storeAt: localConfiguration(for: schema).url)
+            isSyncTurnedOff = DeviceSync.isOff()
+        }
+        // 1. Try CloudKit-backed store (skipped under test — see above)
+        if !isRunningUnderTests, !isSyncTurnedOff {
             do {
                 let c = try ModelContainer(for: schema, configurations: [cloudConfiguration(for: schema)])
                 isCloudKitAvailable = true

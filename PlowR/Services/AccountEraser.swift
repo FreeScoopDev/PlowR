@@ -85,6 +85,47 @@ struct AccountEraser {
         // the save stays green), so it is kept for the documented behaviour,
         // and so a failed save is reported rather than left to autosave.
         attempt("saving the deletions") { try context.save() }
+        failures += eraseFromDevice()
+        // Before preferences: they say which calendar is PlowR's.
+        attempt(Self.calendarStep) { try eraseCalendar() }
+        if failures.isEmpty, let defaultsDomain {
+            defaults.removePersistentDomain(forName: defaultsDomain)
+        }
+        return failures
+    }
+
+    /// Remove from This Device: everything PlowR keeps on this device only,
+    /// and nothing in iCloud. No record is deleted through the database:
+    /// that's what tells iCloud to delete it everywhere. Instead iCloud sync
+    /// is turned off here and the database's files are removed at the next
+    /// launch, before it opens (DeviceSync). The "PlowR" calendar is left:
+    /// it's in the user's calendars, in iCloud for most, so removing it here
+    /// would remove it on their other devices too.
+    func removeFromThisDevice() -> [Failure] {
+        var failures: [Failure] = []
+        routeStore.eraseAll()
+        failures += eraseFromDevice()
+        if failures.isEmpty, let defaultsDomain {
+            defaults.removePersistentDomain(forName: defaultsDomain)
+        }
+        // After the preferences go: these are about the device, not the account.
+        DeviceSync.scheduleRemoval(defaults: defaults)
+        return failures
+    }
+
+    /// Erases, then signs out only if nothing failed (as `eraseAll(thenSignOut:)`).
+    func removeFromThisDevice(thenSignOut signOut: () -> Void) -> [Failure] {
+        let failures = removeFromThisDevice()
+        if failures.isEmpty { signOut() }
+        return failures
+    }
+
+    /// What's on this device only: files, notifications, geofences, the widget.
+    private func eraseFromDevice() -> [Failure] {
+        var failures: [Failure] = []
+        func attempt(_ step: String, _ body: () throws -> Void) {
+            do { try body() } catch { failures.append(Failure(step: step, reason: error.localizedDescription)) }
+        }
         attempt("work orders") { try removeIfPresent(workOrdersFile) }
         // Documents and exported spreadsheets (CSVExport) left from sharing.
         attempt("shared files") {
@@ -104,11 +145,6 @@ struct AccountEraser {
         notifications.removeAllDeliveredNotifications()
         for region in regions.monitoredRegions { regions.stopMonitoring(for: region) }
         clearWidget()
-        // Before preferences: they say which calendar is PlowR's.
-        attempt(Self.calendarStep) { try eraseCalendar() }
-        if failures.isEmpty, let defaultsDomain {
-            defaults.removePersistentDomain(forName: defaultsDomain)
-        }
         return failures
     }
 

@@ -16,6 +16,9 @@ struct SettingsView: View {
     @State private var sampleDataInserted = false
     @State private var schemaStatus: String?
     @State private var showingDeleteConfirmation = false
+    /// iCloud sync on this device (DeviceSync); takes effect at the next launch.
+    @AppStorage(DeviceSync.offKey) private var syncOffHere = false
+    @State private var syncChoiceAtLaunch = PlowRApp.isSyncTurnedOff
     /// What Delete Account & Data couldn't remove, shown under the button.
     @State private var deleteFailures: [AccountEraser.Failure] = []
     private let iCloud = ICloudStatus.shared
@@ -87,6 +90,16 @@ struct SettingsView: View {
                     }
                 }
                 .padding(.vertical, 4)
+
+                Toggle("Sync with iCloud on This Device", isOn: Binding(get: { !syncOffHere },
+                                                                       set: { syncOffHere = !$0 }))
+                if syncOffHere != syncChoiceAtLaunch {
+                    Text(syncOffHere
+                         ? "Sync stops the next time PlowR opens. What's on this device stays here."
+                         : "Sync starts the next time PlowR opens: close PlowR and open it again. Your iCloud data comes back to this device, and anything added here goes up.")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
 
                 Button {
                     if let url = URL(string: "mailto:support@getplowr.app?subject=PlowR%20Support") {
@@ -172,11 +185,14 @@ struct SettingsView: View {
             FindServiceFlow()
                 .environment(workOrderStore)
         }
-        .alert("Delete Account", isPresented: $showingDeleteConfirmation) {
+        .confirmationDialog("Delete Account & Data", isPresented: $showingDeleteConfirmation, titleVisibility: .visible) {
+            Button("Remove from This Device", role: .destructive, action: removeFromThisDevice)
             Button("Delete Everything", role: .destructive, action: deleteAccount)
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This permanently removes all clients, routes, proposals, and settings from this device. To also remove your iCloud data, go to Settings → [your name] → iCloud → Manage Account Storage → PlowR after signing out.")
+            Text(PlowRApp.isSyncTurnedOff
+                 ? "Remove from This Device removes PlowR's data from this device only. iCloud sync is off here, so Delete Everything also reaches only this device: to delete your iCloud data, turn sync on and reopen PlowR first, or delete from another device."
+                 : "Remove from This Device removes PlowR's data from this device only and turns iCloud sync off here; your iCloud and your other devices keep it. Delete Everything permanently removes all your PlowR data: clients, routes, jobs, documents, contracts, photos and settings, from this device and from your iCloud, so also from your other devices. Stay online with PlowR open for a minute afterwards so iCloud gets the deletion.")
         }
     }
 
@@ -195,6 +211,15 @@ struct SettingsView: View {
         } else {
             Text("Adds your visits from the last month and the next six months to a “PlowR” calendar, with a reminder an hour before, and keeps it up to date when visits are moved, skipped or deleted. The switch is for this device; in iCloud, the calendar shows on your other devices too.")
         }
+    }
+
+    /// Remove from This Device: nothing in iCloud is touched (AccountEraser,
+    /// DeviceSync). Finished at the next launch.
+    private func removeFromThisDevice() {
+        let eraser = AccountEraser(context: modelContext,
+                                   archiveFolders: AccountEraser.archiveFolders(for: modelContext.container),
+                                   routeStore: activeRoute)
+        deleteFailures = eraser.removeFromThisDevice(thenSignOut: authManager.signOut)
     }
 
     private func deleteAccount() {
