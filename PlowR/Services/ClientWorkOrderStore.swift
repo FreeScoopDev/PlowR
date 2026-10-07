@@ -15,8 +15,22 @@ struct ClientWorkOrder: Codable, Identifiable {
 @Observable
 final class ClientWorkOrderStore {
     private(set) var orders: [ClientWorkOrder] = []
+    private let fileURL: URL
+    private let defaults: UserDefaults
 
-    init() { load() }
+    /// The client's own contact details, kept in settings for the next
+    /// request (WorkOrderRequestView reads and writes them by these keys).
+    static let nameKey = "clientName"
+    static let phoneKey = "clientPhone"
+    static let emailKey = "clientEmail"
+    static let detailKeys = [nameKey, phoneKey, emailKey]
+    private static let legacyKey = "clientWorkOrders"
+
+    init(fileURL: URL = ClientWorkOrderStore.fileURL, defaults: UserDefaults = .standard) {
+        self.fileURL = fileURL
+        self.defaults = defaults
+        load()
+    }
 
     func add(_ order: ClientWorkOrder) {
         orders.insert(order, at: 0)
@@ -33,6 +47,20 @@ final class ClientWorkOrderStore {
         save()
     }
 
+    /// Delete My Data, for a client: every saved request and the contact
+    /// details kept for the next one. A business deletes everything,
+    /// these included, with Delete Account & Data (AccountEraser).
+    /// The contact details go first, so a file that can't be removed still
+    /// leaves none of them; the requests are cleared only once their file is
+    /// gone, so a failure doesn't look like a success.
+    func eraseAll() throws {
+        for key in Self.detailKeys + [Self.legacyKey] { defaults.removeObject(forKey: key) }
+        if FileManager.default.fileExists(atPath: fileURL.path) {
+            try FileManager.default.removeItem(at: fileURL)
+        }
+        orders = []
+    }
+
     // MARK: - Storage
 
     static var fileURL: URL {
@@ -43,13 +71,13 @@ final class ClientWorkOrderStore {
     }
 
     private func load() {
-        let url = Self.fileURL
+        let url = fileURL
 
         // One-time migration from UserDefaults (unencrypted) to protected file
         if !FileManager.default.fileExists(atPath: url.path),
-           let legacyData = UserDefaults.standard.data(forKey: "clientWorkOrders") {
+           let legacyData = defaults.data(forKey: Self.legacyKey) {
             try? legacyData.write(to: url, options: [.atomic, .completeFileProtection])
-            UserDefaults.standard.removeObject(forKey: "clientWorkOrders")
+            defaults.removeObject(forKey: Self.legacyKey)
         }
 
         guard let data = try? Data(contentsOf: url),
@@ -60,6 +88,6 @@ final class ClientWorkOrderStore {
 
     private func save() {
         guard let data = try? JSONEncoder().encode(orders) else { return }
-        try? data.write(to: Self.fileURL, options: [.atomic, .completeFileProtection])
+        try? data.write(to: fileURL, options: [.atomic, .completeFileProtection])
     }
 }

@@ -6,6 +6,8 @@ struct ClientHomeView: View {
     @State private var workOrderStore = ClientWorkOrderStore()
     @State private var resendingOrder: ClientWorkOrder?
     @State private var showingResendSheet = false
+    @State private var showingDeleteConfirm = false
+    @State private var deleteFailed = false
 
     var body: some View {
         NavigationStack {
@@ -54,11 +56,29 @@ struct ClientHomeView: View {
                         } label: {
                             Label("Switch to Operator Mode", systemImage: "arrow.left.arrow.right")
                         }
+                        Button(role: .destructive) {
+                            showingDeleteConfirm = true
+                        } label: {
+                            Label("Delete My Data", systemImage: "trash")
+                        }
                     } label: {
                         Image(systemName: "ellipsis.circle")
                     }
                 }
             }
+        }
+        .confirmationDialog("Delete your data?", isPresented: $showingDeleteConfirm, titleVisibility: .visible) {
+            Button("Delete My Data", role: .destructive) {
+                do { try workOrderStore.eraseAll() } catch { deleteFailed = true }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This removes your saved requests and the name, phone and email kept for your next request, from this device. Requests you've already sent stay with the businesses you sent them to.")
+        }
+        .alert("Couldn't Delete Everything", isPresented: $deleteFailed) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Your contact details were removed, but your saved requests couldn't be. Try again, or delete PlowR to remove them.")
         }
         .sheet(isPresented: $showingFindService) {
             FindServiceFlow()

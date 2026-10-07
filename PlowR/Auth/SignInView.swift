@@ -30,15 +30,16 @@ struct SignInView: View {
 
                 VStack(spacing: 12) {
                     SignInWithAppleButton(.signIn) { request in
-                        request.requestedScopes = [.fullName, .email]
+                        // The name greets the business in Settings. No email: PlowR has no
+                        // use for it, so it doesn't ask.
+                        request.requestedScopes = [.fullName]
                     } onCompletion: { result in
                         switch result {
                         case .success(let auth):
                             if let credential = auth.credential as? ASAuthorizationAppleIDCredential {
                                 authManager.signIn(
                                     userID: credential.user,
-                                    fullName: credential.fullName,
-                                    email: credential.email
+                                    fullName: credential.fullName
                                 )
                             }
                         case .failure:
@@ -55,7 +56,7 @@ struct SignInView: View {
 
                     #if DEBUG
                     Button("Skip Sign In (Dev Only)") {
-                        authManager.signIn(userID: "dev-user", fullName: nil, email: nil)
+                        authManager.signIn(userID: "dev-user", fullName: nil)
                     }
                     .font(.caption)
                     .foregroundStyle(.tertiary)
