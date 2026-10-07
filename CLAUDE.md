@@ -209,8 +209,8 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   the deletion is incomplete and review can fail on it.
 - **Delete Account & Data has two paths.** *Delete Everything*
   (`AccountEraser.eraseAll`) deletes every record through SwiftData, and the
-  deletes reach iCloud and the user's other devices (checked on a device,
-  2026-10-06). *Remove from This Device* (`removeFromThisDevice`) deletes no
+  deletes reach iCloud and the user's other devices (seen on a device,
+  2026-10-06; to be confirmed by a test with a control). *Remove from This Device* (`removeFromThisDevice`) deletes no
   record: it erases what's device-only, then `DeviceSync` turns sync off here
   and deletes the database's files at the next launch, before it opens.
   iCloud sync follows the device's iCloud account, not PlowR's sign-in, so a
