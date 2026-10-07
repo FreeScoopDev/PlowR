@@ -16,5 +16,5 @@
 //     latest build there.
 //   - Nothing bumps it automatically (the Archive-only agvtool script that
 //     did was removed in #2).
-MARKETING_VERSION = 1.4.0
+MARKETING_VERSION = 1.5.0
 CURRENT_PROJECT_VERSION = 1
