@@ -128,7 +128,9 @@ nonisolated enum ClientImport {
     /// it before those that only have its word, so Google's "Phone 1 - Value"
     /// isn't beaten by a column beside it. Among columns that name a field
     /// alike, the one with the most filled in wins (Outlook's empty Business
-    /// columns before the Home ones), then the first. A service address wins
+    /// Phone before Mobile Phone), then the first; but an address's parts
+    /// are always the first group's, so a street and a city never come from
+    /// two places. A service address wins
     /// over a billing one: it's where the work is. Beside City, State, ZIP or
     /// Apt columns, a bare "Address" column is the street.
     static func guess(_ header: [String], rows: [[String]] = []) -> [Field] {
@@ -163,6 +165,10 @@ nonisolated enum ClientImport {
             for (field, columns) in wanted where !claimed.contains(field) || field == .notes {
                 if field == .notes {
                     columns.forEach { fields[$0] = .notes }
+                } else if addressFields.contains(field) {
+                    // An address's parts come from one group of columns (all
+                    // Business, or all Home): the first, never mixed.
+                    if let first = columns.min() { fields[first] = field }
                 } else if let best = columns.max(by: { (filled[$0], -$0) < (filled[$1], -$1) }) {
                     fields[best] = field
                 }
@@ -195,7 +201,9 @@ nonisolated enum ClientImport {
         draft.email = value(.email)
         // The full address (or the street), with any Apt, City, State or ZIP
         // column it doesn't already hold after its street ("12 Claremont Rd"
-        // still needs Claremont).
+        // still needs Claremont). A full address without commas can't be
+        // checked, so its parts may be repeated: rare, as it needs both a
+        // full address and its parts mapped.
         let full = value(.address).split(whereSeparator: \.isNewline).joined(separator: ", ")
         let base = full.isEmpty ? value(.street) : full
         let held = " \(normalized(String(base.drop { $0 != "," }))) "
@@ -230,7 +238,7 @@ nonisolated enum ClientImport {
         // An extension ends the number: "x" or "ext" then digits, after a
         // whole number ("Fax 603…" and "Box 12, 603…" aren't extensions).
         var digits = lower.filter(\.isNumber)
-        if let ext = lower.range(of: #"(ext\.?|x)\s*\d{1,6}\s*$"#, options: .regularExpression) {
+        if let ext = lower.range(of: #"(ext(ension)?\.?|x)\s*\d{1,6}(\D.*)?$"#, options: .regularExpression) {
             let before = lower[..<ext.lowerBound].filter(\.isNumber)
             if before.count >= 7 { digits = before }
         }

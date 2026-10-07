@@ -278,6 +278,11 @@ struct ClientImportTests {
         let rows = [["Pat Doe", "", "", "603-555-0100"], ["Sam Roe", "", "603-555-0200", "603-555-0201"]]
         #expect(ClientImport.guess(header, rows: rows) == [.name, .ignore, .ignore, .phone])
         #expect(ClientImport.guess(header) == [.name, .phone, .ignore, .ignore])     // no rows: the first
+        // An address is never put together from two groups of columns.
+        let places = ["Name", "Business Street", "Business City", "Home Street", "Home City"]
+        let filled = [["A", "1 Biz St", "Worktown", "", ""], ["B", "2 Biz St", "", "2 Home St", "Hometown"],
+                      ["C", "3 Biz St", "", "3 Home St", "Hometown"], ["D", "", "", "4 Home St", "Hometown"]]
+        #expect(ClientImport.guess(places, rows: filled) == [.name, .street, .city, .ignore, .ignore])
     }
 
     @Test func wordsWithAnXArentAnExtension() {
@@ -285,6 +290,8 @@ struct ClientImportTests {
         #expect(ClientImport.phoneKey("Fax 603-555-0100") == "6035550100")
         #expect(ClientImport.phoneKey("Box 12, 603-555-0100") == "126035550100")
         #expect(ClientImport.phoneKey("603-555-0100 X 4") == "6035550100")
+        #expect(ClientImport.phoneKey("603-555-0100 extension 12") == "6035550100")
+        #expect(ClientImport.phoneKey("603-555-0100 x 12 (office)") == "6035550100")
     }
 
     // Renamed in the spreadsheet: the same phone at the same place is them.
