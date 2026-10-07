@@ -67,7 +67,7 @@ final class AuthManager {
         return state == .authorized
     }
 
-    func signIn(userID: String, fullName: PersonNameComponents?, email: String?) {
+    func signIn(userID: String, fullName: PersonNameComponents?) {
         generation += 1
         self.userID = userID
         self.isSignedIn = true
