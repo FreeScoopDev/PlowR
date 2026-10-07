@@ -120,7 +120,7 @@ final class ImportPins {
     }
 
     /// What imports left without a pin, of `operatorID`'s: clients carrying
-    /// an import's tag, and properties an import added. Those are known by
+    /// an import's tag (or a request's, LeadIntake), and properties an import added. Those are known by
     /// their whole-second creation time (ClientImport.save); one made by
     /// hand has a fraction of a second, but the rare one that doesn't is
     /// only given the pin it lacks. Clients first, oldest first.
@@ -134,7 +134,7 @@ final class ImportPins {
         func hasAddress(_ address: String) -> Bool { !address.trimmingCharacters(in: .whitespaces).isEmpty }
         let fromClients = clients
             .filter { client in hasAddress(client.address) && !skipped.contains(client.id) && client.addressNotFoundAt == nil
-                && client.tags.contains { ClientImport.isImportTag($0) } }
+                && client.tags.contains { ClientImport.isImportTag($0) || LeadIntake.isRequestTag($0) } }
             .map { Target.client($0.id) }
         let fromProperties = properties
             .filter { property in
