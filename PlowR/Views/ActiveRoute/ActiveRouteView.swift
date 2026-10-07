@@ -3,6 +3,7 @@ import SwiftData
 import MapKit
 import CoreLocation
 import StoreKit
+import MessageUI
 
 /// The in-progress route screen. It shows and drives `ActiveRouteStore`, which
 /// owns the route: this view can appear, disappear or be torn down with the app
@@ -101,8 +102,11 @@ struct ActiveRouteView: View {
         return allClients.first { $0.id == stop.clientID }
     }
 
+    /// No offer to text the next client: they'd rather not be texted, or this
+    /// device can't text (an iPad without Messages, a Mac). The button then
+    /// says Mark Stop Complete and moves on.
     private var shouldSkipNextNotify: Bool {
-        nextStopClient?.skipNotificationPrompt == true
+        nextStopClient?.skipNotificationPrompt == true || !MFMessageComposeViewController.canSendText()
     }
 
     var upcomingStops: [RouteStop] {
@@ -819,7 +823,8 @@ struct ActiveRouteView: View {
         store.isFirstStopPromptPending = false
         hapticSuccess()
         // Prompt to notify the first client before driving to them
-        if let firstStop = sortedStops.first,
+        if MFMessageComposeViewController.canSendText(),
+           let firstStop = sortedStops.first,
            !firstStop.clientPhone.isEmpty,
            !(allClients.first { $0.id == firstStop.clientID }?.skipNotificationPrompt ?? false) {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
@@ -859,7 +864,8 @@ struct ActiveRouteView: View {
     /// Skip completes nothing, even if iCloud brings the passed stop back.
     /// Returns whether it was offered.
     private func offerHeadsUp(after passedID: UUID) -> Bool {
-        guard let next = currentStop, !showingNotifyPrompt, store.isBehindCurrentStop(passedID),
+        guard MFMessageComposeViewController.canSendText(),
+              let next = currentStop, !showingNotifyPrompt, store.isBehindCurrentStop(passedID),
               client(for: next)?.skipNotificationPrompt != true else { return false }
         promptStopID = nil
         promptNextStop = next

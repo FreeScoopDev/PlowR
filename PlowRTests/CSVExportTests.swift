@@ -133,8 +133,10 @@ struct CSVExportTests {
         let sooner = ScheduledVisit(operatorID: "op", clientID: h.client.id.uuidString, clientName: "Sooner",
                                     clientAddress: "1 Main St", scheduledDate: Date(timeIntervalSince1970: 1_800_000_000))
         sooner.status = .completed
-        [later, sooner].forEach { h.context.insert($0) }
-        let lines = rows(CSVExport.schedule([later, sooner], operatorID: "op", catalog: [service]))
+        let theirs = ScheduledVisit(operatorID: "someone else", clientID: "", clientName: "Theirs", clientAddress: "",
+                                    scheduledDate: Date(timeIntervalSince1970: 1_850_000_000))
+        [later, sooner, theirs].forEach { h.context.insert($0) }
+        let lines = rows(CSVExport.schedule([later, sooner, theirs], operatorID: "op", catalog: [service]))
         #expect(lines.count == 3)
         #expect(lines[1].contains("Sooner") && lines[1].contains("Completed"))
         #expect(lines[2].contains("Later") && lines[2].contains("Mowing"))
