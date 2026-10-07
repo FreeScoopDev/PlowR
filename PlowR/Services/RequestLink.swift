@@ -138,7 +138,7 @@ nonisolated enum RequestLink {
     }
 
     /// `request` cut to size and cleaned; nil without a name and a phone.
-    private static func cleaned(_ request: Request) -> Request? {
+    static func cleaned(_ request: Request) -> Request? {
         let name = clean(request.name, limit: Limit.name), phone = clean(request.phone, limit: Limit.phone)
         guard hasLetterOrDigit(name), phoneDigits(phone) != nil else { return nil }
         return Request(name: name, phone: phone, email: validEmail(request.email),

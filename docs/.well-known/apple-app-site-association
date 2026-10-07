@@ -1,0 +1,13 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["7U83DJ2F97.Scoops.PlowR"],
+        "components": [
+          { "/": "/lead/", "comment": "Add to PlowR: a request from a business's request link" },
+          { "/": "/lead", "comment": "The same, without the slash" }
+        ]
+      }
+    ]
+  }
+}

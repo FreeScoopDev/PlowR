@@ -7,8 +7,10 @@ final class AuthManager {
     var isSignedIn = false
     var userID: String = ""
     var operatorName: String = ""
-    /// A check is waiting on Apple: the launch check and a return to the app can overlap.
-    @ObservationIgnored private var isChecking = false
+    /// A check is waiting on Apple: the launch check and a return to the app
+    /// can overlap. Observed: a link that opened the app waits for it
+    /// (IncomingLinks), since at launch Apple answers after the app is up.
+    private(set) var isChecking = false
     /// Bumped by every sign-in and sign-out, so a slow check that answers
     /// afterwards can't undo what the user just did.
     @ObservationIgnored private var generation = 0
