@@ -21,10 +21,11 @@ struct CSVReaderTests {
         #expect(t.rows == [["Doe, Pat", "1 Main St, Apt 2", "Gate code 1234\nDog: \"Rex\""]])
     }
 
-    @Test func spacesAroundFieldsAreTrimmedButNotInsideQuotes() throws {
+    // For an import, stray spaces are never wanted: trimmed, inside quotes too.
+    @Test func spacesAroundFieldsAreTrimmed() throws {
         let t = try table("Name , Phone\n  Pat Doe ,  \"  603 \"  \n")
         #expect(t.header == ["Name", "Phone"])
-        #expect(t.rows == [["Pat Doe", "  603 "]])
+        #expect(t.rows == [["Pat Doe", "603"]])
     }
 
     @Test func semicolonsAndTabsAreFound() throws {
@@ -74,5 +75,64 @@ struct CSVReaderTests {
         let t = try CSVReader.read(Data(exported.utf8))
         #expect(t.header == ["Name", "Notes"])
         #expect(t.rows == [["Doe, Pat", "=gate \"A\"\nback lot"]])
+    }
+
+    // MARK: - Edge cases, as real files have them
+
+    @Test func blankLinesBeforeTheHeaderDontHideItsSeparator() throws {
+        #expect(try table("\nName;Phone\nPat;603\n").rows == [["Pat", "603"]])
+        #expect(try table("  \r\nName\tPhone\nPat\t603\n").rows == [["Pat", "603"]])
+    }
+
+    @Test func excelsSeparatorHintLine() throws {
+        let t = try table("sep=;\r\nName;Notes\r\nPat;a, b\r\n")
+        #expect(t.header == ["Name", "Notes"])
+        #expect(t.rows == [["Pat", "a, b"]])
+        #expect(try table("sep=\t\nName\tPhone\nPat\t1\n").rows == [["Pat", "1"]])
+    }
+
+    @Test func textAfterAClosingQuoteKeepsItsSpaces() throws {
+        #expect(try table("Name,Co\nPat,\"Smith\" Lawn Co\n").rows == [["Pat", "Smith Lawn Co"]])
+        #expect(try table("Name,Co\nPat,\"Smith\"   ,x\n").rows == [["Pat", "Smith", "x"]])
+    }
+
+    @Test func aQuoteInsideAFieldIsJustACharacter() throws {
+        #expect(try table("Name,Height\nO\"Brien,5'6\"\n").rows == [["O\"Brien", "5'6\""]])
+    }
+
+    @Test func emptyQuotedAndTrailingColumns() throws {
+        #expect(try table("A,B,C\nx,\"\",z\n").rows == [["x", "", "z"]])
+        #expect(try table("A,B\nx,\n").rows == [["x", ""]])
+        #expect(try table("Name,Phone\n").rows.isEmpty)
+    }
+
+    @Test func everyFormulaGuardComesOff() throws {
+        let t = try table("Name,Phone,Handle\nPat,'+1 603 555 0100,'@pat\n")
+        #expect(t.rows == [["Pat", "+1 603 555 0100", "@pat"]])
+    }
+
+    // An older Mac encoding's accents may come out wrong, but a text file
+    // always reads, never "not text".
+    @Test func anyTextFileReads() throws {
+        let bytes = Data("Name\nFran".utf8) + Data([0x8D]) + Data("ois\n".utf8)
+        #expect(try CSVReader.read(bytes).rows.count == 1)
+        // An old .xls: binary, full of NULs.
+        #expect(throws: CSVReader.Problem.notText) { try CSVReader.read(Data([0xD0, 0xCF, 0x11, 0xE0, 0, 0, 0x41])) }
+    }
+
+    @Test func onlyCRAndLFEndALine() throws {
+        #expect(try table("Name,Notes\nPat,a\u{0B}b\u{2028}c\n").rows == [["Pat", "a\u{0B}b\u{2028}c"]])
+    }
+
+    @Test func anUnclosedQuoteIsReportedWithItsLine() throws {
+        let t = try table("Name,Notes\nPat,\"open note\nSam,2\nLee,3\n")
+        #expect(t.unclosedQuoteLine == 2)
+        #expect(t.rows.count == 1)
+        #expect(try table("Name,Notes\nPat,\"a\nb\"\nSam,2\n").unclosedQuoteLine == nil)
+    }
+
+    @Test func tiesGoCommaThenSemicolonThenTab() {
+        #expect(CSVReader.separator(of: "a;b\tc\n") == ";")
+        #expect(CSVReader.separator(of: "a,b;c\n") == ",")
     }
 }
