@@ -23,6 +23,7 @@ struct ICloudStatusTests {
         var status: CKAccountStatus = .available
         var fails = false
         var opened = true
+        var turnedOff = false
         var checks = 0
         /// Checks held until the test answers them, in order.
         var holds = false
@@ -40,6 +41,7 @@ struct ICloudStatusTests {
                              return status
                          },
                          databaseOpened: { [unowned self] in opened },
+                         syncTurnedOff: { [unowned self] in turnedOff },
                          defaults: defaults, notifications: notifications)
         }
 
@@ -116,6 +118,20 @@ struct ICloudStatusTests {
         await status.refresh()
         #expect(status.state == .localOnly)
         #expect(status.warning != nil)
+        #expect(s.checks == 0)
+    }
+
+    // Sync turned off on this device (Remove from This Device, or the switch)
+    // is said in Settings, not warned about on the Dashboard.
+    @Test func syncTurnedOffHereIsSaidNotWarnedAbout() async throws {
+        let s = try Setup()
+        s.opened = false
+        s.turnedOff = true
+        let status = s.make()
+        await status.refresh()
+        #expect(status.state == .turnedOff)
+        #expect(status.warning == nil && status.banner == nil)
+        #expect(status.summary.title == "iCloud Sync Is Off on This Device")
         #expect(s.checks == 0)
     }
 

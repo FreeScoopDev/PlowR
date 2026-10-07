@@ -27,6 +27,8 @@ final class ICloudStatus {
         case couldNotDetermine
         /// The iCloud database didn't open at launch.
         case localOnly
+        /// Sync was turned off on this device, by the user (DeviceSync).
+        case turnedOff
     }
 
     struct Warning: Equatable {
@@ -43,7 +45,8 @@ final class ICloudStatus {
         var message: String
     }
 
-    static let shared = ICloudStatus(check: accountStatus, databaseOpened: { PlowRApp.isCloudKitAvailable })
+    static let shared = ICloudStatus(check: accountStatus, databaseOpened: { PlowRApp.isCloudKitAvailable },
+                                     syncTurnedOff: { PlowRApp.isSyncTurnedOff })
     /// The warning the user closed on the Dashboard. It comes back when the
     /// problem does, after iCloud has worked in between.
     static let dismissedKey = "iCloudWarningDismissed"
@@ -61,6 +64,7 @@ final class ICloudStatus {
 
     @ObservationIgnored private let check: () async throws -> CKAccountStatus
     @ObservationIgnored private let databaseOpened: () -> Bool
+    @ObservationIgnored private let syncTurnedOff: () -> Bool
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let notifications: NotificationCenter
     @ObservationIgnored private var isWatching = false
@@ -70,9 +74,11 @@ final class ICloudStatus {
     @ObservationIgnored private var generation = 0
 
     init(check: @escaping () async throws -> CKAccountStatus, databaseOpened: @escaping () -> Bool,
+         syncTurnedOff: @escaping () -> Bool = { false },
          defaults: UserDefaults = .standard, notifications: NotificationCenter = .default) {
         self.check = check
         self.databaseOpened = databaseOpened
+        self.syncTurnedOff = syncTurnedOff
         self.defaults = defaults
         self.notifications = notifications
         dismissed = defaults.string(forKey: Self.dismissedKey).flatMap(State.init(rawValue:))
@@ -97,7 +103,8 @@ final class ICloudStatus {
         generation += 1
         let asked = generation
         guard databaseOpened() else {
-            state = .localOnly
+            // Off by choice isn't a problem to warn about, only to say.
+            state = syncTurnedOff() ? .turnedOff : .localOnly
             return
         }
         let answer: State
@@ -147,6 +154,9 @@ final class ICloudStatus {
                            message: "Your clients, routes, and documents sync automatically across your devices and are stored securely in your private iCloud account.")
         case .checking:
             return Summary(kind: .unknown, title: "iCloud", message: "Checking whether your data is backed up…")
+        case .turnedOff:
+            return Summary(kind: .unknown, title: "iCloud Sync Is Off on This Device",
+                           message: "You removed PlowR's data from this device. What you add here now stays on this device, and your iCloud data doesn't come here. Turn sync back on below to bring it back; what you've added here then goes to iCloud too.")
         default:
             return Summary(kind: .unknown, title: "iCloud",
                            message: "PlowR couldn't check iCloud just now. When iCloud is on, your clients, routes, and documents sync across your devices through your private iCloud account.")
@@ -155,7 +165,7 @@ final class ICloudStatus {
 
     nonisolated static func warning(for state: State) -> Warning? {
         switch state {
-        case .checking, .available, .couldNotDetermine:
+        case .checking, .available, .couldNotDetermine, .turnedOff:
             return nil
         case .noAccount:
             return Warning(title: "Not backed up to iCloud",
