@@ -134,7 +134,7 @@ struct BusinessProfileView: View {
         .onChange(of: logoItem) { _, newItem in
             Task {
                 if let original = try? await newItem?.loadTransferable(type: Data.self),
-                   let data = PhotoCapture.removingLocation(from: original) {
+                   let data = await Task.detached(operation: { PhotoCapture.removingLocation(from: original) }).value {
                     logoData = data
                     if let uiImage = UIImage(data: data) {
                         logoImage = Image(uiImage: uiImage)

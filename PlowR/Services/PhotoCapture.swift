@@ -31,26 +31,55 @@ struct CapturedPhoto: Identifiable {
 /// photo, the time in its file. A photo whose time isn't known keeps none:
 /// the Service Report doesn't guess.
 enum PhotoCapture {
-    /// `data` without the location a photo file can carry (its GPS block),
-    /// for a picked photo or logo kept as it came: the file's own format and
-    /// quality, untouched otherwise. A format ImageIO can't copy that way
-    /// (HEIC, say) is made a JPEG, which keeps no metadata at all. Nil if
-    /// `data` isn't an image.
+    /// `data` without the location a photo file can carry, for a picked
+    /// photo or logo: in its own format and quality where ImageIO can copy it
+    /// without the GPS block (its time and orientation kept), otherwise
+    /// re-encoded without it, and as a last resort as a JPEG, which keeps no
+    /// metadata at all. Every result is checked: ImageIO's copy reports
+    /// success for a PNG and keeps the location. Nil if `data` isn't an
+    /// image, or no way of saving it came out without a location.
     nonisolated static func removingLocation(from data: Data) -> Data? {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil),
               let type = CGImageSourceGetType(source) else { return nil }
-        let copy = NSMutableData()
-        // The file's metadata has to be handed back, or the copy keeps none
-        // (its time included); the GPS block is left out of it.
+        guard hasLocation(data) else { return data }
+        // 1. A copy, untouched but for the GPS block. The file's metadata has
+        //    to be handed back, or the copy keeps none (its time included).
         var options: [CFString: Any] = [kCGImageMetadataShouldExcludeGPS: true]
         if let metadata = CGImageSourceCopyMetadataAtIndex(source, 0, nil) {
             options[kCGImageDestinationMetadata] = metadata
         }
+        let copy = NSMutableData()
         if let destination = CGImageDestinationCreateWithData(copy, type, 1, nil),
-           CGImageDestinationCopyImageSource(destination, source, options as CFDictionary, nil) {
+           CGImageDestinationCopyImageSource(destination, source, options as CFDictionary, nil),
+           !hasLocation(copy as Data) {
             return copy as Data
         }
-        return UIImage(data: data)?.jpegData(compressionQuality: 0.85)
+        // 2. Encoded again in its own format, with the GPS block taken out.
+        let encoded = NSMutableData()
+        if let destination = CGImageDestinationCreateWithData(encoded, type, 1, nil) {
+            CGImageDestinationAddImageFromSource(destination, source, 0,
+                                                 [kCGImagePropertyGPSDictionary: kCFNull] as CFDictionary)
+            if CGImageDestinationFinalize(destination), !hasLocation(encoded as Data) { return encoded as Data }
+        }
+        // 3. A JPEG, with no metadata at all.
+        guard let jpeg = UIImage(data: data)?.jpegData(compressionQuality: 0.85), !hasLocation(jpeg) else { return nil }
+        return jpeg
+    }
+
+    /// Whether the image in `data` carries a location: a GPS block, or GPS
+    /// tags in its metadata.
+    nonisolated static func hasLocation(_ data: Data) -> Bool {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return false }
+        let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
+        if properties?[kCGImagePropertyGPSDictionary] != nil { return true }
+        guard let metadata = CGImageSourceCopyMetadataAtIndex(source, 0, nil) else { return false }
+        var found = false
+        CGImageMetadataEnumerateTagsUsingBlock(metadata, nil,
+                                               [kCGImageMetadataEnumerateRecursively: true] as CFDictionary) { path, _ in
+            if (path as String).range(of: "gps", options: .caseInsensitive) != nil { found = true }
+            return !found
+        }
+        return found
     }
 
     /// The time in a photo's EXIF properties ("{Exif}": DateTimeOriginal,

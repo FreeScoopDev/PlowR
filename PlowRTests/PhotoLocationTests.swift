@@ -42,11 +42,24 @@ struct PhotoLocationTests {
         #expect(PhotoCapture.captureTime(from: kept) != nil)
     }
 
-    @Test func aLogoKeepsItsFormat() throws {
-        let png = try image(type: .png, properties: [:])
+    private var gps: [CFString: Any] {
+        [kCGImagePropertyGPSDictionary: [kCGImagePropertyGPSLatitude: 43.6, kCGImagePropertyGPSLatitudeRef: "N",
+                                         kCGImagePropertyGPSLongitude: 79.4, kCGImagePropertyGPSLongitudeRef: "W"]]
+    }
+
+    // ImageIO's lossless copy reports success for a PNG and keeps the location.
+    @Test func aGeotaggedLogoLosesItsLocationAndKeepsItsFormat() throws {
+        let png = try image(type: .png, properties: gps)
+        #expect(PhotoCapture.hasLocation(png))
         let kept = try #require(PhotoCapture.removingLocation(from: png))
+        #expect(!PhotoCapture.hasLocation(kept))
         let source = try #require(CGImageSourceCreateWithData(kept as CFData, nil))
         #expect(CGImageSourceGetType(source) as String? == UTType.png.identifier)
+    }
+
+    @Test func anImageWithNoLocationIsKeptAsItIs() throws {
+        let png = try image(type: .png, properties: [:])
+        #expect(PhotoCapture.removingLocation(from: png) == png)
     }
 
     @Test func somethingThatIsntAnImageIsNotKept() {
