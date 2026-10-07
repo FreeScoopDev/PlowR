@@ -45,7 +45,7 @@ enum PropertyEditing {
             target = property
         } else {
             target = Property(label: "", address: "", operatorID: client.operatorID)
-            target.sortOrder = ((client.properties ?? []).map(\.sortOrder).max() ?? -1) + 1
+            target.sortOrder = Property.nextSortOrder(for: client)
             context.insert(target)
             target.client = client
         }

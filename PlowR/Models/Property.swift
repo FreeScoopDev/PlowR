@@ -29,4 +29,9 @@ final class Property {
         self.address = address
         self.operatorID = operatorID
     }
+
+    /// Where a new property of `client` goes: after their others.
+    static func nextSortOrder(for client: Client) -> Int {
+        ((client.properties ?? []).map(\.sortOrder).max() ?? -1) + 1
+    }
 }
