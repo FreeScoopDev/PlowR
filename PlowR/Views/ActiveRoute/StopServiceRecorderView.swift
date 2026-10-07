@@ -222,7 +222,7 @@ struct StopServiceRecorderView: View {
                 }
             }
             .sheet(isPresented: $showingCamera) {
-                CameraPickerView { image, metadata in
+                CameraPicker { image, metadata in
                     let photo = PhotoCapture.fromCamera(image, metadata: metadata)
                     if cameraIsBefore { beforeImages.append(photo) } else { afterImages.append(photo) }
                 }
@@ -287,7 +287,7 @@ struct StopServiceRecorderView: View {
 
             HStack(spacing: 12) {
                 // No camera (an iPad without one, a Mac): asking for it crashes.
-                if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                if CameraPicker.isAvailable {
                     Button {
                         cameraIsBefore = isBefore
                         showingCamera = true
@@ -391,39 +391,5 @@ struct StopServiceRecorderView: View {
         }
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         dismiss()
-    }
-}
-
-// MARK: - Camera Picker
-
-struct CameraPickerView: UIViewControllerRepresentable {
-    /// The photo, and the camera's metadata (its EXIF has the shutter time).
-    let onCapture: (UIImage, [String: Any]?) -> Void
-
-    func makeCoordinator() -> Coordinator { Coordinator(onCapture: onCapture) }
-
-    func makeUIViewController(context: Context) -> UIImagePickerController {
-        let picker = UIImagePickerController()
-        picker.sourceType = .camera
-        picker.delegate = context.coordinator
-        return picker
-    }
-
-    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
-
-    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
-        let onCapture: (UIImage, [String: Any]?) -> Void
-        init(onCapture: @escaping (UIImage, [String: Any]?) -> Void) { self.onCapture = onCapture }
-
-        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
-            if let image = info[.originalImage] as? UIImage {
-                onCapture(image, info[.mediaMetadata] as? [String: Any])
-            }
-            picker.dismiss(animated: true)
-        }
-
-        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
-            picker.dismiss(animated: true)
-        }
     }
 }

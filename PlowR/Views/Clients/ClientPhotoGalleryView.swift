@@ -60,7 +60,7 @@ struct ClientPhotoGalleryView: View {
             PhotoDetailView(photo: photo)
         }
         .sheet(isPresented: $showingCamera) {
-            CameraCapture { image, metadata in
+            CameraPicker { image, metadata in
                 if let data = image.jpegData(compressionQuality: 0.85) {
                     pendingImageData = data
                     pendingCapture = PhotoCapture.fromCamera(image, metadata: metadata)
@@ -95,7 +95,7 @@ struct ClientPhotoGalleryView: View {
 
     private var addPhotoMenu: some View {
         Menu {
-            if UIImagePickerController.isSourceTypeAvailable(.camera) {
+            if CameraPicker.isAvailable {
                 Button {
                     showingCamera = true
                 } label: {
@@ -175,7 +175,7 @@ struct ClientPhotoGalleryView: View {
             Text("Add photos from your library or camera, or take them during a route stop.")
         } actions: {
             HStack(spacing: 12) {
-                if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                if CameraPicker.isAvailable {
                     Button {
                         showingCamera = true
                     } label: {
@@ -209,40 +209,6 @@ struct ClientPhotoGalleryView: View {
         modelContext.insert(photo)
         pendingImageData = nil
         pendingCapture = nil
-    }
-}
-
-// MARK: - Camera Capture
-
-private struct CameraCapture: UIViewControllerRepresentable {
-    let onCapture: (UIImage, [String: Any]?) -> Void
-
-    func makeUIViewController(context: Context) -> UIImagePickerController {
-        let picker = UIImagePickerController()
-        picker.sourceType = .camera
-        picker.delegate = context.coordinator
-        return picker
-    }
-
-    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
-
-    func makeCoordinator() -> Coordinator { Coordinator(self) }
-
-    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
-        let parent: CameraCapture
-        init(_ parent: CameraCapture) { self.parent = parent }
-
-        func imagePickerController(_ picker: UIImagePickerController,
-                                   didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
-            if let image = info[.originalImage] as? UIImage {
-                parent.onCapture(image, info[.mediaMetadata] as? [String: Any])
-            }
-            picker.dismiss(animated: true)
-        }
-
-        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
-            picker.dismiss(animated: true)
-        }
     }
 }
 

@@ -64,6 +64,21 @@ jobs:
           [ "$found" -eq 0 ] && echo "Service-language guard passed."
           exit "$found"
 
+      # Opening the camera on a device without one (some iPads, a Mac running
+      # PlowR) throws, so the camera is opened only in CameraPicker, which
+      # checks first (#109 fixed two screens that didn't). This fails a camera
+      # opened, or checked for, anywhere else: use CameraPicker and
+      # CameraPicker.isAvailable.
+      - name: Camera guard
+        run: |
+          status=0
+          grep -rnE 'UIImagePickerController\(\)|sourceType *= *\.camera|isSourceTypeAvailable' PlowR PlowRWidgets --include='*.swift' --exclude=CameraPicker.swift || status=$?
+          case $status in
+            0) echo "::error::The camera is opened or checked outside CameraPicker. Use CameraPicker and CameraPicker.isAvailable."; exit 1 ;;
+            1) echo "Camera guard passed." ;;
+            *) echo "::error::The camera guard's grep failed, so nothing was checked."; exit 1 ;;
+          esac
+
   swiftlint:
     name: SwiftLint
     runs-on: ubuntu-latest

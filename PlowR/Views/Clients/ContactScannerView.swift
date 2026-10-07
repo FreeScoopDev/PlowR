@@ -56,7 +56,7 @@ struct ContactScannerView: View {
             }
         }
         .sheet(isPresented: $showingCamera, onDismiss: handleCameraDismiss) {
-            ContactCameraCapture { image in
+            CameraPicker { image, _ in
                 capturedImage = image
             }
         }
@@ -219,37 +219,6 @@ struct ContactScannerView: View {
                 modelContext.insert(client)
                 dismiss()
             }
-        }
-    }
-}
-
-// MARK: - Camera Capture (internal to this flow)
-
-private struct ContactCameraCapture: UIViewControllerRepresentable {
-    let onCapture: (UIImage) -> Void
-
-    func makeUIViewController(context: Context) -> UIImagePickerController {
-        let picker = UIImagePickerController()
-        picker.sourceType = .camera
-        picker.delegate = context.coordinator
-        return picker
-    }
-
-    func updateUIViewController(_ vc: UIImagePickerController, context: Context) {}
-    func makeCoordinator() -> Coordinator { Coordinator(self) }
-
-    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
-        let parent: ContactCameraCapture
-        init(_ parent: ContactCameraCapture) { self.parent = parent }
-
-        func imagePickerController(_ picker: UIImagePickerController,
-                                   didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
-            if let img = info[.originalImage] as? UIImage { parent.onCapture(img) }
-            picker.dismiss(animated: true)
-        }
-
-        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
-            picker.dismiss(animated: true)
         }
     }
 }

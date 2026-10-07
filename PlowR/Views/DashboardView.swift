@@ -596,7 +596,7 @@ struct DashboardView: View {
                     Button { showingAddClient = true } label: {
                         Label("Add Manually", systemImage: "person.badge.plus")
                     }
-                    if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                    if CameraPicker.isAvailable {
                         Button { showingContactScanner = true } label: {
                             Label("Scan with Camera", systemImage: "camera.viewfinder")
                         }
