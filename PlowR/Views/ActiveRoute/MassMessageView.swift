@@ -63,6 +63,14 @@ struct MassMessageView: View {
     var body: some View {
         NavigationStack {
             Form {
+                // Send stays off without Messages (an iPad without texting,
+                // a Mac): say why, rather than leave a button that never works.
+                if !MFMessageComposeViewController.canSendText() {
+                    Section {
+                        Label("Texting isn't available on this device.", systemImage: "message.badge")
+                            .foregroundStyle(.secondary)
+                    }
+                }
                 presetsSection
                 messageSection
                 tagFilterSection

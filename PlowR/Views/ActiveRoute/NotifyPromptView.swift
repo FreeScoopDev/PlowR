@@ -249,20 +249,23 @@ struct NotifyPromptView: View {
 
     private var actionButtons: some View {
         VStack(spacing: 10) {
-            Button {
-                if MFMessageComposeViewController.canSendText() {
+            // Without Messages (an iPad without texting, a Mac) it used to
+            // look as if it sent and send nothing: say so, and offer Skip.
+            if MFMessageComposeViewController.canSendText() {
+                Button {
                     sending = (fullMessage, loggedMessage)
                     showingMessageComposer = true
-                } else {
-                    onAdvance()
-                    dismiss()
+                } label: {
+                    Label("Send Message", systemImage: "message.fill")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
                 }
-            } label: {
-                Label("Send Message", systemImage: "message.fill")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
+                .primaryActionStyle(.blue)
+            } else {
+                Text("Texting isn't available on this device.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
-            .primaryActionStyle(.blue)
 
             Button {
                 onAdvance()
