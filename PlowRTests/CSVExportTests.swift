@@ -105,4 +105,40 @@ struct CSVExportTests {
         #expect(url.pathExtension == "csv")
         #expect(try String(contentsOf: url, encoding: .utf8) == "a,b\r\n")
     }
+
+    // Quotes not yet invoices: the Invoices file leaves them out.
+    @Test func proposalsAreTheQuotesNotTheInvoices() throws {
+        let h = try Harness(stopCount: 1)
+        let quote = Proposal(operatorID: "op", client: h.client)
+        let item = ProposalLineItem(serviceName: "Clear", zoneLabel: "", quantity: 1, unitType: "flat", unitPrice: 40)
+        h.context.insert(item)
+        quote.lineItems = [item]
+        let invoice = Proposal(operatorID: "op", client: h.client)
+        invoice.invoiceNumber = "INV-0007"
+        let theirs = Proposal(operatorID: "someone else", client: h.client)
+        [quote, invoice, theirs].forEach { h.context.insert($0) }
+        let lines = rows(CSVExport.proposals([quote, invoice, theirs], operatorID: "op"))
+        #expect(lines.count == 2)
+        #expect(lines[0].hasPrefix("Created,Client,Address,Services"))
+        #expect(lines[1].contains("Clear") && lines[1].contains("40.00"))
+    }
+
+    @Test func theScheduleIsEveryVisitByDate() throws {
+        let h = try Harness(stopCount: 1)
+        let service = ServiceItem(name: "Mowing", category: "lawn", unitType: "flat", pricePerUnit: 40, operatorID: "op")
+        h.context.insert(service)
+        let later = ScheduledVisit(operatorID: "op", clientID: h.client.id.uuidString, clientName: "Later",
+                                   clientAddress: "2 Elm St", scheduledDate: Date(timeIntervalSince1970: 1_900_000_000))
+        later.expectedServiceIDs = [service.id.uuidString]
+        let sooner = ScheduledVisit(operatorID: "op", clientID: h.client.id.uuidString, clientName: "Sooner",
+                                    clientAddress: "1 Main St", scheduledDate: Date(timeIntervalSince1970: 1_800_000_000))
+        sooner.status = .completed
+        let theirs = ScheduledVisit(operatorID: "someone else", clientID: "", clientName: "Theirs", clientAddress: "",
+                                    scheduledDate: Date(timeIntervalSince1970: 1_850_000_000))
+        [later, sooner, theirs].forEach { h.context.insert($0) }
+        let lines = rows(CSVExport.schedule([later, sooner, theirs], operatorID: "op", catalog: [service]))
+        #expect(lines.count == 3)
+        #expect(lines[1].contains("Sooner") && lines[1].contains("Completed"))
+        #expect(lines[2].contains("Later") && lines[2].contains("Mowing"))
+    }
 }

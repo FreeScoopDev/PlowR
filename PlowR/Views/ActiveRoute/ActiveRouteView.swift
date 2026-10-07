@@ -3,6 +3,7 @@ import SwiftData
 import MapKit
 import CoreLocation
 import StoreKit
+import MessageUI
 
 /// The in-progress route screen. It shows and drives `ActiveRouteStore`, which
 /// owns the route: this view can appear, disappear or be torn down with the app
@@ -101,8 +102,11 @@ struct ActiveRouteView: View {
         return allClients.first { $0.id == stop.clientID }
     }
 
+    /// No offer to text the next client: they'd rather not be texted, or this
+    /// device can't text (an iPad without Messages, a Mac). The button then
+    /// says Mark Stop Complete and moves on.
     private var shouldSkipNextNotify: Bool {
-        nextStopClient?.skipNotificationPrompt == true
+        nextStopClient?.skipNotificationPrompt == true || !MFMessageComposeViewController.canSendText()
     }
 
     var upcomingStops: [RouteStop] {
@@ -134,6 +138,7 @@ struct ActiveRouteView: View {
             Text(RouteSessionManager.shared.completeStopMessage ?? "")
         }
         .onChange(of: locationManager.authorizationStatus) { _, status in
+            guard !OnMac.isMac else { return }
             switch status {
             case .authorizedAlways, .authorizedWhenInUse:
                 locationManager.startTracking()
@@ -188,6 +193,16 @@ struct ActiveRouteView: View {
             ScrollView {
                 VStack(spacing: 0) {
                     progressHeader
+                    if OnMac.isMac {
+                        // No GPS route-following or texting on a Mac (OnMac).
+                        Label("On a Mac, GPS arrival times and texting aren't available. Run routes on your iPhone.",
+                              systemImage: "laptopcomputer")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal)
+                            .padding(.vertical, 8)
+                    }
                     routeMap
                     weatherStrip
                     VStack(spacing: 12) {
@@ -791,21 +806,25 @@ struct ActiveRouteView: View {
     /// Runs every time the screen appears, including after a relaunch restores
     /// the route; only a freshly started route offers to notify its first client.
     private func beginTracking() {
-        switch locationManager.authorizationStatus {
-        case .notDetermined:
-            locationManager.requestPermission()
-        case .authorizedAlways, .authorizedWhenInUse:
-            locationManager.startTracking()
-        case .denied, .restricted:
-            showingLocationDeniedAlert = true
-        @unknown default:
-            locationManager.requestPermission()
+        // A Mac isn't on the route (OnMac): no location asked for or followed.
+        if !OnMac.isMac {
+            switch locationManager.authorizationStatus {
+            case .notDetermined:
+                locationManager.requestPermission()
+            case .authorizedAlways, .authorizedWhenInUse:
+                locationManager.startTracking()
+            case .denied, .restricted:
+                showingLocationDeniedAlert = true
+            @unknown default:
+                locationManager.requestPermission()
+            }
         }
         guard store.isFirstStopPromptPending else { return }
         store.isFirstStopPromptPending = false
         hapticSuccess()
         // Prompt to notify the first client before driving to them
-        if let firstStop = sortedStops.first,
+        if MFMessageComposeViewController.canSendText(),
+           let firstStop = sortedStops.first,
            !firstStop.clientPhone.isEmpty,
            !(allClients.first { $0.id == firstStop.clientID }?.skipNotificationPrompt ?? false) {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
@@ -845,7 +864,8 @@ struct ActiveRouteView: View {
     /// Skip completes nothing, even if iCloud brings the passed stop back.
     /// Returns whether it was offered.
     private func offerHeadsUp(after passedID: UUID) -> Bool {
-        guard let next = currentStop, !showingNotifyPrompt, store.isBehindCurrentStop(passedID),
+        guard MFMessageComposeViewController.canSendText(),
+              let next = currentStop, !showingNotifyPrompt, store.isBehindCurrentStop(passedID),
               client(for: next)?.skipNotificationPrompt != true else { return false }
         promptStopID = nil
         promptNextStop = next

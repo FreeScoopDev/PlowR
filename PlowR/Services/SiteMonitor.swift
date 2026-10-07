@@ -139,6 +139,7 @@ final class SiteMonitor: NSObject, CLLocationManagerDelegate, SiteWatching {
 struct SystemSiteWatching: SiteWatching {
     func watch(_ areas: [SiteArea]) {
         guard !PlowRApp.isRunningUnderTests else { return }
-        SiteMonitor.shared.watch(areas)
+        // A Mac isn't on the route (OnMac): no job-site areas there.
+        SiteMonitor.shared.watch(OnMac.isMac ? [] : areas)
     }
 }
