@@ -6,7 +6,7 @@ import SwiftUI
 /// place for where a contract stands, what it says in a line, and making,
 /// signing, cancelling and deleting one.
 enum Contracts {
-    enum Pricing: String, CaseIterable, Identifiable {
+    nonisolated enum Pricing: String, CaseIterable, Identifiable {
         /// One amount for the whole period, up front or in installments.
         case season
         /// A set price for each visit, instead of the catalog's.
@@ -65,7 +65,7 @@ enum Contracts {
         }
     }
 
-    static func pricing(of contract: Contract) -> Pricing {
+    nonisolated static func pricing(of contract: Contract) -> Pricing {
         Pricing(rawValue: contract.pricingRaw) ?? .season
     }
 
@@ -114,7 +114,7 @@ enum Contracts {
     }
 
     /// The name a contract gets when none is typed: its months.
-    static func name(from start: Date, to end: Date) -> String {
+    nonisolated static func name(from start: Date, to end: Date) -> String {
         let format = Date.FormatStyle.dateTime.month(.abbreviated).year()
         return "\(start.formatted(format)) – \(end.formatted(format))"
     }
@@ -156,7 +156,7 @@ enum Contracts {
             serviceIDs = Set(client.expectedServiceIDs)
         }
 
-        init(_ contract: Contract) {
+        nonisolated init(_ contract: Contract) {
             isSigned = contract.signedAt != nil
             // A name made from its dates is made again from the dates saved.
             name = contract.name == Contracts.name(from: contract.startDate, to: contract.endDate) ? "" : contract.name

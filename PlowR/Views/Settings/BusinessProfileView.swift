@@ -4,7 +4,7 @@ import PhotosUI
 import UIKit
 
 extension Color {
-    init?(hex: String) {
+    nonisolated init?(hex: String) {
         let h = hex.trimmingCharacters(in: .alphanumerics.inverted)
         guard h.count == 6, let value = UInt32(h, radix: 16) else { return nil }
         self.init(
@@ -32,7 +32,7 @@ struct BusinessProfileView: View {
     /// that can't be read. It was system blue, so a new profile's first save
     /// wrote blue over the navy default.
     static func accent(for hex: String?) -> Color {
-        hex.flatMap(Color.init(hex:)) ?? PlowRColor.navy
+        hex.flatMap { Color(hex: $0) } ?? PlowRColor.navy
     }
 
     @Environment(\.modelContext) private var modelContext

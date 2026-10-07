@@ -2,7 +2,7 @@ import Foundation
 
 /// Coordinates rounded to two decimals (about 1 km) before they leave the
 /// phone: the Dashboard's weather and the Service Report's both send these.
-enum RoundedCoordinates {
+nonisolated enum RoundedCoordinates {
     static func round(_ value: Double) -> Double { (value * 100).rounded() / 100 }
 }
 
