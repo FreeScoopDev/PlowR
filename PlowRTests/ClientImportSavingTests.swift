@@ -40,9 +40,7 @@ struct ClientImportSavingTests {
     }
 
     private func undo(_ result: ClientImport.Result) throws -> ClientImport.UndoPlan {
-        let plan = ClientImport.undoPlan(for: result, in: context)
-        try ClientImport.undo(plan, in: context)
-        return plan
+        try ClientImport.undo(result, in: context)
     }
 
     private func known(_ client: Client) -> [ClientImport.Known] {
@@ -156,7 +154,8 @@ struct ClientImportSavingTests {
 
     // Anything done with an imported client since keeps them: each kind of
     // record that would go with them.
-    @Test(arguments: ["zone", "property", "text", "check", "visit", "contract"])
+    @Test(arguments: ["zone", "property", "text", "check", "visit", "contract", "document", "photo", "record",
+                      "visits"])
     func undoKeepsAClientWorkedWith(_ kind: String) throws {
         let result = try save(preview([["Sam Roe", "", "2 Elm St"]]))
         let sam = try #require(try clients().first)
@@ -177,6 +176,16 @@ struct ClientImportSavingTests {
         case "visit":
             context.insert(ScheduledVisit(operatorID: "op", clientID: id, clientName: "Sam Roe", clientAddress: "2 Elm St",
                                           scheduledDate: now.addingTimeInterval(-86_400)))
+        case "document":
+            context.insert(Proposal(operatorID: "op", client: sam))
+        case "photo":
+            context.insert(StopPhoto(operatorID: "op", clientID: id, routeID: "", isBefore: true, imageData: Data([1])))
+        case "record":
+            let record = ServiceRecord(operatorID: "op", sourceKey: "manual:1", source: .manual)
+            record.clientID = id
+            context.insert(record)
+        case "visits":
+            sam.totalVisits = 1
         default:
             let contract = Contract(name: "Season", startDate: now, endDate: now.addingTimeInterval(86_400 * 90),
                                     operatorID: "op")
@@ -236,5 +245,51 @@ struct ClientImportSavingTests {
         let known = ClientImport.known(in: context, operatorID: "op")
         #expect(known.map(\.address).sorted() == ["1 Main St", "9 Lake Rd"])
         #expect(Set(known.map(\.id)) == [pat.id.uuidString])
+    }
+
+    // An undo shown earlier, then a client put on a route by iCloud: the
+    // undo works it out afresh and keeps them.
+    @Test func undoChecksAgainWhenItRuns() throws {
+        let result = try save(preview([["Sam Roe", "", "2 Elm St"]]))
+        #expect(ClientImport.undoPlan(for: result, in: context).removable.count == 1)
+        let sam = try #require(try clients().first)
+        let route = PlowRoute(name: "Monday", operatorID: "op")
+        context.insert(route)
+        let stop = RouteStop(order: 0, client: sam)
+        context.insert(stop)
+        stop.route = route
+        try context.save()
+        #expect(try undo(result).kept == 1)
+        #expect(route.stops?.count == 1)
+    }
+
+    // A client the user kept (took the import's tag off) keeps the
+    // property the import gave them.
+    @Test func aKeptClientKeepsTheirImportedProperty() throws {
+        let result = try save(preview([["Pat Doe", "603-555-0100", "1 Main St"], ["Pat Doe", "603-555-0100", "9 Lake Rd"]],
+                                      properties: true))
+        let pat = try #require(try clients().first)
+        pat.tags = []
+        try context.save()
+        let plan = try undo(result)
+        #expect(plan.removable.isEmpty && plan.properties.isEmpty)
+        #expect(pat.properties?.count == 1)
+    }
+
+    // A save that fails partway takes back what was saved, so nothing is
+    // half imported and a retry adds no one twice.
+    @Test func aFailedSaveTakesTheImportBack() throws {
+        let rows = (0..<(ClientImport.batchSize + 5)).map { ["Client \($0)", "", "\($0) Main St"] }
+        var saves = 0
+        struct DiskFull: Error {}
+        #expect(throws: DiskFull.self) {
+            try ClientImport.save(preview(rows), as: .customers, operatorID: "op", in: context, now: now) { context in
+                saves += 1
+                if saves == 2 { throw DiskFull() }
+                try context.save()
+            }
+        }
+        #expect(try context.fetchCount(FetchDescriptor<Client>()) == 0)
+        #expect(!context.hasChanges)
     }
 }

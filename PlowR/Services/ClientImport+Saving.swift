@@ -54,9 +54,11 @@ extension ClientImport {
     /// Saves `preview`'s new clients and properties for `operatorID`. All
     /// or nothing: if a save fails, what was saved of it is taken back
     /// before the error is thrown, so a retry doesn't add anyone twice.
+    /// `saving` is the save, replaceable so tests can make it fail.
     @discardableResult
     static func save(_ preview: Preview, as kind: Kind, operatorID: String, in context: ModelContext,
-                     now: Date = .now, locale: Locale = .current, timeZone: TimeZone = .current) throws -> Result {
+                     now: Date = .now, locale: Locale = .current, timeZone: TimeZone = .current,
+                     saving: (ModelContext) throws -> Void = { try $0.save() }) throws -> Result {
         // Whole seconds: iCloud keeps dates to the millisecond, so a finer
         // one wouldn't match itself once synced.
         let date = Date(timeIntervalSinceReferenceDate: now.timeIntervalSinceReferenceDate.rounded(.down))
@@ -77,7 +79,7 @@ extension ClientImport {
                     context.insert(client)
                     added["row:\(index)"] = client
                     result.clients += 1
-                    if result.clients % batchSize == 0 { try context.save() }
+                    if result.clients % batchSize == 0 { try saving(context) }
                 case let .property(draft, _, ofID):
                     guard let owner = added[ofID] ?? existingClient(ofID, in: context) else {
                         result.propertiesSkipped += 1
@@ -94,7 +96,7 @@ extension ClientImport {
                     continue
                 }
             }
-            try context.save()
+            try saving(context)
         } catch {
             takeBack(result, in: context)
             throw error
@@ -103,6 +105,10 @@ extension ClientImport {
     }
 
     /// After a failed save: what wasn't saved dropped, and what was deleted.
+    /// The rollback drops every unsaved change in the context, not only the
+    /// import's; the import screen saves nothing else, and the app's screens
+    /// save as they go. If this save fails too (a full disk), what earlier
+    /// batches saved stays, tagged, for Undo or a later save to clear.
     private static func takeBack(_ result: Result, in context: ModelContext) {
         context.rollback()
         for client in clients(of: result, in: context) { context.delete(client) }
@@ -169,20 +175,27 @@ extension ClientImport {
     static func undoPlan(for result: Result, in context: ModelContext) -> UndoPlan {
         let tagged = clients(of: result, in: context)
         let removable = tagged.filter { isUntouched($0, since: result.date, in: context) }
+        // Properties of clients PlowR had before: not of one the import made
+        // (gone with it, or kept with it if its tag was taken off).
         let others = properties(of: result, in: context).filter { property in
             guard let owner = property.client else { return false }
-            return !tagged.contains(owner)
+            return !tagged.contains(owner) && !isAt(owner.createdAt, result.date)
         }
         let removableProperties = others.filter { isUntouched($0, in: context) }
         return UndoPlan(removable: removable, kept: tagged.count - removable.count, properties: removableProperties,
                         keptProperties: others.count - removableProperties.count)
     }
 
-    /// Carries out `plan`, in one save.
-    static func undo(_ plan: UndoPlan, in context: ModelContext) throws {
+    /// Undoes `result`, in one save, with the plan worked out afresh: one
+    /// shown earlier may be out of date (iCloud put a client on a route
+    /// meanwhile). Returns what it did.
+    @discardableResult
+    static func undo(_ result: Result, in context: ModelContext) throws -> UndoPlan {
+        let plan = undoPlan(for: result, in: context)
         for property in plan.properties { PropertyRemoval.remove(property, in: context, saving: false) }
         for client in plan.removable { ClientRemoval.delete(client, keepingRecords: false, in: context, saving: false) }
         try context.save()
+        return plan
     }
 
     /// Nothing in PlowR but what the import made: no route stop, visit,
