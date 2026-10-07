@@ -16,6 +16,12 @@ final class BusinessProfile {
     var colorPDFs: Bool = true
     var compactHeader: Bool = false   // smaller document title in PDF output
     var customVisitReasons: [String] = []  // operator-defined reasons shown in Add Visit
+    /// The Request Service link (RequestLinkSettings): the services its
+    /// form offers, once chosen (until then, the catalog's), and a welcome
+    /// line at the top.
+    var requestServices: [String] = []
+    var requestServicesChosen: Bool = false
+    var requestWelcome: String = ""
 
     init(operatorID: String) {
         self.operatorID = operatorID
