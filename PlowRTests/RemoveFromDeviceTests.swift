@@ -32,7 +32,7 @@ struct RemoveFromDeviceTests {
         #expect(account.eraser().removeFromThisDevice(thenSignOut: { signedOut = true }).isEmpty)
         #expect(signedOut)
         #expect(!account.exists(account.workOrders))
-        #expect(account.widgetCleared)
+        #expect(account.widgetCleared && account.importPinsStopped)
         #expect(account.regions.monitoredRegions.isEmpty)
         #expect(!account.routeStore.isActive)
         // The "PlowR" calendar is in the user's calendars, in iCloud for most:
