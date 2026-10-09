@@ -285,7 +285,7 @@ PlowR's specifics:
   `~/Desktop/Apps/PlowR`.
 - **Required checks** on `main` (`.claude/app.json` → `requiredChecks`, ruleset
   since 2026-09-27): `PlowR | CI Tests | Test - iOS`, `Service-language guard`,
-  `SwiftLint`. `~/.claude/toolkit/bin/repo-check.sh .` confirms GitHub still
+  `SwiftLint`, and `Critic verdict` (since 2026-10-09). `~/.claude/toolkit/bin/repo-check.sh .` confirms GitHub still
   matches.
 - **CI** is Xcode Cloud: `CI Tests` runs the `PlowR` scheme's tests on every PR
   to `main`. GitHub Actions runs only the Linux guards in
