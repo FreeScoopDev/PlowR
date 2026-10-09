@@ -18,6 +18,7 @@
     "Service-language guard",
     "SwiftLint"
   ],
+  "criticMinLines": 40,
   "reviewFocus": [
     "Service language is industry-agnostic: snow, lawn and landscaping share screens, so no hardcoded 'plow' or 'snow' copy on a generic action.",
     "Route state must survive the app being killed and must not end because a view disappeared.",

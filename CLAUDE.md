@@ -289,7 +289,8 @@ PlowR's specifics:
   matches.
 - **CI** is Xcode Cloud: `CI Tests` runs the `PlowR` scheme's tests on every PR
   to `main`. GitHub Actions runs only the Linux guards in
-  `.github/workflows/guards.yml`; nothing there builds the app. `docs/ci.md`
+  `.github/workflows/guards.yml` and the critic-verdict check in
+  `.github/workflows/critic-verdict.yml`; nothing there builds the app. `docs/ci.md`
   has the workflow settings and setup steps.
 - **GitHub Pages** deploys `docs/` to getplowr.app on every push to `main`;
   `docs/_config.yml` keeps `ci.md` off the site.
