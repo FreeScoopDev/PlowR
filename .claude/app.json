@@ -16,7 +16,8 @@
   "requiredChecks": [
     "PlowR | CI Tests | Test - iOS",
     "Service-language guard",
-    "SwiftLint"
+    "SwiftLint",
+    "Critic verdict"
   ],
   "criticMinLines": 40,
   "reviewFocus": [
