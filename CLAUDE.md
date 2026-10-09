@@ -20,7 +20,7 @@ and asks for the reasoning, not just the command.
 | --- | --- |
 | GitHub repo | `FreeScoopDev/PlowR` |
 | Joe's folder | `~/Desktop/Apps/PlowR` (read-only for Claude, see Process) |
-| Claude's worktree | `~/Desktop/Apps/PlowR-claude` |
+| Claude's worktrees | `~/Desktop/Apps/PlowR-claude/<branch>`, one per branch (shared PROCESS.md, step 1) |
 | App target / scheme | `PlowR` |
 | Widget + Live Activity + Control Center | `PlowRWidgets` (scheme `PlowRWidgetsExtension`) |
 | Unit tests | `PlowRTests` (Swift Testing, `@Test`, not XCTest) |
@@ -281,7 +281,10 @@ there, not here.
 
 PlowR's specifics:
 
-- **Worktrees**: Claude's is `~/Desktop/Apps/PlowR-claude`; Joe's folder is
+- **Worktrees**: one per branch, at `~/Desktop/Apps/PlowR-claude/<branch>`
+  with the slash as a dash (`PlowR-claude/fix-route-store`), removed after the
+  merge. Since 2026-10-09, so several sessions can work on PlowR at once; the
+  single `PlowR-claude` worktree was retired. Joe's folder is
   `~/Desktop/Apps/PlowR`.
 - **Required checks** on `main` (`.claude/app.json` → `requiredChecks`, ruleset
   since 2026-09-27): `PlowR | CI Tests | Test - iOS`, `Service-language guard`,
