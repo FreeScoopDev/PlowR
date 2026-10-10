@@ -125,10 +125,19 @@ struct ActiveRouteView: View {
         .onChange(of: store.currentStopID) { _, _ in
             if scenePhase == .active { store.markCurrentStopSeen() }
         }
-        // Back in the app with this screen up: whatever stop it shows is seen.
+        // Back in the app with this screen up: whatever stop it shows is seen,
+        // and GPS comes back. In the background it's off: arrivals and
+        // departures are the job-site areas', which iOS watches by itself.
         .onChange(of: scenePhase) { _, phase in
-            guard phase == .active else { return }
-            store.markCurrentStopSeen()
+            switch phase {
+            case .active:
+                store.markCurrentStopSeen()
+                if !OnMac.isMac, locationManager.isAuthorized { locationManager.startTracking() }
+            case .background:
+                locationManager.stopTracking()
+            default:
+                break
+            }
         }
         // Control Center's Complete Stop, when it couldn't complete the stop.
         // Held while something else is up: iOS won't present an alert over a

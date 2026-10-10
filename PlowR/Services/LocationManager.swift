@@ -4,15 +4,27 @@ import MapKit
 
 @Observable
 final class LocationManager: NSObject, CLLocationManagerDelegate {
-    private let manager = CLLocationManager()
+    private let manager: CLLocationManager
 
     var currentLocation: CLLocation?
     var authorizationStatus: CLAuthorizationStatus = .notDetermined
 
-    override init() {
+    /// The route screen's GPS: the map's dot, arrival estimates, weather and
+    /// the location a text can include. Only while the screen is on screen
+    /// with PlowR in front: arrivals and departures are job-site areas
+    /// (SiteMonitor), which iOS watches without it. It followed the phone
+    /// continuously in the background all route long, which cost crews
+    /// battery and wasn't needed (pre-launch review, 2026-10-10).
+    static let accuracy = kCLLocationAccuracyNearestTenMeters
+    /// Metres moved before a new fix: enough for the map, far less work.
+    static let distanceFilter: CLLocationDistance = 20
+
+    init(manager: CLLocationManager = CLLocationManager()) {
+        self.manager = manager
         super.init()
         manager.delegate = self
-        manager.desiredAccuracy = kCLLocationAccuracyBest
+        manager.desiredAccuracy = Self.accuracy
+        manager.distanceFilter = Self.distanceFilter
         authorizationStatus = manager.authorizationStatus
     }
 
@@ -21,8 +33,7 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
     }
 
     func startTracking() {
-        manager.allowsBackgroundLocationUpdates = true
-        manager.pausesLocationUpdatesAutomatically = false
+        manager.activityType = .automotiveNavigation
         manager.startUpdatingLocation()
     }
 

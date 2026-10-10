@@ -78,7 +78,7 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   `PlowR/Info.plist`. Both feed the built plist. Since the Xcode 27 upgrade the
   usage strings, `NSSupportsLiveActivities` and `ITSAppUsesNonExemptEncryption`
   are `INFOPLIST_KEY_*` build settings (Debug and Release, both), and the file
-  keeps only what has no build setting: `UIBackgroundModes`, URL schemes,
+  keeps only what has no build setting: URL schemes,
   `LSApplicationQueriesSchemes`, the icon name. Before saying a key is missing,
   check both — and preferably the built artifact.
 - **Tests must never touch real CloudKit.** A `ModelContainer` with a
