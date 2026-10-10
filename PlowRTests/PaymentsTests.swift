@@ -165,6 +165,7 @@ struct PaymentsTests {
         #expect(bill.invoicePaidAt == h.clock)
     }
 
+    // One marked paid before payments were kept, or on an older PlowR: paid in full.
     @Test func anInvoiceMarkedPaidWithoutPaymentsIsPaidInFull() throws {
         let h = try Harness(stopCount: 0)
         let bill = invoice(h, total: 100)

@@ -245,7 +245,7 @@ struct EditClientView: View {
                 revisePaidDoc = nil
             }
             Button("Void Invoice", role: .destructive) {
-                if let doc = revisePaidDoc { InvoiceRecords.void(doc, note: "Voided") }
+                if let doc = revisePaidDoc { InvoiceRecords.void(doc, note: "Voided", in: modelContext) }
                 revisePaidDoc = nil
             }
             Button("Cancel", role: .cancel) { revisePaidDoc = nil }
@@ -295,7 +295,11 @@ struct EditClientView: View {
                     .buttonStyle(.plain)
                     .menuIndicator(.hidden)
                     actionTile(title: "Invoice", icon: "doc.badge.arrow.up", color: .orange) {
-                        if let latest = clientDocuments.first(where: { $0.isInvoice && $0.invoicePaidAt == nil }) {
+                        // The newest invoice still being drafted; one that's out is a
+                        // record, so a new invoice is started instead (InvoiceRecords).
+                        if let latest = clientDocuments.first(where: {
+                            $0.isInvoice && $0.invoicePaidAt == nil && InvoiceRecords.canEditInPlace($0)
+                        }) {
                             editingProposal = latest
                         } else {
                             showingInvoiceBuilder = true
@@ -1043,6 +1047,14 @@ struct EditClientView: View {
                         .controlSize(.mini)
                         .tint(.orange)
                     } else if document.invoiceStatus == .draft {
+                        Button("Edit") {
+                            editingProposal = document
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.mini)
+                        .tint(.blue)
+                    } else if document.invoiceStatus == .paid, InvoiceRecords.canEditInPlace(document) {
+                        // A paid invoice's revision not yet sent: still edited.
                         Button("Edit") {
                             editingProposal = document
                         }

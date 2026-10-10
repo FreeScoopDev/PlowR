@@ -146,7 +146,7 @@ struct ProposalListView: View {
             titleVisibility: .visible
         ) {
             Button("Void Invoice", role: .destructive) {
-                if let p = proposalToVoid { InvoiceRecords.void(p, note: "Voided"); proposalToVoid = nil }
+                if let p = proposalToVoid { InvoiceRecords.void(p, note: "Voided", in: modelContext); proposalToVoid = nil }
             }
             Button("Cancel", role: .cancel) { proposalToVoid = nil }
         } message: {

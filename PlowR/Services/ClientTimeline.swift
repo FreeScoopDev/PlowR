@@ -67,7 +67,9 @@ enum ClientTimeline {
                                             .joined(separator: " · "),
                                         amount: payment.amount))
                 }
-                if let paid = document.invoicePaidAt {
+                // A voided invoice isn't "Paid": what came in shows as payments
+                // (moved to its revision, or kept on it), never twice.
+                if let paid = document.invoicePaidAt, document.voidedAt == nil {
                     events.append(Event(id: "paid-\(document.id)", date: paid,
                                         kind: .invoicePaid(documentID: document.id), title: "Paid \(number)",
                                         amount: document.sortedPayments.isEmpty ? document.total : nil))

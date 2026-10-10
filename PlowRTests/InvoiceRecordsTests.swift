@@ -88,7 +88,7 @@ struct InvoiceRecordsTests {
         let h = try Harness(stopCount: 0)
         let bill = invoice(h, total: 100)
         Payments.record(40, method: "", receivedAt: h.clock, on: bill, in: h.context, now: h.clock)
-        InvoiceRecords.void(bill, note: "Voided", now: h.clock)
+        InvoiceRecords.void(bill, note: "Voided", now: h.clock, in: h.context)
         #expect(bill.invoiceStatus == .void && bill.balanceDue == 0)
         #expect(bill.paymentsTotal == 40 && Payments.received([bill]) == 40)    // money that came in stays
         #expect(!InvoiceRecords.canVoid(bill) && !InvoiceRecords.canDelete(bill))
@@ -100,7 +100,7 @@ struct InvoiceRecordsTests {
         let h = try Harness(stopCount: 0)
         let newest = invoice(h, total: 100, number: "INV-0003")
         _ = invoice(h, total: 100, number: "INV-0002")
-        InvoiceRecords.void(newest, note: "Voided", now: h.clock)
+        InvoiceRecords.void(newest, note: "Voided", now: h.clock, in: h.context)
         #expect(InvoiceNumbering.next(operatorID: "op", in: h.context) == "INV-0004")
     }
 
@@ -113,17 +113,88 @@ struct InvoiceRecordsTests {
         #expect(second.invoiceNumber == "INV-0044")
     }
 
-    @Test func twoSentInvoicesWithOneNumberAreNotedNeverRenumbered() throws {
+    @Test func twoSentInvoicesWithOneNumberAreNeverRenumberedButSaidSo() throws {
         let h = try Harness(stopCount: 0)
         let first = invoice(h, total: 100, number: "INV-0043", created: h.clock.addingTimeInterval(-60))
         let second = invoice(h, total: 80, number: "INV-0043", created: h.clock)
         InvoiceRecords.resolveDuplicateNumbers(in: h.context)
         #expect(first.invoiceNumber == "INV-0043" && second.invoiceNumber == "INV-0043")
-        #expect(second.notes.contains(InvoiceRecords.duplicateNote("INV-0043")))
-        #expect(first.notes.isEmpty)
-        // Run again: noted once.
+        #expect(second.notes.isEmpty)                                            // nothing on the client's PDF
+        let all = try h.context.fetch(FetchDescriptor<Proposal>())
+        #expect(InvoiceRecords.hasDuplicateNumber(second, among: all))
+    }
+
+    // An earlier draft and a later sent one: the sent one keeps the number.
+    @Test func theSentInvoiceKeepsTheNumberOverAnEarlierDraft() throws {
+        let h = try Harness(stopCount: 0)
+        let draft = invoice(h, total: 100, number: "INV-0043", sent: false, created: h.clock.addingTimeInterval(-60))
+        let sent = invoice(h, total: 80, number: "INV-0043", created: h.clock)
         InvoiceRecords.resolveDuplicateNumbers(in: h.context)
-        #expect(second.notes.components(separatedBy: InvoiceRecords.duplicateNote("INV-0043")).count == 2)
+        #expect(sent.invoiceNumber == "INV-0043")
+        #expect(draft.invoiceNumber == "INV-0044")
+    }
+
+    @Test func aDuplicateRevisionDraftStaysARevision() throws {
+        let h = try Harness(stopCount: 0)
+        _ = invoice(h, total: 100, number: "INV-0042")
+        let a = invoice(h, total: 100, number: "INV-0042-R1", created: h.clock.addingTimeInterval(-60))
+        a.revisionOf = "INV-0042"
+        let b = invoice(h, total: 90, number: "INV-0042-R1", sent: false, created: h.clock)
+        b.revisionOf = "INV-0042"
+        InvoiceRecords.resolveDuplicateNumbers(in: h.context)
+        #expect(a.invoiceNumber == "INV-0042-R1" && b.invoiceNumber == "INV-0042-R2")
+    }
+
+    // MARK: Revisions taken back, voids that give work back
+
+    @Test func deletingAnUnsentRevisionPutsTheOriginalBack() throws {
+        let h = try Harness(stopCount: 0)
+        let original = invoice(h, total: 300, number: "INV-0042")
+        let revision = ServiceLog.revise(original, client: h.client, now: h.clock, in: h.context)
+        #expect(original.invoiceStatus == .void)
+        #expect(InvoiceRecords.canDelete(revision))
+        ServiceLog.delete(revision, in: h.context)
+        #expect(original.voidedAt == nil && original.invoiceStatus == .sent)
+        #expect(Payments.owed([original]) == 300)
+    }
+
+    @Test func aPaidRevisionNotYetSentCanBeEditedAndOwesTheDifference() throws {
+        let h = try Harness(stopCount: 0)
+        let original = invoice(h, total: 100)
+        Payments.record(100, method: "", receivedAt: h.clock, on: original, in: h.context, now: h.clock)
+        let revision = ServiceLog.revise(original, client: h.client, now: h.clock, in: h.context)
+        #expect(InvoiceRecords.canEditInPlace(revision))
+        #expect(!InvoiceRecords.canEditInPlace(original))                        // void
+        let more = ProposalLineItem(serviceName: "Salt", zoneLabel: "", quantity: 1, unitType: "flat", unitPrice: 40)
+        h.context.insert(more)
+        revision.lineItems = (revision.lineItems ?? []) + [more]
+        Payments.settle(revision, in: h.context)
+        #expect(revision.balanceDue == 40)
+    }
+
+    @Test func voidingOneMarkedPaidKeepsWhatCameIn() throws {
+        let h = try Harness(stopCount: 0)
+        let bill = invoice(h, total: 250)
+        bill.invoicePaidAt = h.clock                                              // no Payment recorded
+        InvoiceRecords.void(bill, note: "Voided", now: h.clock, in: h.context)
+        #expect(Payments.received([bill]) == 250)
+        #expect(bill.paymentsTotal == 250)
+    }
+
+    @Test func aPlainVoidGivesTheWorkAndContractPaymentBack() throws {
+        let h = try Harness(stopCount: 0)
+        let bill = invoice(h, total: 100)
+        let record = ServiceRecord(operatorID: "op", sourceKey: "stop:x", source: .route)
+        record.invoiceID = bill.id.uuidString
+        h.context.insert(record)
+        let contract = Contract(name: "Winter", startDate: h.clock, endDate: h.clock.addingTimeInterval(86_400 * 120), operatorID: "op")
+        h.context.insert(contract)
+        contract.installmentsMade = [2]
+        bill.contractID = contract.id.uuidString
+        bill.installmentIndex = 2
+        InvoiceRecords.void(bill, note: "Voided", now: h.clock, in: h.context)
+        #expect(record.invoiceID.isEmpty)
+        #expect(contract.installmentsMade.isEmpty)
     }
 
     // MARK: The PDF
@@ -145,7 +216,7 @@ struct InvoiceRecordsTests {
     @Test func aVoidedInvoicesPDFSaysVoid() throws {
         let h = try Harness(stopCount: 0)
         let bill = invoice(h, total: 100)
-        InvoiceRecords.void(bill, note: "Revised as INV-0001-R1", now: h.clock)
+        InvoiceRecords.void(bill, note: "Revised as INV-0001-R1", now: h.clock, in: h.context)
         let text = try pdfText(bill)
         #expect(text.contains("VOID") && text.contains("Revised as INV-0001-R1") && !text.contains("TOTAL DUE"))
     }

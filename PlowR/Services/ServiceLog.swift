@@ -423,8 +423,10 @@ enum ServiceLog {
         context.insert(revision)
         moveBilling(from: original, to: revision, in: context)
         movePayments(from: original, to: revision, in: context)
-        // The revision replaces it: kept as a record, owing nothing.
-        InvoiceRecords.void(original, note: "Revised as \(revision.invoiceNumber)", now: now)
+        // The revision replaces it: kept as a record, owing nothing. Its work
+        // went to the revision above, so there's none to give back.
+        InvoiceRecords.void(original, note: InvoiceRecords.revisedNote(revision.invoiceNumber), now: now,
+                            in: context, releasesWork: false)
         return revision
     }
 
@@ -435,15 +437,7 @@ enum ServiceLog {
     /// day it was marked paid.
     static func movePayments(from original: Proposal, to revision: Proposal, in context: ModelContext) {
         let payments = (original.payments ?? []).filter { !$0.isDeleted }
-        let recorded = InvoiceLines.roundedToCent(payments.reduce(0) { $0 + $1.amount })
-        if let paidAt = original.invoicePaidAt, original.total - recorded > Payments.tolerance {
-            let implied = Payment(amount: InvoiceLines.roundedToCent(original.total - recorded),
-                                  method: "", receivedAt: paidAt, operatorID: original.operatorID)
-            implied.clientID = original.clientID
-            implied.note = "Marked paid on \(original.invoiceNumber)"
-            context.insert(implied)
-            implied.invoice = revision
-        }
+        InvoiceRecords.recordImpliedPayment(of: original, onto: revision, in: context)
         for payment in payments { payment.invoice = revision }
         Payments.settle(revision, in: context)
     }
@@ -477,7 +471,16 @@ enum ServiceLog {
         let replacement = original?.id.uuidString ?? ""
         for record in billed(on: document, in: context) { record.invoiceID = replacement }
         for visit in linkedVisits(to: document, in: context) { visit.proposalID = replacement }
+        // A revision taken back before it went out: its original is owed again.
+        InvoiceRecords.restoreOriginal(of: document, in: context)
         context.delete(document)
+    }
+
+    /// A voided invoice's work back to billable: the jobs billed on it and
+    /// the visit it was made for (InvoiceRecords.void).
+    static func releaseBilling(of invoice: Proposal, in context: ModelContext) {
+        for record in billed(on: invoice, in: context) { record.invoiceID = "" }
+        for visit in linkedVisits(to: invoice, in: context) { visit.proposalID = "" }
     }
 
     private static func billed(on document: Proposal, in context: ModelContext) -> [ServiceRecord] {

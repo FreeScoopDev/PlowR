@@ -61,7 +61,7 @@ enum DocumentSent {
     /// but a paid invoice, a receipt, with nothing owed or awaited. The share
     /// sheet shows its Mark as Sent switch only then.
     nonisolated static func shareCanMark(_ status: InvoiceStatus) -> Bool {
-        status != .paid
+        status != .paid && status != .void
     }
 
     /// What the share sheet says its Mark as Sent switch does, for a document
