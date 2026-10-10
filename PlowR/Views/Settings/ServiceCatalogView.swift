@@ -203,7 +203,8 @@ struct ServiceItemEditView: View {
     }
 
     private func save() {
-        let priceValue = Double(price) ?? 0
+        // A decimal comma ("0,02") was read as 0, and saved over the rate.
+        let priceValue = DecimalText.number(price) ?? 0
         if let item {
             item.name      = name
             item.unitType  = unitType
