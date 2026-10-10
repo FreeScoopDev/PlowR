@@ -34,6 +34,15 @@ enum WorkBilling {
         /// contract, its price; services a contract covers, nothing.
         var charges: [UUID: [ServiceRecord.Line]] = [:]
         var id: UUID { client.id }
+        /// Jobs with a service priced by the square foot at $0: done at a
+        /// place with no measured area, recorded from a route or the
+        /// Schedule without a price (InvoiceLines.needsPrice). Pointed out,
+        /// so a $0 line doesn't go on an invoice unseen.
+        var jobsNeedingAPrice: Int {
+            records.filter { record in
+                (charges[record.id] ?? record.lines).contains { $0.unitType == "perSqFt" && $0.price <= 0 }
+            }.count
+        }
         var total: Double {
             InvoiceLines.roundedToCent(records.reduce(0) { sum, record in
                 sum + (charges[record.id] ?? record.lines).reduce(0) { $0 + $1.price }

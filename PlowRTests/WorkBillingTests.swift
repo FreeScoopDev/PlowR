@@ -264,4 +264,25 @@ struct WorkBillingTests {
                                              in: h.context)
         #expect(works.map(\.client.id) == [h.clients[1].id])
     }
+
+    // A service priced by the square foot recorded at $0 (no measured area,
+    // done from a route or the Schedule) is pointed out, not billed unseen.
+    @Test func aJobWithAnUnpricedServiceIsPointedOut() throws {
+        let h = try Harness(stopCount: 1)
+        let pat = h.clients[0]
+        let record = job(h, pat, at: h.clock, [("Edge", 45)])
+        record.lines.append(ServiceRecord.Line(serviceID: "mow", name: "Mowing", unitType: "perSqFt", price: 0))
+        _ = job(h, pat, at: h.clock.addingTimeInterval(-86_400), [("Edge", 45)])
+        let work = try #require(WorkBilling.unbilledWork(in: nil, operatorID: "op", in: h.context).first)
+        #expect(work.jobsNeedingAPrice == 1 && work.total == 90)
+        // Priced, it isn't.
+        record.lines = record.lines.map { line in
+            var line = line
+            if line.unitType == "perSqFt" { line.price = 60 }
+            return line
+        }
+        let priced = try #require(WorkBilling.unbilledWork(in: nil, operatorID: "op", in: h.context).first)
+        #expect(priced.jobsNeedingAPrice == 0 && priced.total == 150)
+    }
 }
+

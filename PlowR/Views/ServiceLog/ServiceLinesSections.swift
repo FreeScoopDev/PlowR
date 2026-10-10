@@ -84,6 +84,13 @@ struct ServiceLinesSections: View {
         .disabled(locked)
     }
 
+    /// No measured area to price it by, and no price entered yet; not on a
+    /// locked record, whose price is changed on its invoice.
+    private func showsPriceNote(for service: StopRecording.Service) -> Bool {
+        !locked && InvoiceLines.needsPrice(unitType: service.unitType, zones: zones)
+            && InvoiceLines.price(typed: typedPrices[service.id], default: 0) <= 0
+    }
+
     // For per-sqft services, the meaningful price is rate × total area.
     // People see and override the dollar total, not the per-sqft unit rate.
     private func defaultPrice(for service: StopRecording.Service) -> Double {
@@ -128,7 +135,14 @@ struct ServiceLinesSections: View {
                     }
                 }
                 .padding(.leading, 48)
-                .padding(.bottom, 6)
+                .padding(.bottom, showsPriceNote(for: service) ? 0 : 6)
+                if showsPriceNote(for: service) {
+                    Text("Priced by the square foot, and there's no measured area: enter the price.")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                        .padding(.leading, 48)
+                        .padding(.bottom, 6)
+                }
             }
         }
     }

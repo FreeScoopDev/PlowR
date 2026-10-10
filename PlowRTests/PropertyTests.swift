@@ -124,7 +124,8 @@ struct PropertyTests {
 
     // A stop at a property: its job is at that property, and it isn't priced
     // by the main house's measurements (zones are the main one's for now), so
-    // a per-square-foot service is priced as for any unmeasured client.
+    // a per-square-foot service is priced as for any unmeasured client: at
+    // nothing, for the user to enter (InvoiceLines.needsPrice), not the rate.
     @Test func aJobAtAPropertyIsRecordedThere() throws {
         let h = try Harness(stopCount: 0)
         let zone = PropertyZone(label: "Drive")
@@ -145,7 +146,7 @@ struct PropertyTests {
         let record = try #require(try h.context.fetch(FetchDescriptor<ServiceRecord>()).first)
         #expect(record.propertyID == rental.id.uuidString)
         #expect(record.propertyAddress == "9 Elm St")
-        #expect(record.lines.map(\.price) == [0.05])
+        #expect(record.lines.map(\.price) == [0])
         #expect(ServiceLog.lines(for: [salt.id.uuidString], client: h.client, in: h.context).map(\.price) == [50])
     }
 

@@ -147,7 +147,7 @@ struct ProposalBuilderView: View {
                 HStack {
                     Image(systemName: "exclamationmark.triangle")
                         .foregroundStyle(.orange)
-                    Text("No property zones mapped — pricing will use flat rates only.")
+                    Text("No measured area: services priced by the square foot need a price entered.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -195,6 +195,14 @@ struct ProposalBuilderView: View {
                                 }
                                 if selections.contains(key) {
                                     itemEditFields(key: key, defaultAmount: defaultAmt)
+                                    // A zone drawn but not measured: nothing to price it by.
+                                    if zone.areaSquareFeet <= 0, InvoiceLines.price(typed: amounts[key], default: 0) <= 0 {
+                                        Text("This zone has no measured area: enter the price.")
+                                            .font(.caption)
+                                            .foregroundStyle(.orange)
+                                            .padding(.leading, 8)
+                                            .padding(.top, 4)
+                                    }
                                 }
                             }
                         }
@@ -220,6 +228,15 @@ struct ProposalBuilderView: View {
                         }
                         if selections.contains(key) {
                             itemEditFields(key: key, defaultAmount: defaultAmt)
+                            // No measured zones to price it by.
+                            if InvoiceLines.needsPrice(unitType: service.unitType, zones: []),
+                               InvoiceLines.price(typed: amounts[key], default: 0) <= 0 {
+                                Text("Priced by the square foot, and there's no measured area: enter the price.")
+                                    .font(.caption)
+                                    .foregroundStyle(.orange)
+                                    .padding(.leading, 8)
+                                    .padding(.top, 4)
+                            }
                         }
                     }
                 }

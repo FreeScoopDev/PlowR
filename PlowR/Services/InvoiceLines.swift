@@ -52,11 +52,21 @@ nonisolated enum InvoiceLines {
     /// mapped area for a per-square-foot service, otherwise the service's own
     /// price, times `multiplier` (an after-hours visit's). This is what Record
     /// Services shows in the price field, and what the Service Log records.
+    /// A per-square-foot service at a place with no measured area has no
+    /// price to start from: 0, for the user to enter (`needsPrice`). It
+    /// started at the rate itself, so a $0.08 a square foot service was
+    /// priced at 8 cents for the whole property (pre-launch review,
+    /// 2026-10-10).
     static func propertyPrice(unitType: String, pricePerUnit: Double, zones: [Zone],
                               multiplier: Double = 1) -> Double {
-        let area = totalArea(zones)
-        let base = unitType == "perSqFt" && area > 0 ? pricePerUnit * area : pricePerUnit
-        return roundedToCent(base * multiplier)
+        guard unitType == "perSqFt" else { return roundedToCent(pricePerUnit * multiplier) }
+        return roundedToCent(pricePerUnit * totalArea(zones) * multiplier)
+    }
+
+    /// A per-square-foot service with no measured area: its price has to be
+    /// entered (the screens say so).
+    static func needsPrice(unitType: String, zones: [Zone]) -> Bool {
+        unitType == "perSqFt" && totalArea(zones) <= 0
     }
 
     /// The price field's text as money, or `defaultPrice` when the field is
