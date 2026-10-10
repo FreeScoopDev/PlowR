@@ -96,5 +96,10 @@ struct DefaultTaxRateTests {
         #expect(Proposal.taxRate(typed: " 6.5 ") == 6.5)
         #expect(Proposal.taxRate(typed: "1,2,3") == 0)
         #expect(Proposal.taxRate(typed: "150") == 0)
+        // Business Profile won't save what it can't read; empty is no tax.
+        #expect(Proposal.readTaxRate("") == 0 && Proposal.readTaxRate("6,625") == 6.625)
+        for unreadable in ["150", "6..5", "7.5.1", "abc", "-1"] {
+            #expect(Proposal.readTaxRate(unreadable) == nil, "\(unreadable)")
+        }
     }
 }

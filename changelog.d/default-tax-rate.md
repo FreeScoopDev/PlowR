@@ -10,3 +10,6 @@
 ### Fixed
 - A tax rate typed with a decimal comma ("6,625", what the keypad types in
   many regions) was saved as 0% on every screen that takes a rate.
+- Business Profile won't save a sales tax rate it can't read ("150",
+  "6..5"), and says so: it saved 0%, and every new invoice would have gone
+  out without tax.

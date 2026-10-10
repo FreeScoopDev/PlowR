@@ -130,6 +130,11 @@ struct BusinessProfileView: View {
                         Text("%").foregroundStyle(.secondary)
                     }
                 }
+                if Proposal.readTaxRate(defaultTaxRate) == nil {
+                    Text("Enter a rate from 0 to 100, such as 6.625.")
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                }
             } header: {
                 Text("Tax")
             } footer: {
@@ -146,7 +151,7 @@ struct BusinessProfileView: View {
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") { save() }
-                    .disabled(companyName.isEmpty)
+                    .disabled(companyName.isEmpty || Proposal.readTaxRate(defaultTaxRate) == nil)
             }
         }
         .onAppear { loadProfile() }
