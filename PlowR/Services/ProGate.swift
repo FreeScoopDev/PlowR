@@ -52,8 +52,7 @@ enum ProGate: Identifiable, Equatable {
 
     // MARK: Checks
 
-    /// Adding a client, or bringing one back (marking active, reopening a
-    /// lost lead): either way one more counts against the free limit.
+    /// Adding a client: one more counts against the free limit.
     static func addClient(_ access: Access) -> ProGate? {
         if access.canAddClient { return nil }
         return access.tier == .readOnly ? .readOnly : .clientLimit

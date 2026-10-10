@@ -131,7 +131,7 @@ struct DashboardView: View {
                 }
             }
         }
-        .onChange(of: access.plan) { _, plan in ProStatusBanner.reopenOnSubscribe(plan) }
+        .onChange(of: access.plan, initial: true) { _, plan in ProStatusBanner.reopenOnSubscribe(plan) }
         .sheet(isPresented: $showingSettings) { NavigationStack { SettingsView() } }
         .sheet(isPresented: $showingAddClient)  { AddClientView() }
         .proGateSheet($gate)
