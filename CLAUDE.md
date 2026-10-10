@@ -335,14 +335,17 @@ PlowR's specifics:
   single `PlowR-claude` worktree was retired. Joe's folder is
   `~/Desktop/Apps/PlowR`.
 - **Required checks** on `main` (`.claude/app.json` → `requiredChecks`, ruleset
-  since 2026-09-27): `PlowR | CI Tests | Test - iOS`, `Service-language guard`,
-  `SwiftLint`, and `Critic verdict` (since 2026-10-09). `~/.claude/toolkit/bin/repo-check.sh .` confirms GitHub still
+  since 2026-09-27): `Unit tests (iOS)` (since 2026-10-10, pinned to GitHub
+  Actions; it replaced Xcode Cloud's `PlowR | CI Tests | Test - iOS`),
+  `Service-language guard`, `SwiftLint`, and `Critic verdict` (since
+  2026-10-09). `~/.claude/toolkit/bin/repo-check.sh .` confirms GitHub still
   matches.
-- **CI** is Xcode Cloud: `CI Tests` runs the `PlowR` scheme's tests on every PR
-  to `main`. GitHub Actions runs only the Linux guards in
-  `.github/workflows/guards.yml` and the critic-verdict check in
-  `.github/workflows/critic-verdict.yml`; nothing there builds the app. `docs/ci.md`
-  has the workflow settings and setup steps.
+- **CI**: GitHub Actions runs the `PlowR` scheme's tests on every PR to `main`
+  (`.github/workflows/tests.yml`, `macos-26`, about 9 minutes, free on a
+  public repo), plus the Linux guards in `guards.yml` and the critic-verdict
+  check. Xcode Cloud keeps **Release Flow** only: its monthly hours are
+  shared by every app on the membership and ran out on 2026-10-10 with PR
+  runs. `docs/ci.md` has the workflow settings and setup steps.
 - **GitHub Pages** deploys `docs/` to getplowr.app on every push to `main`;
   `docs/_config.yml` keeps `ci.md` off the site.
 - **Tracking** lives in Notion (the PlowR app page in Joe's workspace).
