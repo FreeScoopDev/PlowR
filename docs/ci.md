@@ -17,7 +17,7 @@ because GitHub Pages publishes everything else in `docs/`.
 
 | | |
 | --- | --- |
-| GitHub Actions `Tests` (`.github/workflows/tests.yml`) | **Removed 2026-09-27.** It ran the same tests on a macOS runner and was replaced by `CI Tests` below. |
+| GitHub Actions `Tests` (`.github/workflows/tests.yml`) | Removed 2026-09-27 for Xcode Cloud's `CI Tests`. **Back 2026-10-10**, job `Unit tests (iOS)` on `macos-26`: the membership's Xcode Cloud hours ran out and every `CI Tests` run was cancelled. It runs the full scheme through the toolkit's `bin/test.sh` (pinned commit). Reporting only at first; it becomes the required check, and `CI Tests` is switched off, once its run time is known. Free on a public repo. |
 | Xcode Cloud `CI Tests` | **Created 2026-09-26** (steps 1–13). Green on its first run (#7); failed a deliberate break (#8) as it should. The only test check on PRs. |
 | Xcode Cloud `Release Flow` | **Created 2026-09-26** (steps 14–19). Never started yet. First used for PlowR's first Release Flow build. |
 | GitHub Actions `Critic verdict` (`.github/workflows/critic-verdict.yml`) | **Added 2026-10-09.** Fails a major PR (a `feat/` branch, or more than `criticMinLines` changed lines of Swift outside `PlowRTests`) whose description has no critic verdict, or a BLOCK one; re-runs when the description is edited. **Required since 2026-10-09**, after it posted on #127 and failed a deliberate break (#128: red with no verdict, red with BLOCK, green with APPROVE). |
