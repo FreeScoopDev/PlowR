@@ -228,11 +228,14 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   refunded purchase counts as never made. A purchase made in the app counts
   for up to five minutes before StoreKit's lists show it
   (`Subscription.purchased`): they reach a just-made purchase a moment
-  late, and someone who has just paid mustn't read as unsubscribed. The app's tests never ask the
-  real App Store (`Subscription.shared` reads nothing under tests);
+  late, and someone who has just paid mustn't read as unsubscribed. The
+  app's tests never ask the real App Store (`Subscription.shared` reads nothing under tests);
   `SubscriptionStoreKitTests` uses Apple's local test store from
   `PlowRTests/PlowR.storekit`, the same file the PlowR scheme's Run action
-  uses, so running from Xcode can buy, renew and expire with no App Store
+  uses; it runs only from `scripts/test.sh` (`PLOWR_STOREKIT_TESTS`),
+  because on Xcode Cloud the test store finds no products (#133's first
+  CI run), so CI never covers StoreKit itself. With the Run action's
+  copy, running from Xcode can buy, renew and expire with no App Store
   Connect. The paywall is Apple's `SubscriptionStoreView`
   (`ProPaywallView`), which shows the price and trial itself: never write
   the price into PlowR's copy.
