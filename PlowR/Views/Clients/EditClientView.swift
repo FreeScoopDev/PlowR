@@ -213,7 +213,7 @@ struct EditClientView: View {
             "Mark \(draft.name) Inactive?",
             isPresented: Binding(
                 get: { deactivatingFootprint != nil },
-                set: { if !$0 { deactivatingFootprint = nil } }
+                set: { if !$0 { deactivatingFootprint = nil; undoReadOnlyMarkInactive() } }
             ),
             titleVisibility: .visible
         ) {
@@ -221,7 +221,10 @@ struct EditClientView: View {
                 deactivatingFootprint = nil
                 saveChanges()
             }
-            Button("Cancel", role: .cancel) { deactivatingFootprint = nil }
+            Button("Cancel", role: .cancel) {
+                deactivatingFootprint = nil
+                undoReadOnlyMarkInactive()
+            }
         } message: {
             if let footprint = deactivatingFootprint {
                 Text(ClientRemoval.deactivateMessage(for: footprint))
@@ -1174,6 +1177,13 @@ struct EditClientView: View {
     }
 
     /// Asks first when Save marks the client inactive and they're on a route.
+    /// Read only, Mark Inactive set the locked switch before asking; not
+    /// going ahead puts it back, or the page would be stuck with a change it
+    /// can't save.
+    private func undoReadOnlyMarkInactive() {
+        if !access.canEdit { draft.isActive = client.isActive }
+    }
+
     private func save() {
         // Marking them active again: one more client.
         if draft.isActive, let blocked = ProGate.bringBack(client, access) {

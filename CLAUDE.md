@@ -231,7 +231,11 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   `ProGate.edit`; a screen that also shows a record (the client page, a
   job) locks its fields instead. Never gated: viewing, payments, export,
   deleting by choice, Mark Inactive, a route already running. A new
-  editor gets `.editsNeedPro()`. `Subscription` reads the plan from
+  editor gets `.editsNeedPro()`. Exceptions decided in 3c: Mark Sent on
+  an invoice still owed follows `ProGate.shareDocument` (sending it is
+  getting paid); an existing property locks its fields and keeps Remove
+  Property; payment methods, the service catalog and a route's stops are
+  setup and stay locked with their editors. `Subscription` reads the plan from
   StoreKit (product `Scoops.PlowR.pro.monthly`), follows
   `Transaction.updates` from `PlowRApp.init`, re-reads when the app comes
   back (an expiry sends no update) and keeps the last plan in standard
