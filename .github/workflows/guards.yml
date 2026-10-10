@@ -64,6 +64,15 @@ jobs:
           [ "$found" -eq 0 ] && echo "Service-language guard passed."
           exit "$found"
 
+      # A missing SF Symbol isn't a build error: the icon is just blank. The
+      # Documents tab and New Route showed nothing on iOS 26 and 27 until
+      # 2026-10-10. This fails a symbol name iOS 26.0 (the deployment
+      # target) doesn't have; scripts/check_symbols.py says how its list is
+      # made and kept.
+      - name: SF Symbols guard
+        if: success() || failure()
+        run: python3 scripts/check_symbols.py
+
       # Opening the camera on a device without one (some iPads, a Mac running
       # PlowR) throws, so the camera is opened only in CameraPicker, which
       # checks first (#109 fixed two screens that didn't). This fails a camera

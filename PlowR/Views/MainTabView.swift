@@ -29,7 +29,7 @@ struct MainTabView: View {
                 .tag(2)
 
             NavigationStack { ProposalListView() }
-                .tabItem { Label("Documents", systemImage: "doc.stack.fill") }
+                .tabItem { Label("Documents", systemImage: "doc.on.doc.fill") }
                 .badge(documentsBadge > 0 ? documentsBadge : 0)
                 .tag(3)
 

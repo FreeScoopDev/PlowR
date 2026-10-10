@@ -177,7 +177,7 @@ struct ScheduleView: View {
                             // Unbilled Work, Record Services).
                             if visit.proposalID.isEmpty, !ServiceLog.isVisitBilled(visit, in: modelContext) {
                                 Button { invoicingVisit = visit } label: {
-                                    Label("Invoice", systemImage: "doc.text.badge.plus")
+                                    Label("Invoice", systemImage: "doc.badge.plus")
                                 }
                                 .tint(.blue)
                             }
@@ -199,7 +199,7 @@ struct ScheduleView: View {
                             createRouteFromSchedule()
                         }
                     } label: {
-                        Label("Create Route", systemImage: "map.badge.plus")
+                        Label("Create Route", systemImage: "point.topleft.down.to.point.bottomright.curvepath")
                             .font(.caption.weight(.semibold))
                             .textCase(nil)
                     }
