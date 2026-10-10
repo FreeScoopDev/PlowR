@@ -114,6 +114,12 @@ struct DashboardView: View {
                             }
                         })
                     }
+                    // WeatherKit's attribution, wherever its weather shows: the
+                    // conditions above, or the storm card's forecast on its own.
+                    if WeatherAttribution.isNeeded(current: dashWeather != nil, forecast: storm != nil) {
+                        WeatherAttribution()
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                    }
                     todayCard
                     financeRow
                     readyToSendRow
