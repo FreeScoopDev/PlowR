@@ -243,6 +243,16 @@ struct AccessTests {
         #expect(subscription.plan == .free)
     }
 
+    @Test func theHoldEndsWithThePeriodIfThatsSooner() async throws {
+        let store = try Store()
+        let subscription = store.make()
+        await subscription.purchased(bought(expiresIn: 60, from: store.now))
+        #expect(subscription.plan == .pro)
+        store.now += 61
+        await subscription.refresh()
+        #expect(subscription.plan == .free)
+    }
+
     @Test func theHoldEndsWhenStoreKitShowsThePurchase() async throws {
         let store = try Store()
         let subscription = store.make()

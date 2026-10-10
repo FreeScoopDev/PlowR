@@ -30,6 +30,11 @@ struct ProPaywallView: View {
             }
             await subscription.purchased(Subscription.purchase(verification))
         }
+        // Restore Purchases isn't a purchase and doesn't come through the
+        // completion above: read the plan whenever the entitlement changes.
+        .currentEntitlementTask(for: Subscription.productID) { _ in
+            await subscription.refresh()
+        }
         .onChange(of: subscription.plan) { _, plan in
             if plan == .pro { dismiss() }
         }

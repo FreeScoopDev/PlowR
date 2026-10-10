@@ -9,9 +9,9 @@
   Review checks this).
 
 ### Internal
-- A StoreKit configuration file lets the simulator buy, renew and cancel
+- A StoreKit configuration file lets the simulator buy, renew and expire
   PlowR Pro when run from Xcode, before the product exists in App Store
-  Connect, and lets tests buy and refund it against Apple's local store.
+  Connect, and lets tests buy, expire and refund it against Apple's local store.
 - A purchase counts the moment it's made: StoreKit's list of current
   subscriptions takes a moment to include a new one, so PlowR could have
   told someone who had just paid that they weren't subscribed.
