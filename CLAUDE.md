@@ -223,8 +223,8 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   refunded purchase counts as never made. A purchase made in the app counts
   for up to five minutes before StoreKit's lists show it
   (`Subscription.purchased`): they reach a just-made purchase a moment
-  late, and someone who has just paid mustn't read as unsubscribed. The app's tests never ask the
-  real App Store (`Subscription.shared` reads nothing under tests);
+  late, and someone who has just paid mustn't read as unsubscribed. The
+  app's tests never ask the real App Store (`Subscription.shared` reads nothing under tests);
   `SubscriptionStoreKitTests` uses Apple's local test store from
   `PlowRTests/PlowR.storekit`, the same file the PlowR scheme's Run action
   uses; it runs only from `scripts/test.sh` (`PLOWR_STOREKIT_TESTS`),
