@@ -188,7 +188,12 @@ struct ProposalDetailView: View {
                 }
                 .buttonStyle(.bordered)
 
-                Button { $gate.unless(ProGate.edit(access)) { markSent() } } label: {
+                Button {
+                    // Sending an invoice still owed is how they get paid: open
+                    // read only, as sharing it is.
+                    $gate.unless(ProGate.shareDocument(access, isInvoice: proposal.isInvoice,
+                                                       owed: Payments.owed([proposal]))) { markSent() }
+                } label: {
                     Label("Mark Sent", systemImage: "paperplane.fill")
                         .frame(maxWidth: .infinity)
                 }

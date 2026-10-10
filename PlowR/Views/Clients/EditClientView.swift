@@ -98,6 +98,18 @@ struct EditClientView: View {
                 serviceAddressSection
             }
             .disabled(!access.canEdit)
+            // Read only, the details are locked, but Mark Inactive stays: an
+            // inactive client doesn't count, the way back to the free tier.
+            if !access.canEdit, client.isActive {
+                Section {
+                    Button("Mark Inactive") {
+                        draft.isActive = false
+                        save()
+                    }
+                } footer: {
+                    Text("Inactive clients don't count toward the free tier's \(Access.freeClientLimit). They come off their routes.")
+                }
+            }
             otherPropertiesSection
             historySection
             contractsSection
@@ -113,7 +125,7 @@ struct EditClientView: View {
         .navigationBarTitleDisplayMode(.inline)
         .asksBeforeLeaving(hasChanges: hasUnsavedChanges, isBusy: isSaving, canSave: draft.canSave,
                            message: draft.unsavedMessage(comparedWith: ClientDraft(client)),
-                           save: save, discard: { dismiss() })
+                           save: { $gate.unless(ProGate.edit(access)) { save() } }, discard: { dismiss() })
         // The client changed underneath (Schedule making them active again, an
         // edit synced from another device): fields not edited here follow.
         .onChange(of: ClientDraft(client)) { old, new in
@@ -776,7 +788,7 @@ struct EditClientView: View {
         if stage != .customer, client.isActive {
             LabeledContent {
                 Button(stage == .lost ? "Reopen" : "Mark Lost") {
-                    Pipeline.setLost(stage != .lost, for: client, in: modelContext)
+                    $gate.unless(ProGate.edit(access)) { Pipeline.setLost(stage != .lost, for: client, in: modelContext) }
                 }
                 .font(.caption)
                 .buttonStyle(.bordered)

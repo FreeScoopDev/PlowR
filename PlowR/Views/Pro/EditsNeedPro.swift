@@ -24,23 +24,7 @@ struct ReadOnlyNotice: View {
 
     var body: some View {
         VStack(spacing: 20) {
-            Image(systemName: "lock.shield.fill")
-                .font(.system(size: 56))
-                .foregroundStyle(PlowRColor.accent)
-                .accessibilityHidden(true)
-            Text(ProGate.readOnly.title)
-                .font(.title2.bold())
-                .multilineTextAlignment(.center)
-            Text(ProGate.readOnly.message)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-            Button {
-                showingPaywall = true
-            } label: {
-                Text("Subscribe Again").frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
+            ProGateMessage(gate: .readOnly) { showingPaywall = true }
             Button("Close") { dismiss() }
         }
         .padding(24)
