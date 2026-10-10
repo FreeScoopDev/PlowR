@@ -57,9 +57,17 @@ enum InvoiceRecords {
         // again would charge for it twice (Revise moves both together).
         guard releasesWork, invoice.paymentsTotal <= Payments.tolerance else { return }
         ServiceLog.releaseBilling(of: invoice, in: context)
-        if let contract = contract(of: invoice, in: context) {
+        // The payment is free to invoice again, unless another copy still
+        // bills it (made on two devices: ContractInstallments.hasDuplicate).
+        if let contract = contract(of: invoice, in: context), !isStillBilled(invoice, in: context) {
             contract.installmentsMade.removeAll { $0 == invoice.installmentIndex }
         }
+    }
+
+    private static func isStillBilled(_ invoice: Proposal, in context: ModelContext) -> Bool {
+        let id = invoice.contractID
+        let theirs = (try? context.fetch(FetchDescriptor<Proposal>(predicate: #Predicate { $0.contractID == id }))) ?? []
+        return ContractInstallments.otherInvoice(billing: invoice, among: theirs) != nil
     }
 
     /// The contract a contract payment's invoice was made for.

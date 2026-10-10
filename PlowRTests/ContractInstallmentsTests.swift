@@ -181,11 +181,15 @@ struct ContractInstallmentsTests {
         let all = [first, second]
         #expect(ContractInstallments.hasDuplicate(first, among: all) && ContractInstallments.hasDuplicate(second, among: all))
         #expect(ContractInstallments.duplicates(all, operatorID: "op").map(\.id) == [first.id])
-        // Voiding one clears it.
+        #expect(ContractInstallments.otherInvoice(billing: first, among: all)?.id == second.id)
+        // Voiding one clears it, and the payment stays billed by the other:
+        // it isn't due again, so Make Invoices doesn't bill it a third time.
         second.invoiceSentAt = h.clock
         InvoiceRecords.void(second, note: "Billed twice", now: h.clock, in: h.context)
         #expect(!ContractInstallments.hasDuplicate(first, among: all))
         #expect(ContractInstallments.duplicates(all, operatorID: "op").isEmpty)
+        #expect(season.installmentsMade == [1])
+        #expect(ContractInstallments.due(season, now: date(2026, 11, 15, 8), calendar: calendar).isEmpty)
     }
 
     // A revision is its payment's live invoice: revising one of two copies

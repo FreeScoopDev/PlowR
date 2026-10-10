@@ -245,6 +245,20 @@ struct PaymentsTests {
         twin.invoice = bill
         #expect(bill.overpaid == 100)
         #expect(Payments.overpaid([fine, bill]).map(\.id) == [bill.id])
+        // A void one isn't listed; the oldest comes first.
+        bill.createdAt = h.clock
+        let voided = invoice(h, total: 10, number: "INV-0003")
+        voided.createdAt = h.clock.addingTimeInterval(-86_400 * 30)
+        let extra = Payment(amount: 15, method: "Cash", receivedAt: h.clock, operatorID: "op")
+        h.context.insert(extra)
+        extra.invoice = voided
+        voided.voidedAt = h.clock
+        let older = invoice(h, total: 20, number: "INV-0004")
+        older.createdAt = h.clock.addingTimeInterval(-86_400 * 10)
+        let more = Payment(amount: 25, method: "Cash", receivedAt: h.clock, operatorID: "op")
+        h.context.insert(more)
+        more.invoice = older
+        #expect(Payments.overpaid([fine, bill, voided, older]).map(\.id) == [older.id, bill.id])
         Payments.delete(twin, in: h.context)
         #expect(Payments.overpaid([fine, bill]).isEmpty)
     }

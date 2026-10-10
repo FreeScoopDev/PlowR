@@ -139,9 +139,15 @@ enum ContractInstallments {
     /// voids one. Live means not void: a revision is its payment's live
     /// invoice (its original is void), a plain void gives the payment back.
     static func hasDuplicate(_ invoice: Proposal, among all: [Proposal]) -> Bool {
-        isLiveBilling(invoice) && all.contains {
-            $0.id != invoice.id && isLiveBilling($0) && paymentKey($0) == paymentKey(invoice)
-        }
+        isLiveBilling(invoice) && otherInvoice(billing: invoice, among: all) != nil
+    }
+
+    /// Another live invoice of the same contract payment as `invoice` (which
+    /// may itself be void by now): the copy a banner links to, and what keeps
+    /// a voided copy from giving the payment back while another still bills it.
+    static func otherInvoice(billing invoice: Proposal, among all: [Proposal]) -> Proposal? {
+        guard invoice.isInvoice, !invoice.contractID.isEmpty, invoice.installmentIndex > 0 else { return nil }
+        return all.first { $0.id != invoice.id && isLiveBilling($0) && paymentKey($0) == paymentKey(invoice) }
     }
 
     /// One invoice of each contract payment billed more than once, the
