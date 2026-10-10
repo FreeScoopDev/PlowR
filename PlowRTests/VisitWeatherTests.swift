@@ -89,7 +89,7 @@ struct VisitWeatherTests {
                                                visitDays: [date(2027, 1, 14, 5), date(2027, 1, 16, 5)],
                                                now: date(2027, 2, 1)) { location, start, end in
             asked.append((location.coordinate.latitude, location.coordinate.longitude, start, end))
-            return [VisitWeather.figures(date: Calendar.current.startOfDay(for: start),
+            return [VisitWeather.figures(date: Calendar.current.date(byAdding: .day, value: 1, to: start) ?? start,
                                          snowfall: Measurement(value: 2.54, unit: .centimeters),
                                          precipitation: Measurement(value: 0.5, unit: .centimeters),
                                          low: Measurement(value: -5, unit: .celsius),
@@ -97,6 +97,10 @@ struct VisitWeatherTests {
         }
         #expect(asked.count == 1)
         #expect(asked.first?.0 == 43.38 && asked.first?.1 == -72.35)
+        // From the day before the first visit day to the day after the last.
+        let phone = Calendar.current
+        #expect(asked.first?.2 == phone.date(byAdding: .day, value: -1, to: phone.startOfDay(for: date(2027, 1, 14, 5))))
+        #expect(asked.first?.3 == phone.date(byAdding: .day, value: 1, to: phone.startOfDay(for: date(2027, 1, 16, 5))))
         guard case .days(let days) = lookup, let day = days.values.first else {
             Issue.record("expected days"); return
         }

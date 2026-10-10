@@ -112,10 +112,13 @@ enum VisitWeather {
         guard AddressPin.exists(latitude: latitude, longitude: longitude) else { return .notLookedUp }
         guard let span = span(of: visitDays, now: now) else { return .days([:]) }
         // Never WeatherKit under tests; a test passes its own history.
+        // A day early and a day late: WeatherKit's days start at the place's
+        // midnight, which can be before the phone's; days() keeps the span.
         guard let history = history ?? (WeatherService.unavailable ? nil : weatherKitHistory),
+              let start = Calendar.current.date(byAdding: .day, value: -1, to: span.lowerBound),
               let end = Calendar.current.date(byAdding: .day, value: 1, to: span.upperBound),
               let figures = try? await history(WeatherService.location(latitude: latitude, longitude: longitude),
-                                               span.lowerBound, end) else { return .failed }
+                                               start, end) else { return .failed }
         return .days(days(figures, span: span))
     }
 

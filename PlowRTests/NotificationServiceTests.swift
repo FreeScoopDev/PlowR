@@ -22,6 +22,13 @@ struct NotificationServiceTests {
         let dry = DayForecast(date: wet.date, maxTempF: 50, minTempF: 40, weatherCode: 3, precipitationMm: 1)
         #expect(NotificationService.shared.isAdverse(wet))
         #expect(!NotificationService.shared.isAdverse(dry))
+        // Named for what makes it wet, never "Overcast expected".
+        #expect(NotificationService.alertWord(wet) == "Rain")
+        var snowy = wet
+        snowy.snowfallInches = 0.5
+        #expect(NotificationService.alertWord(snowy) == "Snow")
+        let stormy = DayForecast(date: wet.date, maxTempF: 30, minTempF: 20, weatherCode: 75, precipitationMm: 10)
+        #expect(NotificationService.alertWord(stormy) == "Heavy Snow" || NotificationService.alertWord(stormy) == stormy.description)
     }
 
     // MARK: - adverseForecastDay
