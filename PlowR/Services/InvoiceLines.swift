@@ -62,9 +62,9 @@ nonisolated enum InvoiceLines {
     /// The price field's text as money, or `defaultPrice` when the field is
     /// empty, unreadable or not a real amount: an untouched field means the
     /// default, never the per-square-foot rate. A decimal comma ("12,50") is
-    /// read (`DecimalText`).
-    static func price(typed: String?, default defaultPrice: Double) -> Double {
-        guard let value = DecimalText.number(typed), abs(value) < maxAmount else { return defaultPrice }
+    /// read where the region writes one (`DecimalText`).
+    static func price(typed: String?, default defaultPrice: Double, locale: Locale = .current) -> Double {
+        guard let value = DecimalText.number(typed, locale: locale), abs(value) < maxAmount else { return defaultPrice }
         return roundedToCent(value)
     }
 

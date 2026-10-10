@@ -194,17 +194,17 @@ extension Proposal {
 
     /// A typed tax rate: a number from 0 to 100, kept to three decimals so the
     /// rate charged, the Edit field and the PDF label always agree; otherwise 0.
-    nonisolated static func taxRate(typed text: String) -> Double {
-        readTaxRate(text) ?? 0
+    nonisolated static func taxRate(typed text: String, locale: Locale = .current) -> Double {
+        readTaxRate(text, locale: locale) ?? 0
     }
 
     /// The rate in `text`, or nil when it isn't a number from 0 to 100 (empty
     /// text is no rate, 0). Business Profile won't save a rate it can't read:
     /// every new invoice would go out at 0% without a word.
-    nonisolated static func readTaxRate(_ text: String) -> Double? {
+    nonisolated static func readTaxRate(_ text: String, locale: Locale = .current) -> Double? {
         // A decimal comma ("6,625") is what the keypad types in many regions.
         if text.trimmingCharacters(in: .whitespaces).isEmpty { return 0 }
-        guard let rate = DecimalText.number(text), (0...100).contains(rate) else { return nil }
+        guard let rate = DecimalText.number(text, locale: locale), (0...100).contains(rate) else { return nil }
         return (rate * 1000).rounded() / 1000
     }
 

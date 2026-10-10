@@ -92,14 +92,19 @@ struct DefaultTaxRateTests {
 
     // The keypad types a decimal comma in many regions; it was saved as 0%.
     @Test func aDecimalCommaIsARate() {
-        #expect(Proposal.taxRate(typed: "6,625") == 6.625)
-        #expect(Proposal.taxRate(typed: " 6.5 ") == 6.5)
-        #expect(Proposal.taxRate(typed: "1,2,3") == 0)
-        #expect(Proposal.taxRate(typed: "150") == 0)
+        let german = Locale(identifier: "de_DE"), us = Locale(identifier: "en_US")
+        #expect(Proposal.taxRate(typed: "6,625", locale: german) == 6.625)
+        #expect(Proposal.taxRate(typed: " 6.5 ", locale: german) == 6.5)
+        #expect(Proposal.taxRate(typed: "1,2,3", locale: german) == 0)
+        #expect(Proposal.taxRate(typed: "150", locale: german) == 0)
         // Business Profile won't save what it can't read; empty is no tax.
-        #expect(Proposal.readTaxRate("") == 0 && Proposal.readTaxRate("6,625") == 6.625)
+        #expect(Proposal.readTaxRate("", locale: german) == 0)
+        #expect(Proposal.readTaxRate("6,625", locale: german) == 6.625)
         for unreadable in ["150", "6..5", "7.5.1", "abc", "-1"] {
-            #expect(Proposal.readTaxRate(unreadable) == nil, "\(unreadable)")
+            #expect(Proposal.readTaxRate(unreadable, locale: german) == nil, "\(unreadable)")
         }
+        // Where a comma separates thousands, "6,625" is not 6.625%.
+        #expect(Proposal.readTaxRate("6,625", locale: us) == nil)
+        #expect(Proposal.readTaxRate("6.625", locale: us) == 6.625)
     }
 }
