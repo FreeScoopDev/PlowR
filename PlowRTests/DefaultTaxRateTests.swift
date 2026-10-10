@@ -15,7 +15,7 @@ import Testing
 struct DefaultTaxRateTests {
     typealias Harness = ActiveRouteStoreTests.Harness
 
-    private func line(_ h: Harness, _ price: Double) -> ProposalLineItem {
+    private func line(_ price: Double) -> ProposalLineItem {
         ProposalLineItem(serviceName: "Clear", zoneLabel: "", quantity: 1, unitType: "flat", unitPrice: price)
     }
 
@@ -24,7 +24,7 @@ struct DefaultTaxRateTests {
         let profile = BusinessProfile(operatorID: "op")
         profile.defaultTaxRate = 6.625
         h.context.insert(profile)
-        let invoice = ServiceLog.newDraftInvoice(for: h.client, items: [line(h, 100)], operatorID: "op",
+        let invoice = ServiceLog.newDraftInvoice(for: h.client, items: [line(100)], operatorID: "op",
                                                  now: h.clock, in: h.context)
         #expect(invoice.taxRate == 6.625)
         #expect(invoice.total == 106.63)                                          // 6.625% of $100, to the cent
@@ -32,7 +32,7 @@ struct DefaultTaxRateTests {
 
     @Test func noRateSetMeansNoTax() throws {
         let h = try Harness(stopCount: 0)
-        let invoice = ServiceLog.newDraftInvoice(for: h.client, items: [line(h, 100)], operatorID: "op",
+        let invoice = ServiceLog.newDraftInvoice(for: h.client, items: [line(100)], operatorID: "op",
                                                  now: h.clock, in: h.context)
         #expect(invoice.taxRate == 0 && invoice.total == 100)
     }
@@ -43,7 +43,7 @@ struct DefaultTaxRateTests {
         let other = BusinessProfile(operatorID: "other")
         other.defaultTaxRate = 8
         h.context.insert(other)
-        let invoice = ServiceLog.newDraftInvoice(for: h.client, items: [line(h, 100)], operatorID: "op",
+        let invoice = ServiceLog.newDraftInvoice(for: h.client, items: [line(100)], operatorID: "op",
                                                  now: h.clock, in: h.context)
         #expect(invoice.taxRate == 0)
     }
@@ -59,5 +59,42 @@ struct DefaultTaxRateTests {
         h.context.insert(original)
         let revision = ServiceLog.revise(original, client: h.client, now: h.clock, in: h.context)
         #expect(revision.taxRate == 5)
+    }
+
+    // A contract's payments are invoices like any other: the price is before tax.
+    @Test func aContractPaymentCarriesTheBusinessesRate() throws {
+        let h = try Harness(stopCount: 0)
+        let profile = BusinessProfile(operatorID: "op")
+        profile.defaultTaxRate = 5
+        h.context.insert(profile)
+        let contract = Contract(name: "Winter", startDate: h.clock, endDate: h.clock.addingTimeInterval(90 * 86400),
+                                operatorID: "op")
+        contract.pricingRaw = Contracts.Pricing.season.rawValue
+        contract.price = 100
+        contract.installments = 1
+        contract.clientID = h.client.id.uuidString
+        h.context.insert(contract)
+        contract.client = h.client
+        contract.signedAt = h.clock
+        let payment = try #require(ContractInstallments.schedule(of: contract).first)
+        let invoice = try #require(ContractInstallments.makeInvoice(for: payment, of: contract, in: h.context,
+                                                                     now: h.clock))
+        #expect(invoice.taxRate == 5 && invoice.total == 105)
+    }
+
+    // The builder's Tax field starts at the business's rate, or empty.
+    @Test func theBuildersTaxFieldStartsAtTheBusinessesRate() {
+        #expect(DocumentDraft.startingTaxText(rate: 6.625) == "6.625")
+        #expect(DocumentDraft.startingTaxText(rate: 8) == "8")
+        #expect(DocumentDraft.startingTaxText(rate: 0) == "")
+        #expect(DocumentDraft.startingTaxText(rate: nil) == "")
+    }
+
+    // The keypad types a decimal comma in many regions; it was saved as 0%.
+    @Test func aDecimalCommaIsARate() {
+        #expect(Proposal.taxRate(typed: "6,625") == 6.625)
+        #expect(Proposal.taxRate(typed: " 6.5 ") == 6.5)
+        #expect(Proposal.taxRate(typed: "1,2,3") == 0)
+        #expect(Proposal.taxRate(typed: "150") == 0)
     }
 }
