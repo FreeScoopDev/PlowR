@@ -186,12 +186,7 @@ struct AccountEraser {
     /// Documents and spreadsheets written to share (PDFs, CSVExport's CSVs):
     /// the top level of `folder` only. No folder means none.
     nonisolated static func sharedFiles(in folder: URL, fileManager: FileManager = .default) throws -> [URL] {
-        do {
-            return try fileManager.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)
-                .filter { ["pdf", "csv"].contains($0.pathExtension.lowercased()) }
-        } catch CocoaError.fileReadNoSuchFile {
-            return []
-        }
+        try files(in: folder, fileManager: fileManager) { ["pdf", "csv"].contains($0.pathExtension.lowercased()) }
     }
 
     /// Shared documents left from last time: a PDF holds a client's name,
@@ -219,6 +214,11 @@ struct AccountEraser {
     /// The files in `folder` that `keep` accepts. No folder means no files;
     /// a folder that can't be read is an error, not "nothing there".
     private func files(in folder: URL, where keep: (URL) -> Bool) throws -> [URL] {
+        try Self.files(in: folder, fileManager: fileManager, where: keep)
+    }
+
+    private nonisolated static func files(in folder: URL, fileManager: FileManager,
+                                          where keep: (URL) -> Bool) throws -> [URL] {
         do {
             return try fileManager.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil).filter(keep)
         } catch CocoaError.fileReadNoSuchFile {

@@ -141,7 +141,10 @@ struct RequestLinkTests {
         let long = String(repeating: "a", count: 125) + "@example.com"
         #expect(Link.mailLink(long)?.absoluteString == "mailto:\(long)")
         for bad in ["", "a@b.com?bcc=c@d.com", "a@b.com&cc=c@d.com", "pat", "a@b.c/x", "a@b..c", "a@b@c.com",
-                    "a@b.com,c@d.com", "a b@c.com"] {
+                    "a@b.com,c@d.com", "a b@c.com",
+                    // One "@" each: only the refused characters stop these.
+                    "pat@example.com?subject=hi", "pat@example.com#x", "pat@example.com%3Fsubject=x",
+                    "pat@example.com;x", "pat@example.com&x", "pat@example.com\u{202E}"] {
             #expect(Link.mailLink(bad) == nil, "\(bad)")
         }
         let business = Link.Business(name: "Pat's", phone: "6035550100", email: "javascript:alert(1)")
