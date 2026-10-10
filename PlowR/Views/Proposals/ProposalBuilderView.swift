@@ -220,6 +220,14 @@ struct ProposalBuilderView: View {
                         }
                         if selections.contains(key) {
                             itemEditFields(key: key, defaultAmount: defaultAmt)
+                            // No measured zones to price it by (InvoiceLines.needsPrice).
+                            if service.unitType == "perSqFt" {
+                                Text("Priced by the square foot, and this client has no measured area: enter the price.")
+                                    .font(.caption)
+                                    .foregroundStyle(.orange)
+                                    .padding(.leading, 8)
+                                    .padding(.top, 4)
+                            }
                         }
                     }
                 }

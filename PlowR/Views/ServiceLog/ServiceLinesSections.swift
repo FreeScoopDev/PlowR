@@ -128,7 +128,14 @@ struct ServiceLinesSections: View {
                     }
                 }
                 .padding(.leading, 48)
-                .padding(.bottom, 6)
+                .padding(.bottom, InvoiceLines.needsPrice(unitType: service.unitType, zones: zones) ? 0 : 6)
+                if InvoiceLines.needsPrice(unitType: service.unitType, zones: zones) {
+                    Text("Priced by the square foot, and this place has no measured area: enter the price.")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                        .padding(.leading, 48)
+                        .padding(.bottom, 6)
+                }
             }
         }
     }

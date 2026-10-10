@@ -37,7 +37,12 @@ struct InvoiceLinesTests {
         let zones = [Zone(label: "Front", areaSquareFeet: 1_000), Zone(label: "Back", areaSquareFeet: 500)]
         #expect(InvoiceLines.propertyPrice(unitType: "perSqFt", pricePerUnit: 0.08, zones: zones) == 120)
         #expect(InvoiceLines.propertyPrice(unitType: "flat", pricePerUnit: 45, zones: zones) == 45)
-        #expect(InvoiceLines.propertyPrice(unitType: "perSqFt", pricePerUnit: 0.08, zones: []) == 0.08)
+        // No measured area: nothing to start from, not the rate (8 cents for
+        // the whole property); the screens ask for the price.
+        #expect(InvoiceLines.propertyPrice(unitType: "perSqFt", pricePerUnit: 0.08, zones: []) == 0)
+        #expect(InvoiceLines.needsPrice(unitType: "perSqFt", zones: []))
+        #expect(!InvoiceLines.needsPrice(unitType: "perSqFt", zones: zones))
+        #expect(!InvoiceLines.needsPrice(unitType: "flat", zones: []))
     }
 
     // The overcharge: 2 × 1,000 sq ft at $0.08 is $160 in total, not $160 per zone.
