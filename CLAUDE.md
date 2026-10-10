@@ -227,7 +227,9 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   real App Store (`Subscription.shared` reads nothing under tests);
   `SubscriptionStoreKitTests` uses Apple's local test store from
   `PlowRTests/PlowR.storekit`, the same file the PlowR scheme's Run action
-  uses, so running from Xcode can buy, renew and expire with no App Store
+  uses; it runs only from `scripts/test.sh` (`PLOWR_STOREKIT_TESTS`),
+  because on Xcode Cloud the test store finds no products (#133's first
+  CI run), so CI never covers StoreKit itself. The Run action's file so running from Xcode can buy, renew and expire with no App Store
   Connect. The paywall is Apple's `SubscriptionStoreView`
   (`ProPaywallView`), which shows the price and trial itself: never write
   the price into PlowR's copy.

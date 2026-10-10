@@ -13,8 +13,12 @@ import Testing
 /// `PlowR.storekit` (the file the PlowR scheme's Run action uses), never the
 /// real App Store. Buying, running out and a refund each reach the plan
 /// through `Subscription.readStoreKit`, the part `AccessTests` can't reach.
+///
+/// Local runs only (`scripts/test.sh` turns them on): on Xcode Cloud the
+/// test store finds no products (PR #133's CI run, 2026-10-10).
 @MainActor
-@Suite(.serialized)
+@Suite(.serialized, .enabled(if: ProcessInfo.processInfo.environment["PLOWR_STOREKIT_TESTS"] != nil,
+                             "Apple's local StoreKit test store: local runs only"))
 struct SubscriptionStoreKitTests {
     private final class BundleToken {}
 
