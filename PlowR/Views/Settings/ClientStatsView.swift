@@ -8,6 +8,7 @@ struct ClientStatsView: View {
     @Query private var allClients: [Client]
     @Query private var allProposals: [Proposal]
     @Query private var profiles: [BusinessProfile]
+    @Query private var allRecords: [ServiceRecord]
 
     @State private var shareItem: IdentifiableURL? = nil
 
@@ -69,10 +70,17 @@ struct ClientStatsView: View {
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button {
-                    $gate.unless(ProGate.makeReport(access)) { shareItem = buildReportURL() }
+                // The Season Report, for the period chosen.
+                Menu {
+                    Section("Season Report") {
+                        ForEach(SeasonReport.Period.allCases) { period in
+                            Button(period.title) {
+                                $gate.unless(ProGate.makeReport(access)) { shareItem = buildReportURL(for: period) }
+                            }
+                        }
+                    }
                 } label: {
-                    Image(systemName: "square.and.arrow.up")
+                    Label("Share Season Report", systemImage: "square.and.arrow.up")
                 }
             }
         }
@@ -251,12 +259,14 @@ struct ClientStatsView: View {
         .padding(.vertical, 4)
     }
 
-    private func buildReportURL() -> IdentifiableURL? {
+    private func buildReportURL(for period: SeasonReport.Period) -> IdentifiableURL? {
         let profile = profiles.first { $0.operatorID == authManager.userID }
         let myProposals = allProposals.filter { $0.operatorID == authManager.userID }
         let data = PDFGenerator.generateSeasonReport(
             clients: myClients,
             proposals: myProposals,
+            records: allRecords.filter { $0.operatorID == authManager.userID },
+            period: period,
             profile: profile,
             madeWithPlowR: access.showsMadeWithPlowR
         )
