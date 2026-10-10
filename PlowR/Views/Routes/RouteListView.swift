@@ -4,6 +4,8 @@ import SwiftData
 struct RouteListView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AuthManager.self) private var authManager
+    @Environment(\.access) private var access
+    @State private var gate: ProGate?
     @Query private var allRoutes: [PlowRoute]
     @Query private var allClients: [Client]
     @Query private var records: [ServiceRecord]
@@ -31,12 +33,25 @@ struct RouteListView: View {
                         NavigationLink {
                             RouteDetailView(route: route)
                         } label: {
-                            RouteRowView(route: route, clients: allClients,
-                                         lastRun: lastRuns[route.id.uuidString])
+                            HStack {
+                                RouteRowView(route: route, clients: allClients,
+                                             lastRun: lastRuns[route.id.uuidString])
+                                // The free tier runs one route: it says Free, the others Pro.
+                                if access.tier == .free {
+                                    if Access.freeRoute(in: allRoutes, operatorID: authManager.userID)?.id == route.id {
+                                        StatusChip("Free", color: .green)
+                                    } else {
+                                        StatusChip("Pro", color: .gray)
+                                    }
+                                }
+                            }
                         }
                         .contextMenu {
                             Button {
-                                duplicateRoute(route)
+                                $gate.unless(ProGate.createRoute(access, routes: allRoutes,
+                                                                 operatorID: authManager.userID)) {
+                                    duplicateRoute(route)
+                                }
                             } label: {
                                 Label("Duplicate Route", systemImage: "doc.on.doc")
                             }
@@ -62,7 +77,9 @@ struct RouteListView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
-                    showingCreateRoute = true
+                    $gate.unless(ProGate.createRoute(access, routes: allRoutes, operatorID: authManager.userID)) {
+                        showingCreateRoute = true
+                    }
                 } label: {
                     Image(systemName: "plus")
                 }
@@ -71,6 +88,7 @@ struct RouteListView: View {
         .sheet(isPresented: $showingCreateRoute) {
             CreateRouteView()
         }
+        .proGateSheet($gate)
         .confirmationDialog(
             "Delete \"\(routeToDelete?.name ?? "this route")\"?",
             isPresented: Binding(

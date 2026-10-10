@@ -16,6 +16,7 @@ private enum ClientFilterOption: String, CaseIterable {
 struct ClientListView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AuthManager.self) private var authManager
+    @Environment(\.access) private var access
     @Query private var allClients: [Client]
     @Query private var allProposals: [Proposal]
     @Query private var allRecords: [ServiceRecord]
@@ -24,6 +25,7 @@ struct ClientListView: View {
     @State private var showingAddClient = false
     @State private var showingContactScanner = false
     @State private var showingImport = false
+    @State private var gate: ProGate?
     @State private var clientToDelete: Client?
     @State private var clientToDeactivate: Client?
     /// What deleting or deactivating the client above touches, worked out
@@ -145,9 +147,9 @@ struct ClientListView: View {
                         : "Add your first client to get started, or bring in your client list from a spreadsheet.")
                 } actions: {
                     if !isFiltered {
-                        Button("Add a Client") { showingAddClient = true }
+                        Button("Add a Client") { addClient() }
                             .buttonStyle(.borderedProminent)
-                        Button("Import from a Spreadsheet") { showingImport = true }
+                        Button("Import from a Spreadsheet") { importClients() }
                     }
                 }
             } else {
@@ -175,18 +177,18 @@ struct ClientListView: View {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
                     Button {
-                        showingAddClient = true
+                        addClient()
                     } label: {
                         Label("Add Manually", systemImage: "person.badge.plus")
                     }
                     Button {
-                        showingImport = true
+                        importClients()
                     } label: {
                         Label("Import from Spreadsheet", systemImage: "square.and.arrow.down.on.square")
                     }
                     if CameraPicker.isAvailable {
                         Button {
-                            showingContactScanner = true
+                            $gate.unless(ProGate.addClient(access)) { showingContactScanner = true }
                         } label: {
                             Label("Scan with Camera", systemImage: "camera.viewfinder")
                         }
@@ -257,6 +259,7 @@ struct ClientListView: View {
         .sheet(isPresented: $showingAddClient) {
             AddClientView()
         }
+        .proGateSheet($gate)
         .sheet(isPresented: $showingContactScanner) {
             ContactScannerView()
         }
@@ -398,6 +401,15 @@ struct ClientListView: View {
 // MARK: - Deleting and deactivating
 
 extension ClientListView {
+    private func addClient() {
+        $gate.unless(ProGate.addClient(access)) { showingAddClient = true }
+    }
+
+    /// Import Clients is a Pro tool.
+    private func importClients() {
+        $gate.unless(ProGate.proFeature("Import Clients", access)) { showingImport = true }
+    }
+
     private func askToDelete(_ client: Client) {
         removalFootprint = ClientRemoval.footprint(of: client, in: modelContext)
         clientToDelete = client
@@ -413,6 +425,10 @@ extension ClientListView {
     /// back on routes.
     private func toggleActive(_ client: Client) {
         guard client.isActive else {
+            if let blocked = ProGate.bringBack(client, access) {
+                gate = blocked
+                return
+            }
             ClientRemoval.setActive(true, for: client, in: modelContext)
             return
         }

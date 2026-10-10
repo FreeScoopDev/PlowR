@@ -39,6 +39,11 @@ struct Access: Equatable {
         self.clientCount = clientCount
     }
 
+    /// From the business's clients (all on the device; only theirs count).
+    init(plan: Plan, clients: [Client], operatorID: String) {
+        self.init(plan: plan, clientCount: Self.countedClients(clients, operatorID: operatorID))
+    }
+
     var tier: Tier {
         switch plan {
         case .pro: .pro
@@ -105,9 +110,16 @@ struct Access: Equatable {
         }
     }
 
-    /// The clients counted against the free limit: this business's current
-    /// ones. Inactive clients and lost leads are records, not current work.
+    /// Whether a client counts against the free limit: every active one,
+    /// leads (lost ones too) included. Marking a client inactive is the one
+    /// way to free a place, and marking them active again is gated
+    /// (`ProGate.bringBack`). A lost lead used to be left out, but booking
+    /// work for one doesn't clear "lost", so it was a way past the limit
+    /// (critic, 2026-10-10).
+    static func counts(_ client: Client) -> Bool { client.isActive }
+
+    /// The clients counted against the free limit.
     static func countedClients(_ clients: [Client], operatorID: String) -> Int {
-        clients.count { $0.operatorID == operatorID && $0.isActive && $0.lostAt == nil }
+        clients.count { $0.operatorID == operatorID && counts($0) }
     }
 }

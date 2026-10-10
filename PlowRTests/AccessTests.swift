@@ -153,7 +153,7 @@ struct AccessTests {
 
     // MARK: Counting clients
 
-    @Test func countsThisBusinessesCurrentClientsOnly() throws {
+    @Test func countsThisBusinessesActiveClientsOnly() throws {
         let container = try ModelContainer(for: Schema(PlowRApp.models),
                                            configurations: ModelConfiguration(isStoredInMemoryOnly: true,
                                                                               cloudKitDatabase: .none))
@@ -169,7 +169,8 @@ struct AccessTests {
         for client in [current, inactive, lost, lead, someoneElse] { context.insert(client) }
 
         let clients = try context.fetch(FetchDescriptor<Client>())
-        #expect(Access.countedClients(clients, operatorID: "op") == 2)
+        // Current, lost and lead: every active one of theirs.
+        #expect(Access.countedClients(clients, operatorID: "op") == 3)
     }
 
     // MARK: The plan from StoreKit

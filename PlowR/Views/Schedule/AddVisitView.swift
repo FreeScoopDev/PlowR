@@ -3,6 +3,7 @@ import SwiftData
 
 struct AddVisitView: View {
     @Environment(AuthManager.self) private var authManager
+    @Environment(\.access) private var access
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
@@ -79,6 +80,7 @@ struct AddVisitView: View {
     @State private var customReason: String
     @State private var selectedServiceIDs: Set<String>
     @State private var showingAddClientSheet = false
+    @State private var gate: ProGate?
     @State private var showingRecurringEditDialog = false
 
     // Create new visit
@@ -208,8 +210,10 @@ struct AddVisitView: View {
                         if editing?.isRecurring == true && !(editing?.seriesID.isEmpty ?? true) {
                             showingRecurringEditDialog = true
                         } else {
-                            save()
-                            dismiss()
+                            $gate.unless(saveGate) {
+                                save()
+                                dismiss()
+                            }
                         }
                     }
                     .disabled(!isValid)
@@ -234,6 +238,7 @@ struct AddVisitView: View {
             fillFromPlace()
         }
         .onChange(of: selectedPlaceID) { fillFromPlace() }
+        .proGateSheet($gate)
         .sheet(isPresented: $showingAddClientSheet) {
             AddClientView()
         }
@@ -299,7 +304,7 @@ struct AddVisitView: View {
                 }
             }
             Button {
-                showingAddClientSheet = true
+                $gate.unless(ProGate.addClient(access)) { showingAddClientSheet = true }
             } label: {
                 Label("New Client", systemImage: "person.badge.plus")
                     .font(.subheadline)
@@ -486,6 +491,14 @@ struct AddVisitView: View {
     }
 
     // MARK: - Save
+
+    /// Whether the visit can be saved on the plan: a visit marks an inactive
+    /// client active, one more client. Asked before saving, so the screen
+    /// stays open with what was typed when it can't.
+    private var saveGate: ProGate? {
+        guard editing == nil, let client = selectedClient else { return nil }
+        return ProGate.bringBack(client, access)
+    }
 
     private func save() {
         guard let client = selectedClient else { return }

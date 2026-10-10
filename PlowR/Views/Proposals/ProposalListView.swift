@@ -286,7 +286,9 @@ struct ClientPickerForProposalView: View {
     @Environment(AuthManager.self) private var authManager
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \Client.name) private var allClients: [Client]
+    @Environment(\.access) private var access
     @State private var showingAddClient = false
+    @State private var gate: ProGate?
 
     private var myClients: [Client] {
         allClients.filter { $0.operatorID == authManager.userID }
@@ -326,7 +328,7 @@ struct ClientPickerForProposalView: View {
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Button {
-                        showingAddClient = true
+                        $gate.unless(ProGate.addClient(access)) { showingAddClient = true }
                     } label: {
                         Label("New Client", systemImage: "person.badge.plus")
                     }
@@ -335,6 +337,7 @@ struct ClientPickerForProposalView: View {
             .sheet(isPresented: $showingAddClient) {
                 AddClientView()
             }
+            .proGateSheet($gate)
         }
     }
 }
