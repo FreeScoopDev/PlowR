@@ -158,7 +158,11 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   still for the current stop and under two minutes old.
 - **Job-site areas (geofences) belong to `SiteMonitor`, made at launch**,
   not to a screen: iOS relaunches the app for a crossing and hands it to the
-  location manager that exists then. `ActiveRouteStore` decides what's watched
+  location manager that exists then. That needs Location set to Always: on
+  While Using a crossing reaches PlowR only while it's on screen, so the route
+  screen asks for Always once and says so (`RouteGPS.needsAlways`). There is
+  no background location mode (removed 2026-10-10); the route screen's own
+  GPS runs only in the foreground. `ActiveRouteStore` decides what's watched
   (the current stop, and completed stops awaiting a departure,
   `SiteDepartures`, for two hours and past End Route) and what a crossing
   means (`SiteTimes`: arrival and departure, put on the stop's

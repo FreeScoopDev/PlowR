@@ -1,6 +1,7 @@
 import Foundation
 import CoreLocation
 import MapKit
+import SwiftUI
 
 @Observable
 final class LocationManager: NSObject, CLLocationManagerDelegate {
@@ -37,8 +38,20 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
         manager.startUpdatingLocation()
     }
 
+    /// Stops, and forgets the last fix: once PlowR is away it goes stale, and
+    /// an arrival estimate or a text's location from where the phone was
+    /// minutes ago would be wrong. The next fix comes within a second or two
+    /// of coming back.
     func stopTracking() {
         manager.stopUpdatingLocation()
+        currentLocation = nil
+    }
+
+    /// Asks iOS for Always once a route runs on While Using: arrivals and
+    /// departures (SiteMonitor) reach PlowR in the background only with
+    /// Always. iOS shows this once; after that only Settings can change it.
+    func requestAlways() {
+        manager.requestAlwaysAuthorization()
     }
 
     var isAuthorized: Bool {
@@ -78,5 +91,31 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         authorizationStatus = manager.authorizationStatus
+    }
+}
+
+/// What the route screen does with GPS as the app comes and goes. Kept out of
+/// the view so it can be tested.
+enum RouteGPS {
+    enum Action: Equatable { case start, stop, none }
+
+    /// On screen: on, if allowed and not a Mac. Away: off. In between (Control
+    /// Center pulled down, a call): as it was.
+    static func action(for phase: ScenePhase, isMac: Bool, status: CLAuthorizationStatus) -> Action {
+        switch phase {
+        case .active:
+            return !isMac && (status == .authorizedAlways || status == .authorizedWhenInUse) ? .start : .none
+        case .background:
+            return .stop
+        default:
+            return .none
+        }
+    }
+
+    /// Arrival and departure times need Always: on While Using, iOS hands
+    /// PlowR a job-site crossing only while it's on screen. The route screen
+    /// says so (not on a Mac, which follows no route).
+    static func needsAlways(status: CLAuthorizationStatus, isMac: Bool) -> Bool {
+        !isMac && status == .authorizedWhenInUse
     }
 }

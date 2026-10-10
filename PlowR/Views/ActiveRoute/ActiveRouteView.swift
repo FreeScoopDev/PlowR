@@ -129,14 +129,11 @@ struct ActiveRouteView: View {
         // and GPS comes back. In the background it's off: arrivals and
         // departures are the job-site areas', which iOS watches by itself.
         .onChange(of: scenePhase) { _, phase in
-            switch phase {
-            case .active:
-                store.markCurrentStopSeen()
-                if !OnMac.isMac, locationManager.isAuthorized { locationManager.startTracking() }
-            case .background:
-                locationManager.stopTracking()
-            default:
-                break
+            if phase == .active { store.markCurrentStopSeen() }
+            switch RouteGPS.action(for: phase, isMac: OnMac.isMac, status: locationManager.authorizationStatus) {
+            case .start: locationManager.startTracking()
+            case .stop: locationManager.stopTracking()
+            case .none: break
             }
         }
         // Control Center's Complete Stop, when it couldn't complete the stop.
@@ -154,7 +151,7 @@ struct ActiveRouteView: View {
             guard !OnMac.isMac else { return }
             switch status {
             case .authorizedAlways, .authorizedWhenInUse:
-                locationManager.startTracking()
+                if scenePhase != .background { locationManager.startTracking() }
             case .denied, .restricted:
                 showingLocationDeniedAlert = true
                 Task { await fetchWeatherWithoutGPS() }
@@ -200,6 +197,24 @@ struct ActiveRouteView: View {
         }
     }
 
+    /// Location on While Using: GPS works on screen, but job-site arrivals
+    /// and departures (and the offer to text the next client) need Always.
+    private var alwaysLocationNote: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Label("Arrival and departure times are recorded only while PlowR is on screen. Set Location to Always to record them with the app closed.",
+                  systemImage: "location.circle")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 0)
+            Button("Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+            }
+            .font(.footnote.weight(.semibold))
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+    }
+
     /// The route screen with its tracking and sheets. Split from `body`: one
     /// chain of all the screen's modifiers grew too long to type-check.
     private var screenWithSheets: some View {
@@ -216,6 +231,9 @@ struct ActiveRouteView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal)
                             .padding(.vertical, 8)
+                    }
+                    if RouteGPS.needsAlways(status: locationManager.authorizationStatus, isMac: OnMac.isMac) {
+                        alwaysLocationNote
                     }
                     routeMap
                     weatherStrip
@@ -256,7 +274,8 @@ struct ActiveRouteView: View {
             RouteSessionManager.shared.completeStopMessage = nil
             RouteSessionManager.shared.textRequest = nil
         }
-        .task(id: currentStopIndex) {
+        // Again when the first fix arrives: the screen opens before it does.
+        .task(id: "\(currentStopIndex)-\(locationManager.currentLocation != nil)") {
             etaMinutes = nil
             if let stop = currentStop {
                 etaMinutes = await locationManager.calculateETA(to: stop)
@@ -853,8 +872,13 @@ struct ActiveRouteView: View {
             switch locationManager.authorizationStatus {
             case .notDetermined:
                 locationManager.requestPermission()
-            case .authorizedAlways, .authorizedWhenInUse:
-                locationManager.startTracking()
+            case .authorizedAlways:
+                if scenePhase != .background { locationManager.startTracking() }
+            case .authorizedWhenInUse:
+                if scenePhase != .background { locationManager.startTracking() }
+                // Arrivals and departures need Always (RouteGPS.needsAlways):
+                // iOS offers the change once; the screen says so after that.
+                locationManager.requestAlways()
             case .denied, .restricted:
                 showingLocationDeniedAlert = true
             @unknown default:

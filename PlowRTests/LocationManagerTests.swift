@@ -5,6 +5,7 @@
 
 import CoreLocation
 import Foundation
+import SwiftUI
 import Testing
 @testable import PlowR
 
@@ -31,4 +32,42 @@ struct LocationManagerTests {
         #expect(manager.desiredAccuracy == kCLLocationAccuracyNearestTenMeters)
         #expect(manager.distanceFilter == 20)
     }
+
+    @Test func trackingIsForDriving() {
+        let manager = CLLocationManager()
+        let location = LocationManager(manager: manager)
+        location.startTracking()
+        defer { location.stopTracking() }
+        #expect(manager.activityType == .automotiveNavigation)
+    }
+
+    // Away, the last fix goes stale: an estimate or a text's location from
+    // where the phone was minutes ago would be wrong.
+    @Test func stoppingForgetsTheLastFix() {
+        let location = LocationManager(manager: CLLocationManager())
+        location.currentLocation = CLLocation(latitude: 43.37, longitude: -72.34)
+        location.stopTracking()
+        #expect(location.currentLocation == nil)
+    }
+
+    @Test func gpsRunsOnlyOnScreen() {
+        typealias GPS = RouteGPS
+        #expect(GPS.action(for: .active, isMac: false, status: .authorizedAlways) == .start)
+        #expect(GPS.action(for: .active, isMac: false, status: .authorizedWhenInUse) == .start)
+        #expect(GPS.action(for: .active, isMac: false, status: .denied) == .none)
+        #expect(GPS.action(for: .active, isMac: false, status: .notDetermined) == .none)
+        #expect(GPS.action(for: .active, isMac: true, status: .authorizedAlways) == .none)
+        #expect(GPS.action(for: .background, isMac: false, status: .authorizedAlways) == .stop)
+        #expect(GPS.action(for: .inactive, isMac: false, status: .authorizedAlways) == .none)
+    }
+
+    // On While Using, job-site crossings reach PlowR only while it's on
+    // screen: the route screen says Always is needed.
+    @Test func arrivalTimesNeedAlways() {
+        #expect(RouteGPS.needsAlways(status: .authorizedWhenInUse, isMac: false))
+        #expect(!RouteGPS.needsAlways(status: .authorizedAlways, isMac: false))
+        #expect(!RouteGPS.needsAlways(status: .denied, isMac: false))
+        #expect(!RouteGPS.needsAlways(status: .authorizedWhenInUse, isMac: true))
+    }
 }
+

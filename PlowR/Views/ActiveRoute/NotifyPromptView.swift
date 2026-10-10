@@ -123,7 +123,9 @@ struct NotifyPromptView: View {
                 }
             }
         }
-        .task {
+        // Again when a fresh fix arrives: opened as the app comes back, the
+        // phone's position comes a moment later (LocationManager.stopTracking).
+        .task(id: locationManager.currentLocation != nil) {
             estimatedMinutes = await locationManager.calculateETA(to: stop)
         }
         .sheet(isPresented: $showingMessageComposer) {
