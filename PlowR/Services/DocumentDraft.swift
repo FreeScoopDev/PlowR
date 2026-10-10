@@ -84,7 +84,7 @@ nonisolated struct DocumentDraft {
     }
 
     var discountAmount: Double { max(0, InvoiceLines.price(typed: discount, default: 0, locale: locale)) }
-    var taxRatePercent: Double { Proposal.taxRate(typed: taxRate, locale: locale) }
+    var taxRatePercent: Double { Proposal.taxRate(typed: taxRate) }
 
     /// Every line the document will have, in the order it will have them:
     /// selected services (by key), then custom lines with a name and a positive amount.

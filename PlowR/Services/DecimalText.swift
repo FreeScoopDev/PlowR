@@ -20,8 +20,15 @@ nonisolated enum DecimalText {
 
     /// The number in `text`, or nil when there isn't one.
     static func number(_ text: String?, locale: Locale = .current) -> Double? {
+        number(text, decimalComma: locale.decimalSeparator == ",")
+    }
+
+    /// The number in `text`, reading one comma and no dot as a decimal comma
+    /// when `decimalComma` is set, whatever the region. For a figure that a
+    /// comma can't be separating thousands of, such as a rate up to 100.
+    static func number(_ text: String?, decimalComma: Bool) -> Double? {
         var text = (text ?? "").trimmingCharacters(in: .whitespaces)
-        if locale.decimalSeparator == ",", !text.contains("."), text.filter({ $0 == "," }).count == 1 {
+        if decimalComma, !text.contains("."), text.filter({ $0 == "," }).count == 1 {
             text = text.replacingOccurrences(of: ",", with: ".")
         }
         guard let value = Double(text), value.isFinite else { return nil }
