@@ -173,10 +173,10 @@ struct EditClientView: View {
             ProposalEditView(proposal: proposal)
         }
         .sheet(isPresented: $showingProposalBuilder) {
-            NavigationStack { ProposalBuilderView(client: client, isInvoiceMode: false) }
+            NavigationStack { ProposalBuilderView(client: client, isInvoiceMode: false, taxExempt: draft.taxExempt) }
         }
         .sheet(isPresented: $showingInvoiceBuilder) {
-            NavigationStack { ProposalBuilderView(client: client, isInvoiceMode: true) }
+            NavigationStack { ProposalBuilderView(client: client, isInvoiceMode: true, taxExempt: draft.taxExempt) }
         }
         .sheet(isPresented: $showingNewContract) {
             ContractEditView(client: client, contract: nil)
@@ -553,8 +553,12 @@ struct EditClientView: View {
             Toggle("Comped / No Charge", isOn: $draft.isComped)
 
             Toggle(isOn: $draft.taxExempt) {
-                Text("Tax Exempt")
-                Text("New invoices and proposals start at 0% tax instead of your rate in Business Profile.")
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Tax Exempt")
+                    Text("New invoices and proposals start at 0% tax instead of your rate in Business Profile")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             if !draft.isComped {

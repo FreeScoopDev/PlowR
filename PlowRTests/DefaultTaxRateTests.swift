@@ -84,10 +84,10 @@ struct DefaultTaxRateTests {
 
     // The builder's Tax field starts at the business's rate, or empty.
     @Test func theBuildersTaxFieldStartsAtTheBusinessesRate() {
-        #expect(DocumentDraft.startingTaxText(rate: 6.625) == "6.625")
-        #expect(DocumentDraft.startingTaxText(rate: 8) == "8")
-        #expect(DocumentDraft.startingTaxText(rate: 0) == "")
-        #expect(DocumentDraft.startingTaxText(rate: nil) == "")
+        #expect(DocumentDraft.startingTaxText(rate: 6.625, taxExempt: false) == "6.625")
+        #expect(DocumentDraft.startingTaxText(rate: 8, taxExempt: false) == "8")
+        #expect(DocumentDraft.startingTaxText(rate: 0, taxExempt: false) == "")
+        #expect(DocumentDraft.startingTaxText(rate: nil, taxExempt: false) == "")
     }
 
     // The keypad types a decimal comma in many regions; it was saved as 0%.
@@ -114,9 +114,6 @@ struct DefaultTaxRateTests {
         let invoice = ServiceLog.newDraftInvoice(for: h.client, items: [line(100)], operatorID: "op",
                                                  now: h.clock, in: h.context)
         #expect(invoice.taxRate == 0 && invoice.total == 100)
-        // A rate typed on the document still wins.
-        invoice.taxRate = 5
-        #expect(invoice.total == 105)
     }
 
     @Test func aTaxExemptClientsContractPaymentHasNoTax() throws {
@@ -138,6 +135,34 @@ struct DefaultTaxRateTests {
         let invoice = try #require(ContractInstallments.makeInvoice(for: payment, of: contract, in: h.context,
                                                                      now: h.clock))
         #expect(invoice.taxRate == 0 && invoice.total == 100)
+    }
+
+    // The switch turned on and a document started from the client page
+    // before Save: the page's value, not the saved client's.
+    @Test func theClientPagesUnsavedSwitchWins() {
+        #expect(DocumentDraft.isTaxExempt(onScreen: true, saved: false))
+        #expect(!DocumentDraft.isTaxExempt(onScreen: false, saved: true))
+        #expect(DocumentDraft.isTaxExempt(onScreen: nil, saved: true))
+        #expect(!DocumentDraft.isTaxExempt(onScreen: nil, saved: false))
+    }
+
+    // Duplicate makes a new document: an exempt client's starts at 0%, though
+    // the source was taxed; anyone else's keeps the source's rate.
+    @Test func aDuplicateForAnExemptClientHasNoTax() throws {
+        let h = try Harness(stopCount: 0)
+        let source = Proposal(operatorID: "op", client: h.client)
+        source.taxRate = 5
+        source.discountAmount = 10
+        let item = line(100)
+        h.context.insert(item)
+        source.lineItems = [item]
+        h.context.insert(source)
+        let taxed = ServiceLog.duplicate(source, for: h.client, in: h.context)
+        #expect(taxed.taxRate == 5 && taxed.discountAmount == 10 && taxed.lineItems?.count == 1)
+        h.client.taxExempt = true
+        let exempt = ServiceLog.duplicate(source, for: h.client, in: h.context)
+        #expect(exempt.taxRate == 0 && exempt.lineItems?.count == 1)
+        #expect(source.taxRate == 5)
     }
 
     // Turning the switch on changes no document already made.

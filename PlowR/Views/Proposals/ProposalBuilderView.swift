@@ -6,6 +6,9 @@ struct ProposalBuilderView: View {
     var isInvoiceMode: Bool = false
     var linkedVisitID: String = ""        // set when opened from a ScheduledVisit
     var afterHoursMultiplier: Double = 1.0
+    /// The client page's Tax Exempt switch, saved or not: started from that
+    /// page right after turning it on, the saved client still says no.
+    var taxExempt: Bool?
     @Environment(\.modelContext) private var modelContext
     @Environment(\.access) private var access
     @Environment(\.dismiss) private var dismiss
@@ -91,8 +94,9 @@ struct ProposalBuilderView: View {
             .onAppear {
                 guard !seeded else { return }
                 seeded = true
-                taxRateString = DocumentDraft.startingTaxText(rate: profile?.defaultTaxRate,
-                                                               taxExempt: client.taxExempt)
+                taxRateString = DocumentDraft.startingTaxText(
+                    rate: profile?.defaultTaxRate,
+                    taxExempt: DocumentDraft.isTaxExempt(onScreen: taxExempt, saved: client.taxExempt))
                 disclaimer = profile?.defaultDisclaimer ?? ""
             }
             .navigationTitle(isInvoiceMode ? "New Invoice" : "New Proposal")

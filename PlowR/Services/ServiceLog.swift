@@ -369,6 +369,24 @@ enum ServiceLog {
     /// How long a new invoice gives to pay.
     static let invoiceTerm: TimeInterval = 30 * 86_400
 
+    /// A new document with `proposal`'s lines and terms (Duplicate). A new
+    /// document, not a revision: a tax-exempt client's starts at 0%, as any
+    /// new one does, though the source was taxed.
+    @discardableResult
+    static func duplicate(_ proposal: Proposal, for client: Client, in context: ModelContext) -> Proposal {
+        let copy = Proposal(operatorID: proposal.operatorID, client: client)
+        copy.notes = proposal.notes
+        copy.disclaimer = proposal.disclaimer
+        copy.discountAmount = proposal.discountAmount
+        copy.taxRate = DocumentDraft.startingTaxRate(rate: proposal.taxRate, taxExempt: client.taxExempt)
+        copy.validUntil = proposal.validUntil
+        let lineItemCopies = proposal.makeLineItemCopies()
+        lineItemCopies.forEach { context.insert($0) }
+        copy.lineItems = lineItemCopies
+        context.insert(copy)
+        return copy
+    }
+
     /// A new draft invoice for `client` with `items`: the next number, due in
     /// `invoiceTerm`, the business's default terms. Record Services and Bill
     /// Unbilled Work both make invoices through here, so they can't differ.

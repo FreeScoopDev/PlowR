@@ -59,11 +59,12 @@ enum CSVExport {
             .map { client -> [Cell] in
                 [.text(client.name), .text(client.phone), .text(client.email), .text(client.address),
                  .plain(client.isActive ? "Active" : "Inactive"), .text(client.tags.joined(separator: "; ")),
-                 .plain(client.isComped ? "Yes" : "No"), .plain(String(format: "%.0f", client.defaultDiscountPercent)),
+                 .plain(client.isComped ? "Yes" : "No"), .plain(client.taxExempt ? "Yes" : "No"),
+                 .plain(String(format: "%.0f", client.defaultDiscountPercent)),
                  .plain("\(client.totalVisits)"), day(client.lastServiceDate), day(client.createdAt), .text(client.notes)]
             }
         return document(header: ["Name", "Phone", "Email", "Address", "Status", "Tags", "No Charge",
-                                 "Discount %", "Route Visits", "Last Service", "Added", "Notes"], rows: rows)
+                                 "Tax Exempt", "Discount %", "Route Visits", "Last Service", "Added", "Notes"], rows: rows)
     }
 
     static func invoices(_ documents: [Proposal], operatorID: String) -> String {
