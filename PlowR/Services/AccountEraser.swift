@@ -55,6 +55,7 @@ struct AccountEraser {
     var workOrdersFile: URL = ClientWorkOrderStore.fileURL
     /// Where shared invoices, proposals and reports are written as PDFs.
     var temporaryDirectory: URL = FileManager.default.temporaryDirectory
+    var urlCache: URLCache = .shared
     /// Where `default.store…bak` archives, and archived photo folders, can be:
     /// the store's own folder, and Application Support, where the archive step
     /// used to put them.
@@ -138,10 +139,13 @@ struct AccountEraser {
         attempt("work orders") { try removeIfPresent(workOrdersFile) }
         // Documents and exported spreadsheets (CSVExport) left from sharing.
         attempt("shared files") {
-            for file in try files(in: temporaryDirectory, where: { ["pdf", "csv"].contains($0.pathExtension) }) {
+            for file in try Self.sharedFiles(in: temporaryDirectory, fileManager: fileManager) {
                 attempt("shared file \(file.lastPathComponent)") { try removeIfPresent(file) }
             }
         }
+        // Weather and elevation answers for client addresses (URLSession.shared;
+        // MapKit keeps its own cache, which an app can't clear).
+        urlCache.removeAllCachedResponses()
         for folder in archiveFolders {
             attempt("database archives in \(folder.lastPathComponent)") {
                 let archives = try files(in: folder) { Self.isArchive($0) }
@@ -179,6 +183,23 @@ struct AccountEraser {
         return folders
     }
 
+    /// Documents and spreadsheets written to share (PDFs, CSVExport's CSVs):
+    /// the top level of `folder` only. No folder means none.
+    nonisolated static func sharedFiles(in folder: URL, fileManager: FileManager = .default) throws -> [URL] {
+        try files(in: folder, fileManager: fileManager) { ["pdf", "csv"].contains($0.pathExtension.lowercased()) }
+    }
+
+    /// Shared documents left from last time: a PDF holds a client's name,
+    /// address and money, and nothing else removes it. At launch, when no
+    /// share sheet can still be using one. Returns how many were removed.
+    @discardableResult
+    nonisolated static func removeSharedFiles(in folder: URL = FileManager.default.temporaryDirectory,
+                                              fileManager: FileManager = .default) -> Int {
+        ((try? sharedFiles(in: folder, fileManager: fileManager)) ?? []).reduce(0) { count, file in
+            (try? fileManager.removeItem(at: file)) == nil ? count : count + 1
+        }
+    }
+
     /// A `.bak` archive that StoreArchive made: one of the database's files,
     /// or the folder of photos kept beside it.
     nonisolated static func isArchive(_ url: URL) -> Bool {
@@ -193,6 +214,11 @@ struct AccountEraser {
     /// The files in `folder` that `keep` accepts. No folder means no files;
     /// a folder that can't be read is an error, not "nothing there".
     private func files(in folder: URL, where keep: (URL) -> Bool) throws -> [URL] {
+        try Self.files(in: folder, fileManager: fileManager, where: keep)
+    }
+
+    private nonisolated static func files(in folder: URL, fileManager: FileManager,
+                                          where keep: (URL) -> Bool) throws -> [URL] {
         do {
             return try fileManager.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil).filter(keep)
         } catch CocoaError.fileReadNoSuchFile {

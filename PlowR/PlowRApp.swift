@@ -50,6 +50,8 @@ struct PlowRApp: App {
             ClientRemoval.takeInactiveClientsOffRoutes(in: container.mainContext)
             // The Service Log: the same work recorded on two devices, merged.
             ServiceLog.mergeDuplicates(in: container.mainContext)
+            // Invoices and spreadsheets shared last time, off the device.
+            AccountEraser.removeSharedFiles()
             // Visits completed before it existed, copied in after launch, in
             // passes on a context of its own: a long history is a lot of work.
             let container = container
@@ -93,7 +95,7 @@ struct PlowRApp: App {
     // "Test crashed with signal trap before establishing connection."
     //
     // Tests have no business syncing to a real iCloud database regardless.
-    static var isRunningUnderTests: Bool {
+    nonisolated static var isRunningUnderTests: Bool {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
             || NSClassFromString("XCTestCase") != nil
     }

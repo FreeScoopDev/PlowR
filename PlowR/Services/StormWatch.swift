@@ -44,7 +44,7 @@ enum StormWatch {
     /// business with snow services.
     static let defaultThreshold = 1.0
     /// The least snowfall that counts as any: a tenth of an inch, as shown.
-    static let measurable = 0.1
+    nonisolated static let measurable = 0.1
     /// Today and the next two days.
     static let daysAhead = 3
 

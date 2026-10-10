@@ -4,16 +4,34 @@ final class NotificationService {
     static let shared = NotificationService()
     private init() {}
 
-    private let adverseCodes: Set<Int> = [
+    nonisolated static let adverseCodes: Set<Int> = [
         61, 63, 65, 66, 67,         // rain / freezing rain
         71, 73, 75, 77, 85, 86,     // snow / snow showers
         80, 81, 82,                  // heavy showers
         95, 96, 99                   // thunderstorms
     ]
 
+    /// What the alert calls the day: its condition when that's the reason,
+    /// else (picked for its precipitation alone, under a calm label like
+    /// "Mostly Cloudy") snow if a measurable amount is forecast, otherwise rain.
+    nonisolated static func alertWord(_ day: DayForecast) -> String {
+        if adverseCodes.contains(day.weatherCode) {
+            return day.description
+        }
+        return (day.snowfallInches ?? 0) >= StormWatch.measurable ? "Snow" : "Rain"
+    }
+
+    /// Rain, snow, ice or storms in the day's condition, or 0.1 in or more of
+    /// precipitation: WeatherKit's daily condition describes the day as a
+    /// whole, not its worst hour, so a wet morning on a clearing day still
+    /// counts.
+    func isAdverse(_ day: DayForecast) -> Bool {
+        Self.adverseCodes.contains(day.weatherCode) || day.hasSignificantPrecip
+    }
+
     /// Returns the first forecast day in the next 2 days (excluding today) that has adverse conditions.
     func adverseForecastDay(from forecasts: [DayForecast]) -> DayForecast? {
-        forecasts.dropFirst().prefix(2).first { adverseCodes.contains($0.weatherCode) }
+        forecasts.dropFirst().prefix(2).first { isAdverse($0) }
     }
 
     /// Formats the overdue invoice notification body text.
@@ -53,7 +71,7 @@ final class NotificationService {
         // forecast already calls adverse. Otherwise it's ignored for its noise.
         if let small = upcomingStorm, small.inches < StormWatch.defaultThreshold,
            !forecasts.contains(where: { calendar.isDate($0.date, inSameDayAs: small.day)
-               && adverseCodes.contains($0.weatherCode) }) {
+               && isAdverse($0) }) {
             upcomingStorm = nil
         }
         if let stormDay = upcomingStorm?.day, let adverseDay = adverse?.date,
@@ -73,7 +91,7 @@ final class NotificationService {
             content.body = StormWatch.alertBody(upcomingStorm)
         } else if let alertDay = adverse {
             let dayName = alertDay.date.formatted(.dateTime.weekday(.wide))
-            content.body = "\(alertDay.description) expected \(dayName). Review your schedule."
+            content.body = "\(Self.alertWord(alertDay)) expected \(dayName). Review your schedule."
         }
         content.sound = .default
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)

@@ -3,28 +3,15 @@
 //  PlowRTests
 //
 
+import CoreLocation
 import Foundation
 import PDFKit
 import SwiftData
 import Testing
 @testable import PlowR
 
-/// Answers every request with a failure, as no signal or a service down does.
-final class FailingWeatherProtocol: URLProtocol {
-    override class func canInit(with request: URLRequest) -> Bool { true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
-    override func startLoading() {
-        if let url = request.url, let response = HTTPURLResponse(url: url, statusCode: 503, httpVersion: nil, headerFields: nil) {
-            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-        }
-        client?.urlProtocol(self, didLoad: Data())
-        client?.urlProtocolDidFinishLoading(self)
-    }
-    override func stopLoading() {}
-}
-
-/// The estimated weather on a visit's day, from Open-Meteo's historical
-/// forecast archive, on the Service Report.
+/// The estimated weather on a visit's day, from WeatherKit's daily history,
+/// on the Service Report. WeatherKit itself is never called here.
 @MainActor
 struct VisitWeatherTests {
     typealias Harness = ActiveRouteStoreTests.Harness
@@ -39,19 +26,20 @@ struct VisitWeatherTests {
         calendar.date(from: DateComponents(year: y, month: m, day: d, hour: h)) ?? .distantPast
     }
 
-    private let reply = Data("""
-    {"daily": {"time": ["2027-01-14", "2027-01-15", "2027-01-16"],
-               "snowfall_sum": [3.24, 0.0, null],
-               "precipitation_sum": [0.41, 0.0, 0.1],
-               "temperature_2m_min": [17.6, 10.2, 20.0],
-               "temperature_2m_max": [29.4, 25.0, 30.0]}}
-    """.utf8)
-
-    @Test func eachDaysEstimateIsReadAndADayWithAGapIsLeftOut() throws {
-        let days = try VisitWeather.parse(reply)
+    @Test func eachDaysFiguresAreKeptByTheirDayInTheSpan() {
+        let span = date(2027, 1, 14)...date(2027, 1, 15)
+        let figures = [
+            VisitWeather.Figures(date: date(2027, 1, 14), snowfallInches: 3.24, precipitationInches: 0.41,
+                                 lowF: 17.6, highF: 29.4),
+            VisitWeather.Figures(date: date(2027, 1, 15, 6), snowfallInches: 0, precipitationInches: 0,
+                                 lowF: 10.2, highF: 25),
+            VisitWeather.Figures(date: date(2027, 1, 16), snowfallInches: 1, precipitationInches: 0.1,
+                                 lowF: 20, highF: 30),
+        ]
+        let days = VisitWeather.days(figures, span: span, calendar: calendar)
         #expect(days["2027-01-14"] == VisitWeather.Day(snowfall: 3.24, precipitation: 0.41, low: 17.6, high: 29.4))
         #expect(days["2027-01-15"]?.snowfall == 0)
-        #expect(days["2027-01-16"] == nil)                                        // never a made-up zero
+        #expect(days["2027-01-16"] == nil)                                        // outside the span asked for
     }
 
     // Only days the archive really covers: from 2022 to yesterday.
@@ -66,16 +54,9 @@ struct VisitWeatherTests {
         #expect(VisitWeather.span(of: [], now: now, calendar: calendar) == nil)
     }
 
-    @Test func theRequestIsTheSpanAtRoundedCoordinatesInThePhonesZone() throws {
-        let url = try #require(VisitWeather.url(latitude: 43.37704, longitude: -72.34512,
-                                                span: date(2027, 1, 1)...date(2027, 1, 31), calendar: calendar))
-        let items = Dictionary(uniqueKeysWithValues: (URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? [])
-            .map { ($0.name, $0.value ?? "") })
-        #expect(url.host == "historical-forecast-api.open-meteo.com")
-        #expect(items["latitude"] == "43.38" && items["longitude"] == "-72.35")
-        #expect(items["start_date"] == "2027-01-01" && items["end_date"] == "2027-01-31")
-        #expect(items["timezone"] == "America/New_York")                          // days as the report's are
-        #expect(items["precipitation_unit"] == "inch" && items["temperature_unit"] == "fahrenheit")
+    @Test func theLocationSentIsRoundedToAboutAKilometre() {
+        let location = WeatherService.location(latitude: 43.37704, longitude: -72.34512)
+        #expect(location.coordinate.latitude == 43.38 && location.coordinate.longitude == -72.35)
     }
 
     @Test func aDaysLineSaysItsAnEstimate() {
@@ -87,16 +68,44 @@ struct VisitWeatherTests {
         #expect(VisitWeather.line(nil) == "Estimated weather that day: no estimate for this day")
     }
 
-    @Test func aFailedLookupIsSaidSoNotReadAsNoData() async throws {
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [FailingWeatherProtocol.self]
-        let session = URLSession(configuration: configuration)
+    // Under tests WeatherKit is never asked: with no history given, the
+    // lookup fails, and says so.
+    @Test func aFailedLookupIsSaidSoNotReadAsNoData() async {
         let failed = await VisitWeather.lookUp(latitude: 43.4, longitude: -72.3, visitDays: [date(2027, 1, 14, 5)],
-                                               now: date(2027, 2, 1), session: session)
+                                               now: date(2027, 2, 1))
         #expect(failed == .failed)
+        let refused = await VisitWeather.lookUp(latitude: 43.4, longitude: -72.3, visitDays: [date(2027, 1, 14, 5)],
+                                                now: date(2027, 2, 1), history: { _, _, _ in throw URLError(.timedOut) })
+        #expect(refused == .failed)
         let noPin = await VisitWeather.lookUp(latitude: 0, longitude: 0, visitDays: [date(2027, 1, 14, 5)],
-                                              now: date(2027, 2, 1), session: session)
+                                              now: date(2027, 2, 1))
         #expect(noPin == .notLookedUp)
+    }
+
+    // What's actually asked for: the rounded place, from the span's first day
+    // to the day after its last.
+    @Test func theLookupAsksForTheSpanAtARoundedPlace() async {
+        var asked: [(Double, Double, Date, Date)] = []
+        let lookup = await VisitWeather.lookUp(latitude: 43.37704, longitude: -72.34512,
+                                               visitDays: [date(2027, 1, 14, 5), date(2027, 1, 16, 5)],
+                                               now: date(2027, 2, 1)) { location, start, end in
+            asked.append((location.coordinate.latitude, location.coordinate.longitude, start, end))
+            return [VisitWeather.figures(date: Calendar.current.date(byAdding: .day, value: 1, to: start) ?? start,
+                                         snowfall: Measurement(value: 2.54, unit: .centimeters),
+                                         precipitation: Measurement(value: 0.5, unit: .centimeters),
+                                         low: Measurement(value: -5, unit: .celsius),
+                                         high: Measurement(value: 5, unit: .celsius))]
+        }
+        #expect(asked.count == 1)
+        #expect(asked.first?.0 == 43.38 && asked.first?.1 == -72.35)
+        // From the day before the first visit day to the day after the last.
+        let phone = Calendar.current
+        #expect(asked.first?.2 == phone.date(byAdding: .day, value: -1, to: phone.startOfDay(for: date(2027, 1, 14, 5))))
+        #expect(asked.first?.3 == phone.date(byAdding: .day, value: 1, to: phone.startOfDay(for: date(2027, 1, 16, 5))))
+        guard case .days(let days) = lookup, let day = days.values.first else {
+            Issue.record("expected days"); return
+        }
+        #expect(abs(day.snowfall - 1) < 0.0001 && abs(day.high - 41) < 0.0001)   // converted to in and °F
     }
 
     @Test func theReportShowsWeatherAsItsLookupWent() throws {
@@ -119,10 +128,12 @@ struct VisitWeatherTests {
         }
         let day = VisitWeather.dayString(record.startedAt ?? .now)
         let shown = try text(.days([day: .init(snowfall: 3.24, precipitation: 0.41, low: 17.6, high: 29.4)]))
-        #expect(shown.contains("3.24 in of snow") && shown.contains("estimates from a weather model"))
+        #expect(shown.contains("3.24 in of snow") && shown.contains("Weather data sources"))
+        // Apple's attribution on the PDF (the link can wrap across lines).
+        #expect(shown.filter { !$0.isWhitespace }.contains(WeatherAttribution.legalPage))
         let failed = try text(.failed)
         #expect(failed.contains("couldn't be looked up") && !failed.contains("Estimated weather that day"))
         let none = try text(.notLookedUp)
-        #expect(!none.contains("weather") && !none.contains("Open-Meteo"))
+        #expect(!none.contains("weather") && !none.contains("Weather data sources"))
     }
 }

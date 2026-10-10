@@ -89,8 +89,11 @@ struct PlowRWidgetEntryView: View {
                 ProgressView(value: entry.data.progress)
                     .tint(.blue)
                     .padding(.vertical, 5)
+                // A client's name and address are hidden while the phone is
+                // locked (StandBy, an iPad's Lock Screen); the counts aren't.
                 if !entry.data.nextStopName.isEmpty {
                     Text(entry.data.nextStopName)
+                        .privacySensitive()
                         .font(.caption.weight(.medium))
                         .lineLimit(1)
                 }
@@ -161,10 +164,12 @@ struct PlowRWidgetEntryView: View {
                                 .font(.system(size: 9, weight: .semibold))
                                 .foregroundStyle(.secondary)
                             Text(entry.data.nextStopName)
+                                .privacySensitive()
                                 .font(.subheadline.weight(.semibold))
                                 .lineLimit(1)
                             if !entry.data.nextStopAddress.isEmpty {
                                 Text(entry.data.nextStopAddress)
+                                    .privacySensitive()
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                     .lineLimit(1)

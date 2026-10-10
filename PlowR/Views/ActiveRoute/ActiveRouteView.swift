@@ -539,6 +539,10 @@ struct ActiveRouteView: View {
             .padding(.vertical, 10)
             .background(WeatherKind(w.description).background)
             .onTapGesture { openWeather() }
+            // WeatherKit's attribution goes wherever its weather shows.
+            WeatherAttribution()
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .padding(.horizontal)
         }
     }
 

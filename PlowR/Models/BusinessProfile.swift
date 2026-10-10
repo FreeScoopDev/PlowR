@@ -12,6 +12,9 @@ final class BusinessProfile {
     var licenseNumber: String = ""
     var logoData: Data?
     var defaultDisclaimer: String = ""
+    /// Sales tax, percent, put on every new invoice and proposal (0 = none);
+    /// each document can still change its own (pre-launch review, 2026-10-10).
+    var defaultTaxRate: Double = 0
     var accentColorHex: String = PlowRColor.navyHex
     var colorPDFs: Bool = true
     var compactHeader: Bool = false   // smaller document title in PDF output

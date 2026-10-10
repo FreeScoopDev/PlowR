@@ -132,6 +132,21 @@ struct RequestLinkTests {
         for bad in ["@", "pat@", "pat@example", "javascript:alert(1)", "pat @example.com", "a@b.c?body=hi", "a@b..c"] {
             #expect(Link.validEmail(bad).isEmpty, "\(bad)")
         }
+        // A client's email becomes a Mail link only when it's an address.
+        #expect(Link.mailLink(" pat@example.com ")?.absoluteString == "mailto:pat@example.com")
+        for good in ["john.o'brien@company.com", "Pat+snow@mail.example.co.uk", "pat@exämple.com"] {
+            #expect(Link.mailLink(good) != nil, "\(good)")
+        }
+        // Long addresses are linked whole, never cut short to a different one.
+        let long = String(repeating: "a", count: 125) + "@example.com"
+        #expect(Link.mailLink(long)?.absoluteString == "mailto:\(long)")
+        for bad in ["", "a@b.com?bcc=c@d.com", "a@b.com&cc=c@d.com", "pat", "a@b.c/x", "a@b..c", "a@b@c.com",
+                    "a@b.com,c@d.com", "a b@c.com",
+                    // One "@" each: only the refused characters stop these.
+                    "pat@example.com?subject=hi", "pat@example.com#x", "pat@example.com%3Fsubject=x",
+                    "pat@example.com;x", "pat@example.com&x", "pat@example.com\u{202E}"] {
+            #expect(Link.mailLink(bad) == nil, "\(bad)")
+        }
         let business = Link.Business(name: "Pat's", phone: "6035550100", email: "javascript:alert(1)")
         let link = try #require(Link.url(for: business))
         #expect(Link.business(from: link)?.email.isEmpty == true)
