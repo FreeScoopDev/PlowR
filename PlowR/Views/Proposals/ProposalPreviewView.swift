@@ -13,7 +13,9 @@ struct ProposalPreviewView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.access) private var access
     @State private var showingShare = false
+    @State private var gate: ProGate?
 
     @State private var shareURL: URL?
 
@@ -26,6 +28,7 @@ struct ProposalPreviewView: View {
                 .ignoresSafeArea(edges: .bottom)
                 .navigationTitle(docTitle)
                 .navigationBarTitleDisplayMode(.inline)
+                .proGateSheet($gate)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Back") { dismiss() }
@@ -33,7 +36,10 @@ struct ProposalPreviewView: View {
                     ToolbarItem(placement: .primaryAction) {
                         HStack(spacing: 8) {
                             if shareURL != nil {
-                                Button { showingShare = true } label: {
+                                Button {
+                                    // Read only, a new document isn't shared (making one is step 3c's).
+                                    $gate.unless(ProGate.makeDocument(access)) { showingShare = true }
+                                } label: {
                                     Image(systemName: "square.and.arrow.up")
                                 }
                             }

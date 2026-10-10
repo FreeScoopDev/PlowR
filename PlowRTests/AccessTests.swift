@@ -92,7 +92,8 @@ struct AccessTests {
         #expect(pro.canMakeDocuments && !pro.showsMadeWithPlowR)
         #expect(free.canMakeDocuments && free.showsMadeWithPlowR)
         #expect(cancelledSmall.canMakeDocuments && cancelledSmall.showsMadeWithPlowR)
-        #expect(!Access(plan: .lapsed, clientCount: 40).showsMadeWithPlowR)
+        // Read only, the invoices still shared carry the line too.
+        #expect(Access(plan: .lapsed, clientCount: 40).showsMadeWithPlowR)
     }
 
     // MARK: Routes

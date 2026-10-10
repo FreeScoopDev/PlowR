@@ -25,6 +25,7 @@ struct ProDocumentsTests {
     @Test func freeAndCancelledShowTheLineProDoesnt() {
         #expect(Access(plan: .free, clientCount: 3).showsMadeWithPlowR)
         #expect(Access(plan: .lapsed, clientCount: 3).showsMadeWithPlowR)
+        #expect(Access(plan: .lapsed, clientCount: 11).showsMadeWithPlowR)
         #expect(!Access(plan: .pro, clientCount: 3).showsMadeWithPlowR)
     }
 
@@ -63,6 +64,10 @@ struct ProDocumentsTests {
         #expect(ProGate.shareDocument(readOnly, isInvoice: true, owed: 0) == .readOnly)
         #expect(ProGate.shareDocument(readOnly, isInvoice: true, owed: 120) == nil)
         #expect(ProGate.makeReport(readOnly) == .readOnly)
+        #expect(ProGate.makeDocument(readOnly) == .readOnly)
+        // A cent owed is owed; less than Payments' tolerance isn't.
+        #expect(readOnly.canShareDocument(isInvoice: true, owed: 0.01))
+        #expect(!readOnly.canShareDocument(isInvoice: true, owed: 0.004))
     }
 
     @Test func everyoneElseSharesAnything() {
@@ -70,6 +75,7 @@ struct ProDocumentsTests {
                        Access(plan: .lapsed, clientCount: 10)] {
             #expect(access.canShareDocument(isInvoice: false, owed: 0))
             #expect(ProGate.makeReport(access) == nil)
+            #expect(ProGate.makeDocument(access) == nil)
         }
     }
 }

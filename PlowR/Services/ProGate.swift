@@ -81,10 +81,13 @@ enum ProGate: Identifiable, Equatable {
         access.canShareDocument(isInvoice: isInvoice, owed: owed) ? nil : .readOnly
     }
 
-    /// Making a report (the Season Report).
+    /// Making a report (the Season Report), or a new document's PDF.
     static func makeReport(_ access: Access) -> ProGate? {
         access.canMakeDocuments ? nil : .readOnly
     }
+
+    /// A new document's PDF, from the builder's preview.
+    static func makeDocument(_ access: Access) -> ProGate? { makeReport(access) }
 
     static func proFeature(_ name: String, _ access: Access) -> ProGate? {
         if access.canUseProFeatures { return nil }

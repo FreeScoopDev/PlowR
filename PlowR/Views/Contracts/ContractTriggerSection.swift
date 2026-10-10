@@ -84,7 +84,7 @@ struct ContractTriggerChecksSection: View {
                 if !unmarked.isEmpty {
                     Button(sameDay.isEmpty ? "Mark Below Trigger That Day" : "Mark Its Other Places That Day") {
                         // Marking is a PlowR Pro tool; removing a mark never is.
-                        $gate.unless(ProGate.proFeature("The snow trigger", access)) {
+                        $gate.unless(ProGate.proFeature("Marking below trigger", access)) {
                             TriggerChecks.mark(clientID: contract.clientID, clientName: contract.clientName,
                                                places: unmarked, on: day, operatorID: contract.operatorID, in: modelContext)
                         }

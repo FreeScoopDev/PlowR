@@ -95,14 +95,15 @@ struct Access: Equatable {
     /// that's never locked (Joe, 2026-10-09). Proposals, contracts, paid
     /// invoices and reports wait for a subscription.
     func canShareDocument(isInvoice: Bool, owed: Double) -> Bool {
-        canMakeDocuments || (isInvoice && owed > 0.005)
+        canMakeDocuments || (isInvoice && owed > Payments.tolerance)
     }
 
     /// The Service Report, storm tools, Import Clients and the Request Link.
     var canUseProFeatures: Bool { tier == .pro }
 
-    /// A small "Made with PlowR" line on documents.
-    var showsMadeWithPlowR: Bool { tier == .free }
+    /// PlowR's line on documents: on every one PlowR Pro didn't make. Read
+    /// only, the invoices still shared carry it too.
+    var showsMadeWithPlowR: Bool { tier != .pro }
 
     /// Money owed for work already done is never locked away.
     var canRecordPayment: Bool { true }

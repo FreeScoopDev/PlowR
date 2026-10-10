@@ -641,7 +641,7 @@ struct ActiveRouteView: View {
             // fallen here than the forecast said.
             if belowTrigger(for: stop) != nil {
                 Button {
-                    $gate.unless(ProGate.proFeature("The snow trigger check", access)) { belowTriggerStop = stop }
+                    $gate.unless(ProGate.proFeature("Marking below trigger", access)) { belowTriggerStop = stop }
                 } label: {
                     Label("Below Trigger", systemImage: "arrow.down.circle")
                         .font(.subheadline)
