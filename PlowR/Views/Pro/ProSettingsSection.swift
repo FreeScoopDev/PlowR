@@ -11,10 +11,13 @@ extension EnvironmentValues {
 /// manage it or restore it.
 struct ProSettingsSection: View {
     @Environment(\.access) private var access
-    @State private var showingPaywall = false
-    @State private var showingManage = false
+    /// Owned by Settings and presented from its Form: a modifier on a Form
+    /// section goes to each of its rows, and See PlowR Pro then closed
+    /// Settings instead of opening the paywall (simulator, 2026-10-10).
+    @Binding var showingPaywall: Bool
+    @Binding var showingManage: Bool
+    @Binding var restoreFailed: Bool
     @State private var restoring = false
-    @State private var restoreFailed = false
 
     var body: some View {
         Section {
@@ -49,12 +52,23 @@ struct ProSettingsSection: View {
         } header: {
             Text("PlowR Pro")
         }
-        .sheet(isPresented: $showingPaywall) { ProPaywallView() }
-        .manageSubscriptionsSheet(isPresented: $showingManage)
-        .alert("Couldn't Restore", isPresented: $restoreFailed) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("The App Store didn't answer. Check you're online and signed in to the App Store, then try again.")
+    }
+
+    /// What Settings presents for this section, on its Form.
+    struct Presentations: ViewModifier {
+        @Binding var showingPaywall: Bool
+        @Binding var showingManage: Bool
+        @Binding var restoreFailed: Bool
+
+        func body(content: Content) -> some View {
+            content
+                .sheet(isPresented: $showingPaywall) { ProPaywallView() }
+                .manageSubscriptionsSheet(isPresented: $showingManage)
+                .alert("Couldn't Restore", isPresented: $restoreFailed) {
+                    Button("OK", role: .cancel) {}
+                } message: {
+                    Text("The App Store didn't answer. Check you're online and signed in to the App Store, then try again.")
+                }
         }
     }
 
