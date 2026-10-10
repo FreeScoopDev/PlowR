@@ -15,6 +15,8 @@ struct ProposalListView: View {
     @State private var pendingIsInvoice = false
     @State private var creationContext: ProposalCreationContext?
     @State private var proposalToDelete: Proposal?
+    /// An issued invoice is voided, never deleted (InvoiceRecords).
+    @State private var proposalToVoid: Proposal?
     @State private var filterStatus: FilterStatus = .all
     @State private var reminderProposal: Proposal?
 
@@ -40,7 +42,7 @@ struct ProposalListView: View {
         switch filterStatus {
         case .all:       return base.filter { $0.invoicePaidAt == nil }
         case .proposals: return base.filter { !$0.isInvoice }
-        case .invoices:  return base.filter { $0.isInvoice && $0.invoicePaidAt == nil }
+        case .invoices:  return base.filter { $0.isInvoice && $0.invoicePaidAt == nil && $0.voidedAt == nil }
         case .overdue:   return base.filter { $0.invoiceStatus == .overdue }
         case .draft:     return base.filter { $0.isInvoice && $0.invoiceStatus == .draft }
         }
@@ -138,6 +140,18 @@ struct ProposalListView: View {
             }
             Button("Cancel", role: .cancel) { proposalToDelete = nil }
         }
+        .confirmationDialog(
+            "Void \(proposalToVoid?.invoiceNumber ?? "this invoice")?",
+            isPresented: Binding(get: { proposalToVoid != nil }, set: { if !$0 { proposalToVoid = nil } }),
+            titleVisibility: .visible
+        ) {
+            Button("Void Invoice", role: .destructive) {
+                if let p = proposalToVoid { InvoiceRecords.void(p, note: "Voided", in: modelContext); proposalToVoid = nil }
+            }
+            Button("Cancel", role: .cancel) { proposalToVoid = nil }
+        } message: {
+            Text("It was sent or paid toward, so it stays on record: marked void, owing nothing, its number never used again. Its payments stay with it; if there are none, its work can be billed again.")
+        }
         .sheet(isPresented: $showingBillWork) {
             BillWorkView()
         }
@@ -204,17 +218,28 @@ struct ProposalListView: View {
                 Label("Duplicate", systemImage: "doc.on.doc")
             }
             Divider()
+            removeButton(for: proposal)
+        }
+        .swipeActions(edge: .trailing) {
+            removeButton(for: proposal)
+        }
+    }
+
+    /// Delete for a proposal or a draft never sent; Void for an invoice
+    /// that's out.
+    @ViewBuilder
+    private func removeButton(for proposal: Proposal) -> some View {
+        if InvoiceRecords.canDelete(proposal) {
             Button(role: .destructive) {
                 proposalToDelete = proposal
             } label: {
                 Label("Delete", systemImage: "trash")
             }
-        }
-        .swipeActions(edge: .trailing) {
+        } else if InvoiceRecords.canVoid(proposal) {
             Button(role: .destructive) {
-                proposalToDelete = proposal
+                $gate.unless(ProGate.edit(access)) { proposalToVoid = proposal }
             } label: {
-                Label("Delete", systemImage: "trash")
+                Label("Void", systemImage: "xmark.circle")
             }
         }
     }

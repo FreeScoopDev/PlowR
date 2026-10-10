@@ -46,7 +46,7 @@ struct InvoicePaymentsView: View {
                     }
                 }
                 // Nothing left to pay but not marked paid (edited down, say).
-                if invoice.balanceDue <= 0, invoice.invoicePaidAt == nil {
+                if invoice.balanceDue <= 0, invoice.invoicePaidAt == nil, invoice.voidedAt == nil {
                     Section {
                         Button("Mark Paid") { Payments.payInFull(invoice, in: modelContext) }
                     } footer: {

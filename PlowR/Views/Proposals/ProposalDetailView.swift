@@ -13,6 +13,8 @@ struct ProposalDetailView: View {
     @Query private var allClients: [Client]
     @Query private var allServiceItems: [ServiceItem]
     @Query private var allContracts: [Contract]
+    /// For a number two devices both gave out (InvoiceRecords).
+    @Query private var allProposals: [Proposal]
 
     @State private var pdfData: Data? = nil
     @State private var shareURL: URL? = nil
@@ -89,6 +91,19 @@ struct ProposalDetailView: View {
                 }
             }
         }
+        .safeAreaInset(edge: .top) {
+            // Two sent invoices with one number (made on two devices before
+            // they synced): never renumbered, since the client has it; said here.
+            if InvoiceRecords.hasDuplicateNumber(proposal, among: allProposals) {
+                Label("Another invoice also has the number \(proposal.invoiceNumber). They were made on two devices before they synced; revise or void one.",
+                      systemImage: "exclamationmark.triangle.fill")
+                    .font(.footnote)
+                    .foregroundStyle(.orange)
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(.ultraThinMaterial)
+            }
+        }
         .safeAreaInset(edge: .bottom) {
             actionBar
                 .background(.ultraThinMaterial)
@@ -100,6 +115,7 @@ struct ProposalDetailView: View {
         .onChange(of: proposal.invoicePaidAt) { _, _ in generatePDF() }
         .onChange(of: proposal.amountPaid) { _, _ in generatePDF() }
         .onChange(of: proposal.invoiceSentAt) { _, _ in generatePDF() }
+        .onChange(of: proposal.voidedAt) { _, _ in generatePDF() }
         .onChange(of: allProfiles) { _, _ in generatePDF() }
         // Sent to the client from the share sheet (Mark as Sent on): they're
         // awaiting a response.
@@ -129,13 +145,18 @@ struct ProposalDetailView: View {
         .sheet(isPresented: $showingEditView, onDismiss: { generatePDF() }) {
             ProposalEditView(proposal: proposal)
         }
-        .confirmationDialog("Revise Paid Invoice", isPresented: $showingReviseDialog, titleVisibility: .visible) {
-            Button("Create Revision Copy") { createRevision() }
-            Button("Reset to Draft", role: .destructive) { resetToDraft() }
+        // An invoice that's out is a record: changed by a revision, or voided
+        // (InvoiceRecords). Never edited under its number, never deleted.
+        .confirmationDialog("Revise or Void \(proposal.invoiceNumber)", isPresented: $showingReviseDialog,
+                            titleVisibility: .visible) {
+            Button("Create Revision") { createRevision() }
+            Button("Void Invoice", role: .destructive) {
+                InvoiceRecords.void(proposal, note: "Voided", in: modelContext)
+                generatePDF()
+            }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text(["Create a new draft revision, or reset this invoice back to Draft status.",
-                  Payments.clearNote(for: proposal)].filter { !$0.isEmpty }.joined(separator: " "))
+            Text("A revision is a new invoice that replaces this one: what was paid moves to it, and this one is kept as void. Void takes it back with no replacement: it stays on record and owes nothing, and if nothing was paid on it, its work can be billed again.")
         }
     }
 
@@ -201,8 +222,8 @@ struct ProposalDetailView: View {
                 .tint(.orange)
 
             case .sent, .overdue:
-                Button { showingEditView = true } label: {
-                    Label("Edit", systemImage: "pencil")
+                Button { $gate.unless(ProGate.edit(access)) { showingReviseDialog = true } } label: {
+                    Label("Revise", systemImage: "doc.badge.plus")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
@@ -226,6 +247,15 @@ struct ProposalDetailView: View {
                 .tint(.green)
 
             case .paid:
+                // A revision of a paid invoice not yet sent: paid until its
+                // lines change, and still edited in place.
+                if InvoiceRecords.canEditInPlace(proposal) {
+                    Button { showingEditView = true } label: {
+                        Label("Edit", systemImage: "pencil")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                }
                 Button { showingPayments = true } label: {
                     Label("Payments", systemImage: "dollarsign.circle")
                         .frame(maxWidth: .infinity)
@@ -238,6 +268,14 @@ struct ProposalDetailView: View {
                 }
                 .buttonStyle(.bordered)
                 .tint(.orange)
+
+            case .void:
+                // Kept on record: its payments (if any) can still be seen.
+                Button { showingPayments = true } label: {
+                    Label("Payments", systemImage: "dollarsign.circle")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
             }
         }
         .padding(.horizontal)
@@ -283,14 +321,9 @@ struct ProposalDetailView: View {
         generatePDF()
     }
 
-    private func resetToDraft() {
-        Payments.clear(proposal, in: modelContext)
-        proposal.invoiceSentAt = nil
-        generatePDF()
-    }
-
     private func createRevision() {
         guard let client = proposalClient else { return }
         ServiceLog.revise(proposal, client: client, in: modelContext)
+        generatePDF()
     }
 }

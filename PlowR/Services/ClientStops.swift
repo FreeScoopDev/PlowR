@@ -98,6 +98,8 @@ enum ClientStops {
                 ServiceLog.linkEarlierVisits(in: container.mainContext)
                 // Payments recorded on another device may now cover an invoice.
                 Payments.settleAll(in: container.mainContext)
+                // An invoice number two devices both gave out (InvoiceRecords).
+                InvoiceRecords.resolveDuplicateNumbers(in: container.mainContext)
             }
         }
     }
