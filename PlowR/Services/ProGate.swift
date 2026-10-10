@@ -87,6 +87,12 @@ enum ProGate: Identifiable, Equatable {
         access.canShareDocument(isInvoice: isInvoice, owed: owed) ? nil : .readOnly
     }
 
+    /// Sharing `document`: its own balance decides, sent or not, so a draft
+    /// invoice made before a lapse can still go out to get paid.
+    static func shareDocument(_ access: Access, _ document: Proposal) -> ProGate? {
+        shareDocument(access, isInvoice: document.isInvoice, owed: document.balanceDue)
+    }
+
     /// Making a report (the Season Report), or a new document's PDF.
     static func makeReport(_ access: Access) -> ProGate? {
         access.canMakeDocuments ? nil : .readOnly

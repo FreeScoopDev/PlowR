@@ -233,6 +233,51 @@ struct PaymentsTests {
         #expect(owed.amountPaid == 0)
     }
 
+    // A draft nobody has been sent isn't owed yet: it counted on the
+    // Dashboard, the client list and the client's page. It's in Drafts.
+    @Test func aDraftIsntOwedUntilItGoesOut() throws {
+        let h = try Harness(stopCount: 0)
+        let sent = invoice(h, total: 100)
+        let draft = invoice(h, total: 40, number: "INV-0002")
+        draft.invoiceSentAt = nil
+        #expect(Payments.owed([sent, draft]) == 100)
+        #expect(Payments.balance(of: [sent, draft]) == 140)                     // a list's own total, drafts in
+        #expect(MoneyOwed.summary([sent, draft], operatorID: "op", now: h.clock).total == 100)
+        #expect(Payments.byMonth([sent, draft]).reduce(0) { $0 + $1.owed } == 100)
+        // A payment on a draft makes it a record: what's left is owed.
+        Payments.record(10, method: "", receivedAt: h.clock, on: draft, in: h.context, now: h.clock)
+        #expect(Payments.owed([sent, draft]) == 130)
+        // Sent, it's owed.
+        let other = invoice(h, total: 25, number: "INV-0003")
+        other.invoiceSentAt = nil
+        DocumentSent.markSent(other, in: h.context, now: h.clock)
+        #expect(Payments.owed([other]) == 25)
+    }
+
+    // A revision replaces an invoice the client has: its original is void the
+    // moment it's made, so the revision is owed though it isn't sent yet.
+    @Test func aRevisionOfASentInvoiceIsStillOwed() throws {
+        let h = try Harness(stopCount: 0)
+        let original = invoice(h, total: 100)
+        let revision = ServiceLog.revise(original, client: h.client, now: h.clock, in: h.context)
+        #expect(revision.invoiceSentAt == nil && original.voidedAt != nil)
+        #expect(Payments.owed([original, revision]) == 100)
+        #expect(MoneyOwed.summary([original, revision], operatorID: "op", now: h.clock).total == 100)
+    }
+
+    // Read only after a lapse, an invoice with money owed can still be sent,
+    // draft or not: it's how the business gets paid.
+    @Test func readOnlyCanSendADraftThatsOwed() throws {
+        let h = try Harness(stopCount: 0)
+        let draft = invoice(h, total: 40)
+        draft.invoiceSentAt = nil
+        let readOnly = Access(plan: .lapsed, clientCount: 11)
+        #expect(ProGate.shareDocument(readOnly, draft) == nil)
+        let quote = Proposal(operatorID: "op", client: h.client)
+        h.context.insert(quote)
+        #expect(ProGate.shareDocument(readOnly, quote) != nil)
+    }
+
     // Money counts in the month it came: parts of one invoice in two months.
     @Test func moneyByMonthCountsEachPartWhenItCame() throws {
         let h = try Harness(stopCount: 0)

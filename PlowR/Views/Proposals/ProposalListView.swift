@@ -59,6 +59,8 @@ struct ProposalListView: View {
 
     private var overdueCount: Int { base.filter { $0.invoiceStatus == .overdue }.count }
 
+    private var draftCount: Int { base.filter { $0.isInvoice && $0.invoiceStatus == .draft }.count }
+
     private var myClients: [Client] {
         allClients.filter { $0.operatorID == authManager.userID }.sorted { $0.name < $1.name }
     }
@@ -75,7 +77,7 @@ struct ProposalListView: View {
                 )
             } else {
                 List {
-                    if filterStatus == .all && (outstandingTotal > 0 || overdueCount > 0) {
+                    if filterStatus == .all && (outstandingTotal > 0 || overdueCount > 0 || draftCount > 0) {
                         summarySection
                     }
                     ForEach(myProposals) { proposal in
@@ -190,7 +192,6 @@ struct ProposalListView: View {
                 if overdueCount > 0 {
                     StatTile(value: "\(overdueCount)", label: "Overdue", color: .red)
                 }
-                let draftCount = base.filter { $0.isInvoice && $0.invoiceStatus == .draft }.count
                 if draftCount > 0 {
                     StatTile(value: "\(draftCount)", label: "Drafts", color: .blue)
                 }
@@ -257,7 +258,7 @@ struct ProposalListView: View {
         } else if proposal.invoiceStatus == .draft {
             Button {
                 // As sharing it: an invoice still owed can be sent, read only.
-                $gate.unless(ProGate.shareDocument(access, isInvoice: true, owed: Payments.owed([proposal]))) {
+                $gate.unless(ProGate.shareDocument(access, proposal)) {
                     DocumentSent.markSent(proposal, in: modelContext)
                 }
             } label: {
