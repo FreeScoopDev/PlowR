@@ -224,10 +224,13 @@ struct InvoiceRecordsTests {
 
     // MARK: The PDF
 
+    /// The PDF's text without spaces: these labels are letter-spaced, and
+    /// Xcode Cloud's PDFKit reads them back as "P A I D" (2026-10-10).
     private func pdfText(_ bill: Proposal) throws -> String {
         let data = PDFGenerator.generate(proposal: bill, profile: nil, forceIsInvoice: true, madeWithPlowR: false)
         let document = try #require(PDFDocument(data: data))
-        return (0..<document.pageCount).compactMap { document.page(at: $0)?.string }.joined(separator: "\n")
+        let text = (0..<document.pageCount).compactMap { document.page(at: $0)?.string }.joined()
+        return text.filter { !$0.isWhitespace }
     }
 
     @Test func aPaidInvoicesPDFSaysPaidNotTotalDue() throws {
@@ -235,7 +238,7 @@ struct InvoiceRecordsTests {
         let bill = invoice(h, total: 100)
         Payments.record(100, method: "", receivedAt: h.clock, on: bill, in: h.context, now: h.clock)
         let text = try pdfText(bill)
-        #expect(text.contains("PAID") && !text.contains("TOTAL DUE"))
+        #expect(text.contains("PAID") && !text.contains("TOTALDUE"))
     }
 
     @Test func aVoidedInvoicesPDFSaysVoid() throws {
@@ -243,6 +246,6 @@ struct InvoiceRecordsTests {
         let bill = invoice(h, total: 100)
         InvoiceRecords.void(bill, note: "Revised as INV-0001-R1", now: h.clock, in: h.context)
         let text = try pdfText(bill)
-        #expect(text.contains("VOID") && text.contains("Revised as INV-0001-R1") && !text.contains("TOTAL DUE"))
+        #expect(text.contains("VOID") && text.contains("RevisedasINV-0001-R1") && !text.contains("TOTALDUE"))
     }
 }
