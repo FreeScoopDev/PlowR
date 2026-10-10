@@ -45,6 +45,7 @@ New entries go in `changelog.d/` (see its README) and are gathered here when a v
 - A paid invoice's PDF says PAID with the balance due $0.00, a receipt, instead of TOTAL DUE; a voided one says VOID and why.
 - In a region that writes decimals with a comma, a price, discount or payment typed "12,50" (what the keypad types there) is read as 12.50. It was unreadable, so a line silently billed its default price, a discount came off as nothing and a payment couldn't be recorded. Money reads a comma only where the region uses one, so a US iPad's "1,250" isn't taken for 1.25. Tax rates read one everywhere, as before: a rate is at most 100, so its comma can't be separating thousands. A figure with both a comma and a dot ("1,250.00") is still not read, rather than guessed at.
 - A service catalog price that can't be read is no longer saved as $0 over the price the service had: Save waits, and the field says why.
+- The free-tier banner's close button and the Apple Weather "Data Sources" link are easier to tap: both were well under the 44-point target Apple asks for. VoiceOver says the snow trigger needs PlowR Pro to change.
 
 ### Security
 - The Today's Route widget hides the next client's name and address while the phone is locked (StandBy, an iPad's Lock Screen). The Live Activity still shows them: reading it on a locked phone while driving is its job.
