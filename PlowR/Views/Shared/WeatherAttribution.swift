@@ -31,9 +31,13 @@ struct WeatherAttribution: View {
                 .frame(height: 11)
                 .accessibilityLabel("Apple Weather")
                 Link("Data Sources", destination: attribution.legalPageURL)
+                    .padding(.vertical, 8)
+                    .contentShape(Rectangle())
             } else if let url = URL(string: Self.legalPage) {
                 Text(Self.markText)
                 Link("Data Sources", destination: url)
+                    .padding(.vertical, 8)
+                    .contentShape(Rectangle())
             }
         }
         .font(.caption2)

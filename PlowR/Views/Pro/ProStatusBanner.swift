@@ -53,6 +53,9 @@ struct ProStatusBanner: View {
                     Image(systemName: "xmark")
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(.secondary)
+                        // A small mark, a full-size target.
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Rectangle())
                 }
                 .accessibilityLabel("Close")
             }

@@ -22,6 +22,7 @@ struct ContractTriggerSection: View {
                         LabeledContent("Snow Trigger", value: value)
                     }
                     .foregroundStyle(.primary)
+                    .accessibilityHint("Needs PlowR Pro to change")
                 } else {
                     Stepper(value: $inches, in: 0...12, step: 0.5) {
                         LabeledContent("Snow Trigger", value: value)
