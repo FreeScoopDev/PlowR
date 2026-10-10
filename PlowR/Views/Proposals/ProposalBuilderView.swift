@@ -91,7 +91,8 @@ struct ProposalBuilderView: View {
             .onAppear {
                 guard !seeded else { return }
                 seeded = true
-                taxRateString = DocumentDraft.startingTaxText(rate: profile?.defaultTaxRate)
+                taxRateString = DocumentDraft.startingTaxText(rate: profile?.defaultTaxRate,
+                                                               taxExempt: client.taxExempt)
                 disclaimer = profile?.defaultDisclaimer ?? ""
             }
             .navigationTitle(isInvoiceMode ? "New Invoice" : "New Proposal")

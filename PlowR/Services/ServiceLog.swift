@@ -379,8 +379,9 @@ enum ServiceLog {
         proposal.invoiceDueDate = now.addingTimeInterval(invoiceTerm)
         let profile = (try? context.fetch(FetchDescriptor<BusinessProfile>()))?.first { $0.operatorID == operatorID }
         proposal.disclaimer = profile?.defaultDisclaimer ?? ""
-        // The business's sales tax, as on every new document.
-        proposal.taxRate = profile?.defaultTaxRate ?? 0
+        // The business's sales tax, as on every new document, unless the
+        // client is tax exempt.
+        proposal.taxRate = DocumentDraft.startingTaxRate(rate: profile?.defaultTaxRate, taxExempt: client.taxExempt)
         if !notes.isEmpty { proposal.notes = notes }
         items.forEach { context.insert($0) }
         proposal.lineItems = items

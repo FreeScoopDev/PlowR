@@ -29,6 +29,7 @@ struct ClientDraftTests {
         pat.defaultStopNotes = "Gate code 1234"
         pat.preferredPayment = "check"
         pat.isComped = true
+        pat.taxExempt = true
         pat.defaultDiscountPercent = 5
         pat.tags = ["Residential"]
         pat.notes = "Dog in the yard"
@@ -43,7 +44,7 @@ struct ClientDraftTests {
         #expect(draft == ClientDraft(
             name: "Pat Doe", phone: "555-0100", email: "pat@example.com", address: "1 Main St",
             skipNotificationPrompt: true, goalMinutes: 20, defaultStopNotes: "Gate code 1234",
-            preferredPayment: "check", isComped: true, defaultDiscountPercent: 5, tags: ["Residential"],
+            preferredPayment: "check", isComped: true, taxExempt: true, defaultDiscountPercent: 5, tags: ["Residential"],
             notes: "Dog in the yard", isActive: false, expectedServiceIDs: ["a", "b"]))
     }
 
@@ -79,7 +80,7 @@ struct ClientDraftTests {
         let draft = ClientDraft(
             name: "Pat Smith", phone: "555-0199", email: "", address: pat.address,
             skipNotificationPrompt: false, goalMinutes: 15, defaultStopNotes: "",
-            preferredPayment: "cash", isComped: false, defaultDiscountPercent: 10, tags: ["Priority"],
+            preferredPayment: "cash", isComped: false, taxExempt: false, defaultDiscountPercent: 10, tags: ["Priority"],
             notes: "", isActive: pat.isActive, expectedServiceIDs: ["c"])
         draft.applyExceptAddressAndActive(to: pat)
         #expect(ClientDraft(pat) == draft)
@@ -137,7 +138,7 @@ struct ClientDraftTests {
     @Test func theFieldsAreTheOnesListed() {
         let fields = Mirror(reflecting: ClientDraft(pat)).children.compactMap(\.label)
         #expect(fields == ["name", "phone", "email", "address", "skipNotificationPrompt", "goalMinutes",
-                           "defaultStopNotes", "preferredPayment", "isComped", "defaultDiscountPercent",
+                           "defaultStopNotes", "preferredPayment", "isComped", "taxExempt", "defaultDiscountPercent",
                            "tags", "notes", "isActive", "expectedServiceIDs"])
     }
 

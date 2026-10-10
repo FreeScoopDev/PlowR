@@ -552,6 +552,11 @@ struct EditClientView: View {
 
             Toggle("Comped / No Charge", isOn: $draft.isComped)
 
+            Toggle(isOn: $draft.taxExempt) {
+                Text("Tax Exempt")
+                Text("New invoices and proposals start at 0% tax instead of your rate in Business Profile.")
+            }
+
             if !draft.isComped {
                 HStack {
                     Text("Default Discount")
