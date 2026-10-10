@@ -203,6 +203,8 @@ struct ProofOfServiceTests {
         #expect((1...12).allSatisfy { text.contains("Visit \($0).") })
         #expect(!text.contains("on site"))
         #expect(text.contains("About this report"))
+        // Not certified evidence: the Terms say so, and so does the report.
+        #expect(text.contains("not a certified or independent one"))
         #expect(text.contains("Before, taken"))                                   // a known capture time is shown
         let originals = visits.flatMap(\.photos).reduce(0) { $0 + $1.imageData.count }
         #expect(data.count < originals / 4)                                       // shrunk, not the originals

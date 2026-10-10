@@ -53,7 +53,8 @@
         <p class="welcome" id="welcome">Request service. It takes about a minute.</p>
         <p class="notice warn" id="in-app" hidden>This page is open inside another app, which may not let it start a text. If Send doesn't open Messages, open this page in Safari or Chrome (the ⋯ or share menu), or press Send Request, then Copy Request.</p>
 
-        <form id="form" novalidate>
+        <!-- If the script ever fails, submitting goes nowhere: what was typed never leaves the page. -->
+        <form id="form" action="javascript:void(0)" novalidate>
             <div>
                 <label for="name">Your name</label>
                 <input type="text" id="name" maxlength="100" autocomplete="name" required>
@@ -98,7 +99,7 @@
         </section>
 
         <footer>
-            <p>Your request goes straight to the business, as a text or email you send yourself. Nothing you type is sent to or kept by this website. <a href="../privacy-policy.html">Privacy</a> · Made with PlowR</p>
+            <p>Your request goes straight to the business, as a text or email you send yourself. Nothing you type is sent to or kept by this website. PlowR doesn't verify or vouch for the businesses that use it. <a href="../privacy-policy.html">Privacy</a> · <a href="../terms-of-service.html">Terms</a> · Made with PlowR</p>
         </footer>
     </section>
 </main>
