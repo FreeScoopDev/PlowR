@@ -36,6 +36,10 @@ struct ProposalBuilderView: View {
     @State private var sharedProposalID: UUID?
     @State private var sharedNumber = ""
     @State private var grouped = false
+    /// The business's tax rate and disclaimer filled in, once: a row's own
+    /// onAppear waits for it to scroll into view, and runs again after it
+    /// was cleared on purpose.
+    @State private var seeded = false
 
     private struct CustomLineItem: Identifiable {
         let id = UUID()
@@ -83,6 +87,12 @@ struct ProposalBuilderView: View {
                 servicesSection
                 customItemsSection
                 optionsSection
+            }
+            .onAppear {
+                guard !seeded else { return }
+                seeded = true
+                taxRateString = DocumentDraft.startingTaxText(rate: profile?.defaultTaxRate)
+                disclaimer = profile?.defaultDisclaimer ?? ""
             }
             .navigationTitle(isInvoiceMode ? "New Invoice" : "New Proposal")
             .navigationBarTitleDisplayMode(.inline)
@@ -307,11 +317,6 @@ struct ProposalBuilderView: View {
                 TextEditor(text: $disclaimer)
                     .frame(minHeight: 60)
                     .foregroundStyle(disclaimer.isEmpty ? .secondary : .primary)
-                    .onAppear {
-                        if disclaimer.isEmpty {
-                            disclaimer = profile?.defaultDisclaimer ?? ""
-                        }
-                    }
             }
             Section("Notes") {
                 TextEditor(text: $notes)

@@ -12,6 +12,13 @@ import Foundation
 /// `nonisolated`: plain values and arithmetic, used from the view and from tests.
 nonisolated struct DocumentDraft {
 
+    /// The Tax field's starting text on a new document: the business's own
+    /// sales tax (Business Profile), or empty when it has none.
+    static func startingTaxText(rate: Double?) -> String {
+        guard let rate, rate > 0 else { return "" }
+        return Proposal.percentText(rate)
+    }
+
     struct Service {
         var id: String
         var name: String
