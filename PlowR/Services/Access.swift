@@ -90,11 +90,20 @@ struct Access: Equatable {
     /// Invoices, proposals and contracts as PDFs, to share or print.
     var canMakeDocuments: Bool { tier != .readOnly }
 
+    /// Making or sharing one existing document's PDF. Read only, only an
+    /// invoice with money still owed: it's how the business gets paid, and
+    /// that's never locked (Joe, 2026-10-09). Proposals, contracts, paid
+    /// invoices and reports wait for a subscription.
+    func canShareDocument(isInvoice: Bool, owed: Double) -> Bool {
+        canMakeDocuments || (isInvoice && owed > Payments.tolerance)
+    }
+
     /// The Service Report, storm tools, Import Clients and the Request Link.
     var canUseProFeatures: Bool { tier == .pro }
 
-    /// A small "Made with PlowR" line on documents.
-    var showsMadeWithPlowR: Bool { tier == .free }
+    /// PlowR's line on documents: on every one PlowR Pro didn't make. Read
+    /// only, the invoices still shared carry it too.
+    var showsMadeWithPlowR: Bool { tier != .pro }
 
     /// Money owed for work already done is never locked away.
     var canRecordPayment: Bool { true }

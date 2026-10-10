@@ -102,10 +102,16 @@ struct DashboardView: View {
                     profileCard
                     if let w = dashWeather { dashWeatherStrip(w) }
                     if let storm {
+                        // The forecast for everyone; its tools are PlowR Pro.
                         StormCard(storm: storm, routes: myRoutes, clients: myClients, text: { clients in
-                            stormTextStops = clients.enumerated().map { RouteStop(order: $0.offset, client: $0.element) }
+                            $gate.unless(ProGate.proFeature("Texting clients from the storm card", access)) {
+                                stormTextStops = clients.enumerated().map { RouteStop(order: $0.offset, client: $0.element) }
+                            }
                         }, mark: { trigger, below in
-                            markBelowTrigger(trigger, on: storm.day, below: below)
+                            // Marking is Pro; taking a mark off never is (as on the contract page).
+                            $gate.unless(below ? ProGate.proFeature("Marking below trigger", access) : nil) {
+                                markBelowTrigger(trigger, on: storm.day, below: below)
+                            }
                         })
                     }
                     todayCard

@@ -997,7 +997,10 @@ struct EditClientView: View {
                 BalanceDueCaption(document: document)
                 HStack(spacing: 4) {
                     Button {
-                        shareDocument(document)
+                        $gate.unless(ProGate.shareDocument(access, isInvoice: document.isInvoice,
+                                                           owed: Payments.owed([document]))) {
+                            shareDocument(document)
+                        }
                     } label: {
                         Image(systemName: "square.and.arrow.up")
                     }
@@ -1046,7 +1049,8 @@ struct EditClientView: View {
             zones: client.sortedZones,
             profile: operatorProfile,
             paymentMethods: operatorPaymentMethods,
-            forceIsInvoice: proposal.isInvoice
+            forceIsInvoice: proposal.isInvoice,
+            madeWithPlowR: access.showsMadeWithPlowR
         )
         let prefix = proposal.isInvoice ? "Invoice" : "Proposal"
         let safe = client.name.replacingOccurrences(of: "/", with: "-")

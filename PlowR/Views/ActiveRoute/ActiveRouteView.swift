@@ -11,6 +11,8 @@ import MessageUI
 struct ActiveRouteView: View {
     let route: PlowRoute
     @Environment(ActiveRouteStore.self) private var store
+    @Environment(\.access) private var access
+    @State private var gate: ProGate?
     @Environment(\.modelContext) private var modelContext
     @Environment(\.requestReview) private var requestReview
     @Environment(\.scenePhase) private var scenePhase
@@ -323,6 +325,7 @@ struct ActiveRouteView: View {
         .sheet(isPresented: $showingMassMessage) {
             MassMessageView(stops: sortedStops, allClients: allClients)
         }
+        .proGateSheet($gate)
         .sheet(item: $belowTriggerStop, onDismiss: belowTriggerDismissed) { stop in
             BelowTriggerSheet(clientName: stop.clientName, triggerLabel: belowTrigger(for: stop)?.label ?? "",
                               save: { passBelowTrigger(stop, note: $0, photos: $1) })
@@ -638,7 +641,7 @@ struct ActiveRouteView: View {
             // fallen here than the forecast said.
             if belowTrigger(for: stop) != nil {
                 Button {
-                    belowTriggerStop = stop
+                    $gate.unless(ProGate.proFeature("Marking below trigger", access)) { belowTriggerStop = stop }
                 } label: {
                     Label("Below Trigger", systemImage: "arrow.down.circle")
                         .font(.subheadline)

@@ -3,6 +3,8 @@ import SwiftData
 
 struct ClientStatsView: View {
     @Environment(AuthManager.self) private var authManager
+    @Environment(\.access) private var access
+    @State private var gate: ProGate?
     @Query private var allClients: [Client]
     @Query private var allProposals: [Proposal]
     @Query private var profiles: [BusinessProfile]
@@ -68,7 +70,7 @@ struct ClientStatsView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
-                    shareItem = buildReportURL()
+                    $gate.unless(ProGate.makeReport(access)) { shareItem = buildReportURL() }
                 } label: {
                     Image(systemName: "square.and.arrow.up")
                 }
@@ -77,6 +79,7 @@ struct ClientStatsView: View {
         .sheet(item: $shareItem) { item in
             ShareSheet(url: item.url)
         }
+        .proGateSheet($gate)
     }
 
     private var summarySection: some View {
@@ -254,7 +257,8 @@ struct ClientStatsView: View {
         let data = PDFGenerator.generateSeasonReport(
             clients: myClients,
             proposals: myProposals,
-            profile: profile
+            profile: profile,
+            madeWithPlowR: access.showsMadeWithPlowR
         )
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("PlowR_Season_Report.pdf")

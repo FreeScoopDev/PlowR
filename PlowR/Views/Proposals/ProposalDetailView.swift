@@ -6,6 +6,8 @@ struct ProposalDetailView: View {
     @Bindable var proposal: Proposal
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.access) private var access
+    @State private var gate: ProGate?
     @Query private var allProfiles: [BusinessProfile]
     @Query private var allPaymentMethods: [PaymentMethod]
     @Query private var allClients: [Client]
@@ -73,7 +75,12 @@ struct ProposalDetailView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 if shareURL != nil {
-                    Button { showingShare = true } label: {
+                    Button {
+                        $gate.unless(ProGate.shareDocument(access, isInvoice: proposal.isInvoice,
+                                                           owed: Payments.owed([proposal]))) {
+                            showingShare = true
+                        }
+                    } label: {
                         Image(systemName: "square.and.arrow.up")
                     }
                 } else {
@@ -86,7 +93,9 @@ struct ProposalDetailView: View {
             actionBar
                 .background(.ultraThinMaterial)
         }
+        .proGateSheet($gate)
         .onAppear { generatePDF() }
+        .onChange(of: access.showsMadeWithPlowR) { _, _ in generatePDF() }
         .onChange(of: proposal.total) { _, _ in generatePDF() }
         .onChange(of: proposal.invoicePaidAt) { _, _ in generatePDF() }
         .onChange(of: proposal.amountPaid) { _, _ in generatePDF() }
@@ -237,7 +246,8 @@ struct ProposalDetailView: View {
                 proposal: proposal,
                 profile: profile,
                 paymentMethods: activePaymentMethods,
-                forceIsInvoice: proposal.isInvoice
+                forceIsInvoice: proposal.isInvoice,
+                madeWithPlowR: access.showsMadeWithPlowR
             )
             pdfData = data
             let prefix = proposal.isInvoice ? "Invoice" : "Proposal"

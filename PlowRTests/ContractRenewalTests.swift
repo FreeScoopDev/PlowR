@@ -130,11 +130,24 @@ struct ContractRenewalTests {
         let winter = season(h, from: date(2026, 11, 1), to: date(2027, 3, 31))
         winter.notes = (1...200).map { "Clause \($0): the client agrees to keep the driveway clear of vehicles." }
             .joined(separator: "\n") + "\nTHE LAST LINE."
-        let document = try #require(PDFDocument(data: ContractPDF.generate(winter, client: h.client, profile: nil, catalog: [])))
+        let document = try #require(PDFDocument(data: ContractPDF.generate(winter, client: h.client, profile: nil, catalog: [], madeWithPlowR: true)))
         #expect(document.pageCount >= 3)
         let text = (0..<document.pageCount).compactMap { document.page(at: $0)?.string }.joined(separator: "\n")
         #expect(text.contains("THE LAST LINE."))
         #expect(text.contains("Agreed by"))
+    }
+
+    // PlowR's line on a free-tier contract, never on a Pro one.
+    @Test func aContractCarriesPlowRsLineOnlyWhenAsked() throws {
+        let h = try Harness(stopCount: 0)
+        let winter = season(h, from: date(2026, 11, 1), to: date(2027, 3, 31))
+        func text(_ madeWithPlowR: Bool) throws -> String {
+            let document = try #require(PDFDocument(data: ContractPDF.generate(winter, client: h.client, profile: nil,
+                                                                               catalog: [], madeWithPlowR: madeWithPlowR)))
+            return (0..<document.pageCount).compactMap { document.page(at: $0)?.string }.joined(separator: "\n")
+        }
+        #expect(try text(true).contains("Prepared with PlowR"))
+        #expect(try !text(false).contains("Prepared with PlowR"))
     }
 
     // One paragraph longer than a page breaks between words, and carries on.
@@ -143,7 +156,7 @@ struct ContractRenewalTests {
         let winter = season(h, from: date(2026, 11, 1), to: date(2027, 3, 31))
         winter.notes = Array(repeating: "The client agrees to keep the driveway clear.", count: 150).joined(separator: " ")
             + " FINALWORD"
-        let document = try #require(PDFDocument(data: ContractPDF.generate(winter, client: h.client, profile: nil, catalog: [])))
+        let document = try #require(PDFDocument(data: ContractPDF.generate(winter, client: h.client, profile: nil, catalog: [], madeWithPlowR: true)))
         #expect(document.pageCount >= 2)
         let text = (0..<document.pageCount).compactMap { document.page(at: $0)?.string }.joined(separator: " ")
         #expect(text.contains("FINALWORD"))
@@ -177,7 +190,7 @@ struct ContractRenewalTests {
         #expect(byHeading["Trigger"]?.first?.contains("2 in") == true)
         #expect(byHeading["Terms"] == ["Driveway and front walk."])
         #expect(byHeading["Visits"] == nil)
-        #expect(!ContractPDF.generate(season, client: h.client, profile: nil, catalog: services).isEmpty)
+        #expect(!ContractPDF.generate(season, client: h.client, profile: nil, catalog: services, madeWithPlowR: true).isEmpty)
     }
 
     @Test func contractsAreExported() throws {

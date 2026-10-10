@@ -57,8 +57,15 @@ struct SettingsView: View {
                 NavigationLink(destination: PaymentMethodsView()) {
                     Label("Payment Methods", systemImage: "creditcard")
                 }
-                NavigationLink(destination: RequestLinkView()) {
-                    Label("Request Link", systemImage: "link")
+                if let blocked = ProGate.proFeature("The Request Link", access) {
+                    Button { gate = blocked } label: {
+                        Label("Request Link", systemImage: "link")
+                    }
+                    .foregroundStyle(.primary)
+                } else {
+                    NavigationLink(destination: RequestLinkView()) {
+                        Label("Request Link", systemImage: "link")
+                    }
                 }
                 // A Pro tool: without Pro, the row says why instead of opening.
                 if let blocked = ProGate.proFeature("Import Clients", access) {

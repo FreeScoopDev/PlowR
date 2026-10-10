@@ -49,12 +49,46 @@ struct PDFGenerator {
     // MARK: - Public Entry Point
 
     /// forceIsInvoice bypasses proposal.isInvoice to avoid SwiftData quirks on non-context objects.
+    /// PlowR's line on free-tier documents (PlowR Pro leaves it off): the
+    /// business's name stays, and every document sent is a small ad.
+    nonisolated static let plowRLine = "Prepared with PlowR · getplowr.app"
+
+    /// The footer: the business's name, then PlowR's line unless Pro.
+    nonisolated static func footerText(companyName: String?, madeWithPlowR: Bool) -> String {
+        let company = (companyName ?? "").trimmingCharacters(in: .whitespaces)
+        switch (company.isEmpty, madeWithPlowR) {
+        case (true, true): return plowRLine
+        case (true, false): return ""
+        case (false, true): return "\(company)  ·  \(plowRLine)"
+        case (false, false): return company
+        }
+    }
+
+    /// Whether the document being drawn carries PlowR's line, for the
+    /// footer drawn from deep inside the page layout.
+    @TaskLocal private static var madeWithPlowR = true
+
+    /// An invoice or proposal. `madeWithPlowR` is `Access.showsMadeWithPlowR`.
     static func generate(
         proposal: Proposal,
         zones: [PropertyZone] = [],
         profile: BusinessProfile?,
         paymentMethods: [PaymentMethod] = [],
-        forceIsInvoice: Bool? = nil
+        forceIsInvoice: Bool? = nil,
+        madeWithPlowR: Bool
+    ) -> Data {
+        $madeWithPlowR.withValue(madeWithPlowR) {
+            render(proposal: proposal, zones: zones, profile: profile, paymentMethods: paymentMethods,
+                   forceIsInvoice: forceIsInvoice)
+        }
+    }
+
+    private static func render(
+        proposal: Proposal,
+        zones: [PropertyZone],
+        profile: BusinessProfile?,
+        paymentMethods: [PaymentMethod],
+        forceIsInvoice: Bool?
     ) -> Data {
         let pageW:   CGFloat = 612
         let pageH:   CGFloat = 792
@@ -671,9 +705,8 @@ struct PDFGenerator {
     ) {
         let footerY = pageH - margin - 14
         drawHRule(x: margin, y: footerY - 10, width: contentW, weight: 0.5, color: ruleLight)
-        let biz = profile.flatMap { $0.companyName.isEmpty ? nil : "\($0.companyName)  ·  " } ?? ""
-        drawText("\(biz)Prepared with PlowR", x: margin, y: footerY, width: contentW,
-                 font: bodyFont(8), color: inkLight, alignment: .center)
+        drawText(footerText(companyName: profile?.companyName, madeWithPlowR: madeWithPlowR),
+                 x: margin, y: footerY, width: contentW, font: bodyFont(8), color: inkLight, alignment: .center)
     }
 
     // MARK: - Color Helpers
@@ -721,7 +754,19 @@ struct PDFGenerator {
         clients: [Client],
         proposals: [Proposal],
         profile: BusinessProfile?,
-        reportDate: Date = Date()
+        reportDate: Date = Date(),
+        madeWithPlowR: Bool
+    ) -> Data {
+        $madeWithPlowR.withValue(madeWithPlowR) {
+            renderSeasonReport(clients: clients, proposals: proposals, profile: profile, reportDate: reportDate)
+        }
+    }
+
+    private static func renderSeasonReport(
+        clients: [Client],
+        proposals: [Proposal],
+        profile: BusinessProfile?,
+        reportDate: Date
     ) -> Data {
         let pageW:  CGFloat = 612
         let pageH:  CGFloat = 792

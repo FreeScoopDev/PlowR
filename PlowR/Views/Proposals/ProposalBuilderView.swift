@@ -7,6 +7,7 @@ struct ProposalBuilderView: View {
     var linkedVisitID: String = ""        // set when opened from a ScheduledVisit
     var afterHoursMultiplier: Double = 1.0
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.access) private var access
     @Environment(\.dismiss) private var dismiss
     @Environment(AuthManager.self) private var authManager
     @Query private var allServices: [ServiceItem]
@@ -384,7 +385,8 @@ struct ProposalBuilderView: View {
             zones: zones,
             profile: profile,
             paymentMethods: activePaymentMethods,
-            forceIsInvoice: isInvoiceMode
+            forceIsInvoice: isInvoiceMode,
+            madeWithPlowR: access.showsMadeWithPlowR
         )
         showingPreview = true
     }

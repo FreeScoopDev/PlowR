@@ -7,6 +7,8 @@ import SwiftUI
 struct PipelineView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AuthManager.self) private var authManager
+    @Environment(\.access) private var access
+    @State private var gate: ProGate?
     @Query private var allClients: [Client]
     @Query private var allProposals: [Proposal]
     @Query private var allRecords: [ServiceRecord]
@@ -38,11 +40,18 @@ struct PipelineView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                NavigationLink { RequestLinkView() } label: {
-                    Label("Request Link", systemImage: "link")
+                if let blocked = ProGate.proFeature("The Request Link", access) {
+                    Button { gate = blocked } label: {
+                        Label("Request Link", systemImage: "link")
+                    }
+                } else {
+                    NavigationLink { RequestLinkView() } label: {
+                        Label("Request Link", systemImage: "link")
+                    }
                 }
             }
         }
+        .proGateSheet($gate)
     }
 
     @ViewBuilder

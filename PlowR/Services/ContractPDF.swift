@@ -60,8 +60,9 @@ enum ContractPDF {
     /// The page, in the business's colour, logo and ink (PDFPageWriter):
     /// long terms run on to further pages, and the signature lines stay
     /// together.
+    /// `madeWithPlowR` is `Access.showsMadeWithPlowR`: PlowR's line at the end.
     static func generate(_ contract: Contract, client: Client?, profile: BusinessProfile?,
-                         catalog: [ServiceItem]) -> Data {
+                         catalog: [ServiceItem], madeWithPlowR: Bool) -> Data {
         PDFPageWriter.document(profile: profile) { page in
             page.header(title: "SERVICE CONTRACT", subtitle: contract.name, profile: profile)
             for section in sections(of: contract, client: client, catalog: catalog) {
@@ -76,6 +77,9 @@ enum ContractPDF {
             for party in [contract.clientName.isEmpty ? (client?.name ?? "Client") : contract.clientName, business] {
                 page.text("______________________________          Date ____________", .systemFont(ofSize: 11), gap: 2)
                 page.text(party, .systemFont(ofSize: 10), PDFGenerator.inkMid, gap: 26)
+            }
+            if madeWithPlowR {
+                page.text(PDFGenerator.plowRLine, .systemFont(ofSize: 8), PDFGenerator.inkLight)
             }
         }
     }

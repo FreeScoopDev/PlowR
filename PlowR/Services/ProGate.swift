@@ -29,7 +29,7 @@ enum ProGate: Identifiable, Equatable {
         switch self {
         case .clientLimit: "More Clients with PlowR Pro"
         case .routeLimit, .notFreeRoute: "More Routes with PlowR Pro"
-        case .proFeature(let name): "\(name) Is Part of PlowR Pro"
+        case .proFeature: "Part of PlowR Pro"
         case .readOnly: "Your Subscription Ended"
         }
     }
@@ -43,8 +43,8 @@ enum ProGate: Identifiable, Equatable {
             "The free tier has one route. PlowR Pro has as many as you need."
         case .notFreeRoute(let name):
             "The free tier runs one route, your first: \(name). PlowR Pro runs them all."
-        case .proFeature:
-            "PlowR Pro has every business tool, with unlimited clients and routes."
+        case .proFeature(let name):
+            "\(name) is part of PlowR Pro, with every business tool and unlimited clients and routes."
         case .readOnly:
             "Your records are all here: see them, export them and record payments. Subscribe again to add, change and run routes, right where you left off."
         }
@@ -75,6 +75,19 @@ enum ProGate: Identifiable, Equatable {
         let free = Access.freeRoute(in: routes, operatorID: operatorID)
         return .notFreeRoute(freeRoute: free?.name ?? "")
     }
+
+    /// Making or sharing an existing document's PDF (`canShareDocument`).
+    static func shareDocument(_ access: Access, isInvoice: Bool, owed: Double) -> ProGate? {
+        access.canShareDocument(isInvoice: isInvoice, owed: owed) ? nil : .readOnly
+    }
+
+    /// Making a report (the Season Report), or a new document's PDF.
+    static func makeReport(_ access: Access) -> ProGate? {
+        access.canMakeDocuments ? nil : .readOnly
+    }
+
+    /// A new document's PDF, from the builder's preview.
+    static func makeDocument(_ access: Access) -> ProGate? { makeReport(access) }
 
     static func proFeature(_ name: String, _ access: Access) -> ProGate? {
         if access.canUseProFeatures { return nil }

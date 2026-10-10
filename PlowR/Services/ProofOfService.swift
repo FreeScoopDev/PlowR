@@ -348,7 +348,8 @@ enum ProofOfService {
             page.keep(60)
             page.text(note(withWeather: weather != .notLookedUp, withChecks: !checks.isEmpty), .systemFont(ofSize: 9),
                       PDFGenerator.inkMid, gap: 2)
-            page.text("Prepared with PlowR on \(now.formatted(day)).", .systemFont(ofSize: 9), PDFGenerator.inkMid)
+            // A PlowR Pro report: no PlowR line, as on Pro's other documents.
+            page.text("Prepared on \(now.formatted(day)).", .systemFont(ofSize: 9), PDFGenerator.inkMid)
         }
     }
 
