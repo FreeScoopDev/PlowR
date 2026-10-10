@@ -91,9 +91,32 @@ struct ProposalDetailView: View {
             }
         }
         .safeAreaInset(edge: .top) {
-            // Two sent invoices with one number (made on two devices before
-            // they synced): never renumbered, since the client has it; said here.
-            if InvoiceRecords.hasDuplicateNumber(proposal, among: allProposals) {
+            // A contract payment billed by two invoices (made on two devices
+            // before they synced): never removed by itself; said here, with
+            // which one to take back.
+            if ContractInstallments.hasDuplicate(proposal, among: allProposals),
+               let other = ContractInstallments.otherInvoice(billing: proposal, among: allProposals) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Label(ContractInstallments.duplicateAdvice(for: proposal, other: other),
+                          systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                    NavigationLink { ProposalDetailView(proposal: other) } label: {
+                        // Two sent copies can share a number: then by when it was made.
+                        Text(other.invoiceNumber.isEmpty || other.invoiceNumber == proposal.invoiceNumber
+                             ? "Open the other copy, made \(other.createdAt.formatted(date: .abbreviated, time: .shortened))"
+                             : "Open \(other.invoiceNumber)")
+                            .fontWeight(.semibold)
+                            .frame(minHeight: 44)
+                            .contentShape(Rectangle())
+                    }
+                }
+                .font(.footnote)
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.ultraThinMaterial)
+            } else if InvoiceRecords.hasDuplicateNumber(proposal, among: allProposals) {
+                // Two sent invoices with one number (made on two devices before
+                // they synced): never renumbered, since the client has it; said here.
                 Label("Another invoice also has the number \(proposal.invoiceNumber). They were made on two devices before they synced; revise or void one.",
                       systemImage: "exclamationmark.triangle.fill")
                     .font(.footnote)

@@ -151,4 +151,115 @@ struct ContractInstallmentsTests {
         draft.installments = 7
         #expect(draft.problem(now: date(2026, 11, 1), calendar: calendar)?.hasPrefix("Its 7 monthly payments") == true)
     }
+
+    // MARK: A payment billed on two devices
+
+    /// One payment's invoice as a second device made it, before iCloud brought the first.
+    private func secondCopy(of invoice: Proposal, _ h: Harness, at date: Date) -> Proposal {
+        let copy = Proposal(operatorID: "op", client: h.client)
+        copy.invoiceNumber = invoice.invoiceNumber + "-B"
+        copy.contractID = invoice.contractID
+        copy.installmentIndex = invoice.installmentIndex
+        copy.createdAt = date
+        h.context.insert(copy)
+        return copy
+    }
+
+    private func firstPayment(_ h: Harness, _ season: Contract) throws -> Proposal {
+        let due = ContractInstallments.due(season, now: date(2026, 11, 15, 8), calendar: calendar)
+        return try #require(ContractInstallments.makeInvoice(for: due[0], of: season, in: h.context,
+                                                              now: date(2026, 11, 15, 8), calendar: calendar))
+    }
+
+    // Billed twice: both copies say so and the Dashboard lists the payment
+    // once. Nothing is deleted by itself: either may be with the client.
+    @Test func aPaymentBilledTwiceIsPointedOutNotDeleted() throws {
+        let h = try Harness(stopCount: 0)
+        let season = contract(h, .season, price: 900, installments: 3, from: date(2026, 11, 15), to: date(2027, 4, 15))
+        let first = try firstPayment(h, season)
+        let second = secondCopy(of: first, h, at: date(2026, 11, 15, 9))
+        let all = [first, second]
+        #expect(ContractInstallments.hasDuplicate(first, among: all) && ContractInstallments.hasDuplicate(second, among: all))
+        #expect(ContractInstallments.duplicates(all, operatorID: "op").map(\.id) == [first.id])
+        #expect(ContractInstallments.otherInvoice(billing: first, among: all)?.id == second.id)
+        // Voiding one clears it, and the payment stays billed by the other:
+        // it isn't due again, so Make Invoices doesn't bill it a third time.
+        second.invoiceSentAt = h.clock
+        InvoiceRecords.void(second, note: "Billed twice", now: h.clock, in: h.context)
+        #expect(!ContractInstallments.hasDuplicate(first, among: all))
+        #expect(ContractInstallments.duplicates(all, operatorID: "op").isEmpty)
+        #expect(season.installmentsMade == [1])
+        #expect(ContractInstallments.due(season, now: date(2026, 11, 15, 8), calendar: calendar).isEmpty)
+        // Voiding the last copy gives the payment back.
+        first.invoiceSentAt = h.clock
+        InvoiceRecords.void(first, note: "Wrong amount", now: h.clock, in: h.context)
+        #expect(season.installmentsMade.isEmpty)
+        #expect(ContractInstallments.due(season, now: date(2026, 11, 15, 8), calendar: calendar).map(\.index) == [1])
+    }
+
+    // A revision is its payment's live invoice: revising one of two copies
+    // still leaves the payment billed twice.
+    @Test func aRevisionStillBillsThePayment() throws {
+        let h = try Harness(stopCount: 0)
+        let season = contract(h, .season, price: 900, installments: 3, from: date(2026, 11, 15), to: date(2027, 4, 15))
+        let first = try firstPayment(h, season)
+        first.invoiceSentAt = date(2026, 11, 15, 9)
+        let other = secondCopy(of: first, h, at: date(2026, 11, 15, 9))
+        other.invoiceSentAt = date(2026, 11, 15, 10)
+        let revision = ServiceLog.revise(first, client: h.client, now: h.clock, in: h.context)
+        let all = [first, other, revision]
+        #expect(ContractInstallments.hasDuplicate(revision, among: all) && ContractInstallments.hasDuplicate(other, among: all))
+        // One revised alone isn't a duplicate of its void original.
+        #expect(!ContractInstallments.hasDuplicate(revision, among: [first, revision]))
+    }
+
+    // A plain void gives the payment back; the invoice made again isn't a duplicate.
+    @Test func aPaymentInvoicedAgainAfterAVoidIsntADuplicate() throws {
+        let h = try Harness(stopCount: 0)
+        let season = contract(h, .season, price: 900, installments: 3, from: date(2026, 11, 15), to: date(2027, 4, 15))
+        let first = try firstPayment(h, season)
+        first.invoiceSentAt = date(2026, 11, 15, 9)
+        InvoiceRecords.void(first, note: "Wrong amount", now: h.clock, in: h.context)
+        let again = try firstPayment(h, season)
+        #expect(!ContractInstallments.hasDuplicate(again, among: [first, again]))
+    }
+
+    // Different payments, and different contracts' first payments, aren't duplicates.
+    @Test func onlyTheSamePaymentOfTheSameContractCounts() throws {
+        let h = try Harness(stopCount: 0)
+        let winter = contract(h, .season, price: 900, installments: 3, from: date(2026, 11, 15), to: date(2027, 4, 15))
+        let lawn = contract(h, .season, price: 600, installments: 3, from: date(2026, 11, 15), to: date(2027, 4, 15))
+        let a = try firstPayment(h, winter)
+        let b = try firstPayment(h, lawn)
+        let c = secondCopy(of: a, h, at: date(2026, 11, 16))
+        c.installmentIndex = 2
+        let all = [a, b, c]
+        #expect(all.allSatisfy { !ContractInstallments.hasDuplicate($0, among: all) })
+        #expect(ContractInstallments.duplicates(all, operatorID: "op").isEmpty)
+    }
+
+    // A draft copy deleted, then the other voided: the payment is free again.
+    @Test func deletingOneCopyAndVoidingTheOtherGivesThePaymentBack() throws {
+        let h = try Harness(stopCount: 0)
+        let season = contract(h, .season, price: 900, installments: 3, from: date(2026, 11, 15), to: date(2027, 4, 15))
+        let first = try firstPayment(h, season)
+        let copy = secondCopy(of: first, h, at: date(2026, 11, 15, 9))
+        h.context.delete(copy)
+        first.invoiceSentAt = h.clock
+        InvoiceRecords.void(first, note: "Wrong amount", now: h.clock, in: h.context)
+        #expect(season.installmentsMade.isEmpty)
+    }
+
+    // The banner names the copy to take back: the one with no money on it.
+    @Test func theAdviceSparesTheCopyWithAPayment() throws {
+        let h = try Harness(stopCount: 0)
+        let season = contract(h, .season, price: 900, installments: 3, from: date(2026, 11, 15), to: date(2027, 4, 15))
+        let first = try firstPayment(h, season)
+        let other = secondCopy(of: first, h, at: date(2026, 11, 15, 9))
+        #expect(ContractInstallments.duplicateAdvice(for: first, other: other).contains("Delete one that wasn't sent"))
+        Payments.record(100, method: "", receivedAt: h.clock, on: first, in: h.context, now: h.clock)
+        #expect(ContractInstallments.duplicateAdvice(for: first, other: other).contains("void the other one"))
+        #expect(ContractInstallments.duplicateAdvice(for: other, other: first).contains("void this one"))
+    }
 }
+
