@@ -26,6 +26,17 @@ struct ProSettingsSection: View {
                     .foregroundStyle(.secondary)
             }
             .padding(.vertical, 2)
+            // The presentations hang off this one row, never the Section: a
+            // modifier on a Form section goes to each of its rows, and
+            // See PlowR Pro then closed Settings instead of opening the
+            // paywall (simulator, 2026-10-10).
+            .sheet(isPresented: $showingPaywall) { ProPaywallView() }
+            .manageSubscriptionsSheet(isPresented: $showingManage)
+            .alert("Couldn't Restore", isPresented: $restoreFailed) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("The App Store didn't answer. Check you're online and signed in to the App Store, then try again.")
+            }
             if access.tier != .pro {
                 Button {
                     showingPaywall = true
@@ -48,13 +59,6 @@ struct ProSettingsSection: View {
             .disabled(restoring)
         } header: {
             Text("PlowR Pro")
-        }
-        .sheet(isPresented: $showingPaywall) { ProPaywallView() }
-        .manageSubscriptionsSheet(isPresented: $showingManage)
-        .alert("Couldn't Restore", isPresented: $restoreFailed) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("The App Store didn't answer. Check you're online and signed in to the App Store, then try again.")
         }
     }
 

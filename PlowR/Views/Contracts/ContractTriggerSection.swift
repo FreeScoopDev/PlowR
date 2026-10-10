@@ -14,20 +14,24 @@ struct ContractTriggerSection: View {
     var body: some View {
         Section {
             // A PlowR Pro tool: without Pro the setting shows, and says why it can't change.
-            if let blocked = ProGate.proFeature("The snow trigger", access) {
-                Button { gate = blocked } label: {
-                    LabeledContent("Snow Trigger", value: value)
-                }
-                .foregroundStyle(.primary)
-            } else {
-                Stepper(value: $inches, in: 0...12, step: 0.5) {
-                    LabeledContent("Snow Trigger", value: value)
+            // One row, so the gate sheet hangs off it, not the Section (whose
+            // modifiers go to each row).
+            Group {
+                if let blocked = ProGate.proFeature("The snow trigger", access) {
+                    Button { gate = blocked } label: {
+                        LabeledContent("Snow Trigger", value: value)
+                    }
+                    .foregroundStyle(.primary)
+                } else {
+                    Stepper(value: $inches, in: 0...12, step: 0.5) {
+                        LabeledContent("Snow Trigger", value: value)
+                    }
                 }
             }
+            .proGateSheet($gate)
         } footer: {
             Text("Snow clearing starts at this depth. The Dashboard shows a storm card when the forecast reaches it.")
         }
-        .proGateSheet($gate)
     }
 }
 
@@ -76,6 +80,8 @@ struct ContractTriggerChecksSection: View {
         Section {
             LabeledContent("Snow Trigger",
                            value: contract.triggerInches > 0 ? "\(contract.triggerInches.formatted()) in or more" : "Every snowfall")
+                // The gate sheet hangs off this row, not the Section.
+                .proGateSheet($gate)
             if let range {
                 DatePicker("Day", selection: $day, in: range, displayedComponents: .date)
                 let sameDay = checks.filter { Calendar.current.isDate($0.day, inSameDayAs: day) }
@@ -126,7 +132,6 @@ struct ContractTriggerChecksSection: View {
                  ? "Days below the trigger can be marked once the contract starts."
                  : "Less fell at the property than the trigger? Mark the day: the storm card and route leave the client out, and the Service Report lists it.")
         }
-        .proGateSheet($gate)
         .onAppear {
             // Start on a day the picker offers: an ended contract's last day.
             if let range, !range.contains(day) { day = range.upperBound }
