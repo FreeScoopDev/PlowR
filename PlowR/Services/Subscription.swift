@@ -76,25 +76,38 @@ final class Subscription {
         }
     }
 
-    /// StoreKit's answer. Only verified transactions count, and a refunded
-    /// one isn't a subscription.
+    /// One transaction, as far as the plan cares.
+    nonisolated struct Purchase: Equatable, Sendable {
+        var verified: Bool
+        var productID: String
+        var revoked: Bool
+    }
+
+    /// What the plan needs from StoreKit's transactions: only a verified,
+    /// unrefunded purchase of PlowR Pro counts, now or ever. A refunded
+    /// purchase is as if never made, so it leaves the free tier, never read
+    /// only.
+    nonisolated static func entitlements(current: [Purchase], history: [Purchase]) -> Entitlements {
+        func counts(_ purchase: Purchase) -> Bool {
+            purchase.verified && purchase.productID == productID && !purchase.revoked
+        }
+        let active = current.contains(where: counts)
+        return Entitlements(active: active, everSubscribed: active || history.contains(where: counts))
+    }
+
+    /// StoreKit's answer: subscribed now (its current entitlements, which
+    /// include the trial and the grace period), and every purchase ever.
     nonisolated static func readStoreKit() async -> Entitlements {
-        var active = false
-        for await result in Transaction.currentEntitlements {
-            guard case .verified(let transaction) = result,
-                  transaction.productID == productID,
-                  transaction.revocationDate == nil else { continue }
-            active = true
+        func purchase(_ result: VerificationResult<Transaction>) -> Purchase {
+            let transaction = result.unsafePayloadValue
+            let verified = if case .verified = result { true } else { false }
+            return Purchase(verified: verified, productID: transaction.productID,
+                            revoked: transaction.revocationDate != nil)
         }
-        var ever = active
-        if !ever {
-            for await result in Transaction.all {
-                if case .verified(let transaction) = result, transaction.productID == productID {
-                    ever = true
-                    break
-                }
-            }
-        }
-        return Entitlements(active: active, everSubscribed: ever)
+        var current: [Purchase] = []
+        for await result in Transaction.currentEntitlements { current.append(purchase(result)) }
+        var history: [Purchase] = []
+        for await result in Transaction.all { history.append(purchase(result)) }
+        return entitlements(current: current, history: history)
     }
 }

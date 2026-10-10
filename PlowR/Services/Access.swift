@@ -61,11 +61,12 @@ struct Access: Equatable {
     /// Changing what's there: clients, visits, work, documents, routes.
     var canEdit: Bool { tier != .readOnly }
 
-    /// A new route, given how many this business has.
-    func canCreateRoute(existingRoutes: Int) -> Bool {
+    /// A new route for this business, given the routes on the device (any
+    /// business's: only this one's count).
+    func canCreateRoute(routes: [PlowRoute], operatorID: String) -> Bool {
         switch tier {
         case .pro: true
-        case .free: existingRoutes == 0
+        case .free: !routes.contains { $0.operatorID == operatorID }
         case .readOnly: false
         }
     }
@@ -73,10 +74,10 @@ struct Access: Equatable {
     /// Starting a route. On the free tier only one runs: the oldest, so a
     /// business that cancelled with several keeps the first it made, and
     /// none is deleted to get there.
-    func canStartRoute(_ route: PlowRoute, among routes: [PlowRoute]) -> Bool {
+    func canStartRoute(_ route: PlowRoute, among routes: [PlowRoute], operatorID: String) -> Bool {
         switch tier {
         case .pro: true
-        case .free: Self.freeRoute(in: routes)?.id == route.id
+        case .free: Self.freeRoute(in: routes, operatorID: operatorID)?.id == route.id
         case .readOnly: false
         }
     }
@@ -96,10 +97,10 @@ struct Access: Equatable {
     /// Their data is theirs, on every plan.
     var canExport: Bool { true }
 
-    /// The route the free tier runs: the oldest, ties broken by ID so every
-    /// device picks the same one.
-    static func freeRoute(in routes: [PlowRoute]) -> PlowRoute? {
-        routes.min { a, b in
+    /// The route the free tier runs: this business's oldest, ties broken by
+    /// ID so every device picks the same one.
+    static func freeRoute(in routes: [PlowRoute], operatorID: String) -> PlowRoute? {
+        routes.filter { $0.operatorID == operatorID }.min { a, b in
             a.createdAt != b.createdAt ? a.createdAt < b.createdAt : a.id.uuidString < b.id.uuidString
         }
     }

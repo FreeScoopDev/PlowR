@@ -65,7 +65,7 @@ struct AccessTests {
         #expect(!access.canEdit)
         #expect(!access.canMakeDocuments)
         #expect(!access.canUseProFeatures)
-        #expect(!access.canCreateRoute(existingRoutes: 0))
+        #expect(!access.canCreateRoute(routes: [], operatorID: "op"))
     }
 
     // MARK: Never locked
@@ -98,10 +98,21 @@ struct AccessTests {
     // MARK: Routes
 
     @Test func freeMakesOneRoute() {
-        let access = Access(plan: .free, clientCount: 3)
-        #expect(access.canCreateRoute(existingRoutes: 0))
-        #expect(!access.canCreateRoute(existingRoutes: 1))
-        #expect(Access(plan: .pro, clientCount: 3).canCreateRoute(existingRoutes: 12))
+        let mine = PlowRoute(name: "Monday", operatorID: "op")
+        let theirs = PlowRoute(name: "Other", operatorID: "other")
+        for plan in [Access.Plan.free, .lapsed] {
+            let access = Access(plan: plan, clientCount: 3)
+            #expect(access.canCreateRoute(routes: [], operatorID: "op"))
+            // Another sign-in's route on this device doesn't use it up.
+            #expect(access.canCreateRoute(routes: [theirs], operatorID: "op"))
+            #expect(!access.canCreateRoute(routes: [mine, theirs], operatorID: "op"))
+        }
+        #expect(Access(plan: .pro, clientCount: 3).canCreateRoute(routes: [mine, mine], operatorID: "op"))
+    }
+
+    @Test(arguments: [(Access.Plan.pro, 0), (.pro, 300), (.free, 0), (.free, 30), (.lapsed, 0), (.lapsed, 10)])
+    func everyoneButReadOnlyEdits(plan: Access.Plan, count: Int) {
+        #expect(Access(plan: plan, clientCount: count).canEdit)
     }
 
     @Test func freeStartsOnlyTheOldestRoute() {
@@ -109,17 +120,22 @@ struct AccessTests {
         old.createdAt = Date(timeIntervalSinceReferenceDate: 100)
         let new = PlowRoute(name: "Tuesday", operatorID: "op")
         new.createdAt = Date(timeIntervalSinceReferenceDate: 200)
-        let routes = [new, old]
+        // Another sign-in's route on this device, older still.
+        let theirs = PlowRoute(name: "Other", operatorID: "other")
+        theirs.createdAt = Date(timeIntervalSinceReferenceDate: 1)
+        let routes = [new, theirs, old]
 
-        let free = Access(plan: .lapsed, clientCount: 8)
-        #expect(free.canStartRoute(old, among: routes))
-        #expect(!free.canStartRoute(new, among: routes))
+        for plan in [Access.Plan.free, .lapsed] {
+            let free = Access(plan: plan, clientCount: 8)
+            #expect(free.canStartRoute(old, among: routes, operatorID: "op"))
+            #expect(!free.canStartRoute(new, among: routes, operatorID: "op"))
+        }
 
         let pro = Access(plan: .pro, clientCount: 8)
-        #expect(pro.canStartRoute(new, among: routes))
+        #expect(pro.canStartRoute(new, among: routes, operatorID: "op"))
 
         let readOnly = Access(plan: .lapsed, clientCount: 30)
-        #expect(!readOnly.canStartRoute(old, among: routes))
+        #expect(!readOnly.canStartRoute(old, among: routes, operatorID: "op"))
     }
 
     @Test func routesMadeTogetherPickTheSameOneEverywhere() {
@@ -129,9 +145,10 @@ struct AccessTests {
         a.createdAt = when
         b.createdAt = when
         let expected = a.id.uuidString < b.id.uuidString ? a.id : b.id
-        #expect(Access.freeRoute(in: [a, b])?.id == expected)
-        #expect(Access.freeRoute(in: [b, a])?.id == expected)
-        #expect(Access.freeRoute(in: []) == nil)
+        #expect(Access.freeRoute(in: [a, b], operatorID: "op")?.id == expected)
+        #expect(Access.freeRoute(in: [b, a], operatorID: "op")?.id == expected)
+        #expect(Access.freeRoute(in: [], operatorID: "op") == nil)
+        #expect(Access.freeRoute(in: [a, b], operatorID: "other") == nil)
     }
 
     // MARK: Counting clients
@@ -162,6 +179,39 @@ struct AccessTests {
         #expect(Subscription.plan(for: .init(active: true, everSubscribed: false)) == .pro)
         #expect(Subscription.plan(for: .init(active: false, everSubscribed: true)) == .lapsed)
         #expect(Subscription.plan(for: .init(active: false, everSubscribed: false)) == .free)
+    }
+
+    typealias Purchase = Subscription.Purchase
+    let pro = Subscription.productID
+
+    @Test func aVerifiedPurchaseIsPro() {
+        let bought = Purchase(verified: true, productID: pro, revoked: false)
+        #expect(Subscription.entitlements(current: [bought], history: [bought])
+                == .init(active: true, everSubscribed: true))
+    }
+
+    @Test func anUnverifiedPurchaseCountsForNothing() {
+        let forged = Purchase(verified: false, productID: pro, revoked: false)
+        #expect(Subscription.entitlements(current: [forged], history: [forged])
+                == .init(active: false, everSubscribed: false))
+    }
+
+    @Test func aRefundedPurchaseCountsForNothing() {
+        // As if never bought: the free tier, never read only.
+        let refunded = Purchase(verified: true, productID: pro, revoked: true)
+        #expect(Subscription.entitlements(current: [refunded], history: [refunded])
+                == .init(active: false, everSubscribed: false))
+    }
+
+    @Test func anotherProductIsNotPro() {
+        let other = Purchase(verified: true, productID: "Scoops.PlowR.other", revoked: false)
+        #expect(Subscription.entitlements(current: [other], history: [other])
+                == .init(active: false, everSubscribed: false))
+    }
+
+    @Test func aPurchaseOnlyInTheHistoryIsCancelled() {
+        let past = Purchase(verified: true, productID: pro, revoked: false)
+        #expect(Subscription.plan(for: Subscription.entitlements(current: [], history: [past])) == .lapsed)
     }
 
     @MainActor
