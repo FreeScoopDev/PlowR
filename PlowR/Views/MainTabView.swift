@@ -5,6 +5,8 @@ struct MainTabView: View {
     @Environment(AuthManager.self) private var authManager
     @Environment(ActiveRouteStore.self) private var activeRoute
     @Query private var allProposals: [Proposal]
+    @Query private var allClients: [Client]
+    private let subscription = Subscription.shared
     @Binding var selectedTab: Int
 
     private var documentsBadge: Int {
@@ -12,6 +14,12 @@ struct MainTabView: View {
             $0.operatorID == authManager.userID &&
             ($0.invoiceStatus == .draft || $0.invoiceStatus == .overdue)
         }.count
+    }
+
+    /// PlowR Pro: what this business may do, for every screen below.
+    private var access: Access {
+        Access(plan: subscription.plan,
+               clientCount: Access.countedClients(allClients, operatorID: authManager.userID))
     }
 
     var body: some View {
@@ -45,6 +53,7 @@ struct MainTabView: View {
                 ActiveRouteView(route: route)
             }
         }
+        .environment(\.access, access)
     }
 }
 

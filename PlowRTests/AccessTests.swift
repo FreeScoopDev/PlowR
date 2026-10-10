@@ -214,11 +214,100 @@ struct AccessTests {
         #expect(Subscription.plan(for: Subscription.entitlements(current: [], history: [past])) == .lapsed)
     }
 
+    // MARK: A purchase just made, before StoreKit's lists show it
+
+    private func bought(expiresIn seconds: TimeInterval, from now: Date, verified: Bool = true,
+                        product: String? = nil, revoked: Bool = false) -> Purchase {
+        Purchase(verified: verified, productID: product ?? pro, revoked: revoked,
+                 expires: now.addingTimeInterval(seconds))
+    }
+
+    @Test func aPurchaseIsProWhileStoreKitCatchesUp() async throws {
+        let store = try Store()
+        let subscription = store.make()
+        await subscription.purchased(bought(expiresIn: 30 * 86_400, from: store.now))
+        #expect(subscription.plan == .pro)
+        // StoreKit's lists still say nothing a minute later.
+        store.now += 60
+        await subscription.refresh()
+        #expect(subscription.plan == .pro)
+        #expect(store.defaults.string(forKey: Subscription.planKey) == "pro")
+    }
+
+    @Test func theHoldEndsAfterFiveMinutes() async throws {
+        let store = try Store()
+        let subscription = store.make()
+        await subscription.purchased(bought(expiresIn: 30 * 86_400, from: store.now))
+        store.now += Subscription.purchaseHold + 1
+        await subscription.refresh()
+        #expect(subscription.plan == .free)
+    }
+
+    @Test func theHoldEndsWithThePeriodIfThatsSooner() async throws {
+        let store = try Store()
+        let subscription = store.make()
+        await subscription.purchased(bought(expiresIn: 60, from: store.now))
+        #expect(subscription.plan == .pro)
+        store.now += 61
+        await subscription.refresh()
+        #expect(subscription.plan == .free)
+    }
+
+    @Test func theHoldEndsWhenStoreKitShowsThePurchase() async throws {
+        let store = try Store()
+        let subscription = store.make()
+        await subscription.purchased(bought(expiresIn: 30 * 86_400, from: store.now))
+        store.answer = .init(active: true, everSubscribed: true)
+        await subscription.refresh()
+        // Then refunded within the five minutes: StoreKit's word stands.
+        store.answer = .init(active: false, everSubscribed: false)
+        await subscription.refresh()
+        #expect(subscription.plan == .free)
+    }
+
+    @Test func onlyARealPurchaseIsHeld() async throws {
+        let store = try Store()
+        let now = store.now
+        for purchase in [bought(expiresIn: 86_400, from: now, verified: false),
+                         bought(expiresIn: 86_400, from: now, revoked: true),
+                         bought(expiresIn: 86_400, from: now, product: "Scoops.PlowR.other"),
+                         bought(expiresIn: -1, from: now),
+                         Purchase(verified: true, productID: pro, revoked: false)] {
+            let subscription = store.make()
+            await subscription.purchased(purchase)
+            #expect(subscription.plan == .free)
+        }
+    }
+
+    // MARK: The plan in words (Settings)
+
+    @Test func settingsSaysThePlan() {
+        let pro = Access(plan: .pro, clientCount: 40)
+        #expect(ProSettingsSection.title(for: pro) == "PlowR Pro is on")
+
+        let free = Access(plan: .free, clientCount: 3)
+        #expect(ProSettingsSection.title(for: free) == "Free")
+        #expect(ProSettingsSection.message(for: free).hasPrefix("3 of 10 clients"))
+
+        let overFree = Access(plan: .free, clientCount: 14)
+        #expect(ProSettingsSection.message(for: overFree).hasPrefix("14 clients: the free tier adds clients up to 10"))
+
+        let cancelledSmall = Access(plan: .lapsed, clientCount: 10)
+        #expect(ProSettingsSection.title(for: cancelledSmall) == "Free since your subscription ended")
+        #expect(ProSettingsSection.message(for: cancelledSmall).contains("10 of 10 clients"))
+
+        let cancelledBig = Access(plan: .lapsed, clientCount: 11)
+        #expect(ProSettingsSection.title(for: cancelledBig) == "Your subscription ended")
+        #expect(ProSettingsSection.message(for: cancelledBig).contains("see and export"))
+        #expect(ProSettingsSection.message(for: cancelledBig).contains("record payments"))
+    }
+
     @MainActor
     final class Store {
         let suite = "AccessTests-\(UUID().uuidString)"
         let defaults: UserDefaults
         var answer = Subscription.Entitlements(active: false, everSubscribed: false)
+        var now = Date(timeIntervalSinceReferenceDate: 813_000_000)
         var holds = false
         var held: [CheckedContinuation<Subscription.Entitlements, Never>] = []
 
@@ -230,7 +319,7 @@ struct AccessTests {
             Subscription(read: { [unowned self] in
                 if holds { return await withCheckedContinuation { held.append($0) } }
                 return answer
-            }, defaults: defaults)
+            }, defaults: defaults, now: { [unowned self] in now })
         }
 
         deinit { UserDefaults.standard.removePersistentDomain(forName: suite) }

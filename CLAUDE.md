@@ -206,6 +206,34 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   past visits as the user chooses. "Past" goes by date, not status: running
   a route doesn't mark a visit complete. Kept documents and visits carry the
   client's ID and a copy of their name.
+- **PlowR Pro (the subscription) has one rule book: `Access`.** Pro
+  (Apple's free trial, paid, billing grace) is everything; free is 10
+  clients (active, not lost) and one route (the business's oldest); a
+  business that cancels keeps the free tier with 10 or fewer clients, and
+  is read only with more: see, export and record payments, nothing new, no
+  documents, no routes. Nothing is ever deleted or hidden by the plan, and
+  exporting and recording payments are never locked (Joe, 2026-10-09).
+  Every gate asks `@Environment(\.access)`, set once in `MainTabView` (a
+  screen hosted outside it, like `LeadRequestWindow`, must pass it too);
+  never re-derive a rule in a view. `Subscription` reads the plan from
+  StoreKit (product `Scoops.PlowR.pro.monthly`), follows
+  `Transaction.updates` from `PlowRApp.init`, re-reads when the app comes
+  back (an expiry sends no update) and keeps the last plan in standard
+  preferences (`subscriptionPlan`), so Delete Account & Data removes it. A
+  refunded purchase counts as never made. A purchase made in the app counts
+  for up to five minutes before StoreKit's lists show it
+  (`Subscription.purchased`): they reach a just-made purchase a moment
+  late, and someone who has just paid mustn't read as unsubscribed. The
+  app's tests never ask the real App Store (`Subscription.shared` reads nothing under tests);
+  `SubscriptionStoreKitTests` uses Apple's local test store from
+  `PlowRTests/PlowR.storekit`, the same file the PlowR scheme's Run action
+  uses; it runs only from `scripts/test.sh` (`PLOWR_STOREKIT_TESTS`),
+  because on Xcode Cloud the test store finds no products (#133's first
+  CI run), so CI never covers StoreKit itself. With the Run action's
+  copy, running from Xcode can buy, renew and expire with no App Store
+  Connect. The paywall is Apple's `SubscriptionStoreView`
+  (`ProPaywallView`), which shows the price and trial itself: never write
+  the price into PlowR's copy.
 - **Delete Account & Data** (Settings) is an App Review 5.1.1(v) requirement.
   It removes all SwiftData records, the encrypted work-orders file, the route
   checkpoint and Live Activities (`ActiveRouteStore.eraseAll()`), the widget's
