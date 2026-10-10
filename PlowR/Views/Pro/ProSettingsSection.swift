@@ -33,12 +33,12 @@ struct ProSettingsSection: View {
                     Label(access.plan == .lapsed ? "Subscribe Again" : "See PlowR Pro", systemImage: "star.fill")
                 }
             }
-            if access.plan != .free {
-                Button {
-                    showingManage = true
-                } label: {
-                    Label("Manage Subscription", systemImage: "creditcard.and.123")
-                }
+            // Always: a plan read before a purchase synced here can be wrong,
+            // and the delete dialog points here.
+            Button {
+                showingManage = true
+            } label: {
+                Label("Manage Subscription", systemImage: "creditcard.and.123")
             }
             Button {
                 Task { await restore() }

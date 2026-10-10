@@ -11,7 +11,7 @@ import Testing
 
 /// PlowR Pro against StoreKit itself: Apple's local test store, loaded from
 /// `PlowR.storekit` (the file the PlowR scheme's Run action uses), never the
-/// real App Store. Buying and a refund each reach the plan
+/// real App Store. Buying, running out and a refund each reach the plan
 /// through `Subscription.readStoreKit`, the part `AccessTests` can't reach.
 @MainActor
 @Suite(.serialized)
@@ -39,17 +39,18 @@ struct SubscriptionStoreKitTests {
         #expect(trial.period.value == 1 && trial.period.unit == .month)
     }
 
-    @Test func buyingAndARefund() async throws {
+    @Test func buyingRunningOutAndARefund() async throws {
         #expect(await Subscription.readStoreKit() == .init(active: false, everSubscribed: false))
 
         let bought = try await session.buyProduct(identifier: Subscription.productID)
-        // At once: before StoreKit's entitlements have caught up.
-        #expect(await Subscription.readStoreKit() == .init(active: true, everSubscribed: true))
+        // StoreKit's lists take a moment to show it (Subscription holds a
+        // purchase made in the app meanwhile; AccessTests covers that).
+        #expect(await eventually(.init(active: true, everSubscribed: true)))
 
-        // Not "expire now": the test store ends the subscription without
-        // changing the purchase's end date, which the real App Store never
-        // does (a period ends at its date, or early only by a refund).
-        // Running out is the history-only case in AccessTests.
+        // Cancelled, then its period ends.
+        try session.disableAutoRenewForTransaction(identifier: UInt(bought.id))
+        try session.expireSubscription(productIdentifier: Subscription.productID)
+        #expect(await eventually(.init(active: false, everSubscribed: true)))
 
         // A refunded purchase is as if never made.
         try session.refundTransaction(identifier: UInt(bought.id))

@@ -220,13 +220,14 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   `Transaction.updates` from `PlowRApp.init`, re-reads when the app comes
   back (an expiry sends no update) and keeps the last plan in standard
   preferences (`subscriptionPlan`), so Delete Account & Data removes it. A
-  refunded purchase counts as never made. An unexpired purchase in the
-  history counts as subscribed, because StoreKit's current entitlements
-  reach a just-made purchase a moment late. The app's tests never ask the
+  refunded purchase counts as never made. A purchase made in the app counts
+  for up to five minutes before StoreKit's lists show it
+  (`Subscription.purchased`): they reach a just-made purchase a moment
+  late, and someone who has just paid mustn't read as unsubscribed. The app's tests never ask the
   real App Store (`Subscription.shared` reads nothing under tests);
   `SubscriptionStoreKitTests` uses Apple's local test store from
   `PlowRTests/PlowR.storekit`, the same file the PlowR scheme's Run action
-  uses, so running from Xcode can buy, renew and cancel with no App Store
+  uses, so running from Xcode can buy, renew and expire with no App Store
   Connect. The paywall is Apple's `SubscriptionStoreView`
   (`ProPaywallView`), which shows the price and trial itself: never write
   the price into PlowR's copy.

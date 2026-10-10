@@ -17,14 +17,18 @@ struct ProPaywallView: View {
             ProPitch()
         }
         .storeButton(.visible, for: .restorePurchases)
+        .storeButton(.visible, for: .policies)
         .storeButton(.visible, for: .cancellation)
         .modifier(PolicyLinks())
         .onInAppPurchaseCompletion { _, result in
-            if case .success(.success(let verification)) = result,
-               case .verified(let transaction) = verification {
+            guard case .success(.success(let verification)) = result else {
+                // Cancelled, pending (Ask to Buy) or failed: Apple says so.
+                return
+            }
+            if case .verified(let transaction) = verification {
                 await transaction.finish()
             }
-            await subscription.refresh()
+            await subscription.purchased(Subscription.purchase(verification))
         }
         .onChange(of: subscription.plan) { _, plan in
             if plan == .pro { dismiss() }
