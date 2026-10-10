@@ -36,11 +36,13 @@ struct RouteListView: View {
                             HStack {
                                 RouteRowView(route: route, clients: allClients,
                                              lastRun: lastRuns[route.id.uuidString])
-                                // The free tier runs one route: the others say so.
-                                if access.tier != .pro,
-                                   ProGate.startRoute(route, access: access, routes: allRoutes,
-                                                      operatorID: authManager.userID) != nil {
-                                    StatusChip("Pro", color: .gray)
+                                // The free tier runs one route: it says Free, the others Pro.
+                                if access.tier == .free {
+                                    if Access.freeRoute(in: allRoutes, operatorID: authManager.userID)?.id == route.id {
+                                        StatusChip("Free", color: .green)
+                                    } else {
+                                        StatusChip("Pro", color: .gray)
+                                    }
                                 }
                             }
                         }

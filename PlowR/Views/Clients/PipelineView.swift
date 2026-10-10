@@ -7,8 +7,6 @@ import SwiftUI
 struct PipelineView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AuthManager.self) private var authManager
-    @Environment(\.access) private var access
-    @State private var gate: ProGate?
     @Query private var allClients: [Client]
     @Query private var allProposals: [Proposal]
     @Query private var allRecords: [ServiceRecord]
@@ -37,7 +35,6 @@ struct PipelineView: View {
             section("Lost", entries.filter { $0.stage == .lost }, footer: "Swipe to reopen one.")
         }
         .navigationTitle("Pipeline")
-        .proGateSheet($gate)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -56,11 +53,7 @@ struct PipelineView: View {
                     NavigationLink { EditClientView(client: entry.client) } label: { row(entry) }
                         .swipeActions {
                             if entry.stage == .lost {
-                                Button("Reopen") {
-                                    $gate.unless(ProGate.bringBack(entry.client, active: entry.client.isActive, lost: false, access)) {
-                                        Pipeline.setLost(false, for: entry.client, in: modelContext)
-                                    }
-                                }
+                                Button("Reopen") { Pipeline.setLost(false, for: entry.client, in: modelContext) }
                                     .tint(.blue)
                             } else {
                                 Button("Lost") { Pipeline.setLost(true, for: entry.client, in: modelContext) }

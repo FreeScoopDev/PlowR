@@ -38,7 +38,7 @@ enum ProGate: Identifiable, Equatable {
         let limit = Access.freeClientLimit
         return switch self {
         case .clientLimit:
-            "The free tier keeps up to \(limit) current clients. PlowR Pro has no limit. Clients you've marked inactive or lost don't count."
+            "The free tier keeps up to \(limit) active clients. PlowR Pro has no limit. Clients you mark inactive don't count."
         case .routeLimit:
             "The free tier has one route. PlowR Pro has as many as you need."
         case .notFreeRoute(let name):
@@ -59,12 +59,10 @@ enum ProGate: Identifiable, Equatable {
         return access.tier == .readOnly ? .readOnly : .clientLimit
     }
 
-    /// Marking a client active, or reopening a lost lead: only when they'd
-    /// then count (active and not lost) is it one more client.
-    static func bringBack(_ client: Client, active: Bool, lost: Bool, _ access: Access) -> ProGate? {
-        guard active && !lost else { return nil }
-        let countsNow = client.isActive && client.lostAt == nil
-        return countsNow ? nil : addClient(access)
+    /// Marking an inactive client active (by hand, or by booking them a
+    /// visit): one more client.
+    static func bringBack(_ client: Client, _ access: Access) -> ProGate? {
+        Access.counts(client) ? nil : addClient(access)
     }
 
     static func createRoute(_ access: Access, routes: [PlowRoute], operatorID: String) -> ProGate? {

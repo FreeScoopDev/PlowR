@@ -208,19 +208,21 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   client's ID and a copy of their name.
 - **PlowR Pro (the subscription) has one rule book: `Access`.** Pro
   (Apple's free trial, paid, billing grace) is everything; free is 10
-  clients (active, not lost) and one route (the business's oldest); a
+  active clients (leads included; marking one inactive frees a place) and
+  one route (the business's oldest); a
   business that cancels keeps the free tier with 10 or fewer clients, and
   is read only with more: see, export and record payments, nothing new, no
   documents, no routes. Nothing is ever deleted or hidden by the plan, and
   exporting and recording payments are never locked (Joe, 2026-10-09).
-  Every gate asks `@Environment(\.access)`, set once in `MainTabView` (a
-  screen hosted outside it, like `LeadRequestWindow`, must pass it too);
-  never re-derive a rule in a view. A gate is a `ProGate` check
-  (`addClient`, `bringBack`, `createRoute`, `startRoute`, `proFeature`)
-  run as `$gate.unless(check) { action }` with `.proGateSheet($gate)`, which
-  says why and opens the paywall: a new way to add a client, bring one
-  back (Mark Active, Reopen, a visit for an inactive client), make or start
-  a route, or open a Pro tool must go through one. `Subscription` reads the plan from
+  Every gate asks `@Environment(\.access)`, worked out live by
+  `.providesAccess()` in `MainTabView` (a screen hosted outside it, like
+  `LeadRequestWindow`, applies it too); never re-derive a rule in a view.
+  A gate is a `ProGate` check (`addClient`, `bringBack`, `createRoute`,
+  `startRoute`, `proFeature`) run as `$gate.unless(check) { action }` with
+  `.proGateSheet($gate)`, which says why and opens the paywall: a new way
+  to add a client, bring one back (Mark Active, a visit for an inactive
+  client), make or start a route, or open a Pro tool must go through one.
+  `Subscription` reads the plan from
   StoreKit (product `Scoops.PlowR.pro.monthly`), follows
   `Transaction.updates` from `PlowRApp.init`, re-reads when the app comes
   back (an expiry sends no update) and keeps the last plan in standard

@@ -770,9 +770,7 @@ struct EditClientView: View {
         if stage != .customer, client.isActive {
             LabeledContent {
                 Button(stage == .lost ? "Reopen" : "Mark Lost") {
-                    // Reopening a lost lead: one more client.
-                    let blocked = stage == .lost ? ProGate.bringBack(client, active: client.isActive, lost: false, access) : nil
-                    $gate.unless(blocked) { Pipeline.setLost(stage != .lost, for: client, in: modelContext) }
+                    Pipeline.setLost(stage != .lost, for: client, in: modelContext)
                 }
                 .font(.caption)
                 .buttonStyle(.bordered)
@@ -1156,7 +1154,7 @@ struct EditClientView: View {
     /// Asks first when Save marks the client inactive and they're on a route.
     private func save() {
         // Marking them active again: one more client.
-        if let blocked = ProGate.bringBack(client, active: draft.isActive, lost: client.lostAt != nil, access) {
+        if draft.isActive, let blocked = ProGate.bringBack(client, access) {
             gate = blocked
             return
         }

@@ -425,7 +425,7 @@ extension ClientListView {
     /// back on routes.
     private func toggleActive(_ client: Client) {
         guard client.isActive else {
-            if let blocked = ProGate.bringBack(client, active: true, lost: client.lostAt != nil, access) {
+            if let blocked = ProGate.bringBack(client, access) {
                 gate = blocked
                 return
             }

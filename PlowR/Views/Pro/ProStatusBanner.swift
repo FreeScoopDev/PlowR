@@ -4,8 +4,11 @@ import SwiftUI
 /// the free tier (until closed). Nothing for anyone else.
 struct ProStatusBanner: View {
     @Environment(\.access) private var access
-    /// The free-tier note was closed. Shown again after a later lapse.
-    @AppStorage("freeAfterCancellingClosed") private var closed = false
+    /// The free-tier note was closed. Shown again after a later lapse: the
+    /// Dashboard clears it on subscribing (`reopenOnSubscribe`), since this
+    /// view isn't there to see it while it shows nothing.
+    static let closedKey = "freeAfterCancellingClosed"
+    @AppStorage(closedKey) private var closed = false
     @State private var showingPaywall = false
 
     var body: some View {
@@ -13,7 +16,7 @@ struct ProStatusBanner: View {
             if access.tier == .readOnly {
                 banner(icon: "lock.shield.fill",
                        title: "Your subscription ended",
-                       message: "Your records are safe: see them, export them and record payments. Subscribe again to pick up where you left off.",
+                       message: ProGate.readOnly.message,
                        closable: false)
             } else if access.isFreeAfterCancelling && !closed {
                 banner(icon: "star.circle",
@@ -22,10 +25,12 @@ struct ProStatusBanner: View {
                        closable: true)
             }
         }
-        .onChange(of: access.plan) { _, plan in
-            if plan == .pro { closed = false }
-        }
         .sheet(isPresented: $showingPaywall) { ProPaywallView() }
+    }
+
+    /// For an always-present view to run when the plan changes.
+    static func reopenOnSubscribe(_ plan: Access.Plan, defaults: UserDefaults = .standard) {
+        if plan == .pro { defaults.set(false, forKey: closedKey) }
     }
 
     private func banner(icon: String, title: String, message: String, closable: Bool) -> some View {

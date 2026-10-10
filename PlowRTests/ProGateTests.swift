@@ -34,25 +34,39 @@ struct ProGateTests {
         #expect(ProGate.proFeature("Import Clients", readOnly) == .readOnly)
     }
 
-    @Test func bringingAClientBackCountsOnlyIfTheyWillCount() {
+    @Test func bringingAClientBackIsOneMore() {
         let full = Access(plan: .free, clientCount: 10)
         let inactive = Client(name: "A", phone: "", address: "", operatorID: "op")
         inactive.isActive = false
-        // Marking active: one more.
-        #expect(ProGate.bringBack(inactive, active: true, lost: false, full) == .clientLimit)
-        #expect(ProGate.bringBack(inactive, active: true, lost: false, Access(plan: .free, clientCount: 9)) == nil)
-        // Still lost, or staying inactive: not counted, so not stopped.
-        #expect(ProGate.bringBack(inactive, active: true, lost: true, full) == nil)
-        #expect(ProGate.bringBack(inactive, active: false, lost: false, full) == nil)
+        #expect(ProGate.bringBack(inactive, full) == .clientLimit)
+        #expect(ProGate.bringBack(inactive, Access(plan: .free, clientCount: 9)) == nil)
+        #expect(ProGate.bringBack(inactive, Access(plan: .pro, clientCount: 10)) == nil)
 
         // Already counted: saving them active again isn't one more.
         let current = Client(name: "B", phone: "", address: "", operatorID: "op")
-        #expect(ProGate.bringBack(current, active: true, lost: false, full) == nil)
+        #expect(ProGate.bringBack(current, full) == nil)
+    }
 
-        // Reopening a lost lead who is active: one more.
+    @Test func lostLeadsCount() {
+        // Booking work for a lost lead doesn't clear "lost", so leaving them
+        // out was a way past the limit. Only inactive clients are left out.
         let lost = Client(name: "C", phone: "", address: "", operatorID: "op")
         lost.lostAt = .now
-        #expect(ProGate.bringBack(lost, active: true, lost: false, full) == .clientLimit)
+        #expect(Access.counts(lost))
+        let inactive = Client(name: "D", phone: "", address: "", operatorID: "op")
+        inactive.isActive = false
+        #expect(!Access.counts(inactive))
+    }
+
+    @Test func theFreeTierNoteReopensOnSubscribing() throws {
+        let suite = "ProGateTests-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { UserDefaults.standard.removePersistentDomain(forName: suite) }
+        defaults.set(true, forKey: ProStatusBanner.closedKey)
+        ProStatusBanner.reopenOnSubscribe(.lapsed, defaults: defaults)
+        #expect(defaults.bool(forKey: ProStatusBanner.closedKey))
+        ProStatusBanner.reopenOnSubscribe(.pro, defaults: defaults)
+        #expect(!defaults.bool(forKey: ProStatusBanner.closedKey))
     }
 
     // MARK: Routes

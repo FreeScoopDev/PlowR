@@ -210,8 +210,10 @@ struct AddVisitView: View {
                         if editing?.isRecurring == true && !(editing?.seriesID.isEmpty ?? true) {
                             showingRecurringEditDialog = true
                         } else {
-                            save()
-                            dismiss()
+                            $gate.unless(saveGate) {
+                                save()
+                                dismiss()
+                            }
                         }
                     }
                     .disabled(!isValid)
@@ -490,14 +492,17 @@ struct AddVisitView: View {
 
     // MARK: - Save
 
+    /// Whether the visit can be saved on the plan: a visit marks an inactive
+    /// client active, one more client. Asked before saving, so the screen
+    /// stays open with what was typed when it can't.
+    private var saveGate: ProGate? {
+        guard editing == nil, let client = selectedClient else { return nil }
+        return ProGate.bringBack(client, access)
+    }
+
     private func save() {
         guard let client = selectedClient else { return }
         if editing != nil { saveThisOnly(); return }
-        // A visit marks an inactive client active: one more client.
-        if let blocked = ProGate.bringBack(client, active: true, lost: client.lostAt != nil, access) {
-            gate = blocked
-            return
-        }
 
 
         let seriesID = UUID().uuidString
