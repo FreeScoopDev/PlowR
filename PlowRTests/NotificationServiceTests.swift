@@ -28,7 +28,12 @@ struct NotificationServiceTests {
         snowy.snowfallInches = 0.5
         #expect(NotificationService.alertWord(snowy) == "Snow")
         let stormy = DayForecast(date: wet.date, maxTempF: 30, minTempF: 20, weatherCode: 75, precipitationMm: 10)
-        #expect(NotificationService.alertWord(stormy) == "Heavy Snow" || NotificationService.alertWord(stormy) == stormy.description)
+        #expect(NotificationService.alertWord(stormy) == "Snow")                 // its own label
+        let icy = DayForecast(date: wet.date, maxTempF: 31, minTempF: 25, weatherCode: 66, precipitationMm: 4)
+        #expect(NotificationService.alertWord(icy) == "Freezing Rain")
+        var trace = wet
+        trace.snowfallInches = 0.02
+        #expect(NotificationService.alertWord(trace) == "Rain")                  // a trace isn't snow
     }
 
     // MARK: - adverseForecastDay

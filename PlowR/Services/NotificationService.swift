@@ -13,12 +13,12 @@ final class NotificationService {
 
     /// What the alert calls the day: its condition when that's the reason,
     /// else (picked for its precipitation alone, under a calm label like
-    /// "Mostly Cloudy") snow if any is forecast, otherwise rain.
+    /// "Mostly Cloudy") snow if a measurable amount is forecast, otherwise rain.
     nonisolated static func alertWord(_ day: DayForecast) -> String {
         if adverseCodes.contains(day.weatherCode) {
             return day.description
         }
-        return (day.snowfallInches ?? 0) > 0 ? "Snow" : "Rain"
+        return (day.snowfallInches ?? 0) >= StormWatch.measurable ? "Snow" : "Rain"
     }
 
     /// Rain, snow, ice or storms in the day's condition, or 0.1 in or more of
