@@ -25,6 +25,8 @@ final class Client {
     // Client badges / billing preferences
     var preferredPayment: String = ""   // "cash", "check", "zelle", "card", or ""
     var isComped: Bool = false
+    /// New invoices and proposals start at 0% tax, not the business's rate.
+    var taxExempt: Bool = false
     var defaultDiscountPercent: Double = 0.0
     var email: String = ""
     var tags: [String] = []

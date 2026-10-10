@@ -15,6 +15,7 @@ nonisolated struct ClientDraft: Equatable {
     var defaultStopNotes: String
     var preferredPayment: String
     var isComped: Bool
+    var taxExempt: Bool
     var defaultDiscountPercent: Double
     var tags: [String]
     var notes: String
@@ -45,6 +46,7 @@ nonisolated struct ClientDraft: Equatable {
         follow(\.defaultStopNotes)
         follow(\.preferredPayment)
         follow(\.isComped)
+        follow(\.taxExempt)
         follow(\.defaultDiscountPercent)
         follow(\.tags)
         follow(\.notes)
@@ -71,7 +73,7 @@ extension ClientDraft {
         self.init(name: client.name, phone: client.phone, email: client.email, address: client.address,
                   skipNotificationPrompt: client.skipNotificationPrompt, goalMinutes: client.goalMinutes,
                   defaultStopNotes: client.defaultStopNotes, preferredPayment: client.preferredPayment,
-                  isComped: client.isComped, defaultDiscountPercent: client.defaultDiscountPercent,
+                  isComped: client.isComped, taxExempt: client.taxExempt, defaultDiscountPercent: client.defaultDiscountPercent,
                   tags: client.tags, notes: client.notes, isActive: client.isActive,
                   expectedServiceIDs: Set(client.expectedServiceIDs))
     }
@@ -88,6 +90,7 @@ extension ClientDraft {
         client.defaultStopNotes = defaultStopNotes
         client.preferredPayment = preferredPayment
         client.isComped = isComped
+        client.taxExempt = taxExempt
         client.defaultDiscountPercent = defaultDiscountPercent
         client.tags = tags
         client.notes = notes

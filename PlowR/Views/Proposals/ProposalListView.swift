@@ -291,16 +291,7 @@ struct ProposalListView: View {
 
     private func duplicateProposal(_ proposal: Proposal) {
         guard let client = myClients.first(where: { $0.id.uuidString == proposal.clientID }) else { return }
-        let copy = Proposal(operatorID: proposal.operatorID, client: client)
-        copy.notes = proposal.notes
-        copy.disclaimer = proposal.disclaimer
-        copy.discountAmount = proposal.discountAmount
-        copy.taxRate = proposal.taxRate
-        copy.validUntil = proposal.validUntil
-        let lineItemCopies = proposal.makeLineItemCopies()
-        lineItemCopies.forEach { modelContext.insert($0) }
-        copy.lineItems = lineItemCopies
-        modelContext.insert(copy)
+        ServiceLog.duplicate(proposal, for: client, in: modelContext)
     }
 }
 

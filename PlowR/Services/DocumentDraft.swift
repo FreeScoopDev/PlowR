@@ -13,10 +13,22 @@ import Foundation
 nonisolated struct DocumentDraft {
 
     /// The Tax field's starting text on a new document: the business's own
-    /// sales tax (Business Profile), or empty when it has none.
-    static func startingTaxText(rate: Double?) -> String {
-        guard let rate, rate > 0 else { return "" }
-        return Proposal.percentText(rate)
+    /// sales tax (Business Profile), or empty when it has none or the client
+    /// is tax exempt.
+    static func startingTaxText(rate: Double?, taxExempt: Bool) -> String {
+        let rate = startingTaxRate(rate: rate, taxExempt: taxExempt)
+        return rate > 0 ? Proposal.percentText(rate) : ""
+    }
+
+    /// Whether a new document's client is tax exempt: the client page's
+    /// switch when it opened the builder, saved or not, else the client's.
+    static func isTaxExempt(onScreen: Bool?, saved: Bool) -> Bool {
+        onScreen ?? saved
+    }
+
+    /// A new document's tax rate: the business's, or 0 for a tax-exempt client.
+    static func startingTaxRate(rate: Double?, taxExempt: Bool) -> Double {
+        taxExempt ? 0 : max(rate ?? 0, 0)
     }
 
     struct Service {

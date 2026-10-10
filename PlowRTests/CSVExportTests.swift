@@ -49,12 +49,16 @@ struct CSVExportTests {
         h.clients[0].name = "Zed"
         h.clients[1].name = "Amy, Jr."
         h.clients[1].tags = ["commercial", "priority"]
+        h.clients[1].taxExempt = true
         let other = Client(name: "Theirs", phone: "", address: "", operatorID: "someone else")
         let lines = rows(CSVExport.clients(h.clients + [other], operatorID: "op"))
         #expect(lines.count == 3)
         #expect(lines[0].hasPrefix("Name,Phone,Email,Address,Status"))
         #expect(lines[1].hasPrefix("\"Amy, Jr.\","))
         #expect(lines[1].contains("commercial; priority"))
+        // Tax Exempt beside the other billing preferences: Yes for Amy, No for Zed.
+        #expect(lines[0].contains(",No Charge,Tax Exempt,Discount %,"))
+        #expect(lines[1].contains(",No,Yes,0,") && lines[2].contains(",No,No,0,"))
         #expect(lines[2].hasPrefix("Zed,"))
     }
 

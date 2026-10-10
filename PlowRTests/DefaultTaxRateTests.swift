@@ -84,10 +84,10 @@ struct DefaultTaxRateTests {
 
     // The builder's Tax field starts at the business's rate, or empty.
     @Test func theBuildersTaxFieldStartsAtTheBusinessesRate() {
-        #expect(DocumentDraft.startingTaxText(rate: 6.625) == "6.625")
-        #expect(DocumentDraft.startingTaxText(rate: 8) == "8")
-        #expect(DocumentDraft.startingTaxText(rate: 0) == "")
-        #expect(DocumentDraft.startingTaxText(rate: nil) == "")
+        #expect(DocumentDraft.startingTaxText(rate: 6.625, taxExempt: false) == "6.625")
+        #expect(DocumentDraft.startingTaxText(rate: 8, taxExempt: false) == "8")
+        #expect(DocumentDraft.startingTaxText(rate: 0, taxExempt: false) == "")
+        #expect(DocumentDraft.startingTaxText(rate: nil, taxExempt: false) == "")
     }
 
     // The keypad types a decimal comma in many regions; it was saved as 0%.
@@ -102,4 +102,98 @@ struct DefaultTaxRateTests {
             #expect(Proposal.readTaxRate(unreadable) == nil, "\(unreadable)")
         }
     }
+
+    // MARK: Tax-exempt clients
+
+    @Test func aTaxExemptClientsInvoiceStartsAtNoTax() throws {
+        let h = try Harness(stopCount: 0)
+        let profile = BusinessProfile(operatorID: "op")
+        profile.defaultTaxRate = 6.625
+        h.context.insert(profile)
+        h.client.taxExempt = true
+        let invoice = ServiceLog.newDraftInvoice(for: h.client, items: [line(100)], operatorID: "op",
+                                                 now: h.clock, in: h.context)
+        #expect(invoice.taxRate == 0 && invoice.total == 100)
+    }
+
+    @Test func aTaxExemptClientsContractPaymentHasNoTax() throws {
+        let h = try Harness(stopCount: 0)
+        let profile = BusinessProfile(operatorID: "op")
+        profile.defaultTaxRate = 5
+        h.context.insert(profile)
+        h.client.taxExempt = true
+        let contract = Contract(name: "Winter", startDate: h.clock, endDate: h.clock.addingTimeInterval(90 * 86400),
+                                operatorID: "op")
+        contract.pricingRaw = Contracts.Pricing.season.rawValue
+        contract.price = 100
+        contract.installments = 1
+        contract.clientID = h.client.id.uuidString
+        h.context.insert(contract)
+        contract.client = h.client
+        contract.signedAt = h.clock
+        let payment = try #require(ContractInstallments.schedule(of: contract).first)
+        let invoice = try #require(ContractInstallments.makeInvoice(for: payment, of: contract, in: h.context,
+                                                                     now: h.clock))
+        #expect(invoice.taxRate == 0 && invoice.total == 100)
+    }
+
+    // The switch turned on and a document started from the client page
+    // before Save: the page's value, not the saved client's.
+    @Test func theClientPagesUnsavedSwitchWins() {
+        #expect(DocumentDraft.isTaxExempt(onScreen: true, saved: false))
+        #expect(!DocumentDraft.isTaxExempt(onScreen: false, saved: true))
+        #expect(DocumentDraft.isTaxExempt(onScreen: nil, saved: true))
+        #expect(!DocumentDraft.isTaxExempt(onScreen: nil, saved: false))
+    }
+
+    // Duplicate makes a new document: an exempt client's starts at 0%, though
+    // the source was taxed; anyone else's keeps the source's rate.
+    @Test func aDuplicateForAnExemptClientHasNoTax() throws {
+        let h = try Harness(stopCount: 0)
+        let source = Proposal(operatorID: "op", client: h.client)
+        source.taxRate = 5
+        source.discountAmount = 10
+        let item = line(100)
+        h.context.insert(item)
+        source.lineItems = [item]
+        h.context.insert(source)
+        let taxed = ServiceLog.duplicate(source, for: h.client, in: h.context)
+        #expect(taxed.taxRate == 5 && taxed.discountAmount == 10 && taxed.lineItems?.count == 1)
+        h.client.taxExempt = true
+        let exempt = ServiceLog.duplicate(source, for: h.client, in: h.context)
+        #expect(exempt.taxRate == 0 && exempt.lineItems?.count == 1)
+        #expect(source.taxRate == 5)
+    }
+
+    // Turning the switch on changes no document already made.
+    @Test func theSwitchLeavesExistingDocumentsAlone() throws {
+        let h = try Harness(stopCount: 0)
+        let profile = BusinessProfile(operatorID: "op")
+        profile.defaultTaxRate = 8
+        h.context.insert(profile)
+        let before = ServiceLog.newDraftInvoice(for: h.client, items: [line(100)], operatorID: "op",
+                                                now: h.clock, in: h.context)
+        var draft = ClientDraft(h.client)
+        draft.taxExempt = true
+        draft.applyExceptAddressAndActive(to: h.client)
+        #expect(h.client.taxExempt)
+        #expect(before.taxRate == 8)
+    }
+
+    @Test func theBuilderStartsAnExemptClientAtNoTax() {
+        #expect(DocumentDraft.startingTaxText(rate: 6.625, taxExempt: true) == "")
+        #expect(DocumentDraft.startingTaxText(rate: 6.625, taxExempt: false) == "6.625")
+        #expect(DocumentDraft.startingTaxRate(rate: 6.625, taxExempt: true) == 0)
+        #expect(DocumentDraft.startingTaxRate(rate: nil, taxExempt: false) == 0)
+    }
+
+    // An edit synced from another device reaches an open client screen.
+    @Test func theSwitchFollowsAChangeFromAnotherDevice() throws {
+        let h = try Harness(stopCount: 0)
+        let old = ClientDraft(h.client)
+        var new = old
+        new.taxExempt = true
+        #expect(old.rebased(from: old, to: new).taxExempt)
+    }
 }
+
