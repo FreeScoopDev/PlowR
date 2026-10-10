@@ -238,7 +238,7 @@ struct InvoiceRecordsTests {
         let bill = invoice(h, total: 100)
         Payments.record(100, method: "", receivedAt: h.clock, on: bill, in: h.context, now: h.clock)
         let text = try pdfText(bill)
-        #expect(text.contains("PAID") && !text.contains("TOTALDUE"))
+        #expect(text.contains("PAID") && !text.contains("TOTALDUE"), "\(text)")
     }
 
     @Test func aVoidedInvoicesPDFSaysVoid() throws {
@@ -246,6 +246,7 @@ struct InvoiceRecordsTests {
         let bill = invoice(h, total: 100)
         InvoiceRecords.void(bill, note: "Revised as INV-0001-R1", now: h.clock, in: h.context)
         let text = try pdfText(bill)
-        #expect(text.contains("VOID") && text.contains("RevisedasINV-0001-R1") && !text.contains("TOTALDUE"))
+        // The text in the message: Xcode Cloud's PDFKit reads PDFs differently.
+        #expect(text.contains("VOID") && text.contains("RevisedasINV-0001-R1") && !text.contains("TOTALDUE"), "\(text)")
     }
 }
