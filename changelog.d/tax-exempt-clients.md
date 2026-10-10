@@ -7,3 +7,7 @@
   be changed.
 - A duplicate of an exempt client's document starts at 0% too, and the
   clients CSV export has a Tax Exempt column.
+
+### Internal
+- `Client.taxExempt` is a new iCloud field: deploy the schema before the
+  next release.
