@@ -82,12 +82,13 @@ nonisolated struct DocumentDraft {
     /// cleared, all from here.
     func defaultAmount(serviceID: String, zoneIndex: Int) -> Double? {
         guard let service = services.first(where: { $0.id == serviceID }) else { return nil }
-        // A per-square-foot service for the whole property, with no zones:
-        // no area to price, so nothing to start from (InvoiceLines.needsPrice).
-        let base = zones.indices.contains(zoneIndex)
-            ? zones[zoneIndex].areaSquareFeet * service.pricePerUnit
-            : service.unitType == "perSqFt" ? 0 : service.pricePerUnit
-        return InvoiceLines.roundedToCent(base * afterHoursMultiplier)
+        guard zones.indices.contains(zoneIndex) else {
+            // The whole property, priced as everywhere else (a per-square-foot
+            // service with no zones has nothing to start from).
+            return InvoiceLines.propertyPrice(unitType: service.unitType, pricePerUnit: service.pricePerUnit,
+                                              zones: [], multiplier: afterHoursMultiplier)
+        }
+        return InvoiceLines.roundedToCent(zones[zoneIndex].areaSquareFeet * service.pricePerUnit * afterHoursMultiplier)
     }
 
     /// A selected line's amount: what's typed, or the default if the field is empty or unreadable.

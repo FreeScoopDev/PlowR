@@ -35,6 +35,10 @@ struct DocumentDraftTests {
         let d = DocumentDraft(services: [mowing, edging], zones: [], afterHoursMultiplier: 1)
         #expect(d.defaultAmount(serviceID: "mow", zoneIndex: -1) == 0)
         #expect(d.defaultAmount(serviceID: "edge", zoneIndex: -1) == 45)
+        // A zone drawn but not measured prices at nothing too.
+        let unmeasured = DocumentDraft(services: [mowing], zones: [.init(label: "Front", areaSquareFeet: 0)],
+                                       afterHoursMultiplier: 1)
+        #expect(unmeasured.defaultAmount(serviceID: "mow", zoneIndex: 0) == 0)
     }
 
     // A cleared field bills the default shown beside it, multiplier included.

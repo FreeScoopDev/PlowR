@@ -121,6 +121,12 @@ struct BillWorkView: View {
                          + (work.records.first.map { WorkBilling.day($0.performedAt, now: .now) } ?? ""))
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                    if case let unpriced = work.jobsNeedingAPrice, unpriced > 0 {
+                        Text(unpriced == 1 ? "1 job has a service at $0: set its price on the job's page (All Work)"
+                                           : "\(unpriced) jobs have a service at $0: set their price on each job's page (All Work)")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
                 }
                 Spacer()
                 Text(work.total, format: .currency(code: "USD"))
