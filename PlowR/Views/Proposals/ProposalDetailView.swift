@@ -156,7 +156,7 @@ struct ProposalDetailView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("A revision is a new invoice that replaces this one: what was paid moves to it, and this one is kept as void. Void takes it back with no replacement; it stays on record and owes nothing.")
+            Text("A revision is a new invoice that replaces this one: what was paid moves to it, and this one is kept as void. Void takes it back with no replacement: it stays on record and owes nothing, and if nothing was paid on it, its work can be billed again.")
         }
     }
 

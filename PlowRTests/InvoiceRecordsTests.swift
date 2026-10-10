@@ -181,6 +181,31 @@ struct InvoiceRecordsTests {
         #expect(bill.paymentsTotal == 250)
     }
 
+    // Money came in on it: billing its work again would charge twice.
+    @Test func voidingAPaidContractPaymentKeepsItsWorkBilled() throws {
+        let h = try Harness(stopCount: 0)
+        let bill = invoice(h, total: 1_200)
+        Payments.record(1_200, method: "Check", receivedAt: h.clock, on: bill, in: h.context, now: h.clock)
+        let contract = Contract(name: "Winter", startDate: h.clock, endDate: h.clock.addingTimeInterval(86_400 * 120),
+                                operatorID: "op")
+        h.context.insert(contract)
+        contract.installmentsMade = [1]
+        bill.contractID = contract.id.uuidString
+        bill.installmentIndex = 1
+        InvoiceRecords.void(bill, note: "Voided", now: h.clock, in: h.context)
+        #expect(contract.installmentsMade == [1])
+    }
+
+    @Test func revisingOrVoidingOneClearsADuplicateWarning() throws {
+        let h = try Harness(stopCount: 0)
+        let first = invoice(h, total: 100, number: "INV-0043")
+        let second = invoice(h, total: 80, number: "INV-0043")
+        InvoiceRecords.void(second, note: "Voided", now: h.clock, in: h.context)
+        let all = try h.context.fetch(FetchDescriptor<Proposal>())
+        #expect(!InvoiceRecords.hasDuplicateNumber(first, among: all))
+        #expect(!InvoiceRecords.hasDuplicateNumber(second, among: all))
+    }
+
     @Test func aPlainVoidGivesTheWorkAndContractPaymentBack() throws {
         let h = try Harness(stopCount: 0)
         let bill = invoice(h, total: 100)

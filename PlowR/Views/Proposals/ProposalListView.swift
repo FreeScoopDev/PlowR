@@ -150,7 +150,7 @@ struct ProposalListView: View {
             }
             Button("Cancel", role: .cancel) { proposalToVoid = nil }
         } message: {
-            Text("It was sent or paid toward, so it stays on record: marked void, owing nothing, its number never used again. Its payments stay with it.")
+            Text("It was sent or paid toward, so it stays on record: marked void, owing nothing, its number never used again. Its payments stay with it; if there are none, its work can be billed again.")
         }
         .sheet(isPresented: $showingBillWork) {
             BillWorkView()

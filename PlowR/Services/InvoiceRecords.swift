@@ -41,8 +41,9 @@ enum InvoiceRecords {
     /// Voids it: kept, owing nothing, its number never reused. What came in
     /// on it stays with it (a "marked paid" with no payment recorded becomes
     /// one, so it still counts as received). A plain void (not a revision's)
-    /// gives its work back: the jobs and visit billed on it can be billed
-    /// again, and a contract payment invoiced again. `releasesWork` is false
+    /// gives its work back when no money came in on it: the jobs and visit
+    /// billed on it can be billed again, and a contract payment invoiced
+    /// again. With money on it, the work stays with it. `releasesWork` is false
     /// only for a revision's original, whose work and money moved with it.
     static func void(_ invoice: Proposal, note: String, now: Date = .now, in context: ModelContext,
                      releasesWork: Bool = true) {
@@ -52,7 +53,9 @@ enum InvoiceRecords {
         if releasesWork { recordImpliedPayment(of: invoice, onto: invoice, in: context) }
         invoice.voidedAt = now
         invoice.voidNote = note.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard releasesWork else { return }
+        // Money came in on it: its work stays billed to it, or billing it
+        // again would charge for it twice (Revise moves both together).
+        guard releasesWork, invoice.paymentsTotal <= Payments.tolerance else { return }
         ServiceLog.releaseBilling(of: invoice, in: context)
         if let contract = contract(of: invoice, in: context) {
             contract.installmentsMade.removeAll { $0 == invoice.installmentIndex }
@@ -101,7 +104,7 @@ enum InvoiceRecords {
     /// out, the one made first); every other one not yet sent takes the next
     /// free number (a revision, its next revision number). Two that both
     /// went out are never renumbered, since the client has that number:
-    /// `duplicates` lets the invoice's page say so. Run at launch, when
+    /// `hasDuplicateNumber` lets the invoice's page say so. Run at launch, when
     /// iCloud brings changes and when the app comes back; saves only if
     /// something changed.
     static func resolveDuplicateNumbers(in context: ModelContext) {
@@ -126,9 +129,10 @@ enum InvoiceRecords {
 
     /// Whether another kept invoice of the business has this one's number:
     /// two that both went out before their devices synced.
+    /// A void one doesn't count, so revising or voiding one clears it.
     static func hasDuplicateNumber(_ invoice: Proposal, among all: [Proposal]) -> Bool {
-        invoice.isInvoice && all.contains {
-            $0.id != invoice.id && !$0.isDeleted && $0.operatorID == invoice.operatorID
+        invoice.isInvoice && invoice.voidedAt == nil && all.contains {
+            $0.id != invoice.id && !$0.isDeleted && $0.voidedAt == nil && $0.operatorID == invoice.operatorID
                 && $0.invoiceNumber == invoice.invoiceNumber
         }
     }

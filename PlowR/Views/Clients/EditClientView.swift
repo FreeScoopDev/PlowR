@@ -253,7 +253,7 @@ struct EditClientView: View {
             if let doc = revisePaidDoc {
                 let copyNumber = InvoiceNumbering.nextRevision(of: doc.invoiceNumber,
                                                                operatorID: doc.operatorID, in: modelContext)
-                Text("A revision, \(copyNumber), replaces \(doc.invoiceNumber): what was paid moves to it, and \(doc.invoiceNumber) is kept as void. Void takes \(doc.invoiceNumber) back with no replacement; it stays on record and owes nothing.")
+                Text("A revision, \(copyNumber), replaces \(doc.invoiceNumber): what was paid moves to it, and \(doc.invoiceNumber) is kept as void. Void takes \(doc.invoiceNumber) back with no replacement: it stays on record and owes nothing, and if nothing was paid on it, its work can be billed again.")
             }
         }
     }
