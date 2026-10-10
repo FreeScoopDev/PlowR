@@ -43,6 +43,8 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
+            ProSettingsSection()
+
             Section("Business") {
                 NavigationLink(destination: BusinessProfileView()) {
                     Label("Business Profile", systemImage: "building.2")
@@ -214,10 +216,14 @@ struct SettingsView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text(PlowRApp.isSyncTurnedOff
-                 ? "Export My Data First saves your clients, proposals, invoices, payments, contracts, schedule and Service History as spreadsheets, a copy to keep: they can't be loaded back into PlowR, and routes, photos and settings aren't in them (share photos from each client's Photos page).\n\niCloud sync is off on this device, so Remove from This Device is the only way to delete here: it permanently removes what's on this device, which isn't in iCloud. To delete your iCloud data, turn sync back on above, reopen PlowR, then choose Delete Everything, or do it from another device."
-                 : "Export My Data First saves your clients, proposals, invoices, payments, contracts, schedule and Service History as spreadsheets, a copy to keep: they can't be loaded back into PlowR, and routes, photos and settings aren't in them (share photos from each client's Photos page).\n\nRemove from This Device takes PlowR's data off this device only and turns iCloud sync off here; your iCloud and your other devices keep it. Anything this device hasn't sent to iCloud yet is lost, so be online and give it a minute first.\n\nDelete Everything permanently removes all your PlowR data: clients, routes, jobs, documents, contracts, photos and settings, from this device and from your iCloud, so also from your other devices. Stay online with PlowR open for a minute afterwards so iCloud gets the deletion.")
+                 ? "Export My Data First saves your clients, proposals, invoices, payments, contracts, schedule and Service History as spreadsheets, a copy to keep: they can't be loaded back into PlowR, and routes, photos and settings aren't in them (share photos from each client's Photos page).\n\niCloud sync is off on this device, so Remove from This Device is the only way to delete here: it permanently removes what's on this device, which isn't in iCloud. To delete your iCloud data, turn sync back on above, reopen PlowR, then choose Delete Everything, or do it from another device." + Self.subscriptionNote
+                 : "Export My Data First saves your clients, proposals, invoices, payments, contracts, schedule and Service History as spreadsheets, a copy to keep: they can't be loaded back into PlowR, and routes, photos and settings aren't in them (share photos from each client's Photos page).\n\nRemove from This Device takes PlowR's data off this device only and turns iCloud sync off here; your iCloud and your other devices keep it. Anything this device hasn't sent to iCloud yet is lost, so be online and give it a minute first.\n\nDelete Everything permanently removes all your PlowR data: clients, routes, jobs, documents, contracts, photos and settings, from this device and from your iCloud, so also from your other devices. Stay online with PlowR open for a minute afterwards so iCloud gets the deletion." + Self.subscriptionNote)
         }
     }
+
+    /// Deleting data leaves an App Store subscription running (App Review
+    /// checks this is said).
+    static let subscriptionNote = "\n\nNeither removes a PlowR Pro subscription: Apple keeps billing it until you cancel it in PlowR Pro → Manage Subscription, above."
 
     @ViewBuilder private var calendarFooter: some View {
         if calendarSync.needsAccess {

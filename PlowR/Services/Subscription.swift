@@ -81,28 +81,37 @@ final class Subscription {
         var verified: Bool
         var productID: String
         var revoked: Bool
+        /// When the period it paid for (or the trial) ends.
+        var expires: Date?
     }
 
     /// What the plan needs from StoreKit's transactions: only a verified,
     /// unrefunded purchase of PlowR Pro counts, now or ever. A refunded
     /// purchase is as if never made, so it leaves the free tier, never read
     /// only.
-    nonisolated static func entitlements(current: [Purchase], history: [Purchase]) -> Entitlements {
+    ///
+    /// Subscribed now: in StoreKit's current entitlements (which carry the
+    /// grace period), or a purchase whose period hasn't ended yet. The
+    /// entitlements reach a just-made purchase a moment after the history
+    /// does (StoreKit's test store, 2026-10-10), and a read in that moment
+    /// would say "not subscribed" to someone who had just paid.
+    nonisolated static func entitlements(current: [Purchase], history: [Purchase],
+                                         now: Date = .now) -> Entitlements {
         func counts(_ purchase: Purchase) -> Bool {
             purchase.verified && purchase.productID == productID && !purchase.revoked
         }
         let active = current.contains(where: counts)
+            || history.contains { counts($0) && ($0.expires ?? .distantPast) > now }
         return Entitlements(active: active, everSubscribed: active || history.contains(where: counts))
     }
 
-    /// StoreKit's answer: subscribed now (its current entitlements, which
-    /// include the trial and the grace period), and every purchase ever.
+    /// StoreKit's answer: its current entitlements, and every purchase ever.
     nonisolated static func readStoreKit() async -> Entitlements {
         func purchase(_ result: VerificationResult<Transaction>) -> Purchase {
             let transaction = result.unsafePayloadValue
             let verified = if case .verified = result { true } else { false }
             return Purchase(verified: verified, productID: transaction.productID,
-                            revoked: transaction.revocationDate != nil)
+                            revoked: transaction.revocationDate != nil, expires: transaction.expirationDate)
         }
         var current: [Purchase] = []
         for await result in Transaction.currentEntitlements { current.append(purchase(result)) }

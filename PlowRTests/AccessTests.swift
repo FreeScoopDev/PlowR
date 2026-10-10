@@ -210,8 +210,25 @@ struct AccessTests {
     }
 
     @Test func aPurchaseOnlyInTheHistoryIsCancelled() {
-        let past = Purchase(verified: true, productID: pro, revoked: false)
-        #expect(Subscription.plan(for: Subscription.entitlements(current: [], history: [past])) == .lapsed)
+        let past = Purchase(verified: true, productID: pro, revoked: false,
+                            expires: Date(timeIntervalSinceReferenceDate: 100))
+        let now = Date(timeIntervalSinceReferenceDate: 200)
+        #expect(Subscription.plan(for: Subscription.entitlements(current: [], history: [past], now: now)) == .lapsed)
+    }
+
+    @Test func aPaidPeriodNotOverYetIsProBeforeTheEntitlementsCatchUp() {
+        let now = Date(timeIntervalSinceReferenceDate: 200)
+        let justBought = Purchase(verified: true, productID: pro, revoked: false,
+                                  expires: Date(timeIntervalSinceReferenceDate: 300))
+        #expect(Subscription.entitlements(current: [], history: [justBought], now: now)
+                == .init(active: true, everSubscribed: true))
+        // Not if refunded, forged or another product.
+        for other in [Purchase(verified: true, productID: pro, revoked: true, expires: justBought.expires),
+                      Purchase(verified: false, productID: pro, revoked: false, expires: justBought.expires),
+                      Purchase(verified: true, productID: "Scoops.PlowR.other", revoked: false,
+                               expires: justBought.expires)] {
+            #expect(!Subscription.entitlements(current: [], history: [other], now: now).active)
+        }
     }
 
     @MainActor

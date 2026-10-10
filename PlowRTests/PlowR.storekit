@@ -1,0 +1,67 @@
+{
+  "identifier" : "7C1A2B3D",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+
+  ],
+  "settings" : {
+    "_applicationInternalID" : "6796051098",
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ],
+    "_timeRate" : 0
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "21500001",
+      "localizations" : [
+
+      ],
+      "name" : "PlowR Pro",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "8.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "6796051101",
+          "introductoryOffer" : {
+            "internalID" : "6796051102",
+            "numberOfPeriods" : 1,
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P1M"
+          },
+          "localizations" : [
+            {
+              "description" : "Unlimited clients and routes, the Service Report and every business tool.",
+              "displayName" : "PlowR Pro",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "Scoops.PlowR.pro.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "PlowR Pro Monthly",
+          "subscriptionGroupID" : "21500001",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}
