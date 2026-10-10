@@ -129,6 +129,40 @@ enum ContractInstallments {
         }
     }
 
+    /// Whether another live invoice bills the same contract payment. Two
+    /// devices can each make a payment's invoice before iCloud brings the
+    /// other's (Make Invoices on both), and the client would be billed
+    /// twice. PlowR doesn't remove either by itself: the other device may
+    /// have sent its copy or recorded a payment on it by the time it syncs
+    /// (#88 found the same of copied visits). Each copy's page says so, and
+    /// so does the Dashboard (`duplicates`), so the business deletes or
+    /// voids one. Live means not void: a revision is its payment's live
+    /// invoice (its original is void), a plain void gives the payment back.
+    static func hasDuplicate(_ invoice: Proposal, among all: [Proposal]) -> Bool {
+        isLiveBilling(invoice) && all.contains {
+            $0.id != invoice.id && isLiveBilling($0) && paymentKey($0) == paymentKey(invoice)
+        }
+    }
+
+    /// One invoice of each contract payment billed more than once, the
+    /// oldest first: for the Dashboard to point to.
+    static func duplicates(_ documents: [Proposal], operatorID: String) -> [Proposal] {
+        let live = documents.filter { $0.operatorID == operatorID && isLiveBilling($0) }
+        return Dictionary(grouping: live) { paymentKey($0) }.values
+            .filter { $0.count > 1 }
+            .compactMap { $0.min { $0.createdAt < $1.createdAt } }
+            .sorted { $0.createdAt < $1.createdAt }
+    }
+
+    private static func isLiveBilling(_ invoice: Proposal) -> Bool {
+        invoice.isInvoice && !invoice.isDeleted && !invoice.contractID.isEmpty && invoice.installmentIndex > 0
+            && invoice.voidedAt == nil
+    }
+
+    private static func paymentKey(_ invoice: Proposal) -> String {
+        "\(invoice.contractID)\u{1F}\(invoice.installmentIndex)"
+    }
+
     /// Contract invoices made and not sent yet.
     static func readyToSend(_ documents: [Proposal], operatorID: String) -> [Proposal] {
         documents.filter { $0.operatorID == operatorID && !$0.contractID.isEmpty && $0.invoiceStatus == .draft }

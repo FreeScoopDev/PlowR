@@ -233,6 +233,22 @@ struct PaymentsTests {
         #expect(owed.amountPaid == 0)
     }
 
+    // One payment recorded on two devices before they synced: more than the
+    // total. The Dashboard points to it; nothing is removed by itself.
+    @Test func anInvoicePaidMoreThanItsTotalIsListed() throws {
+        let h = try Harness(stopCount: 0)
+        let bill = invoice(h, total: 100)
+        let fine = invoice(h, total: 50, number: "INV-0002")
+        Payments.record(100, method: "Cash", receivedAt: h.clock, on: bill, in: h.context, now: h.clock)
+        let twin = Payment(amount: 100, method: "Cash", receivedAt: h.clock, operatorID: "op")
+        h.context.insert(twin)
+        twin.invoice = bill
+        #expect(bill.overpaid == 100)
+        #expect(Payments.overpaid([fine, bill]).map(\.id) == [bill.id])
+        Payments.delete(twin, in: h.context)
+        #expect(Payments.overpaid([fine, bill]).isEmpty)
+    }
+
     // Money counts in the month it came: parts of one invoice in two months.
     @Test func moneyByMonthCountsEachPartWhenItCame() throws {
         let h = try Harness(stopCount: 0)

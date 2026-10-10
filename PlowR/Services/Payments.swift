@@ -145,6 +145,15 @@ enum Payments {
 
     // MARK: - Money owed and received
 
+    /// Invoices whose payments come to more than their total, the oldest
+    /// first: most likely one payment recorded on two devices before they
+    /// synced (the app refuses an overpayment on one device). Their extra
+    /// counts as received until it's removed, so the Dashboard points to them.
+    static func overpaid(_ documents: [Proposal]) -> [Proposal] {
+        documents.filter { $0.isInvoice && $0.voidedAt == nil && $0.overpaid > 0 }
+            .sorted { $0.createdAt < $1.createdAt }
+    }
+
     /// What's owed across `documents`: each invoice's balance.
     static func owed(_ documents: [Proposal]) -> Double {
         InvoiceLines.roundedToCent(documents.reduce(0) { $0 + $1.balanceDue })

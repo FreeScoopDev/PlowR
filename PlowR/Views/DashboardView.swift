@@ -18,6 +18,8 @@ struct DashboardView: View {
     @Query private var allServices: [ServiceItem]
     @Query private var allChecks: [TriggerCheck]
 
+    /// An invoice paid more than its total, its payments open (needsALookRows).
+    @State private var overpaidInvoice: Proposal?
     @State private var dashWeather: WeatherCondition?
     /// The coming days' forecast, for the storm card.
     @State private var forecastDays: [DayForecast] = []
@@ -405,7 +407,56 @@ struct DashboardView: View {
                 }
                 .buttonStyle(.plain)
             }
+            needsALookRows
         }
+        // Payments open as a sheet, as from an invoice's page.
+        .sheet(item: $overpaidInvoice) { InvoicePaymentsView(invoice: $0) }
+    }
+
+    /// Money records that need a look, most likely made on two devices before
+    /// they synced: a contract payment billed by two invoices, and an invoice
+    /// paid more than its total. PlowR doesn't fix either by itself (one may
+    /// already be with the client, or the extra may be a real credit); each
+    /// row opens the invoice to decide.
+    @ViewBuilder
+    private var needsALookRows: some View {
+        let billedTwice = ContractInstallments.duplicates(myProposals, operatorID: authManager.userID)
+        let overpaid = Payments.overpaid(myProposals)
+        if !billedTwice.isEmpty || !overpaid.isEmpty {
+            DashCard {
+                if let first = billedTwice.first {
+                    NavigationLink { ProposalDetailView(proposal: first) } label: {
+                        needsALookRow(billedTwice.count == 1 ? "1 contract payment billed twice"
+                                                             : "\(billedTwice.count) contract payments billed twice",
+                                      detail: "\(first.clientName) \(first.invoiceNumber): delete or void one of its invoices.")
+                    }
+                    .buttonStyle(.plain)
+                }
+                if let first = overpaid.first {
+                    if !billedTwice.isEmpty { Divider().padding(.leading, 14) }
+                    Button { overpaidInvoice = first } label: {
+                        needsALookRow(overpaid.count == 1 ? "1 invoice paid more than its total"
+                                                          : "\(overpaid.count) invoices paid more than their total",
+                                      detail: "\(first.clientName) \(first.invoiceNumber): a payment may be recorded twice, or the client is owed a credit.")
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    private func needsALookRow(_ title: String, detail: String) -> some View {
+        HStack(spacing: 12) {
+            IconBadge(systemImage: "exclamationmark.triangle.fill", color: .orange)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
+                Text(detail).font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+            Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
+        }
+        .padding(14)
+        .contentShape(Rectangle())
     }
 
     // MARK: - Contract payments

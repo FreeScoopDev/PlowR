@@ -94,7 +94,15 @@ struct ProposalDetailView: View {
         .safeAreaInset(edge: .top) {
             // Two sent invoices with one number (made on two devices before
             // they synced): never renumbered, since the client has it; said here.
-            if InvoiceRecords.hasDuplicateNumber(proposal, among: allProposals) {
+            if ContractInstallments.hasDuplicate(proposal, among: allProposals) {
+                Label("Another invoice also bills this contract payment: they were made on two devices before they synced. Delete or void one.",
+                      systemImage: "exclamationmark.triangle.fill")
+                    .font(.footnote)
+                    .foregroundStyle(.orange)
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(.ultraThinMaterial)
+            } else if InvoiceRecords.hasDuplicateNumber(proposal, among: allProposals) {
                 Label("Another invoice also has the number \(proposal.invoiceNumber). They were made on two devices before they synced; revise or void one.",
                       systemImage: "exclamationmark.triangle.fill")
                     .font(.footnote)
