@@ -8,6 +8,8 @@ struct SettingsView: View {
     @Environment(CalendarSync.self) private var calendarSync
     @Environment(\.modelContext) private var modelContext
     @Environment(\.openURL) private var openURL
+    @Environment(\.access) private var access
+    @State private var gate: ProGate?
 
     @State private var showingFindService = false
     /// The request screen at the end of Find Services requires this store.
@@ -58,8 +60,16 @@ struct SettingsView: View {
                 NavigationLink(destination: RequestLinkView()) {
                     Label("Request Link", systemImage: "link")
                 }
-                NavigationLink(destination: ImportClientsView()) {
-                    Label("Import Clients", systemImage: "square.and.arrow.down.on.square")
+                // A Pro tool: without Pro, the row says why instead of opening.
+                if let blocked = ProGate.proFeature("Import Clients", access) {
+                    Button { gate = blocked } label: {
+                        Label("Import Clients", systemImage: "square.and.arrow.down.on.square")
+                    }
+                    .foregroundStyle(.primary)
+                } else {
+                    NavigationLink(destination: ImportClientsView()) {
+                        Label("Import Clients", systemImage: "square.and.arrow.down.on.square")
+                    }
                 }
                 NavigationLink(destination: ExportDataView()) {
                     Label("Export Data", systemImage: "square.and.arrow.up.on.square")
@@ -201,6 +211,7 @@ struct SettingsView: View {
             #endif
         }
         .navigationTitle("Settings")
+        .proGateSheet($gate)
         .sheet(isPresented: $showingFindService) {
             FindServiceFlow()
                 .environment(workOrderStore)

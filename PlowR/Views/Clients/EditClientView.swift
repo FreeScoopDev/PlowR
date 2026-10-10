@@ -9,6 +9,8 @@ struct EditClientView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.openURL) private var openURL
     @Environment(AuthManager.self) private var authManager
+    @Environment(\.access) private var access
+    @State private var gate: ProGate?
 
     let client: Client
     /// The client's address and pin as this screen knows them: when it
@@ -138,6 +140,7 @@ struct EditClientView: View {
                 }
             }
         }
+        .proGateSheet($gate)
         .sheet(isPresented: $showingPropertyScanner, onDismiss: takePinFromClient) {
             PropertyScannerView(client: client, pendingAddress: pendingAddress, startingPin: pendingPin,
                                 onAddressChosen: { addressChosenOnPinScreen = $0 })
@@ -767,7 +770,9 @@ struct EditClientView: View {
         if stage != .customer, client.isActive {
             LabeledContent {
                 Button(stage == .lost ? "Reopen" : "Mark Lost") {
-                    Pipeline.setLost(stage != .lost, for: client, in: modelContext)
+                    // Reopening a lost lead: one more client.
+                    let blocked = stage == .lost ? ProGate.bringBack(client, active: client.isActive, lost: false, access) : nil
+                    $gate.unless(blocked) { Pipeline.setLost(stage != .lost, for: client, in: modelContext) }
                 }
                 .font(.caption)
                 .buttonStyle(.bordered)
@@ -1150,6 +1155,11 @@ struct EditClientView: View {
 
     /// Asks first when Save marks the client inactive and they're on a route.
     private func save() {
+        // Marking them active again: one more client.
+        if let blocked = ProGate.bringBack(client, active: draft.isActive, lost: client.lostAt != nil, access) {
+            gate = blocked
+            return
+        }
         if client.isActive, !draft.isActive {
             let footprint = ClientRemoval.footprint(of: client, in: modelContext)
             if !footprint.routeNames.isEmpty {

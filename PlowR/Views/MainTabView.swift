@@ -18,8 +18,7 @@ struct MainTabView: View {
 
     /// PlowR Pro: what this business may do, for every screen below.
     private var access: Access {
-        Access(plan: subscription.plan,
-               clientCount: Access.countedClients(allClients, operatorID: authManager.userID))
+        Access(plan: subscription.plan, clients: allClients, operatorID: authManager.userID)
     }
 
     var body: some View {

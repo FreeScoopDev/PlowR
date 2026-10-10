@@ -215,7 +215,12 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   exporting and recording payments are never locked (Joe, 2026-10-09).
   Every gate asks `@Environment(\.access)`, set once in `MainTabView` (a
   screen hosted outside it, like `LeadRequestWindow`, must pass it too);
-  never re-derive a rule in a view. `Subscription` reads the plan from
+  never re-derive a rule in a view. A gate is a `ProGate` check
+  (`addClient`, `bringBack`, `createRoute`, `startRoute`, `proFeature`)
+  run as `$gate.unless(check) { action }` with `.proGateSheet($gate)`, which
+  says why and opens the paywall: a new way to add a client, bring one
+  back (Mark Active, Reopen, a visit for an inactive client), make or start
+  a route, or open a Pro tool must go through one. `Subscription` reads the plan from
   StoreKit (product `Scoops.PlowR.pro.monthly`), follows
   `Transaction.updates` from `PlowRApp.init`, re-reads when the app comes
   back (an expiry sends no update) and keeps the last plan in standard

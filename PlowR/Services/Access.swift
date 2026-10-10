@@ -39,6 +39,11 @@ struct Access: Equatable {
         self.clientCount = clientCount
     }
 
+    /// From the business's clients (all on the device; only theirs count).
+    init(plan: Plan, clients: [Client], operatorID: String) {
+        self.init(plan: plan, clientCount: Self.countedClients(clients, operatorID: operatorID))
+    }
+
     var tier: Tier {
         switch plan {
         case .pro: .pro

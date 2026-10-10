@@ -11,6 +11,8 @@ import SwiftUI
 struct NewLeadFromRequestView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AuthManager.self) private var authManager
+    @Environment(\.access) private var access
+    @State private var gate: ProGate?
     /// Closes the window it's in (LeadRequestWindow).
     let onClose: () -> Void
 
@@ -37,6 +39,7 @@ struct NewLeadFromRequestView: View {
                 }
         }
         .onAppear { checkExisting() }
+        .proGateSheet($gate)
         .confirmationDialog("\(lateMatch?.name ?? "A client") already has this phone number",
                             isPresented: Binding(get: { lateMatch != nil }, set: { if !$0 { lateMatch = nil } }),
                             titleVisibility: .visible) {
@@ -113,6 +116,10 @@ struct NewLeadFromRequestView: View {
 
     private func save() {
         guard !isSaved, let cleaned else { return }
+        if let blocked = ProGate.addClient(access) {
+            gate = blocked
+            return
+        }
         // A client with this number may have arrived from iCloud since the
         // screen opened (the same link opened on another device): said
         // first, and the next Save Lead adds the lead anyway.

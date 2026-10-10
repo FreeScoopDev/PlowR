@@ -6,6 +6,7 @@ struct DashboardView: View {
     @Environment(ActiveRouteStore.self) private var activeRoute
     @Environment(\.modelContext) private var modelContext
     @Environment(AuthManager.self) private var authManager
+    @Environment(\.access) private var access
 
     @Query private var allProfiles: [BusinessProfile]
     @Query private var allClients: [Client]
@@ -26,6 +27,7 @@ struct DashboardView: View {
     private let iCloud = ICloudStatus.shared
 
     @State private var showingSettings = false
+    @State private var gate: ProGate?
     @State private var showingAddClient = false
     @State private var showingContactScanner = false
     @State private var showingCreateRoute = false
@@ -96,6 +98,7 @@ struct DashboardView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     iCloudBanner
+                    ProStatusBanner()
                     profileCard
                     if let w = dashWeather { dashWeatherStrip(w) }
                     if let storm {
@@ -130,6 +133,7 @@ struct DashboardView: View {
         }
         .sheet(isPresented: $showingSettings) { NavigationStack { SettingsView() } }
         .sheet(isPresented: $showingAddClient)  { AddClientView() }
+        .proGateSheet($gate)
         .sheet(isPresented: $showingContactScanner) { ContactScannerView() }
         .sheet(isPresented: $showingCreateRoute) { CreateRouteView() }
         .sheet(isPresented: $showingAddVisit)   { AddVisitView() }
@@ -593,11 +597,11 @@ struct DashboardView: View {
                                 GridItem(.flexible(), spacing: PlowRLayout.tileSpacing)],
                       spacing: PlowRLayout.tileSpacing) {
                 Menu {
-                    Button { showingAddClient = true } label: {
+                    Button { $gate.unless(ProGate.addClient(access)) { showingAddClient = true } } label: {
                         Label("Add Manually", systemImage: "person.badge.plus")
                     }
                     if CameraPicker.isAvailable {
-                        Button { showingContactScanner = true } label: {
+                        Button { $gate.unless(ProGate.addClient(access)) { showingContactScanner = true } } label: {
                             Label("Scan with Camera", systemImage: "camera.viewfinder")
                         }
                     }
@@ -605,7 +609,9 @@ struct DashboardView: View {
                     quickActionLabel("New Client", icon: "person.badge.plus", color: .blue)
                 }
                 .buttonStyle(.plain)
-                quickAction("New Route",       icon: "map.badge.plus",      color: .green)  { showingCreateRoute = true }
+                quickAction("New Route",       icon: "map.badge.plus",      color: .green)  {
+                    $gate.unless(ProGate.createRoute(access, routes: allRoutes, operatorID: authManager.userID)) { showingCreateRoute = true }
+                }
                 quickAction("Schedule Visit",  icon: "calendar.badge.plus", color: .orange) { showingAddVisit = true }
                 NavigationLink { ClientStatsView() } label: {
                     quickActionLabel("Season Report", icon: "chart.bar.doc.horizontal", color: .indigo)

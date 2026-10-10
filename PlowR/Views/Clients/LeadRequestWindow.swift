@@ -40,7 +40,12 @@ final class LeadRequestWindow: NSObject, UIAdaptivePresentationControllerDelegat
         default:
             return
         }
+        // Hosted outside MainTabView, so PlowR Pro's access comes with it,
+        // as it stands when the request opens.
+        let clients = (try? container.mainContext.fetch(FetchDescriptor<Client>())) ?? []
+        let access = Access(plan: Subscription.shared.plan, clients: clients, operatorID: authManager.userID)
         let host = UIHostingController(rootView: content
+            .environment(\.access, access)
             .environment(authManager)
             .environment(ActiveRouteStore.shared)
             .environment(CalendarSync.shared)

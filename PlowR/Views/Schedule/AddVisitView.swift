@@ -3,6 +3,7 @@ import SwiftData
 
 struct AddVisitView: View {
     @Environment(AuthManager.self) private var authManager
+    @Environment(\.access) private var access
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
@@ -79,6 +80,7 @@ struct AddVisitView: View {
     @State private var customReason: String
     @State private var selectedServiceIDs: Set<String>
     @State private var showingAddClientSheet = false
+    @State private var gate: ProGate?
     @State private var showingRecurringEditDialog = false
 
     // Create new visit
@@ -234,6 +236,7 @@ struct AddVisitView: View {
             fillFromPlace()
         }
         .onChange(of: selectedPlaceID) { fillFromPlace() }
+        .proGateSheet($gate)
         .sheet(isPresented: $showingAddClientSheet) {
             AddClientView()
         }
@@ -299,7 +302,7 @@ struct AddVisitView: View {
                 }
             }
             Button {
-                showingAddClientSheet = true
+                $gate.unless(ProGate.addClient(access)) { showingAddClientSheet = true }
             } label: {
                 Label("New Client", systemImage: "person.badge.plus")
                     .font(.subheadline)
@@ -490,6 +493,11 @@ struct AddVisitView: View {
     private func save() {
         guard let client = selectedClient else { return }
         if editing != nil { saveThisOnly(); return }
+        // A visit marks an inactive client active: one more client.
+        if let blocked = ProGate.bringBack(client, active: true, lost: client.lostAt != nil, access) {
+            gate = blocked
+            return
+        }
 
 
         let seriesID = UUID().uuidString

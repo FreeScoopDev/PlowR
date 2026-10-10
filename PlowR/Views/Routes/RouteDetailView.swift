@@ -6,7 +6,11 @@ import CoreLocation
 struct RouteDetailView: View {
     let route: PlowRoute
     @Environment(ActiveRouteStore.self) private var activeRoute
+    @Environment(\.access) private var access
     @Query private var allClients: [Client]
+    /// Every route, for PlowR Pro's free-tier route (this business's oldest).
+    @Query private var allRoutes: [PlowRoute]
+    @State private var gate: ProGate?
     @Query private var allServices: [ServiceItem]
     @Query private var allChecks: [TriggerCheck]
 
@@ -126,6 +130,7 @@ struct RouteDetailView: View {
             }
         }
         .navigationTitle(route.name)
+        .proGateSheet($gate)
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -167,9 +172,11 @@ struct RouteDetailView: View {
                     .padding(.vertical, 8)
                 }
                 Button {
-                    activeRoute.start(route, skipping: todaysRun.skippedOnRoute)
-                    skippedToday = []
-                    includedToday = []
+                    $gate.unless(startGate) {
+                        activeRoute.start(route, skipping: todaysRun.skippedOnRoute)
+                        skippedToday = []
+                        includedToday = []
+                    }
                 } label: {
                     Text(todaysRun.startTitle)
                         .font(.headline)
@@ -280,9 +287,16 @@ struct RouteDetailView: View {
     /// Starts at the stop at `index`: the ones before it are left out of
     /// today's run, as are any skipped.
     private func start(from index: Int) {
-        activeRoute.start(route, skipping: todaysRun.skipping(from: index))
-        skippedToday = []
-        includedToday = []
+        $gate.unless(startGate) {
+            activeRoute.start(route, skipping: todaysRun.skipping(from: index))
+            skippedToday = []
+            includedToday = []
+        }
+    }
+
+    /// Why this route can't start on the plan, if it can't.
+    private var startGate: ProGate? {
+        ProGate.startRoute(route, access: access, routes: allRoutes, operatorID: route.operatorID)
     }
 
     /// Any of today's stops with a client and a phone to text.

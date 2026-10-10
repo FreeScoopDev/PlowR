@@ -5,6 +5,9 @@ import CoreLocation
 
 struct ScheduleView: View {
     @Environment(AuthManager.self) private var authManager
+    @Environment(\.access) private var access
+    @Query private var allRoutes: [PlowRoute]
+    @State private var gate: ProGate?
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \ScheduledVisit.scheduledDate) private var allVisits: [ScheduledVisit]
     @Query private var allClients: [Client]
@@ -86,6 +89,7 @@ struct ScheduleView: View {
                         .font(.subheadline)
                 }
             }
+            .proGateSheet($gate)
             .sheet(isPresented: $showingAddVisit) {
                 AddVisitView(initialDate: selectedDate)
             }
@@ -191,7 +195,9 @@ struct ScheduleView: View {
                 let scheduledClientVisits = visitsForSelectedDate.filter { $0.status == .scheduled && !$0.clientID.isEmpty }
                 if !scheduledClientVisits.isEmpty {
                     Button {
-                        createRouteFromSchedule()
+                        $gate.unless(ProGate.createRoute(access, routes: allRoutes, operatorID: authManager.userID)) {
+                            createRouteFromSchedule()
+                        }
                     } label: {
                         Label("Create Route", systemImage: "map.badge.plus")
                             .font(.caption.weight(.semibold))
