@@ -37,7 +37,10 @@ struct LogWorkView: View {
     private var canSave: Bool { !recording.recordLines.isEmpty || hasNotes }
     private var hasChanges: Bool { !selectedIDs.isEmpty || !customItems.isEmpty || hasNotes || !minutes.isEmpty }
 
-    var body: some View {
+    // PlowR Pro: read only, this editor shows why instead (EditsNeedPro).
+    var body: some View { editor.editsNeedPro() }
+
+    @ViewBuilder private var editor: some View {
         NavigationStack {
             Form {
                 Section {

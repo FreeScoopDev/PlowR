@@ -85,13 +85,31 @@ struct EditClientView: View {
     var body: some View {
         Form {
             actionTilesSection
-            contactSection
-            tagsSection
-            notesSection
-            billingSection
-            expectedServicesSection
-            stopNotesSection
-            serviceAddressSection
+            // Read only (PlowR Pro ended with more than 10 clients): the
+            // details show but can't change. Records and documents below
+            // stay open; what they open asks for itself.
+            Group {
+                contactSection
+                tagsSection
+                notesSection
+                billingSection
+                expectedServicesSection
+                stopNotesSection
+                serviceAddressSection
+            }
+            .disabled(!access.canEdit)
+            // Read only, the details are locked, but Mark Inactive stays: an
+            // inactive client doesn't count, the way back to the free tier.
+            if !access.canEdit, client.isActive {
+                Section {
+                    Button("Mark Inactive") {
+                        draft.isActive = false
+                        save()
+                    }
+                } footer: {
+                    Text("Inactive clients don't count toward the free tier's \(Access.freeClientLimit). They come off their routes.")
+                }
+            }
             otherPropertiesSection
             historySection
             contractsSection
@@ -107,7 +125,7 @@ struct EditClientView: View {
         .navigationBarTitleDisplayMode(.inline)
         .asksBeforeLeaving(hasChanges: hasUnsavedChanges, isBusy: isSaving, canSave: draft.canSave,
                            message: draft.unsavedMessage(comparedWith: ClientDraft(client)),
-                           save: save, discard: { dismiss() })
+                           save: { $gate.unless(ProGate.edit(access)) { save() } }, discard: { dismiss() })
         // The client changed underneath (Schedule making them active again, an
         // edit synced from another device): fields not edited here follow.
         .onChange(of: ClientDraft(client)) { old, new in
@@ -135,7 +153,7 @@ struct EditClientView: View {
                 if isSaving {
                     ProgressView().scaleEffect(0.8)
                 } else {
-                    Button("Save") { save() }
+                    Button("Save") { $gate.unless(ProGate.edit(access)) { save() } }
                         .disabled(!draft.canSave)
                 }
             }
@@ -195,7 +213,7 @@ struct EditClientView: View {
             "Mark \(draft.name) Inactive?",
             isPresented: Binding(
                 get: { deactivatingFootprint != nil },
-                set: { if !$0 { deactivatingFootprint = nil } }
+                set: { if !$0 { deactivatingFootprint = nil; undoReadOnlyMarkInactive() } }
             ),
             titleVisibility: .visible
         ) {
@@ -203,7 +221,10 @@ struct EditClientView: View {
                 deactivatingFootprint = nil
                 saveChanges()
             }
-            Button("Cancel", role: .cancel) { deactivatingFootprint = nil }
+            Button("Cancel", role: .cancel) {
+                deactivatingFootprint = nil
+                undoReadOnlyMarkInactive()
+            }
         } message: {
             if let footprint = deactivatingFootprint {
                 Text(ClientRemoval.deactivateMessage(for: footprint))
@@ -750,7 +771,7 @@ struct EditClientView: View {
                     Spacer()
                     if awaitingResponse {
                         Button("Mark Responded") {
-                            client.clientRespondedAt = Date()
+                            $gate.unless(ProGate.edit(access)) { client.clientRespondedAt = Date() }
                         }
                         .font(.caption)
                         .buttonStyle(.bordered)
@@ -770,7 +791,7 @@ struct EditClientView: View {
         if stage != .customer, client.isActive {
             LabeledContent {
                 Button(stage == .lost ? "Reopen" : "Mark Lost") {
-                    Pipeline.setLost(stage != .lost, for: client, in: modelContext)
+                    $gate.unless(ProGate.edit(access)) { Pipeline.setLost(stage != .lost, for: client, in: modelContext) }
                 }
                 .font(.caption)
                 .buttonStyle(.bordered)
@@ -1029,7 +1050,7 @@ struct EditClientView: View {
                         .tint(.blue)
                     } else if document.invoiceStatus == .paid {
                         Button("Revise") {
-                            revisePaidDoc = document
+                            $gate.unless(ProGate.edit(access)) { revisePaidDoc = document }
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.mini)
@@ -1156,6 +1177,13 @@ struct EditClientView: View {
     }
 
     /// Asks first when Save marks the client inactive and they're on a route.
+    /// Read only, Mark Inactive set the locked switch before asking; not
+    /// going ahead puts it back, or the page would be stuck with a change it
+    /// can't save.
+    private func undoReadOnlyMarkInactive() {
+        if !access.canEdit { draft.isActive = client.isActive }
+    }
+
     private func save() {
         // Marking them active again: one more client.
         if draft.isActive, let blocked = ProGate.bringBack(client, access) {

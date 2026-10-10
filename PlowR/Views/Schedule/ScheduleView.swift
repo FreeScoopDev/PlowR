@@ -155,7 +155,7 @@ struct ScheduleView: View {
                     visitRow(visit)
                         .swipeActions(edge: .leading) {
                             if visit.status == .scheduled {
-                                Button { markComplete(visit) } label: {
+                                Button { $gate.unless(ProGate.edit(access)) { markComplete(visit) } } label: {
                                     Label("Complete", systemImage: "checkmark.circle.fill")
                                 }
                                 .tint(.green)
@@ -168,7 +168,7 @@ struct ScheduleView: View {
                                 Label("Delete", systemImage: "trash")
                             }
                             if visit.status == .scheduled {
-                                Button { visit.status = .skipped } label: {
+                                Button { $gate.unless(ProGate.edit(access)) { visit.status = .skipped } } label: {
                                     Label("Skip", systemImage: "arrow.right.circle")
                                 }
                                 .tint(.orange)
@@ -226,7 +226,7 @@ struct ScheduleView: View {
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                         Spacer()
-                        Button("Complete") { markComplete(visit) }
+                        Button("Complete") { $gate.unless(ProGate.edit(access)) { markComplete(visit) } }
                             .font(.caption.weight(.semibold))
                             .buttonStyle(.bordered)
                             .tint(.green)

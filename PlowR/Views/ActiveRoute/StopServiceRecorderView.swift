@@ -6,6 +6,7 @@ import PhotosUI
 /// the Service Log, and optionally invoiced. It used to save only by making an
 /// invoice, and Skip threw away any photos just taken.
 struct StopServiceRecorderView: View {
+    @Environment(\.access) private var access
     let stop: RouteStop
     let client: Client?
     let operatorID: String
@@ -203,7 +204,9 @@ struct StopServiceRecorderView: View {
                         } label: {
                             Label("Save", systemImage: "checkmark.circle")
                         }
-                        if invoicedAs == nil {
+                        // Read only (a route that was running when the
+                        // subscription ended): the stop still saves, no invoices.
+                        if invoicedAs == nil, access.canEdit {
                             Button {
                                 save(invoice: .draft)
                             } label: {

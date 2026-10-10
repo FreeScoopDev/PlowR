@@ -46,7 +46,15 @@ struct PropertyEditView: View {
             .sorted { $0.sortOrder < $1.sortOrder }
     }
 
-    var body: some View {
+    @Environment(\.access) private var access
+
+    // PlowR Pro, read only: a new property can't be made (EditsNeedPro); an
+    // existing one shows with its fields locked, and Remove Property stays.
+    @ViewBuilder var body: some View {
+        if property == nil { editor.editsNeedPro() } else { editor }
+    }
+
+    @ViewBuilder private var editor: some View {
         if let property, property.isDeleted || property.modelContext == nil {
             // Removed on another device while open: nothing left to save.
             Color.clear.onAppear { dismiss() }
@@ -58,6 +66,7 @@ struct PropertyEditView: View {
     private var form: some View {
         NavigationStack {
             Form {
+                Group {
                 Section {
                     TextField("Name, like Rental on Elm", text: $draft.label)
                         .textInputAutocapitalization(.words)
@@ -85,6 +94,8 @@ struct PropertyEditView: View {
                 } footer: {
                     Text("An inactive property comes off its routes and isn't offered for new stops and visits. Visits already booked there stay.")
                 }
+                }
+                .disabled(!access.canEdit)
                 if property != nil {
                     Section {
                         Button("Remove Property", role: .destructive) {
@@ -110,7 +121,7 @@ struct PropertyEditView: View {
                         ProgressView()
                     } else {
                         Button("Save") { confirmThenSave() }
-                            .disabled(!draft.canSave)
+                            .disabled(!draft.canSave || !access.canEdit)
                     }
                 }
             }

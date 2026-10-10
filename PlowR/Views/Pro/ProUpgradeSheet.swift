@@ -8,28 +8,8 @@ struct ProUpgradeSheet: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 20) {
-                Image(systemName: gate == .readOnly ? "lock.shield.fill" : "star.circle.fill")
-                    .font(.system(size: 56))
-                    .foregroundStyle(PlowRColor.accent)
-                    .accessibilityHidden(true)
-                Text(gate.title)
-                    .font(.title2.bold())
-                    .multilineTextAlignment(.center)
-                Text(gate.message)
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                Button {
-                    showingPaywall = true
-                } label: {
-                    Text(gate == .readOnly ? "Subscribe Again" : "See PlowR Pro")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-            }
-            .padding(24)
+            ProGateMessage(gate: gate) { showingPaywall = true }
+                .padding(24)
             .frame(maxHeight: .infinity, alignment: .center)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -44,6 +24,35 @@ struct ProUpgradeSheet: View {
     /// Subscribed: nothing left to say here.
     private func closeIfSubscribed() {
         if Subscription.shared.plan == .pro { dismiss() }
+    }
+}
+
+/// Why an action needs PlowR Pro, and the button to the paywall: the upgrade
+/// sheet and the read-only notice show the same thing.
+struct ProGateMessage: View {
+    let gate: ProGate
+    let subscribe: () -> Void
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Image(systemName: gate == .readOnly ? "lock.shield.fill" : "star.circle.fill")
+                .font(.system(size: 56))
+                .foregroundStyle(PlowRColor.accent)
+                .accessibilityHidden(true)
+            Text(gate.title)
+                .font(.title2.bold())
+                .multilineTextAlignment(.center)
+            Text(gate.message)
+                .font(.body)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            Button(action: subscribe) {
+                Text(gate == .readOnly ? "Subscribe Again" : "See PlowR Pro")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+        }
     }
 }
 

@@ -3,6 +3,8 @@ import SwiftData
 import PhotosUI
 
 struct ClientPhotoGalleryView: View {
+    @Environment(\.access) private var access
+    @State private var gate: ProGate?
     let client: Client
     @Environment(\.modelContext) private var modelContext
     @Environment(AuthManager.self) private var authManager
@@ -46,6 +48,7 @@ struct ClientPhotoGalleryView: View {
             }
         }
         .navigationTitle("Photos (\(clientPhotos.count))")
+        .proGateSheet($gate)
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -97,13 +100,13 @@ struct ClientPhotoGalleryView: View {
         Menu {
             if CameraPicker.isAvailable {
                 Button {
-                    showingCamera = true
+                    $gate.unless(ProGate.edit(access)) { showingCamera = true }
                 } label: {
                     Label("Take Photo", systemImage: "camera.fill")
                 }
             }
             Button {
-                showingLibraryPicker = true
+                $gate.unless(ProGate.edit(access)) { showingLibraryPicker = true }
             } label: {
                 Label("Choose from Library", systemImage: "photo.on.rectangle")
             }
@@ -177,14 +180,14 @@ struct ClientPhotoGalleryView: View {
             HStack(spacing: 12) {
                 if CameraPicker.isAvailable {
                     Button {
-                        showingCamera = true
+                        $gate.unless(ProGate.edit(access)) { showingCamera = true }
                     } label: {
                         Label("Take Photo", systemImage: "camera.fill")
                     }
                     .buttonStyle(.bordered)
                 }
                 Button {
-                    showingLibraryPicker = true
+                    $gate.unless(ProGate.edit(access)) { showingLibraryPicker = true }
                 } label: {
                     Label("Library", systemImage: "photo.on.rectangle")
                 }

@@ -69,6 +69,18 @@ struct ProGateTests {
         #expect(!defaults.bool(forKey: ProStatusBanner.closedKey))
     }
 
+    // MARK: Changing records
+
+    @Test(arguments: [(Access.Plan.pro, 0), (.pro, 400), (.free, 0), (.free, 30), (.lapsed, 0), (.lapsed, 10)])
+    func everyoneButReadOnlyMayChangeRecords(plan: Access.Plan, count: Int) {
+        #expect(ProGate.edit(Access(plan: plan, clientCount: count)) == nil)
+    }
+
+    @Test func readOnlyMayNotChangeRecords() {
+        #expect(ProGate.edit(Access(plan: .lapsed, clientCount: 11)) == .readOnly)
+        #expect(ProGate.edit(Access(plan: .lapsed, clientCount: 200)) == .readOnly)
+    }
+
     // MARK: Routes
 
     @Test func makingASecondRouteNeedsPro() {

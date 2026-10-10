@@ -149,7 +149,7 @@ struct ContractDetailView: View {
         switch status {
         case .draft:
             Section {
-                Button("Mark Signed") { confirmingSign = true }
+                Button("Mark Signed") { $gate.unless(ProGate.edit(access)) { confirmingSign = true } }
                 Button("Delete Draft", role: .destructive) { confirmingDelete = true }
             } footer: {
                 Text("Mark it signed once the client has agreed. From then it counts: they're a customer, what was agreed is locked, and it can be cancelled but not deleted.")
@@ -157,14 +157,14 @@ struct ContractDetailView: View {
         case .upcoming, .active:
             Section {
                 if Contracts.canRenew(contract, among: allContracts) {
-                    Button("Renew") { choosingRenewal = true }
+                    Button("Renew") { $gate.unless(ProGate.edit(access)) { choosingRenewal = true } }
                 }
-                Button("Cancel Contract", role: .destructive) { confirmingCancel = true }
+                Button("Cancel Contract", role: .destructive) { $gate.unless(ProGate.edit(access)) { confirmingCancel = true } }
             }
         case .ended, .cancelled:
             if Contracts.canRenew(contract, among: allContracts) {
                 Section {
-                    Button("Renew") { choosingRenewal = true }
+                    Button("Renew") { $gate.unless(ProGate.edit(access)) { choosingRenewal = true } }
                 }
             }
         }
@@ -179,7 +179,7 @@ struct ContractDetailView: View {
                 LabeledContent("Days", value: ContractSchedule.summary(of: contract))
                 LabeledContent("Booked Ahead", value: ahead == 1 ? "1 visit" : "\(ahead) visits")
                 if ContractSchedule.canBook(contract) {
-                    Button(ahead == 0 ? "Book Visits" : "Book Again") { confirmingBook = true }
+                    Button(ahead == 0 ? "Book Visits" : "Book Again") { $gate.unless(ProGate.edit(access)) { confirmingBook = true } }
                 }
             } header: {
                 Text("Visits")
@@ -204,7 +204,9 @@ struct ContractDetailView: View {
                         HStack {
                             paymentRow(entry.installment, nil)
                             Button("Make Invoice") {
-                                ContractInstallments.makeInvoice(for: entry.installment, of: contract, in: modelContext)
+                                $gate.unless(ProGate.edit(access)) {
+                                    ContractInstallments.makeInvoice(for: entry.installment, of: contract, in: modelContext)
+                                }
                             }
                             .buttonStyle(.bordered)
                             .controlSize(.small)

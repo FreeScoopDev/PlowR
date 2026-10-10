@@ -10,6 +10,7 @@ struct ServiceRecordDetailView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.access) private var access
     @Query private var allServices: [ServiceItem]
 
     @State private var performedAt: Date
@@ -80,6 +81,9 @@ struct ServiceRecordDetailView: View {
 
     private var form: some View {
         Form {
+            // Read only (PlowR Pro ended with more than 10 clients): the job
+            // shows but can't change; Delete This Job stays.
+            Group {
             Section {
                 DatePicker("Done", selection: $performedAt, in: ...Date.now)
                 LabeledContent("Minutes on Site") {
@@ -112,6 +116,8 @@ struct ServiceRecordDetailView: View {
                 TextField("Optional notes", text: $notes, axis: .vertical)
                     .lineLimit(3...)
             }
+            }
+            .disabled(!access.canEdit)
 
             photosSection
 

@@ -53,7 +53,10 @@ struct StopDetailView: View {
         return place.isMain ? "Client's goal" : "Property's goal"
     }
 
-    var body: some View {
+    // PlowR Pro: read only, this editor shows why instead (EditsNeedPro).
+    var body: some View { editor.editsNeedPro() }
+
+    @ViewBuilder private var editor: some View {
         // Deleted while open (another device, or its client made inactive):
         // the page is on its way out and mustn't read the stop.
         if stop.isDeleted || stop.modelContext == nil {

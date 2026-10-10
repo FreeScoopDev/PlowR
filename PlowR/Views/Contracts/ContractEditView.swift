@@ -43,7 +43,10 @@ struct ContractEditView: View {
 
     private var coversSnow: Bool { Contracts.coversSnow(draft.serviceIDs, catalog: services) }
 
-    var body: some View {
+    // PlowR Pro: read only, this editor shows why instead (EditsNeedPro).
+    var body: some View { editor.editsNeedPro() }
+
+    @ViewBuilder private var editor: some View {
         NavigationStack {
             Form {
                 Section {

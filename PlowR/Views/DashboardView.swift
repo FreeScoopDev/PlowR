@@ -425,7 +425,9 @@ struct DashboardView: View {
                             }
                             Spacer()
                             Button(due.count == 1 ? "Make Invoice" : "Make Invoices") {
-                                ContractInstallments.makeAllDue(operatorID: authManager.userID, in: modelContext)
+                                $gate.unless(ProGate.edit(access)) {
+                                    ContractInstallments.makeAllDue(operatorID: authManager.userID, in: modelContext)
+                                }
                             }
                             .buttonStyle(.bordered)
                             .controlSize(.small)
