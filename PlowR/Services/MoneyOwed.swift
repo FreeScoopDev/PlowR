@@ -60,7 +60,7 @@ enum MoneyOwed {
 
     static func summary(_ documents: [Proposal], operatorID: String, now: Date = .now,
                         calendar: Calendar = .current) -> Summary {
-        let owing = documents.filter { $0.operatorID == operatorID && $0.balanceDue > 0 }
+        let owing = documents.filter { $0.operatorID == operatorID && Payments.isOwed($0) }
         var byAge = Dictionary(uniqueKeysWithValues: Age.allCases.map { ($0, 0.0) })
         for invoice in owing { byAge[age(of: invoice, now: now, calendar: calendar), default: 0] += invoice.balanceDue }
         byAge = byAge.mapValues { InvoiceLines.roundedToCent($0) }
