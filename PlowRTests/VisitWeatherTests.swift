@@ -3,6 +3,7 @@
 //  PlowRTests
 //
 
+import CoreLocation
 import Foundation
 import PDFKit
 import SwiftData
