@@ -443,7 +443,24 @@ enum ServiceLog {
         revision.lineItems = copies
         context.insert(revision)
         moveBilling(from: original, to: revision, in: context)
+        movePayments(from: original, to: revision, in: context)
+        // The revision replaces it: kept as a record, owing nothing. Its work
+        // went to the revision above, so there's none to give back.
+        InvoiceRecords.void(original, note: InvoiceRecords.revisedNote(revision.invoiceNumber), now: now,
+                            in: context, releasesWork: false)
         return revision
+    }
+
+    /// What the client paid on `original` is paid on its revision, so a
+    /// revision never bills again what was paid (pre-launch review,
+    /// 2026-10-10). One marked paid before payments were kept (no Payment
+    /// for some or all of it) becomes a payment of what that came to, on the
+    /// day it was marked paid.
+    static func movePayments(from original: Proposal, to revision: Proposal, in context: ModelContext) {
+        let payments = (original.payments ?? []).filter { !$0.isDeleted }
+        InvoiceRecords.recordImpliedPayment(of: original, onto: revision, in: context)
+        for payment in payments { payment.invoice = revision }
+        Payments.settle(revision, in: context)
     }
 
     /// A revision replaces `original`: the work billed on the original, and
@@ -475,7 +492,16 @@ enum ServiceLog {
         let replacement = original?.id.uuidString ?? ""
         for record in billed(on: document, in: context) { record.invoiceID = replacement }
         for visit in linkedVisits(to: document, in: context) { visit.proposalID = replacement }
+        // A revision taken back before it went out: its original is owed again.
+        InvoiceRecords.restoreOriginal(of: document, in: context)
         context.delete(document)
+    }
+
+    /// A voided invoice's work back to billable: the jobs billed on it and
+    /// the visit it was made for (InvoiceRecords.void).
+    static func releaseBilling(of invoice: Proposal, in context: ModelContext) {
+        for record in billed(on: invoice, in: context) { record.invoiceID = "" }
+        for visit in linkedVisits(to: invoice, in: context) { visit.proposalID = "" }
     }
 
     private static func billed(on document: Proposal, in context: ModelContext) -> [ServiceRecord] {

@@ -603,6 +603,36 @@ struct PDFGenerator {
         drawHRule(x: lX, y: curY, width: lW + vW, weight: 0.75, color: ruleMid)
         curY += 12
 
+        // Void: kept on record, owes nothing; never "TOTAL DUE".
+        if isInvoice, proposal.voidedAt != nil {
+            subtotalRow("Total", value: proposal.total, lX: lX, lW: lW, vX: vX, vW: vW, y: curY)
+            curY += 20
+            drawText("VOID", x: lX, y: curY, width: lW + vW,
+                     font: labelFont(10), color: UIColor.systemRed, kern: 1.5, alignment: .right)
+            curY += 16
+            // The reason on lines of its own, wrapped and measured: on one
+            // letter-spaced line with "VOID", a long one ran past its space.
+            if !proposal.voidNote.isEmpty {
+                let font = bodyFont(10)
+                drawText(proposal.voidNote, x: lX, y: curY, width: lW + vW, font: font, color: inkMid, alignment: .right)
+                curY += textHeight(proposal.voidNote, width: lW + vW, font: font)
+            }
+            return curY + 12
+        }
+
+        // Paid in full: the total, what was paid, and nothing due (a receipt).
+        if isInvoice, proposal.invoicePaidAt != nil {
+            subtotalRow("Total", value: proposal.total, lX: lX, lW: lW, vX: vX, vW: vW, y: curY)
+            curY += 17
+            subtotalRow("Paid", value: proposal.amountPaid, lX: lX, lW: lW, vX: vX, vW: vW, y: curY, negate: true)
+            curY += 20
+            drawText("PAID · BALANCE DUE", x: lX, y: curY, width: lW,
+                     font: labelFont(10), color: accent, kern: 1.5, alignment: .right)
+            drawText(String(format: "$%.2f", proposal.balanceDue), x: vX, y: curY, width: vW,
+                     font: bodyBoldFont(14), color: ink, alignment: .right)
+            return curY + 24
+        }
+
         // Paid in part: the total, what's been paid, and the balance still due.
         if isInvoice, proposal.isPartlyPaid {
             subtotalRow("Total", value: proposal.total, lX: lX, lW: lW, vX: vX, vW: vW, y: curY)
@@ -1018,6 +1048,14 @@ struct PDFGenerator {
         let p = UIBezierPath()
         p.move(to: CGPoint(x: x, y: y)); p.addLine(to: CGPoint(x: x + width, y: y))
         p.lineWidth = weight; p.stroke()
+    }
+
+    /// The height `text` takes wrapped to `width` (as drawText draws it).
+    private static func textHeight(_ text: String, width: CGFloat, font: UIFont) -> CGFloat {
+        let box = NSAttributedString(string: text, attributes: [.font: font])
+            .boundingRect(with: CGSize(width: width, height: .greatestFiniteMagnitude),
+                          options: [.usesLineFragmentOrigin, .usesFontLeading], context: nil)
+        return ceil(box.height)
     }
 
     private static func drawText(

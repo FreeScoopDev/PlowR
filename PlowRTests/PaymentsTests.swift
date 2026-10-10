@@ -165,15 +165,6 @@ struct PaymentsTests {
         #expect(bill.invoicePaidAt == h.clock)
     }
 
-    @Test func resettingSaysWhichPaymentsGo() throws {
-        let h = try Harness(stopCount: 0)
-        let bill = invoice(h, total: 100)
-        #expect(Payments.clearNote(for: bill).isEmpty)
-        Payments.record(40, method: "", receivedAt: h.clock, on: bill, in: h.context, now: h.clock)
-        Payments.record(60, method: "", receivedAt: h.clock, on: bill, in: h.context, now: h.clock)
-        #expect(Payments.clearNote(for: bill) == "Its 2 recorded payments ($100.00) are removed.")
-    }
-
     // One marked paid before payments were kept, or on an older PlowR: paid in full.
     @Test func anInvoiceMarkedPaidWithoutPaymentsIsPaidInFull() throws {
         let h = try Harness(stopCount: 0)
@@ -213,17 +204,6 @@ struct PaymentsTests {
         Payments.payInFull(nothingOwed, in: h.context, now: h.clock)
         #expect(nothingOwed.invoicePaidAt == h.clock)
         #expect(nothingOwed.sortedPayments.isEmpty)
-    }
-
-    @Test func resettingAnInvoiceClearsItsPayments() throws {
-        let h = try Harness(stopCount: 0)
-        let bill = invoice(h, total: 100)
-        Payments.record(100, method: "", receivedAt: h.clock, on: bill, in: h.context, now: h.clock)
-        Payments.clear(bill, in: h.context)
-        try h.context.save()
-        #expect(bill.invoicePaidAt == nil)
-        #expect(bill.sortedPayments.isEmpty)
-        #expect(try h.context.fetch(FetchDescriptor<Payment>()).isEmpty)
     }
 
     @Test func deletingAnInvoiceDeletesItsPayments() throws {

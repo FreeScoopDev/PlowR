@@ -54,6 +54,8 @@ struct SignInView: View {
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
 
+                    TermsAgreement()
+
                     #if DEBUG
                     Button("Skip Sign In (Dev Only)") {
                         authManager.signIn(userID: "dev-user", fullName: nil)

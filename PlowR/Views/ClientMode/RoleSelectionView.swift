@@ -39,6 +39,10 @@ struct RoleSelectionView: View {
             .padding(.horizontal, 24)
 
             Spacer()
+
+            TermsAgreement()
+                .padding(.horizontal, 40)
+                .padding(.bottom, 24)
         }
     }
 
