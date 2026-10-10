@@ -20,19 +20,22 @@ enum SeasonReport {
             }
         }
 
-        /// The dates covered, up to `now`.
+        /// The dates covered: from the start, up to but not including the
+        /// end (so midnight on January 1 is this year's, not last year's).
+        /// Periods running to today end just after `now`.
         func interval(now: Date, calendar: Calendar = .current) -> DateInterval {
             let year = calendar.dateInterval(of: .year, for: now)
+            let throughNow = now.addingTimeInterval(1)
             switch self {
             case .thisYear:
-                return DateInterval(start: year?.start ?? now, end: now)
+                return DateInterval(start: year?.start ?? now, end: throughNow)
             case .last12Months:
-                return DateInterval(start: calendar.date(byAdding: .month, value: -12, to: now) ?? now, end: now)
+                return DateInterval(start: calendar.date(byAdding: .month, value: -12, to: now) ?? now, end: throughNow)
             case .lastYear:
                 let start = calendar.date(byAdding: .year, value: -1, to: year?.start ?? now) ?? now
                 return DateInterval(start: start, end: year?.start ?? now)
             case .allTime:
-                return DateInterval(start: .distantPast, end: now)
+                return DateInterval(start: .distantPast, end: throughNow)
             }
         }
     }
@@ -63,41 +66,38 @@ enum SeasonReport {
         let clients: [ClientRow]
     }
 
+    /// The figures for `period`. Rows are by client ID, so a client since
+    /// removed (their records and invoices kept) is listed by the name kept
+    /// with them, and the rows add up to the totals.
     static func figures(clients: [Client], proposals: [Proposal], records: [ServiceRecord],
                         period: DateInterval, calendar: Calendar = .current) -> Figures {
-        func inPeriod(_ date: Date) -> Bool { date >= period.start && date <= period.end }
+        func inPeriod(_ date: Date) -> Bool { date >= period.start && date < period.end }
         let visits = records.filter { inPeriod($0.performedAt) }
         let invoices = proposals.filter(\.isInvoice)
+        let names = Dictionary(clients.map { ($0.id.uuidString, $0.name) }, uniquingKeysWith: { first, _ in first })
 
-        func received(_ documents: [Proposal]) -> [(date: Date, amount: Double)] {
-            Payments.receipts(documents).filter { inPeriod($0.date) }
-        }
-        func total(_ receipts: [(date: Date, amount: Double)]) -> Double {
-            InvoiceLines.roundedToCent(receipts.reduce(0) { $0 + $1.amount })
-        }
-
-        var byMonth: [Date: Double] = [:]
-        for receipt in received(invoices) {
-            let month = calendar.dateInterval(of: .month, for: receipt.date)?.start ?? receipt.date
-            byMonth[month, default: 0] += receipt.amount
-        }
-        let months = byMonth.map { Month(start: $0.key, received: InvoiceLines.roundedToCent($0.value)) }
-            .sorted { $0.start > $1.start }
-
-        let rows = clients.compactMap { client -> ClientRow? in
-            let id = client.id.uuidString
-            let theirs = visits.filter { $0.clientID == id }
-            let collected = total(received(invoices.filter { $0.clientID == id }))
+        let visitsByClient = Dictionary(grouping: visits, by: \.clientID)
+        let invoicesByClient = Dictionary(grouping: invoices, by: \.clientID)
+        let rows = Set(visitsByClient.keys).union(invoicesByClient.keys).compactMap { id -> ClientRow? in
+            let theirs = visitsByClient[id] ?? []
+            let collected = Payments.received(invoicesByClient[id] ?? [], in: period)
             guard !theirs.isEmpty || collected > 0 else { return nil }
-            return ClientRow(name: client.name, visits: theirs.count, collected: collected,
+            let name = names[id] ?? theirs.first?.clientName ?? invoicesByClient[id]?.first?.clientName ?? "Client"
+            return ClientRow(name: name.isEmpty ? "Client" : name, visits: theirs.count, collected: collected,
                              lastService: theirs.map(\.performedAt).max())
         }
-        .sorted { ($0.visits, $0.collected) > ($1.visits, $1.collected) }
+        .sorted { a, b in
+            (a.visits, a.collected) != (b.visits, b.collected)
+                ? (a.visits, a.collected) > (b.visits, b.collected)
+                : a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
+        }
 
         return Figures(period: period, clientCount: rows.count, visits: visits.count,
                        minutes: visits.reduce(0) { $0 + $1.minutes },
-                       collected: total(received(invoices)), owedNow: Payments.owed(invoices),
-                       months: months, clients: rows)
+                       collected: Payments.received(invoices, in: period), owedNow: Payments.owed(invoices),
+                       months: Payments.receivedByMonth(invoices, in: period, calendar: calendar)
+                           .map { Month(start: $0.start, received: $0.amount) },
+                       clients: rows)
     }
 
     /// Money as the report prints it: to the cent, with thousands separators.

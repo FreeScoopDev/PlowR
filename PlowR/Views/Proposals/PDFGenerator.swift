@@ -800,7 +800,7 @@ struct PDFGenerator {
     /// "This Year: Jan 1 – Oct 10, 2026"; all time has no dates.
     private static func periodTitle(_ period: SeasonReport.Period, _ interval: DateInterval) -> String {
         guard period != .allTime else { return period.title }
-        let end = period == .lastYear ? interval.end.addingTimeInterval(-1) : interval.end
+        let end = interval.end.addingTimeInterval(-1)                      // the end isn't in it
         let range = (interval.start..<max(end, interval.start)).formatted(.interval.month(.abbreviated).day().year())
         return "\(period.title): \(range)"
     }
@@ -837,7 +837,8 @@ struct PDFGenerator {
             y += 20
 
             if !figures.months.isEmpty {
-                y = drawSeasonMonthly(figures.months, contentW: contentW, margin: margin, y: y, accent: accent)
+                y = drawSeasonMonthly(figures.months, contentW: contentW, margin: margin, y: y, accent: accent,
+                                      ctx: ctx, profile: profile, pageW: pageW, pageH: pageH)
                 y += 20
                 drawHRule(x: margin, y: y, width: contentW, weight: 0.5, color: ruleLight)
                 y += 20
@@ -927,9 +928,13 @@ struct PDFGenerator {
     @discardableResult
     private static func drawSeasonMonthly(
         _ months: [SeasonReport.Month],
-        contentW: CGFloat, margin: CGFloat, y: CGFloat, accent: UIColor
+        contentW: CGFloat, margin: CGFloat, y: CGFloat, accent: UIColor,
+        ctx: UIGraphicsPDFRendererContext, profile: BusinessProfile?, pageW: CGFloat, pageH: CGFloat
     ) -> CGFloat {
-        var curY = y
+        let pageBottom = pageH - margin - 30
+        // The heading and a row or two, or a new page: never a heading alone.
+        var curY = startsOnPage(needing: 80, y: y, margin: margin, pageBottom: pageBottom,
+                                ctx: ctx, profile: profile, pageW: pageW, pageH: pageH, contentW: contentW)
         drawText("COLLECTED BY MONTH", x: margin, y: curY, width: contentW,
                  font: labelFont(8.5), color: accent, kern: 2)
         curY += 16
@@ -949,6 +954,11 @@ struct PDFGenerator {
         curY += 8
 
         for month in months {
+            if curY + 19 > pageBottom {
+                drawFooter(profile: profile, pageW: pageW, pageH: pageH, margin: margin, contentW: contentW)
+                ctx.beginPage()
+                curY = margin
+            }
             drawText(month.start.formatted(.dateTime.month(.abbreviated).year()),
                      x: margin, y: curY, width: c1, font: bodyFont(10.5), color: ink)
             drawText(SeasonReport.money(month.received), x: margin + c1, y: curY, width: c2, font: bodyFont(10.5),
@@ -968,8 +978,9 @@ struct PDFGenerator {
         profile: BusinessProfile?, pageW: CGFloat, pageH: CGFloat
     ) -> CGFloat {
         guard !rows.isEmpty else { return y }
-        var curY = y
         let pageBottom = pageH - margin - 30
+        var curY = startsOnPage(needing: 80, y: y, margin: margin, pageBottom: pageBottom,
+                                ctx: ctx, profile: profile, pageW: pageW, pageH: pageH, contentW: contentW)
 
         drawText("CLIENT BREAKDOWN", x: margin, y: curY, width: contentW,
                  font: labelFont(8.5), color: accent, kern: 2)
@@ -1018,6 +1029,17 @@ struct PDFGenerator {
             curY += 2
         }
         return curY
+    }
+
+    /// `y`, or the top of a new page when `needing` points don't fit above
+    /// `pageBottom` (the page so far gets its footer).
+    private static func startsOnPage(needing: CGFloat, y: CGFloat, margin: CGFloat, pageBottom: CGFloat,
+                                     ctx: UIGraphicsPDFRendererContext, profile: BusinessProfile?,
+                                     pageW: CGFloat, pageH: CGFloat, contentW: CGFloat) -> CGFloat {
+        guard y + needing > pageBottom else { return y }
+        drawFooter(profile: profile, pageW: pageW, pageH: pageH, margin: margin, contentW: contentW)
+        ctx.beginPage()
+        return margin
     }
 
     // MARK: - Primitives
