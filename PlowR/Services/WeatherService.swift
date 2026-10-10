@@ -2,7 +2,7 @@ import CoreLocation
 import Foundation
 import WeatherKit
 
-struct WeatherCondition {
+nonisolated struct WeatherCondition {
     let temperatureF: Double
     let description: String
     let symbolName: String
@@ -16,7 +16,7 @@ struct WeatherCondition {
     }
 }
 
-struct DayForecast {
+nonisolated struct DayForecast {
     let date: Date
     let maxTempF: Double
     let minTempF: Double
