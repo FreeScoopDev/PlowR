@@ -165,7 +165,11 @@ struct ImportClientsView: View {
             // A file whose size isn't known (a stream, a provider that won't say)
             // could be anything: it isn't read whole into memory.
             let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize
-            guard let size, size <= Self.largestFile else {
+            guard let size else {
+                showFileProblem("PlowR couldn't tell how big that file is. Save the CSV file of your clients to Files on this device and choose it there.")
+                return
+            }
+            guard size <= Self.largestFile else {
                 showFileProblem("That file is too big to be a client list. Choose the CSV file of your clients.")
                 return
             }

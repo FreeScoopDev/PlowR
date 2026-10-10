@@ -179,10 +179,19 @@ nonisolated enum RequestLink {
     /// A mailto: link to `email`, or nil when it isn't an address. A client's
     /// email can come from an import or a request: "a@b.com?bcc=…" would
     /// otherwise open Mail with someone else copied in.
+    /// Its own check, not `validEmail`'s: an apostrophe (o'brien@…) is fine
+    /// in Mail, and the address is never cut short to fit.
     static func mailLink(_ email: String) -> URL? {
-        let address = validEmail(email)
-        guard !address.isEmpty else { return nil }
-        return URL(string: "mailto:\(address)")
+        let address = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        let refused = CharacterSet(charactersIn: "?&#/\\:<>\"%,;")
+            .union(.whitespacesAndNewlines).union(.controlCharacters).union(formatting)
+        guard address.unicodeScalars.allSatisfy({ !refused.contains($0) }),
+              address.range(of: #"^[^@]+@[^@.]+(\.[^@.]+)+$"#, options: .regularExpression) != nil
+        else { return nil }
+        var link = URLComponents()
+        link.scheme = "mailto"
+        link.path = address
+        return link.url
     }
 
     /// Blank letters (Hangul fillers) that show nothing.

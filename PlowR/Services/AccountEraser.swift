@@ -139,11 +139,12 @@ struct AccountEraser {
         attempt("work orders") { try removeIfPresent(workOrdersFile) }
         // Documents and exported spreadsheets (CSVExport) left from sharing.
         attempt("shared files") {
-            for file in try files(in: temporaryDirectory, where: Self.isSharedFile) {
+            for file in try Self.sharedFiles(in: temporaryDirectory, fileManager: fileManager) {
                 attempt("shared file \(file.lastPathComponent)") { try removeIfPresent(file) }
             }
         }
-        // Weather and map answers for client addresses.
+        // Weather and elevation answers for client addresses (URLSession.shared;
+        // MapKit keeps its own cache, which an app can't clear).
         urlCache.removeAllCachedResponses()
         for folder in archiveFolders {
             attempt("database archives in \(folder.lastPathComponent)") {
@@ -182,11 +183,15 @@ struct AccountEraser {
         return folders
     }
 
-    /// A `.bak` archive that StoreArchive made: one of the database's files,
-    /// or the folder of photos kept beside it.
-    /// A document or spreadsheet written to share (a PDF, CSVExport's CSV).
-    nonisolated static func isSharedFile(_ url: URL) -> Bool {
-        ["pdf", "csv"].contains(url.pathExtension.lowercased())
+    /// Documents and spreadsheets written to share (PDFs, CSVExport's CSVs):
+    /// the top level of `folder` only. No folder means none.
+    nonisolated static func sharedFiles(in folder: URL, fileManager: FileManager = .default) throws -> [URL] {
+        do {
+            return try fileManager.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)
+                .filter { ["pdf", "csv"].contains($0.pathExtension.lowercased()) }
+        } catch CocoaError.fileReadNoSuchFile {
+            return []
+        }
     }
 
     /// Shared documents left from last time: a PDF holds a client's name,
@@ -195,12 +200,13 @@ struct AccountEraser {
     @discardableResult
     nonisolated static func removeSharedFiles(in folder: URL = FileManager.default.temporaryDirectory,
                                               fileManager: FileManager = .default) -> Int {
-        let found = (try? fileManager.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) ?? []
-        return found.filter(isSharedFile).reduce(0) { count, file in
+        ((try? sharedFiles(in: folder, fileManager: fileManager)) ?? []).reduce(0) { count, file in
             (try? fileManager.removeItem(at: file)) == nil ? count : count + 1
         }
     }
 
+    /// A `.bak` archive that StoreArchive made: one of the database's files,
+    /// or the folder of photos kept beside it.
     nonisolated static func isArchive(_ url: URL) -> Bool {
         let name = url.lastPathComponent
         return url.pathExtension == "bak" && (name.hasPrefix("default.store") || name.hasPrefix(".default_SUPPORT."))

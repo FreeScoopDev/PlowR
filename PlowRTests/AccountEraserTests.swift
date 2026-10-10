@@ -380,9 +380,14 @@ struct AccountEraserTests {
         for name in ["INV-0001.pdf", "Report.PDF", "PlowR Clients.csv", "photo.jpg", "notes.txt"] {
             try Data([0]).write(to: folder.appending(path: name))
         }
+        // A folder's own files (the system's Inbox, say) aren't PlowR's to remove.
+        let inbox = folder.appending(path: "Inbox")
+        try FileManager.default.createDirectory(at: inbox, withIntermediateDirectories: true)
+        try Data([0]).write(to: inbox.appending(path: "Received.pdf"))
         #expect(AccountEraser.removeSharedFiles(in: folder) == 3)
         let left = try FileManager.default.contentsOfDirectory(atPath: folder.path).sorted()
-        #expect(left == ["notes.txt", "photo.jpg"])
+        #expect(left == ["Inbox", "notes.txt", "photo.jpg"])
+        #expect(FileManager.default.fileExists(atPath: inbox.appending(path: "Received.pdf").path))
         #expect(AccountEraser.removeSharedFiles(in: folder.appending(path: "gone")) == 0)
     }
 }

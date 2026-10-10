@@ -134,7 +134,14 @@ struct RequestLinkTests {
         }
         // A client's email becomes a Mail link only when it's an address.
         #expect(Link.mailLink(" pat@example.com ")?.absoluteString == "mailto:pat@example.com")
-        for bad in ["", "a@b.com?bcc=c@d.com", "a@b.com&cc=c@d.com", "pat", "a@b.c/x"] {
+        for good in ["john.o'brien@company.com", "Pat+snow@mail.example.co.uk", "pat@exämple.com"] {
+            #expect(Link.mailLink(good) != nil, "\(good)")
+        }
+        // Long addresses are linked whole, never cut short to a different one.
+        let long = String(repeating: "a", count: 125) + "@example.com"
+        #expect(Link.mailLink(long)?.absoluteString == "mailto:\(long)")
+        for bad in ["", "a@b.com?bcc=c@d.com", "a@b.com&cc=c@d.com", "pat", "a@b.c/x", "a@b..c", "a@b@c.com",
+                    "a@b.com,c@d.com", "a b@c.com"] {
             #expect(Link.mailLink(bad) == nil, "\(bad)")
         }
         let business = Link.Business(name: "Pat's", phone: "6035550100", email: "javascript:alert(1)")

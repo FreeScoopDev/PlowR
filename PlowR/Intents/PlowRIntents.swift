@@ -6,9 +6,6 @@ import ActivityKit
 struct CompleteCurrentStopIntent: AppIntent {
     static var title: LocalizedStringResource = "Complete Current Stop"
     static var description = IntentDescription("Mark the stop you're at as complete in PlowR, and hear which stop is next.")
-    // Not from a locked phone: it changes the business's records and says
-    // the next client's name aloud.
-    static var authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
 
     // Hands-free, without opening the app (see CompleteStopAction). The stop
     // meant is the current one, unless iCloud has changed it unseen.
@@ -24,8 +21,6 @@ struct NotifyNextClientIntent: AppIntent {
     static var title: LocalizedStringResource = "Notify Next Client"
     static var description = IntentDescription("Open PlowR to text the client you're driving to. Nothing is marked complete.")
     static var openAppWhenRun = true
-    // Not from a locked phone: it says the client's name aloud.
-    static var authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
 
     // A text only (NotifyNextAction). The route screen opens it when it can,
     // so it doesn't matter whether the screen was up when Siri ran this.
