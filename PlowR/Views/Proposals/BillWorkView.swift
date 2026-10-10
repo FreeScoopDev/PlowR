@@ -26,7 +26,10 @@ struct BillWorkView: View {
                                          clientID: onlyClient?.id.uuidString, in: modelContext)
     }
 
-    var body: some View {
+    // PlowR Pro: read only, this editor shows why instead (EditsNeedPro).
+    var body: some View { editor.editsNeedPro() }
+
+    @ViewBuilder private var editor: some View {
         let works = works ?? []
         let chosen = works.filter { !leftOut.contains($0.id) }
         let total = InvoiceLines.roundedToCent(chosen.reduce(0) { $0 + $1.total })

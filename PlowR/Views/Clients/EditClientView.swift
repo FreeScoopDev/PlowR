@@ -85,13 +85,19 @@ struct EditClientView: View {
     var body: some View {
         Form {
             actionTilesSection
-            contactSection
-            tagsSection
-            notesSection
-            billingSection
-            expectedServicesSection
-            stopNotesSection
-            serviceAddressSection
+            // Read only (PlowR Pro ended with more than 10 clients): the
+            // details show but can't change. Records and documents below
+            // stay open; what they open asks for itself.
+            Group {
+                contactSection
+                tagsSection
+                notesSection
+                billingSection
+                expectedServicesSection
+                stopNotesSection
+                serviceAddressSection
+            }
+            .disabled(!access.canEdit)
             otherPropertiesSection
             historySection
             contractsSection
@@ -135,7 +141,7 @@ struct EditClientView: View {
                 if isSaving {
                     ProgressView().scaleEffect(0.8)
                 } else {
-                    Button("Save") { save() }
+                    Button("Save") { $gate.unless(ProGate.edit(access)) { save() } }
                         .disabled(!draft.canSave)
                 }
             }
@@ -750,7 +756,7 @@ struct EditClientView: View {
                     Spacer()
                     if awaitingResponse {
                         Button("Mark Responded") {
-                            client.clientRespondedAt = Date()
+                            $gate.unless(ProGate.edit(access)) { client.clientRespondedAt = Date() }
                         }
                         .font(.caption)
                         .buttonStyle(.bordered)
@@ -1029,7 +1035,7 @@ struct EditClientView: View {
                         .tint(.blue)
                     } else if document.invoiceStatus == .paid {
                         Button("Revise") {
-                            revisePaidDoc = document
+                            $gate.unless(ProGate.edit(access)) { revisePaidDoc = document }
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.mini)

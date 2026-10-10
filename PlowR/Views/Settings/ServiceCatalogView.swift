@@ -43,7 +43,10 @@ struct ServiceCatalogView: View {
         }
     }
 
-    var body: some View {
+    // PlowR Pro: read only, this editor shows why instead (EditsNeedPro).
+    var body: some View { editor.editsNeedPro() }
+
+    @ViewBuilder private var editor: some View {
         List {
             ForEach(grouped, id: \.category) { group in
                 Section(group.label) {

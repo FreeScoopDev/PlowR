@@ -62,10 +62,10 @@ struct PipelineView: View {
                     NavigationLink { EditClientView(client: entry.client) } label: { row(entry) }
                         .swipeActions {
                             if entry.stage == .lost {
-                                Button("Reopen") { Pipeline.setLost(false, for: entry.client, in: modelContext) }
+                                Button("Reopen") { $gate.unless(ProGate.edit(access)) { Pipeline.setLost(false, for: entry.client, in: modelContext) } }
                                     .tint(.blue)
                             } else {
-                                Button("Lost") { Pipeline.setLost(true, for: entry.client, in: modelContext) }
+                                Button("Lost") { $gate.unless(ProGate.edit(access)) { Pipeline.setLost(true, for: entry.client, in: modelContext) } }
                                     .tint(.gray)
                             }
                         }

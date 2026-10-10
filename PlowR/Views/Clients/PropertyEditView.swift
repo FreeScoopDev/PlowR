@@ -46,7 +46,10 @@ struct PropertyEditView: View {
             .sorted { $0.sortOrder < $1.sortOrder }
     }
 
-    var body: some View {
+    // PlowR Pro: read only, this editor shows why instead (EditsNeedPro).
+    var body: some View { editor.editsNeedPro() }
+
+    @ViewBuilder private var editor: some View {
         if let property, property.isDeleted || property.modelContext == nil {
             // Removed on another device while open: nothing left to save.
             Color.clear.onAppear { dismiss() }

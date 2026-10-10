@@ -4,6 +4,8 @@ import MessageUI
 
 struct ProposalListView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.access) private var access
+    @State private var gate: ProGate?
     @Environment(AuthManager.self) private var authManager
     @Query private var allClients: [Client]
     @Query(sort: \Proposal.createdAt, order: .reverse) private var allProposals: [Proposal]
@@ -88,6 +90,7 @@ struct ProposalListView: View {
             }
         }
         .navigationTitle(filterStatus == .all ? "Documents" : filterStatus.rawValue)
+        .proGateSheet($gate)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
@@ -196,7 +199,7 @@ struct ProposalListView: View {
             proposalContextActions(for: proposal)
             Divider()
             Button {
-                duplicateProposal(proposal)
+                $gate.unless(ProGate.edit(access)) { duplicateProposal(proposal) }
             } label: {
                 Label("Duplicate", systemImage: "doc.on.doc")
             }
@@ -222,13 +225,13 @@ struct ProposalListView: View {
     private func proposalContextActions(for proposal: Proposal) -> some View {
         if !proposal.isInvoice {
             Button {
-                convertToInvoice(proposal)
+                $gate.unless(ProGate.edit(access)) { convertToInvoice(proposal) }
             } label: {
                 Label("Convert to Invoice", systemImage: "doc.badge.arrow.up")
             }
         } else if proposal.invoiceStatus == .draft {
             Button {
-                DocumentSent.markSent(proposal, in: modelContext)
+                $gate.unless(ProGate.edit(access)) { DocumentSent.markSent(proposal, in: modelContext) }
             } label: {
                 Label("Mark Sent", systemImage: "paperplane.fill")
             }

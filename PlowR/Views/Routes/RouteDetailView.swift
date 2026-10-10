@@ -138,7 +138,7 @@ struct RouteDetailView: View {
                     Button { showingEditRoute = true } label: {
                         Label("Edit Route", systemImage: "pencil")
                     }
-                    Button { showingOptimizeConfirm = true } label: {
+                    Button { $gate.unless(ProGate.edit(access)) { showingOptimizeConfirm = true } } label: {
                         Label("Optimize Order", systemImage: "arrow.triangle.swap")
                     }
                     .disabled(route.sortedStops.filter { $0.latitude != 0 }.count < 2 || isOptimizing)

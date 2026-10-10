@@ -224,9 +224,14 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   client), make or start a route, or open a Pro tool must go through one.
   Every PDF generator takes `madeWithPlowR:` (no default):
   `access.showsMadeWithPlowR` puts PlowR's line on every document not
-  made with Pro. Read only, `ProGate.shareDocument` lets only an invoice with money owed
-  be shared.
-  `Subscription` reads the plan from
+  made with Pro. Read only, `ProGate.shareDocument` lets only an invoice
+  with money owed be shared. Read only, an editor screen shows
+  `ReadOnlyNotice` instead of its form (`.editsNeedPro()` on its body,
+  whoever opens it), and an action that changes a record in place asks
+  `ProGate.edit`; a screen that also shows a record (the client page, a
+  job) locks its fields instead. Never gated: viewing, payments, export,
+  deleting by choice, Mark Inactive, a route already running. A new
+  editor gets `.editsNeedPro()`. `Subscription` reads the plan from
   StoreKit (product `Scoops.PlowR.pro.monthly`), follows
   `Transaction.updates` from `PlowRApp.init`, re-reads when the app comes
   back (an expiry sends no update) and keeps the last plan in standard

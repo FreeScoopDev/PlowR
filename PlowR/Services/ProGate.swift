@@ -64,6 +64,12 @@ enum ProGate: Identifiable, Equatable {
         Access.counts(client) ? nil : addClient(access)
     }
 
+    /// Changing or making any record (read only: none). Payments, export,
+    /// deleting by choice and a route already running never ask this.
+    static func edit(_ access: Access) -> ProGate? {
+        access.canEdit ? nil : .readOnly
+    }
+
     static func createRoute(_ access: Access, routes: [PlowRoute], operatorID: String) -> ProGate? {
         if access.canCreateRoute(routes: routes, operatorID: operatorID) { return nil }
         return access.tier == .readOnly ? .readOnly : .routeLimit

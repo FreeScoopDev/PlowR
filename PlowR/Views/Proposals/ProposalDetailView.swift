@@ -163,7 +163,9 @@ struct ProposalDetailView: View {
                 } else {
                     if let client = proposalClient {
                         Button {
-                            contractDraft = Contracts.draft(from: proposal, client: client, catalog: allServiceItems)
+                            $gate.unless(ProGate.edit(access)) {
+                                contractDraft = Contracts.draft(from: proposal, client: client, catalog: allServiceItems)
+                            }
                         } label: {
                             Label("Contract", systemImage: "signature")
                                 .frame(maxWidth: .infinity)
@@ -171,7 +173,7 @@ struct ProposalDetailView: View {
                         .buttonStyle(.bordered)
                     }
 
-                    Button { convertToInvoice() } label: {
+                    Button { $gate.unless(ProGate.edit(access)) { convertToInvoice() } } label: {
                         Label("Convert", systemImage: "doc.badge.arrow.up")
                             .frame(maxWidth: .infinity)
                     }
@@ -186,7 +188,7 @@ struct ProposalDetailView: View {
                 }
                 .buttonStyle(.bordered)
 
-                Button { markSent() } label: {
+                Button { $gate.unless(ProGate.edit(access)) { markSent() } } label: {
                     Label("Mark Sent", systemImage: "paperplane.fill")
                         .frame(maxWidth: .infinity)
                 }
@@ -225,7 +227,7 @@ struct ProposalDetailView: View {
                 }
                 .buttonStyle(.bordered)
 
-                Button { showingReviseDialog = true } label: {
+                Button { $gate.unless(ProGate.edit(access)) { showingReviseDialog = true } } label: {
                     Label("Revise", systemImage: "doc.badge.plus")
                         .frame(maxWidth: .infinity)
                 }

@@ -25,7 +25,10 @@ struct EditRouteView: View {
         Client.routable(from: allClients, operatorID: authManager.userID)
     }
 
-    var body: some View {
+    // PlowR Pro: read only, this editor shows why instead (EditsNeedPro).
+    var body: some View { editor.editsNeedPro() }
+
+    @ViewBuilder private var editor: some View {
         NavigationStack {
             Form {
                 Section("Route Name") {
