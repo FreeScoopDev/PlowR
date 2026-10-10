@@ -56,6 +56,8 @@ struct PlowRApp: App {
         // Before any view: a Siri or Control Center launch acts on the route
         // without the UI, and a killed app should come back mid-route.
         ActiveRouteStore.shared.configure(context: container.mainContext)
+        // PlowR Pro: the plan kept from last time until StoreKit answers.
+        Subscription.shared.start()
         // Not under tests: the test host is the app, with the app's
         // preferences, and must leave the simulator's calendar alone.
         if !Self.isRunningUnderTests {
@@ -207,6 +209,8 @@ struct PlowRApp: App {
                     ClientStops.updateAll(in: container.mainContext)
                     Payments.settleAll(in: container.mainContext)
                     lookUpImportPins()
+                    // A subscription that ran out while away sends no update.
+                    Task { await Subscription.shared.refresh() }
                 }
                 ActiveRouteStore.shared.validate()
                 authManager.recheckIfSignedOut()
