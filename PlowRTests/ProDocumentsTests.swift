@@ -46,9 +46,9 @@ struct ProDocumentsTests {
     }
 
     @Test func theSeasonReportPrintsTheLineOnlyWhenAsked() throws {
-        let free = try text(of: PDFGenerator.generateSeasonReport(clients: [], proposals: [], profile: nil,
+        let free = try text(of: PDFGenerator.generateSeasonReport(clients: [], proposals: [], records: [], period: .allTime, profile: nil,
                                                                   madeWithPlowR: true))
-        let pro = try text(of: PDFGenerator.generateSeasonReport(clients: [], proposals: [], profile: nil,
+        let pro = try text(of: PDFGenerator.generateSeasonReport(clients: [], proposals: [], records: [], period: .allTime, profile: nil,
                                                                  madeWithPlowR: false))
         #expect(free.contains("Prepared with PlowR"))
         #expect(!pro.contains("Prepared with PlowR"))

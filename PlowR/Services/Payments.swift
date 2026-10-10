@@ -183,6 +183,27 @@ enum Payments {
         InvoiceLines.roundedToCent(receipts(documents).reduce(0) { $0 + $1.amount })
     }
 
+    /// What came in during `period` (from its start, up to but not including
+    /// its end): the Season Report's figure, the same receipts as `received`.
+    static func received(_ documents: [Proposal], in period: DateInterval) -> Double {
+        InvoiceLines.roundedToCent(receipts(documents, in: period).reduce(0) { $0 + $1.amount })
+    }
+
+    /// What came in during `period`, month by month (months with any), newest first.
+    static func receivedByMonth(_ documents: [Proposal], in period: DateInterval,
+                                calendar: Calendar = .current) -> [(start: Date, amount: Double)] {
+        var months: [Date: Double] = [:]
+        for receipt in receipts(documents, in: period) {
+            months[calendar.dateInterval(of: .month, for: receipt.date)?.start ?? receipt.date, default: 0] += receipt.amount
+        }
+        return months.map { (start: $0.key, amount: InvoiceLines.roundedToCent($0.value)) }.sorted { $0.start > $1.start }
+    }
+
+    /// `receipts` from the start of `period` up to, not including, its end.
+    static func receipts(_ documents: [Proposal], in period: DateInterval) -> [(date: Date, amount: Double)] {
+        receipts(documents).filter { $0.date >= period.start && $0.date < period.end }
+    }
+
     /// Money received, each amount on the day it came: every payment, and a
     /// paid invoice's rest on the day it was marked paid (all of it, for
     /// one paid before payments were kept). For money in by month.

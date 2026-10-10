@@ -780,21 +780,34 @@ struct PDFGenerator {
 
     // MARK: - Season Report
 
+    /// The Season Report for `period` (SeasonReport works out the figures).
     static func generateSeasonReport(
         clients: [Client],
         proposals: [Proposal],
+        records: [ServiceRecord],
+        period: SeasonReport.Period,
         profile: BusinessProfile?,
         reportDate: Date = Date(),
         madeWithPlowR: Bool
     ) -> Data {
-        $madeWithPlowR.withValue(madeWithPlowR) {
-            renderSeasonReport(clients: clients, proposals: proposals, profile: profile, reportDate: reportDate)
+        let interval = period.interval(now: reportDate)
+        let figures = SeasonReport.figures(clients: clients, proposals: proposals, records: records, period: interval)
+        return $madeWithPlowR.withValue(madeWithPlowR) {
+            renderSeasonReport(figures, title: periodTitle(period, interval), profile: profile, reportDate: reportDate)
         }
     }
 
+    /// "This Year: Jan 1 – Oct 10, 2026"; all time has no dates.
+    private static func periodTitle(_ period: SeasonReport.Period, _ interval: DateInterval) -> String {
+        guard period != .allTime else { return period.title }
+        let end = interval.end.addingTimeInterval(-1)                      // the end isn't in it
+        let range = (interval.start..<max(end, interval.start)).formatted(.interval.month(.abbreviated).day().year())
+        return "\(period.title): \(range)"
+    }
+
     private static func renderSeasonReport(
-        clients: [Client],
-        proposals: [Proposal],
+        _ figures: SeasonReport.Figures,
+        title: String,
         profile: BusinessProfile?,
         reportDate: Date
     ) -> Data {
@@ -804,13 +817,6 @@ struct PDFGenerator {
         let contentW = pageW - margin * 2
         let accent = Self.accent(for: profile)
 
-        let invoices         = proposals.filter { $0.isInvoice }
-        let totalVisits      = clients.reduce(0)   { $0 + $1.totalVisits }
-        let totalMinutes     = clients.reduce(0.0) { $0 + $1.totalServiceMinutes }
-        let totalRevenue     = Payments.received(proposals)
-        let totalOutstanding = Payments.owed(invoices)
-        let activeClients    = clients.filter { $0.totalVisits > 0 }.sorted { $0.totalVisits > $1.totalVisits }
-
         let renderer = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: pageW, height: pageH))
         return renderer.pdfData { ctx in
             ctx.beginPage()
@@ -819,33 +825,31 @@ struct PDFGenerator {
             accent.withAlphaComponent(0.9).setFill()
             UIBezierPath(rect: CGRect(x: 0, y: 0, width: pageW, height: 5)).fill()
 
-            y = drawSeasonHeader(profile: profile, reportDate: reportDate,
+            y = drawSeasonHeader(profile: profile, reportDate: reportDate, period: title,
                                  contentW: contentW, margin: margin, y: y, accent: accent)
             y += 16
             drawHRule(x: margin, y: y, width: contentW, weight: 0.75, color: ruleLight)
             y += 22
 
-            y = drawSeasonMetrics(
-                totalClients: clients.count, totalVisits: totalVisits,
-                totalMinutes: totalMinutes, totalRevenue: totalRevenue,
-                totalOutstanding: totalOutstanding,
-                contentW: contentW, margin: margin, y: y, accent: accent
-            )
+            y = drawSeasonMetrics(figures, contentW: contentW, margin: margin, y: y, accent: accent)
             y += 20
             drawHRule(x: margin, y: y, width: contentW, weight: 0.5, color: ruleLight)
             y += 20
 
-            let monthly = seasonMonthBuckets(from: proposals)
-            if !monthly.isEmpty {
-                y = drawSeasonMonthly(buckets: monthly, contentW: contentW,
-                                     margin: margin, y: y, accent: accent)
-                y += 20
-                drawHRule(x: margin, y: y, width: contentW, weight: 0.5, color: ruleLight)
+            if !figures.months.isEmpty {
+                y = drawSeasonMonthly(figures.months, contentW: contentW, margin: margin, y: y, accent: accent,
+                                      ctx: ctx, profile: profile, pageW: pageW, pageH: pageH)
+                // The separator only where there's room above the footer; the
+                // client table starts a new page otherwise.
+                if y + 20 <= pageH - margin - 30 {
+                    y += 20
+                    drawHRule(x: margin, y: y, width: contentW, weight: 0.5, color: ruleLight)
+                }
                 y += 20
             }
 
             drawSeasonClientTable(
-                clients: activeClients, proposals: proposals,
+                figures.clients,
                 contentW: contentW, margin: margin, y: y, accent: accent,
                 ctx: ctx, profile: profile, pageW: pageW, pageH: pageH
             )
@@ -854,23 +858,10 @@ struct PDFGenerator {
         }
     }
 
-    private struct SeasonMonthBucket {
-        let label: String
-        let revenue: Double
-        let outstanding: Double
-    }
-
-    private static func seasonMonthBuckets(from proposals: [Proposal]) -> [SeasonMonthBucket] {
-        let lblFmt = DateFormatter(); lblFmt.dateFormat = "MMM yyyy"
-        return Payments.byMonth(proposals).map { month in
-            SeasonMonthBucket(label: lblFmt.string(from: month.start), revenue: month.received, outstanding: month.owed)
-        }
-    }
-
     @discardableResult
     private static func drawSeasonHeader(
         profile: BusinessProfile?,
-        reportDate: Date,
+        reportDate: Date, period: String,
         contentW: CGFloat, margin: CGFloat, y: CGFloat, accent: UIColor
     ) -> CGFloat {
         let rightW: CGFloat = 190
@@ -879,8 +870,10 @@ struct PDFGenerator {
 
         drawText("SEASON REPORT", x: margin + leftW + 14, y: y, width: rightW,
                  font: displayFont(17), color: accent, kern: 2.0, alignment: .right, singleLine: true)
+        drawText(period, x: margin + leftW + 14, y: y + 26, width: rightW,
+                 font: bodyFont(9.5), color: inkMid, alignment: .right, singleLine: true)
         drawText("Generated: \(dateFmt.string(from: reportDate))",
-                 x: margin + leftW + 14, y: y + 28, width: rightW,
+                 x: margin + leftW + 14, y: y + 40, width: rightW,
                  font: bodyFont(9), color: inkLight, alignment: .right, singleLine: true)
 
         var leftY: CGFloat = y
@@ -903,34 +896,32 @@ struct PDFGenerator {
                      font: bodyFont(9.5), color: inkLight, singleLine: true)
             leftY += 14
         }
-        return max(leftY, y + 44)
+        return max(leftY, y + 54)
     }
 
     @discardableResult
     private static func drawSeasonMetrics(
-        totalClients: Int, totalVisits: Int, totalMinutes: Double,
-        totalRevenue: Double, totalOutstanding: Double,
+        _ figures: SeasonReport.Figures,
         contentW: CGFloat, margin: CGFloat, y: CGFloat, accent: UIColor
     ) -> CGFloat {
         let colW = contentW / 4
         let metrics: [(String, String, UIColor)] = [
-            ("CLIENTS",     "\(totalClients)", accent),
-            ("VISITS",      "\(totalVisits)",  accent),
-            ("COLLECTED",   String(format: "$%.0f", totalRevenue), UIColor.systemGreen),
-            ("OUTSTANDING",
-             totalOutstanding == 0 ? "$0" : String(format: "$%.0f", totalOutstanding),
-             totalOutstanding > 0 ? UIColor.systemRed : inkMid),
+            ("CLIENTS",   "\(figures.clientCount)", accent),
+            ("VISITS",    "\(figures.visits)",      accent),
+            ("COLLECTED", SeasonReport.money(figures.collected), UIColor.systemGreen),
+            // Owed today, whatever the period: it isn't a figure of the past.
+            ("OWED NOW",  SeasonReport.money(figures.owedNow), figures.owedNow > 0 ? UIColor.systemRed : inkMid),
         ]
         for (i, (label, value, color)) in metrics.enumerated() {
             let x = margin + CGFloat(i) * colW
             drawText(label, x: x, y: y, width: colW - 4,
                      font: labelFont(7.5), color: inkLight, kern: 1.2)
             drawText(value, x: x, y: y + 14, width: colW - 4,
-                     font: bodyBoldFont(18), color: color, singleLine: true)
+                     font: bodyBoldFont(16), color: color, singleLine: true)
         }
         var bottom = y + 14 + 26
-        if totalMinutes > 0 {
-            let h = Int(totalMinutes) / 60, m = Int(totalMinutes) % 60
+        if figures.minutes > 0 {
+            let h = Int(figures.minutes) / 60, m = Int(figures.minutes) % 60
             let t = h > 0 ? "\(h)h \(m)m total on-site" : "\(m) min total on-site"
             drawText(t, x: margin, y: bottom + 4, width: contentW, font: bodyFont(10), color: inkMid)
             bottom += 18
@@ -940,22 +931,23 @@ struct PDFGenerator {
 
     @discardableResult
     private static func drawSeasonMonthly(
-        buckets: [SeasonMonthBucket],
-        contentW: CGFloat, margin: CGFloat, y: CGFloat, accent: UIColor
+        _ months: [SeasonReport.Month],
+        contentW: CGFloat, margin: CGFloat, y: CGFloat, accent: UIColor,
+        ctx: UIGraphicsPDFRendererContext, profile: BusinessProfile?, pageW: CGFloat, pageH: CGFloat
     ) -> CGFloat {
-        var curY = y
-        drawText("REVENUE BY MONTH", x: margin, y: curY, width: contentW,
+        let pageBottom = pageH - margin - 30
+        // The heading and a row or two, or a new page: never a heading alone.
+        var curY = startsOnPage(needing: 80, y: y, margin: margin, pageBottom: pageBottom,
+                                ctx: ctx, profile: profile, pageW: pageW, pageH: pageH, contentW: contentW)
+        drawText("COLLECTED BY MONTH", x: margin, y: curY, width: contentW,
                  font: labelFont(8.5), color: accent, kern: 2)
         curY += 16
 
-        let c1: CGFloat = contentW * 0.36
-        let c2: CGFloat = contentW * 0.32
-        let c3 = contentW - c1 - c2
-        drawText("MONTH",       x: margin,           y: curY, width: c1,
+        let c1: CGFloat = contentW * 0.5
+        let c2 = contentW - c1
+        drawText("MONTH",     x: margin,      y: curY, width: c1,
                  font: labelFont(8), color: inkMid, kern: 0.4)
-        drawText("COLLECTED",   x: margin + c1,      y: curY, width: c2,
-                 font: labelFont(8), color: inkMid, kern: 0.4, alignment: .right)
-        drawText("OUTSTANDING", x: margin + c1 + c2, y: curY, width: c3,
+        drawText("COLLECTED", x: margin + c1, y: curY, width: c2,
                  font: labelFont(8), color: inkMid, kern: 0.4, alignment: .right)
         curY += 12
         accent.withAlphaComponent(0.55).setStroke()
@@ -965,14 +957,16 @@ struct PDFGenerator {
         rl.lineWidth = 1.0; rl.stroke()
         curY += 8
 
-        for bucket in buckets {
-            drawText(bucket.label, x: margin, y: curY, width: c1, font: bodyFont(10.5), color: ink)
-            let revStr = bucket.revenue > 0 ? String(format: "$%.0f", bucket.revenue) : "—"
-            let outStr = bucket.outstanding > 0 ? String(format: "$%.0f", bucket.outstanding) : "—"
-            drawText(revStr, x: margin + c1, y: curY, width: c2, font: bodyFont(10.5),
-                     color: bucket.revenue > 0 ? UIColor.systemGreen : inkLight, alignment: .right)
-            drawText(outStr, x: margin + c1 + c2, y: curY, width: c3, font: bodyFont(10.5),
-                     color: bucket.outstanding > 0 ? UIColor.systemOrange : inkLight, alignment: .right)
+        for month in months {
+            if curY + 19 > pageBottom {
+                drawFooter(profile: profile, pageW: pageW, pageH: pageH, margin: margin, contentW: contentW)
+                ctx.beginPage()
+                curY = margin
+            }
+            drawText(month.start.formatted(.dateTime.month(.abbreviated).year()),
+                     x: margin, y: curY, width: c1, font: bodyFont(10.5), color: ink)
+            drawText(SeasonReport.money(month.received), x: margin + c1, y: curY, width: c2, font: bodyFont(10.5),
+                     color: UIColor.systemGreen, alignment: .right)
             curY += 17
             drawHRule(x: margin, y: curY, width: contentW, weight: 0.4, color: ruleLight)
             curY += 2
@@ -982,14 +976,15 @@ struct PDFGenerator {
 
     @discardableResult
     private static func drawSeasonClientTable(
-        clients: [Client], proposals: [Proposal],
+        _ rows: [SeasonReport.ClientRow],
         contentW: CGFloat, margin: CGFloat, y: CGFloat,
         accent: UIColor, ctx: UIGraphicsPDFRendererContext,
         profile: BusinessProfile?, pageW: CGFloat, pageH: CGFloat
     ) -> CGFloat {
-        guard !clients.isEmpty else { return y }
-        var curY = y
+        guard !rows.isEmpty else { return y }
         let pageBottom = pageH - margin - 30
+        var curY = startsOnPage(needing: 80, y: y, margin: margin, pageBottom: pageBottom,
+                                ctx: ctx, profile: profile, pageW: pageW, pageH: pageH, contentW: contentW)
 
         drawText("CLIENT BREAKDOWN", x: margin, y: curY, width: contentW,
                  font: labelFont(8.5), color: accent, kern: 2)
@@ -1016,21 +1011,20 @@ struct PDFGenerator {
         curY += 8
 
         let dateFmt = DateFormatter(); dateFmt.dateStyle = .medium
-        for client in clients {
+        for row in rows {
             if curY + 22 > pageBottom {
                 drawFooter(profile: profile, pageW: pageW, pageH: pageH, margin: margin, contentW: contentW)
                 ctx.beginPage()
                 curY = margin
             }
-            let collected = Payments.received(proposals.filter { $0.clientID == client.id.uuidString })
-            let lastStr = client.lastServiceDate.map { dateFmt.string(from: $0) } ?? "—"
-            let collStr = collected > 0 ? String(format: "$%.0f", collected) : "—"
-            drawText(client.name, x: margin, y: curY, width: c1,
+            let lastStr = row.lastService.map { dateFmt.string(from: $0) } ?? "—"
+            let collStr = row.collected > 0 ? SeasonReport.money(row.collected) : "—"
+            drawText(row.name, x: margin, y: curY, width: c1,
                      font: bodyFont(10.5), color: ink, singleLine: true)
-            drawText("\(client.totalVisits)", x: margin + c1, y: curY, width: c2,
+            drawText("\(row.visits)", x: margin + c1, y: curY, width: c2,
                      font: bodyFont(10.5), color: inkDark, alignment: .right, singleLine: true)
             drawText(collStr, x: margin + c1 + c2, y: curY, width: c3,
-                     font: bodyFont(10.5), color: collected > 0 ? UIColor.systemGreen : inkMid,
+                     font: bodyFont(10.5), color: row.collected > 0 ? UIColor.systemGreen : inkMid,
                      alignment: .right, singleLine: true)
             drawText(lastStr, x: margin + c1 + c2 + c3, y: curY, width: c4,
                      font: bodyFont(10.5), color: inkLight, alignment: .right, singleLine: true)
@@ -1039,6 +1033,17 @@ struct PDFGenerator {
             curY += 2
         }
         return curY
+    }
+
+    /// `y`, or the top of a new page when `needing` points don't fit above
+    /// `pageBottom` (the page so far gets its footer).
+    private static func startsOnPage(needing: CGFloat, y: CGFloat, margin: CGFloat, pageBottom: CGFloat,
+                                     ctx: UIGraphicsPDFRendererContext, profile: BusinessProfile?,
+                                     pageW: CGFloat, pageH: CGFloat, contentW: CGFloat) -> CGFloat {
+        guard y + needing > pageBottom else { return y }
+        drawFooter(profile: profile, pageW: pageW, pageH: pageH, margin: margin, contentW: contentW)
+        ctx.beginPage()
+        return margin
     }
 
     // MARK: - Primitives

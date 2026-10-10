@@ -4,6 +4,7 @@ import SwiftData
 struct ClientStatsView: View {
     @Environment(AuthManager.self) private var authManager
     @Environment(\.access) private var access
+    @Environment(\.modelContext) private var modelContext
     @State private var gate: ProGate?
     @Query private var allClients: [Client]
     @Query private var allProposals: [Proposal]
@@ -69,10 +70,17 @@ struct ClientStatsView: View {
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button {
-                    $gate.unless(ProGate.makeReport(access)) { shareItem = buildReportURL() }
+                // The Season Report, for the period chosen.
+                Menu {
+                    Section("Season Report") {
+                        ForEach(SeasonReport.Period.allCases) { period in
+                            Button(period.title) {
+                                $gate.unless(ProGate.makeReport(access)) { shareItem = buildReportURL(for: period) }
+                            }
+                        }
+                    }
                 } label: {
-                    Image(systemName: "square.and.arrow.up")
+                    Label("Share Season Report", systemImage: "square.and.arrow.up")
                 }
             }
         }
@@ -251,12 +259,21 @@ struct ClientStatsView: View {
         .padding(.vertical, 4)
     }
 
-    private func buildReportURL() -> IdentifiableURL? {
+    /// The Service Log, fetched when a report is made, not kept on screen.
+    private func myRecords() -> [ServiceRecord] {
+        let operatorID = authManager.userID
+        return (try? modelContext.fetch(FetchDescriptor<ServiceRecord>(
+            predicate: #Predicate { $0.operatorID == operatorID }))) ?? []
+    }
+
+    private func buildReportURL(for period: SeasonReport.Period) -> IdentifiableURL? {
         let profile = profiles.first { $0.operatorID == authManager.userID }
         let myProposals = allProposals.filter { $0.operatorID == authManager.userID }
         let data = PDFGenerator.generateSeasonReport(
             clients: myClients,
             proposals: myProposals,
+            records: myRecords(),
+            period: period,
             profile: profile,
             madeWithPlowR: access.showsMadeWithPlowR
         )
