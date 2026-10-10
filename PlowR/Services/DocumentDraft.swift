@@ -59,6 +59,8 @@ nonisolated struct DocumentDraft {
     var customLines: [CustomLine] = []
     var discount: String = ""
     var taxRate: String = ""
+    /// Whose decimal separator the fields are typed in (`DecimalText`).
+    var locale: Locale = .current
 
     static func key(serviceID: String, zoneIndex: Int) -> String { "\(serviceID)|\(zoneIndex)" }
 
@@ -78,10 +80,10 @@ nonisolated struct DocumentDraft {
     func amount(forKey key: String) -> Double? {
         guard let (serviceID, zoneIndex) = Self.parse(key),
               let fallback = defaultAmount(serviceID: serviceID, zoneIndex: zoneIndex) else { return nil }
-        return InvoiceLines.price(typed: amounts[key], default: fallback)
+        return InvoiceLines.price(typed: amounts[key], default: fallback, locale: locale)
     }
 
-    var discountAmount: Double { max(0, InvoiceLines.price(typed: discount, default: 0)) }
+    var discountAmount: Double { max(0, InvoiceLines.price(typed: discount, default: 0, locale: locale)) }
     var taxRatePercent: Double { Proposal.taxRate(typed: taxRate) }
 
     /// Every line the document will have, in the order it will have them:
@@ -107,7 +109,7 @@ nonisolated struct DocumentDraft {
         let firstCustom = result.count
         for (i, custom) in customLines.enumerated() {
             guard !custom.name.isEmpty else { continue }
-            let amount = InvoiceLines.price(typed: custom.amount, default: 0)
+            let amount = InvoiceLines.price(typed: custom.amount, default: 0, locale: locale)
             guard amount > 0 else { continue }
             result.append(Line(serviceName: custom.name, zoneLabel: "", quantity: 1, unitType: "flat",
                                unitPrice: amount, lineTotal: amount, notes: custom.notes,

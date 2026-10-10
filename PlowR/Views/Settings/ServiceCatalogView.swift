@@ -178,6 +178,11 @@ struct ServiceItemEditView: View {
                             Text(priceSuffix).foregroundStyle(.secondary)
                         }
                     }
+                    if !price.isEmpty, ServiceCatalog.price(typed: price) == nil {
+                        Text("Enter a price, such as 45.00.")
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    }
                 }
             }
             .navigationTitle(item == nil ? "New Service" : "Edit Service")
@@ -188,7 +193,7 @@ struct ServiceItemEditView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { save() }
-                        .disabled(name.isEmpty || price.isEmpty)
+                        .disabled(name.isEmpty || ServiceCatalog.price(typed: price) == nil)
                 }
             }
             .onAppear {
@@ -203,7 +208,7 @@ struct ServiceItemEditView: View {
     }
 
     private func save() {
-        let priceValue = Double(price) ?? 0
+        guard let priceValue = ServiceCatalog.price(typed: price) else { return }
         if let item {
             item.name      = name
             item.unitType  = unitType

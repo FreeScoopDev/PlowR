@@ -11,6 +11,17 @@ import SwiftData
 /// arrived through iCloud, so every standard service showed twice. And a lawn
 /// business got snow services it never asked for.
 enum ServiceCatalog {
+    /// A price typed for a catalog service, or nil when it can't be saved:
+    /// unreadable, negative or beyond any real job. Not rounded to the cent,
+    /// because a per-square-foot rate such as 0.015 is finer than that.
+    /// Saving 0 for what couldn't be read put a free service over the price
+    /// it had.
+    nonisolated static func price(typed text: String, locale: Locale = .current) -> Double? {
+        guard let value = DecimalText.number(text, locale: locale),
+              value >= 0, value < InvoiceLines.maxAmount else { return nil }
+        return value
+    }
+
     struct Category: Identifiable, Equatable {
         var key: String
         var label: String

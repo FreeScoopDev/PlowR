@@ -214,12 +214,10 @@ extension Proposal {
     /// every new invoice would go out at 0% without a word.
     nonisolated static func readTaxRate(_ text: String) -> Double? {
         // A decimal comma ("6,625") is what the keypad types in many regions.
-        var text = text.trimmingCharacters(in: .whitespaces)
-        if text.isEmpty { return 0 }
-        if !text.contains("."), text.filter({ $0 == "," }).count == 1 {
-            text = text.replacingOccurrences(of: ",", with: ".")
-        }
-        guard let rate = Double(text), rate.isFinite, (0...100).contains(rate) else { return nil }
+        // Read in every region: a rate is at most 100, so a comma in one
+        // can't be separating thousands.
+        if text.trimmingCharacters(in: .whitespaces).isEmpty { return 0 }
+        guard let rate = DecimalText.number(text, decimalComma: true), (0...100).contains(rate) else { return nil }
         return (rate * 1000).rounded() / 1000
     }
 

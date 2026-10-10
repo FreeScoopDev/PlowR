@@ -30,8 +30,7 @@ nonisolated enum InvoiceLines {
         var lineTotal: Double
     }
 
-    /// Beyond any real job. A typed figure this large, or "nan"/"inf", which
-    /// `Double(_:)` accepts, is treated as unreadable.
+    /// Beyond any real job. A typed figure this large is treated as unreadable.
     static let maxAmount = 1_000_000_000.0
 
     /// `amount` in whole cents, rounded half away from zero. The one rounding
@@ -62,10 +61,10 @@ nonisolated enum InvoiceLines {
 
     /// The price field's text as money, or `defaultPrice` when the field is
     /// empty, unreadable or not a real amount: an untouched field means the
-    /// default, never the per-square-foot rate.
-    static func price(typed: String?, default defaultPrice: Double) -> Double {
-        let text = (typed ?? "").trimmingCharacters(in: .whitespaces)
-        guard let value = Double(text), value.isFinite, abs(value) < maxAmount else { return defaultPrice }
+    /// default, never the per-square-foot rate. A decimal comma ("12,50") is
+    /// read where the region writes one (`DecimalText`).
+    static func price(typed: String?, default defaultPrice: Double, locale: Locale = .current) -> Double {
+        guard let value = DecimalText.number(typed, locale: locale), abs(value) < maxAmount else { return defaultPrice }
         return roundedToCent(value)
     }
 
