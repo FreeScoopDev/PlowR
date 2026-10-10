@@ -132,6 +132,11 @@ struct RequestLinkTests {
         for bad in ["@", "pat@", "pat@example", "javascript:alert(1)", "pat @example.com", "a@b.c?body=hi", "a@b..c"] {
             #expect(Link.validEmail(bad).isEmpty, "\(bad)")
         }
+        // A client's email becomes a Mail link only when it's an address.
+        #expect(Link.mailLink(" pat@example.com ")?.absoluteString == "mailto:pat@example.com")
+        for bad in ["", "a@b.com?bcc=c@d.com", "a@b.com&cc=c@d.com", "pat", "a@b.c/x"] {
+            #expect(Link.mailLink(bad) == nil, "\(bad)")
+        }
         let business = Link.Business(name: "Pat's", phone: "6035550100", email: "javascript:alert(1)")
         let link = try #require(Link.url(for: business))
         #expect(Link.business(from: link)?.email.isEmpty == true)

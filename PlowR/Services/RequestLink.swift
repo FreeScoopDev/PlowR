@@ -176,6 +176,15 @@ nonisolated enum RequestLink {
         return ok ? cleaned : ""
     }
 
+    /// A mailto: link to `email`, or nil when it isn't an address. A client's
+    /// email can come from an import or a request: "a@b.com?bcc=…" would
+    /// otherwise open Mail with someone else copied in.
+    static func mailLink(_ email: String) -> URL? {
+        let address = validEmail(email)
+        guard !address.isEmpty else { return nil }
+        return URL(string: "mailto:\(address)")
+    }
+
     /// Blank letters (Hangul fillers) that show nothing.
     private static let blankLetters = CharacterSet(charactersIn: "\u{3164}\u{115F}\u{1160}\u{FFA0}")
 

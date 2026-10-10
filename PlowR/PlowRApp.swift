@@ -48,6 +48,8 @@ struct PlowRApp: App {
             ClientRemoval.takeInactiveClientsOffRoutes(in: container.mainContext)
             // The Service Log: the same work recorded on two devices, merged.
             ServiceLog.mergeDuplicates(in: container.mainContext)
+            // Invoices and spreadsheets shared last time, off the device.
+            AccountEraser.removeSharedFiles()
             // Visits completed before it existed, copied in after launch, in
             // passes on a context of its own: a long history is a lot of work.
             let container = container

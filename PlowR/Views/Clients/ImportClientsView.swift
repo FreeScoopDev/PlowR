@@ -162,8 +162,10 @@ struct ImportClientsView: View {
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         undone = nil
         do {
-            let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
-            guard size <= Self.largestFile else {
+            // A file whose size isn't known (a stream, a provider that won't say)
+            // could be anything: it isn't read whole into memory.
+            let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize
+            guard let size, size <= Self.largestFile else {
                 showFileProblem("That file is too big to be a client list. Choose the CSV file of your clients.")
                 return
             }

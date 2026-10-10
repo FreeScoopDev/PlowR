@@ -55,6 +55,9 @@ struct AccountEraserTests {
         var widgetCleared = false
         var importPinsStopped = false
         var calendarErased = false
+        /// A cached answer for a client's address (weather, maps).
+        let cache = URLCache(memoryCapacity: 1_000_000, diskCapacity: 0)
+        let cachedRequest = URLRequest(url: URL(filePath: "/forecast/1-Main-St"))
 
         init() throws {
             let suite = "AccountEraserTests-\(UUID().uuidString)"
@@ -132,11 +135,14 @@ struct AccountEraserTests {
                 try Data([9]).write(to: dir.appending(path: "photo"))
             }
             try Data("[]".utf8).write(to: workOrders)
+            let response = URLResponse(url: cachedRequest.url ?? folder, mimeType: "application/json",
+                                       expectedContentLength: 2, textEncodingName: nil)
+            cache.storeCachedResponse(CachedURLResponse(response: response, data: Data("{}".utf8)), for: cachedRequest)
         }
 
         func eraser() -> AccountEraser {
             AccountEraser(context: context, defaults: defaults, defaultsDomain: suite, workOrdersFile: workOrders,
-                          temporaryDirectory: tmp, archiveFolders: [storeFolder], notifications: notifications,
+                          temporaryDirectory: tmp, urlCache: cache, archiveFolders: [storeFolder], notifications: notifications,
                           regions: regions, routeStore: routeStore, clearWidget: { [unowned self] in widgetCleared = true },
                           stopImportPins: { [unowned self] in importPinsStopped = true },
                           eraseCalendar: { [unowned self] in calendarErased = true })
@@ -181,6 +187,7 @@ struct AccountEraserTests {
         #expect(!account.exists(account.tmp.appending(path: "INV-0001.pdf")))
         #expect(!account.exists(account.tmp.appending(path: "PlowR_Season_Report.pdf")))
         #expect(!account.exists(account.tmp.appending(path: "PlowR Clients 2026-09-30.csv")))
+        #expect(account.cache.cachedResponse(for: account.cachedRequest) == nil)
         #expect(!account.exists(account.storeFolder.appending(path: "default.store.1790000000.bak")))
         #expect(!account.exists(account.storeFolder.appending(path: "default.store-wal.1790000000.bak")))
         #expect(!account.exists(account.storeFolder.appending(path: ".default_SUPPORT.1790000000.bak")))
@@ -356,5 +363,26 @@ struct AccountEraserTests {
         #expect(account.regions.monitoredRegions.isEmpty)
         #expect(account.widgetCleared && account.importPinsStopped)
         #expect(account.defaults.object(forKey: "userRole") != nil)
+    }
+
+    // A setup check: without it, the cache test above proves nothing.
+    @Test func theCacheStartsWithAnAnswer() throws {
+        let account = try Account()
+        defer { account.removeFiles() }
+        #expect(account.cache.cachedResponse(for: account.cachedRequest) != nil)
+    }
+
+    // Shared PDFs and CSVs left from last time go at launch; nothing else does.
+    @Test func sharedFilesLeftFromLastTimeAreRemoved() throws {
+        let folder = FileManager.default.temporaryDirectory.appending(path: "SharedFiles-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        for name in ["INV-0001.pdf", "Report.PDF", "PlowR Clients.csv", "photo.jpg", "notes.txt"] {
+            try Data([0]).write(to: folder.appending(path: name))
+        }
+        #expect(AccountEraser.removeSharedFiles(in: folder) == 3)
+        let left = try FileManager.default.contentsOfDirectory(atPath: folder.path).sorted()
+        #expect(left == ["notes.txt", "photo.jpg"])
+        #expect(AccountEraser.removeSharedFiles(in: folder.appending(path: "gone")) == 0)
     }
 }
