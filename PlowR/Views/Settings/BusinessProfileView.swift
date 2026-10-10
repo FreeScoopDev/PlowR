@@ -46,6 +46,7 @@ struct BusinessProfileView: View {
     @State private var tagline = ""
     @State private var licenseNumber = ""
     @State private var defaultDisclaimer = ""
+    @State private var defaultTaxRate = ""
     @State private var accentColor: Color = Self.accent(for: nil)
     @State private var colorPDFs = true
     @State private var compactHeader = false
@@ -120,6 +121,21 @@ struct BusinessProfileView: View {
                 Text("Compact header uses a smaller document title — useful when a wide logo fills the header.")
             }
 
+            Section {
+                LabeledContent("Sales Tax Rate") {
+                    HStack(spacing: 2) {
+                        TextField("0", text: $defaultTaxRate)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                        Text("%").foregroundStyle(.secondary)
+                    }
+                }
+            } header: {
+                Text("Tax")
+            } footer: {
+                Text("Put on every new invoice and proposal, and you can change it on any one. Leave it at 0 if you don't charge sales tax. Whether your services are taxed, and at what rate, depends on your state: check with your state or an accountant.")
+            }
+
             Section("Default Proposal Disclaimer") {
                 TextEditor(text: $defaultDisclaimer)
                     .frame(minHeight: 80)
@@ -155,6 +171,7 @@ struct BusinessProfileView: View {
         tagline = p.tagline
         licenseNumber = p.licenseNumber
         defaultDisclaimer = p.defaultDisclaimer
+        defaultTaxRate = p.defaultTaxRate > 0 ? Proposal.percentText(p.defaultTaxRate) : ""
         colorPDFs = p.colorPDFs
         compactHeader = p.compactHeader
         accentColor = Self.accent(for: p.accentColorHex)
@@ -176,6 +193,7 @@ struct BusinessProfileView: View {
         p.tagline = tagline
         p.licenseNumber = licenseNumber
         p.defaultDisclaimer = defaultDisclaimer
+        p.defaultTaxRate = Proposal.taxRate(typed: defaultTaxRate)
         p.colorPDFs = colorPDFs
         p.compactHeader = compactHeader
         p.accentColorHex = accentColor.hexString

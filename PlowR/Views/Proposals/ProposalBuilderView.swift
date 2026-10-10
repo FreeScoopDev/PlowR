@@ -300,6 +300,12 @@ struct ProposalBuilderView: View {
                     Text("Tax")
                     TextField("0.0", text: $taxRateString)
                         .keyboardType(.decimalPad)
+                        .onAppear {
+                            // The business's sales tax, as on every new document.
+                            if taxRateString.isEmpty, let rate = profile?.defaultTaxRate, rate > 0 {
+                                taxRateString = Proposal.percentText(rate)
+                            }
+                        }
                     Text("%")
                 }
             }
