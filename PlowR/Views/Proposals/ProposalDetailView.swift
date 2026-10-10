@@ -79,7 +79,7 @@ struct ProposalDetailView: View {
                 if shareURL != nil {
                     Button {
                         $gate.unless(ProGate.shareDocument(access, isInvoice: proposal.isInvoice,
-                                                           owed: Payments.owed([proposal]))) {
+                                                           owed: proposal.balanceDue)) {
                             showingShare = true
                         }
                     } label: {
@@ -213,7 +213,7 @@ struct ProposalDetailView: View {
                     // Sending an invoice still owed is how they get paid: open
                     // read only, as sharing it is.
                     $gate.unless(ProGate.shareDocument(access, isInvoice: proposal.isInvoice,
-                                                       owed: Payments.owed([proposal]))) { markSent() }
+                                                       owed: proposal.balanceDue)) { markSent() }
                 } label: {
                     Label("Mark Sent", systemImage: "paperplane.fill")
                         .frame(maxWidth: .infinity)

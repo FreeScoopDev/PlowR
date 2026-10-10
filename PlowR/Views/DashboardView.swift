@@ -449,7 +449,7 @@ struct DashboardView: View {
                                     Text(ready.count == 1 ? "1 invoice ready to send" : "\(ready.count) invoices ready to send")
                                         .font(.subheadline.weight(.semibold))
                                         .foregroundStyle(.primary)
-                                    Text("\(Payments.owed(ready).formatted(.currency(code: "USD"))) · in Drafts")
+                                    Text("\(Payments.drafted(ready).formatted(.currency(code: "USD"))) · in Drafts")
                                         .font(.caption).foregroundStyle(.secondary)
                                 }
                                 Spacer()

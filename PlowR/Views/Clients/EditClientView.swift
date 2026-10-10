@@ -1033,7 +1033,7 @@ struct EditClientView: View {
                 HStack(spacing: 4) {
                     Button {
                         $gate.unless(ProGate.shareDocument(access, isInvoice: document.isInvoice,
-                                                           owed: Payments.owed([document]))) {
+                                                           owed: document.balanceDue)) {
                             shareDocument(document)
                         }
                     } label: {

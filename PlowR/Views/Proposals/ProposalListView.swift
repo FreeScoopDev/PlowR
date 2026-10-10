@@ -257,7 +257,7 @@ struct ProposalListView: View {
         } else if proposal.invoiceStatus == .draft {
             Button {
                 // As sharing it: an invoice still owed can be sent, read only.
-                $gate.unless(ProGate.shareDocument(access, isInvoice: true, owed: Payments.owed([proposal]))) {
+                $gate.unless(ProGate.shareDocument(access, isInvoice: true, owed: proposal.balanceDue)) {
                     DocumentSent.markSent(proposal, in: modelContext)
                 }
             } label: {

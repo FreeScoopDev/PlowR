@@ -145,9 +145,19 @@ enum Payments {
 
     // MARK: - Money owed and received
 
-    /// What's owed across `documents`: each invoice's balance.
+    /// What's owed across `documents`: each invoice's balance, once it has
+    /// gone out (InvoiceRecords.isIssued). A draft nobody has seen isn't owed
+    /// yet: it counted, so the Dashboard, the client list and the client's
+    /// page said money was owed that had never been billed (pre-launch
+    /// review, 2026-10-10). Drafts are `drafted`.
     static func owed(_ documents: [Proposal]) -> Double {
-        InvoiceLines.roundedToCent(documents.reduce(0) { $0 + $1.balanceDue })
+        InvoiceLines.roundedToCent(documents.filter(InvoiceRecords.isIssued).reduce(0) { $0 + $1.balanceDue })
+    }
+
+    /// What draft invoices across `documents` come to: billed once they're sent.
+    static func drafted(_ documents: [Proposal]) -> Double {
+        InvoiceLines.roundedToCent(documents.filter { $0.isInvoice && !InvoiceRecords.isIssued($0) }
+            .reduce(0) { $0 + $1.balanceDue })
     }
 
     /// What's been received across `documents`: every receipt, so it's
@@ -192,7 +202,7 @@ enum Payments {
             let key = start(receipt.date)
             months[key, default: Month(start: key)].received += receipt.amount
         }
-        for invoice in documents where invoice.balanceDue > 0 {
+        for invoice in documents where invoice.balanceDue > 0 && InvoiceRecords.isIssued(invoice) {
             let key = start(invoice.invoiceSentAt ?? invoice.createdAt)
             months[key, default: Month(start: key)].owed += invoice.balanceDue
         }
