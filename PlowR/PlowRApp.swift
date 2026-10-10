@@ -91,7 +91,7 @@ struct PlowRApp: App {
     // "Test crashed with signal trap before establishing connection."
     //
     // Tests have no business syncing to a real iCloud database regardless.
-    static var isRunningUnderTests: Bool {
+    nonisolated static var isRunningUnderTests: Bool {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
             || NSClassFromString("XCTestCase") != nil
     }

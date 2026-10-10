@@ -11,6 +11,11 @@ struct WeatherAttribution: View {
     nonisolated static let markText = "\u{F8FF} Weather"
     nonisolated static let legalPage = "https://weatherkit.apple.com/legal-attribution.html"
 
+    /// Shown whenever any of WeatherKit's weather is: current conditions,
+    /// or a forecast (the storm card, the Schedule's days), even when the
+    /// other failed to load.
+    nonisolated static func isNeeded(current: Bool, forecast: Bool) -> Bool { current || forecast }
+
     @Environment(\.colorScheme) private var colorScheme
     @State private var attribution: WeatherKit.WeatherAttribution?
 

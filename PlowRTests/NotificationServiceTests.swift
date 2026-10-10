@@ -9,8 +9,19 @@ struct NotificationServiceTests {
 
     private func makeDay(code: Int, daysFromNow: Int) -> DayForecast {
         let date = Calendar.current.date(byAdding: .day, value: daysFromNow, to: Date())!
+        // Wet only on a wet day's code: 0.1 in or more of rain alerts on its own.
         return DayForecast(date: date, maxTempF: 32, minTempF: 20,
-                           weatherCode: code, precipitationMm: 5)
+                           weatherCode: code, precipitationMm: code >= 51 && code < 1000 ? 5 : 0)
+    }
+
+    // WeatherKit's daily condition describes the whole day: a calm label on a
+    // day with 0.1 in or more of rain still alerts.
+    @Test func aWetDayAlertsWhateverItsLabel() {
+        let wet = DayForecast(date: Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date(),
+                              maxTempF: 50, minTempF: 40, weatherCode: 3, precipitationMm: 3)
+        let dry = DayForecast(date: wet.date, maxTempF: 50, minTempF: 40, weatherCode: 3, precipitationMm: 1)
+        #expect(NotificationService.shared.isAdverse(wet))
+        #expect(!NotificationService.shared.isAdverse(dry))
     }
 
     // MARK: - adverseForecastDay
@@ -84,7 +95,8 @@ struct NotificationServiceTests {
 
     private func day(_ y: Int, _ m: Int, _ d: Int, hour: Int = 12, code: Int = 0) -> DayForecast {
         let date = calendar.date(from: DateComponents(year: y, month: m, day: d, hour: hour)) ?? .distantPast
-        return DayForecast(date: date, maxTempF: 30, minTempF: 20, weatherCode: code, precipitationMm: 5)
+        return DayForecast(date: date, maxTempF: 30, minTempF: 20, weatherCode: code,
+                           precipitationMm: code >= 51 && code < 1000 ? 5 : 0)
     }
 
     // No test called the scheduling code, so moving the alert from 6 PM to

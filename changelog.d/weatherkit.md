@@ -10,3 +10,6 @@
   Apple's attribution (the Apple Weather mark and a Data Sources link) shows
   under the weather on the Dashboard, the route screen and the Schedule,
   and the Service Report credits it with Apple's legal page.
+- The evening weather alert also counts a day with 0.1 in or more of
+  precipitation, whatever its label: WeatherKit describes a day as a whole,
+  not its worst hour. Windy, hot, hazy and smoky days get their own labels.

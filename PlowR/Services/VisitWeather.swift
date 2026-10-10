@@ -57,7 +57,7 @@ enum VisitWeather {
         return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
     }
 
-    /// One day's figures, already in inches and °F.
+    /// One day's figures in inches (snow depth, not its water) and °F.
     struct Figures {
         var date: Date
         var snowfallInches: Double
@@ -66,13 +66,36 @@ enum VisitWeather {
         var highF: Double
     }
 
+    /// A day's figures from WeatherKit's measurements.
+    static func figures(date: Date, snowfall: Measurement<UnitLength>, precipitation: Measurement<UnitLength>,
+                        low: Measurement<UnitTemperature>, high: Measurement<UnitTemperature>) -> Figures {
+        Figures(date: date,
+                snowfallInches: snowfall.converted(to: .inches).value,
+                precipitationInches: precipitation.converted(to: .inches).value,
+                lowF: low.converted(to: .fahrenheit).value,
+                highF: high.converted(to: .fahrenheit).value)
+    }
+
+    /// The daily history for a span at a place: WeatherKit's, or a test's.
+    typealias History = (_ location: CLLocation, _ start: Date, _ end: Date) async throws -> [Figures]
+
+    static let weatherKitHistory: History = { location, start, end in
+        let history = try await WeatherKit.WeatherService.shared.weather(
+            for: location, including: .daily(startDate: start, endDate: end))
+        return history.forecast.map { day in
+            figures(date: day.date, snowfall: day.precipitationAmountByType.snowfallAmount.amount,
+                    precipitation: day.precipitationAmountByType.precipitation,
+                    low: day.lowTemperature, high: day.highTemperature)
+        }
+    }
+
     /// The days by "yyyy-MM-dd" in the phone's calendar, as the report's
     /// visits are; days outside the span are left out.
     static func days(_ figures: [Figures], span: ClosedRange<Date>,
                      calendar: Calendar = .current) -> [String: Day] {
         var days: [String: Day] = [:]
         for figure in figures {
-            let day = calendar.startOfDay(for: figure.date)
+            let day = WeatherService.calendarDay(of: figure.date, calendar: calendar)
             guard span.contains(day) else { continue }
             days[dayString(day, calendar: calendar)] = Day(snowfall: figure.snowfallInches,
                                                            precipitation: figure.precipitationInches,
@@ -84,21 +107,15 @@ enum VisitWeather {
     /// The estimates for the visits' days at a place. Not looked up without
     /// a pin; failed (not empty) when it can't be had, so the report never
     /// reads a failed lookup as days with no figures.
-    static func lookUp(latitude: Double, longitude: Double, visitDays: [Date], now: Date = .now) async -> Lookup {
+    static func lookUp(latitude: Double, longitude: Double, visitDays: [Date], now: Date = .now,
+                       history: History? = nil) async -> Lookup {
         guard AddressPin.exists(latitude: latitude, longitude: longitude) else { return .notLookedUp }
         guard let span = span(of: visitDays, now: now) else { return .days([:]) }
-        guard !WeatherService.unavailable,
+        // Never WeatherKit under tests; a test passes its own history.
+        guard let history = history ?? (WeatherService.unavailable ? nil : weatherKitHistory),
               let end = Calendar.current.date(byAdding: .day, value: 1, to: span.upperBound),
-              let history = try? await WeatherKit.WeatherService.shared.weather(
-                  for: WeatherService.location(latitude: latitude, longitude: longitude),
-                  including: .daily(startDate: span.lowerBound, endDate: end)) else { return .failed }
-        let figures = history.forecast.map { day in
-            Figures(date: day.date,
-                    snowfallInches: day.precipitationAmountByType.snowfallAmount.amount.converted(to: .inches).value,
-                    precipitationInches: day.precipitationAmountByType.precipitation.converted(to: .inches).value,
-                    lowF: day.lowTemperature.converted(to: .fahrenheit).value,
-                    highF: day.highTemperature.converted(to: .fahrenheit).value)
-        }
+              let figures = try? await history(WeatherService.location(latitude: latitude, longitude: longitude),
+                                               span.lowerBound, end) else { return .failed }
         return .days(days(figures, span: span))
     }
 

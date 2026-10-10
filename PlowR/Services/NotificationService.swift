@@ -11,9 +11,17 @@ final class NotificationService {
         95, 96, 99                   // thunderstorms
     ]
 
+    /// Rain, snow, ice or storms in the day's condition, or 0.1 in or more of
+    /// precipitation: WeatherKit's daily condition describes the day as a
+    /// whole, not its worst hour, so a wet morning on a clearing day still
+    /// counts.
+    func isAdverse(_ day: DayForecast) -> Bool {
+        adverseCodes.contains(day.weatherCode) || day.hasSignificantPrecip
+    }
+
     /// Returns the first forecast day in the next 2 days (excluding today) that has adverse conditions.
     func adverseForecastDay(from forecasts: [DayForecast]) -> DayForecast? {
-        forecasts.dropFirst().prefix(2).first { adverseCodes.contains($0.weatherCode) }
+        forecasts.dropFirst().prefix(2).first { isAdverse($0) }
     }
 
     /// Formats the overdue invoice notification body text.
@@ -53,7 +61,7 @@ final class NotificationService {
         // forecast already calls adverse. Otherwise it's ignored for its noise.
         if let small = upcomingStorm, small.inches < StormWatch.defaultThreshold,
            !forecasts.contains(where: { calendar.isDate($0.date, inSameDayAs: small.day)
-               && adverseCodes.contains($0.weatherCode) }) {
+               && isAdverse($0) }) {
             upcomingStorm = nil
         }
         if let stormDay = upcomingStorm?.day, let adverseDay = adverse?.date,

@@ -100,13 +100,7 @@ struct DashboardView: View {
                     iCloudBanner
                     ProStatusBanner()
                     profileCard
-                    if let w = dashWeather {
-                        // WeatherKit's attribution goes wherever its weather shows.
-                        VStack(alignment: .trailing, spacing: 4) {
-                            dashWeatherStrip(w)
-                            WeatherAttribution()
-                        }
-                    }
+                    if let w = dashWeather { dashWeatherStrip(w) }
                     if let storm {
                         // The forecast for everyone; its tools are PlowR Pro.
                         StormCard(storm: storm, routes: myRoutes, clients: myClients, text: { clients in
@@ -119,6 +113,12 @@ struct DashboardView: View {
                                 markBelowTrigger(trigger, on: storm.day, below: below)
                             }
                         })
+                    }
+                    // WeatherKit's attribution, wherever its weather shows: the
+                    // conditions above, or the storm card's forecast on its own.
+                    if WeatherAttribution.isNeeded(current: dashWeather != nil, forecast: storm != nil) {
+                        WeatherAttribution()
+                            .frame(maxWidth: .infinity, alignment: .trailing)
                     }
                     todayCard
                     financeRow

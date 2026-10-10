@@ -167,20 +167,64 @@ struct StormWatchTests {
         #expect(!StormWatch.offersSnow([snowService(h, operatorID: "other")], operatorID: "op"))
     }
 
-    @Test func aForecastDayKeepsItsSnowfallAndCode() {
-        let day = WeatherService.day(date: now, highF: 30, lowF: 20, code: weatherCode(for: .snow),
-                                     precipitationMm: 10, snowfallInches: 4)
-        #expect(day.snowfallInches == 4 && day.weatherCode == 73 && day.description == "Snow")
+    // Snowfall in the wrong unit would fire the storm card at the wrong depth.
+    @Test func aForecastDayIsConvertedFromWeatherKitsUnits() {
+        let day = WeatherService.day(date: now, high: Measurement(value: 0, unit: .celsius),
+                                     low: Measurement(value: -10, unit: .celsius), condition: .snow,
+                                     precipitation: Measurement(value: 1, unit: .centimeters),
+                                     snowfall: Measurement(value: 10.16, unit: .centimeters), calendar: calendar)
+        #expect(abs((day.snowfallInches ?? 0) - 4) < 0.0001)                    // 10.16 cm of snow = 4 in
+        #expect(abs(day.maxTempF - 32) < 0.0001 && abs(day.minTempF - 14) < 0.0001)
+        #expect(abs(day.precipitationMm - 10) < 0.0001)
+        #expect(day.weatherCode == 73 && day.description == "Snow")
+    }
+
+    @Test func currentConditionsAreConvertedFromWeatherKitsUnits() {
+        let current = WeatherService.condition(temperature: Measurement(value: 0, unit: .celsius),
+                                               windSpeed: Measurement(value: 10, unit: .metersPerSecond),
+                                               windDirection: Measurement(value: 180, unit: .degrees),
+                                               condition: .windy)
+        #expect(abs(current.temperatureF - 32) < 0.0001)
+        #expect(abs(current.windSpeedMph - 22.369) < 0.01)
+        #expect(current.windDirectionLabel == "S" && current.description == "Windy")
+    }
+
+    // A WeatherKit day starts at midnight where the place is; a phone further
+    // west must still file it under that day.
+    @Test func aDayIsThePlacesDayOnAPhoneToTheWest() throws {
+        var newYork = Calendar(identifier: .gregorian)
+        newYork.timeZone = try #require(TimeZone(identifier: "America/New_York"))
+        var losAngeles = Calendar(identifier: .gregorian)
+        losAngeles.timeZone = try #require(TimeZone(identifier: "America/Los_Angeles"))
+        let midnightThere = try #require(newYork.date(from: DateComponents(year: 2027, month: 1, day: 14)))
+        let day = WeatherService.calendarDay(of: midnightThere, calendar: losAngeles)
+        #expect(losAngeles.component(.day, from: day) == 14)
     }
 
     // WeatherKit's conditions become the codes the alerts already know.
     @Test func weatherKitConditionsMapToTheCodesAlertsUse() {
         #expect(weatherCode(for: .clear) == 0)
         #expect(weatherCode(for: .heavySnow) == 75 && weatherCode(for: .blizzard) == 75)
-        #expect(weatherCode(for: .freezingRain) == 66 && weatherCode(for: .wintryMix) == 67)
-        #expect(weatherCode(for: .thunderstorms) == 95)
         #expect(weatherCode(for: .rain) == 63 && weatherCode(for: .heavyRain) == 65)
         #expect(weatherCode(for: .cloudy) == 3)
+        // The borderline ones, decided: ice and drifting snow alert; hail with storms.
+        #expect(weatherCode(for: .freezingDrizzle) == 66 && weatherCode(for: .freezingRain) == 66)
+        #expect(weatherCode(for: .sleet) == 67 && weatherCode(for: .wintryMix) == 67)
+        #expect(weatherCode(for: .blowingSnow) == 75)
+        #expect(weatherCode(for: .flurries) == 71 && weatherCode(for: .sunFlurries) == 71)
+        #expect(weatherCode(for: .hail) == 95 && weatherCode(for: .thunderstorms) == 95)
+        #expect(weatherCode(for: .drizzle) == 53)                                // not an alert, as before
+        // Their own labels, not "Overcast" or "Fog".
+        #expect(WeatherService.condition(temperature: Measurement(value: 70, unit: .fahrenheit),
+                                         windSpeed: Measurement(value: 0, unit: .milesPerHour),
+                                         windDirection: Measurement(value: 0, unit: .degrees),
+                                         condition: .smoky).description == "Smoky")
+    }
+
+    @Test func attributionShowsWithAnyWeather() {
+        #expect(WeatherAttribution.isNeeded(current: false, forecast: true))   // the storm card on its own
+        #expect(WeatherAttribution.isNeeded(current: true, forecast: false))
+        #expect(!WeatherAttribution.isNeeded(current: false, forecast: false))
     }
 
     @Test func amountsAndDays() {
@@ -212,7 +256,8 @@ struct StormWatchTests {
 
     private func adverse(_ offset: Int, code: Int) -> DayForecast {
         let base = day(offset, snow: nil)
-        return DayForecast(date: base.date, maxTempF: 30, minTempF: 20, weatherCode: code, precipitationMm: 5)
+        return DayForecast(date: base.date, maxTempF: 30, minTempF: 20, weatherCode: code,
+                           precipitationMm: code >= 51 && code < 1000 ? 5 : 0)
     }
 
     @Test func aFlurryShowsOnTheCardButAlertsOnlyOnAnAdverseDay() throws {

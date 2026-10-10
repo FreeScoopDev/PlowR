@@ -48,6 +48,12 @@ nonisolated private func wmoInfo(_ code: Int) -> (String, String) {
     case 80, 81, 82: return ("Showers", "cloud.heavyrain.fill")
     case 85, 86:     return ("Snow Showers", "cloud.snow.fill")
     case 95, 96, 99: return ("Thunderstorm", "cloud.bolt.rain.fill")
+    // WeatherKit's conditions with no WMO code of their own (weatherCode(for:)).
+    case 1001:       return ("Windy", "wind")
+    case 1002:       return ("Hot", "sun.max.fill")
+    case 1003:       return ("Frigid", "thermometer.low")
+    case 1004:       return ("Haze", "sun.haze.fill")
+    case 1005:       return ("Smoky", "smoke.fill")
     default:         return ("Conditions Vary", "cloud.fill")
     }
 }
@@ -59,21 +65,28 @@ nonisolated private func wmoInfo(_ code: Int) -> (String, String) {
 /// the source changed nothing downstream.
 nonisolated func weatherCode(for condition: WeatherKit.WeatherCondition) -> Int {
     switch condition {
-    case .clear, .hot: return 0
+    case .clear: return 0
+    case .hot: return 1002
     case .mostlyClear: return 1
     case .partlyCloudy: return 2
-    case .mostlyCloudy, .cloudy, .breezy, .windy, .frigid: return 3
-    case .foggy, .haze, .smoky, .blowingDust: return 45
+    case .mostlyCloudy, .cloudy: return 3
+    case .breezy, .windy: return 1001
+    case .frigid: return 1003
+    case .foggy: return 45
+    case .haze, .blowingDust: return 1004
+    case .smoky: return 1005
     case .drizzle: return 53
     case .rain, .sunShowers: return 63
     case .heavyRain: return 65
     case .freezingDrizzle, .freezingRain: return 66
-    case .sleet, .wintryMix, .hail: return 67
+    // Freezing drizzle and sleet leave ice: alert-worthy, as freezing rain.
+    case .sleet, .wintryMix: return 67
     case .flurries, .sunFlurries: return 71
     case .snow: return 73
+    // Blowing snow drifts over what was cleared: as heavy snow, for alerts.
     case .heavySnow, .blizzard, .blowingSnow: return 75
     case .isolatedThunderstorms, .scatteredThunderstorms, .thunderstorms, .strongStorms,
-         .tropicalStorm, .hurricane: return 95
+         .tropicalStorm, .hurricane, .hail: return 95
     @unknown default: return -1
     }
 }
@@ -89,9 +102,7 @@ actor WeatherService {
     private init() {}
 
     /// Never under tests: there's no WeatherKit entitlement or network there.
-    nonisolated static var unavailable: Bool {
-        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
-    }
+    nonisolated static var unavailable: Bool { PlowRApp.isRunningUnderTests }
 
     nonisolated static func location(latitude: Double, longitude: Double) -> CLLocation {
         CLLocation(latitude: RoundedCoordinates.round(latitude), longitude: RoundedCoordinates.round(longitude))
@@ -101,10 +112,8 @@ actor WeatherService {
         guard !Self.unavailable else { throw URLError(.notConnectedToInternet) }
         let current = try await WeatherKit.WeatherService.shared.weather(
             for: Self.location(latitude: latitude, longitude: longitude), including: .current)
-        return Self.condition(temperatureF: current.temperature.converted(to: .fahrenheit).value,
-                              windMph: current.wind.speed.converted(to: .milesPerHour).value,
-                              windDegrees: current.wind.direction.converted(to: .degrees).value,
-                              code: weatherCode(for: current.condition))
+        return Self.condition(temperature: current.temperature, windSpeed: current.wind.speed,
+                              windDirection: current.wind.direction, condition: current.condition)
     }
 
     func fetchForecast(latitude: Double, longitude: Double) async throws -> [DayForecast] {
@@ -112,27 +121,40 @@ actor WeatherService {
         let daily = try await WeatherKit.WeatherService.shared.weather(
             for: Self.location(latitude: latitude, longitude: longitude), including: .daily)
         return daily.forecast.prefix(7).map { day in
-            Self.day(date: day.date,
-                     highF: day.highTemperature.converted(to: .fahrenheit).value,
-                     lowF: day.lowTemperature.converted(to: .fahrenheit).value,
-                     code: weatherCode(for: day.condition),
-                     precipitationMm: day.precipitationAmountByType.precipitation.converted(to: .millimeters).value,
-                     snowfallInches: day.precipitationAmountByType.snowfallAmount.amount.converted(to: .inches).value)
+            Self.day(date: day.date, high: day.highTemperature, low: day.lowTemperature, condition: day.condition,
+                     precipitation: day.precipitationAmountByType.precipitation,
+                     snowfall: day.precipitationAmountByType.snowfallAmount.amount)
         }
     }
 
-    /// Current conditions, from values already in °F, mph and degrees.
-    nonisolated static func condition(temperatureF: Double, windMph: Double, windDegrees: Double,
-                                      code: Int) -> WeatherCondition {
-        let (description, symbol) = wmoInfo(code)
-        return WeatherCondition(temperatureF: temperatureF, description: description, symbolName: symbol,
-                                windSpeedMph: windMph, windDirectionDegrees: windDegrees)
+    /// Current conditions in °F, mph and degrees, from WeatherKit's measurements.
+    nonisolated static func condition(temperature: Measurement<UnitTemperature>, windSpeed: Measurement<UnitSpeed>,
+                                      windDirection: Measurement<UnitAngle>,
+                                      condition: WeatherKit.WeatherCondition) -> WeatherCondition {
+        let (description, symbol) = wmoInfo(weatherCode(for: condition))
+        return WeatherCondition(temperatureF: temperature.converted(to: .fahrenheit).value,
+                                description: description, symbolName: symbol,
+                                windSpeedMph: windSpeed.converted(to: .milesPerHour).value,
+                                windDirectionDegrees: windDirection.converted(to: .degrees).value)
     }
 
-    /// A forecast day, from values already in °F, millimetres and inches.
-    nonisolated static func day(date: Date, highF: Double, lowF: Double, code: Int,
-                                precipitationMm: Double, snowfallInches: Double) -> DayForecast {
-        DayForecast(date: date, maxTempF: highF, minTempF: lowF, weatherCode: code,
-                    precipitationMm: precipitationMm, snowfallInches: snowfallInches)
+    /// A forecast day in °F, millimetres and inches of snow (depth, not its
+    /// water), from WeatherKit's measurements, as StormWatch's triggers are.
+    nonisolated static func day(date: Date, high: Measurement<UnitTemperature>, low: Measurement<UnitTemperature>,
+                                condition: WeatherKit.WeatherCondition, precipitation: Measurement<UnitLength>,
+                                snowfall: Measurement<UnitLength>, calendar: Calendar = .current) -> DayForecast {
+        DayForecast(date: Self.calendarDay(of: date, calendar: calendar),
+                    maxTempF: high.converted(to: .fahrenheit).value,
+                    minTempF: low.converted(to: .fahrenheit).value,
+                    weatherCode: weatherCode(for: condition),
+                    precipitationMm: precipitation.converted(to: .millimeters).value,
+                    snowfallInches: snowfall.converted(to: .inches).value)
+    }
+
+    /// The phone's day for a WeatherKit day, which starts at midnight where
+    /// the place is: counted from its middle, so a phone in a zone to the
+    /// west doesn't put it on the day before.
+    nonisolated static func calendarDay(of date: Date, calendar: Calendar = .current) -> Date {
+        calendar.startOfDay(for: date.addingTimeInterval(12 * 3_600))
     }
 }

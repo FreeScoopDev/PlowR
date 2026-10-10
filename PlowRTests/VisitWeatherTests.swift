@@ -67,14 +67,40 @@ struct VisitWeatherTests {
         #expect(VisitWeather.line(nil) == "Estimated weather that day: no estimate for this day")
     }
 
-    // Under tests WeatherKit is never asked: the lookup fails, and says so.
+    // Under tests WeatherKit is never asked: with no history given, the
+    // lookup fails, and says so.
     @Test func aFailedLookupIsSaidSoNotReadAsNoData() async {
         let failed = await VisitWeather.lookUp(latitude: 43.4, longitude: -72.3, visitDays: [date(2027, 1, 14, 5)],
                                                now: date(2027, 2, 1))
         #expect(failed == .failed)
+        let refused = await VisitWeather.lookUp(latitude: 43.4, longitude: -72.3, visitDays: [date(2027, 1, 14, 5)],
+                                                now: date(2027, 2, 1), history: { _, _, _ in throw URLError(.timedOut) })
+        #expect(refused == .failed)
         let noPin = await VisitWeather.lookUp(latitude: 0, longitude: 0, visitDays: [date(2027, 1, 14, 5)],
                                               now: date(2027, 2, 1))
         #expect(noPin == .notLookedUp)
+    }
+
+    // What's actually asked for: the rounded place, from the span's first day
+    // to the day after its last.
+    @Test func theLookupAsksForTheSpanAtARoundedPlace() async {
+        var asked: [(Double, Double, Date, Date)] = []
+        let lookup = await VisitWeather.lookUp(latitude: 43.37704, longitude: -72.34512,
+                                               visitDays: [date(2027, 1, 14, 5), date(2027, 1, 16, 5)],
+                                               now: date(2027, 2, 1)) { location, start, end in
+            asked.append((location.coordinate.latitude, location.coordinate.longitude, start, end))
+            return [VisitWeather.figures(date: Calendar.current.startOfDay(for: start),
+                                         snowfall: Measurement(value: 2.54, unit: .centimeters),
+                                         precipitation: Measurement(value: 0.5, unit: .centimeters),
+                                         low: Measurement(value: -5, unit: .celsius),
+                                         high: Measurement(value: 5, unit: .celsius))]
+        }
+        #expect(asked.count == 1)
+        #expect(asked.first?.0 == 43.38 && asked.first?.1 == -72.35)
+        guard case .days(let days) = lookup, let day = days.values.first else {
+            Issue.record("expected days"); return
+        }
+        #expect(abs(day.snowfall - 1) < 0.0001 && abs(day.high - 41) < 0.0001)   // converted to in and °F
     }
 
     @Test func theReportShowsWeatherAsItsLookupWent() throws {

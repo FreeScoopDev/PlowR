@@ -126,7 +126,8 @@ struct ScheduleView: View {
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
                 // WeatherKit's attribution goes wherever its weather shows.
-                if weatherFetcher.condition != nil {
+                if WeatherAttribution.isNeeded(current: weatherFetcher.condition != nil,
+                                               forecast: !weatherFetcher.forecast.isEmpty) {
                     WeatherAttribution()
                         .frame(maxWidth: .infinity, alignment: .trailing)
                         .listRowBackground(Color.clear)
