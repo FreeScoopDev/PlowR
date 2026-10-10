@@ -10,6 +10,10 @@ on:
   pull_request:
     branches: [main]
 
+# Read the code, nothing more: no job writes to the repo or the PR.
+permissions:
+  contents: read
+
 jobs:
   service-language-guard:
     name: Service-language guard
@@ -18,7 +22,7 @@ jobs:
 
     steps:
       - name: Check out repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
       # PlowR serves snow removal, lawn care and landscaping from the same
       # screens (since 1.1.0, which replaced snow-only icons and wording on
@@ -115,7 +119,7 @@ jobs:
 
     steps:
       - name: Check out repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
       # A real gate since 2026-09-27: any error-severity violation (force
       # unwrap, force cast, try!) fails the job, and "SwiftLint" is a required

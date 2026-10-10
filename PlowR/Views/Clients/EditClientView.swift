@@ -280,9 +280,9 @@ struct EditClientView: View {
                                 }
                             }
                         }
-                        if !draft.email.isEmpty {
+                        if RequestLink.mailLink(draft.email) != nil {
                             Button {
-                                if let url = URL(string: "mailto:\(draft.email)") { openURL(url) }
+                                if let url = RequestLink.mailLink(draft.email) { openURL(url) }
                             } label: { Label("Email", systemImage: "envelope.fill") }
                         }
                     } label: {
@@ -351,7 +351,7 @@ struct EditClientView: View {
                     .textContentType(.emailAddress)
                     .keyboardType(.emailAddress)
                     .textInputAutocapitalization(.never)
-                if !draft.email.isEmpty, let url = URL(string: "mailto:\(draft.email)") {
+                if let url = RequestLink.mailLink(draft.email) {
                     Button {
                         openURL(url)
                     } label: {
