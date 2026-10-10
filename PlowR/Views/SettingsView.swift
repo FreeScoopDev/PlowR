@@ -10,6 +10,9 @@ struct SettingsView: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.access) private var access
     @State private var gate: ProGate?
+    @State private var showingPaywall = false
+    @State private var showingManage = false
+    @State private var restoreFailed = false
 
     @State private var showingFindService = false
     /// The request screen at the end of Find Services requires this store.
@@ -45,7 +48,8 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            ProSettingsSection()
+            ProSettingsSection(showingPaywall: $showingPaywall, showingManage: $showingManage,
+                               restoreFailed: $restoreFailed)
 
             Section("Business") {
                 NavigationLink(destination: BusinessProfileView()) {
@@ -219,6 +223,9 @@ struct SettingsView: View {
         }
         .navigationTitle("Settings")
         .proGateSheet($gate)
+        // PlowR Pro's sheets, here on the Form, never on its section.
+        .modifier(ProSettingsSection.Presentations(showingPaywall: $showingPaywall, showingManage: $showingManage,
+                                                   restoreFailed: $restoreFailed))
         .sheet(isPresented: $showingFindService) {
             FindServiceFlow()
                 .environment(workOrderStore)

@@ -12,6 +12,7 @@ struct ContractEditView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var allServiceItems: [ServiceItem]
     @State private var draft: Contracts.Draft
+    @State private var gate: ProGate?
 
     init(client: Client, contract: Contract?) {
         self.client = client
@@ -72,13 +73,14 @@ struct ContractEditView: View {
                     termsSections
                 }
                 scheduleSection
-                if coversSnow { ContractTriggerSection(inches: $draft.triggerInches) }
+                if coversSnow { ContractTriggerSection(inches: $draft.triggerInches, gate: $gate) }
                 Section("Notes") {
                     TextField("Terms, what's included, anything agreed", text: $draft.notes, axis: .vertical)
                         .lineLimit(3...)
                 }
             }
             .navigationTitle(contract == nil ? "New Contract" : "Edit Contract")
+            .proGateSheet($gate)
             .navigationBarTitleDisplayMode(.inline)
             .scrollDismissesKeyboard(.interactively)
             .toolbar {

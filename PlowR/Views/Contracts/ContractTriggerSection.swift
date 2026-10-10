@@ -6,16 +6,16 @@ import SwiftUI
 /// a snow service. The Dashboard's storm card goes by it (StormWatch).
 struct ContractTriggerSection: View {
     @Binding var inches: Double
+    /// Shown by the contract's Form (`.proGateSheet`), not this section: a
+    /// section's modifiers go to each of its rows.
+    @Binding var gate: ProGate?
     @Environment(\.access) private var access
-    @State private var gate: ProGate?
 
     private var value: String { inches > 0 ? "\(inches.formatted()) in or more" : "Every snowfall" }
 
     var body: some View {
         Section {
             // A PlowR Pro tool: without Pro the setting shows, and says why it can't change.
-            // One row, so the gate sheet hangs off it, not the Section (whose
-            // modifiers go to each row).
             Group {
                 if let blocked = ProGate.proFeature("The snow trigger", access) {
                     Button { gate = blocked } label: {
@@ -28,7 +28,6 @@ struct ContractTriggerSection: View {
                     }
                 }
             }
-            .proGateSheet($gate)
         } footer: {
             Text("Snow clearing starts at this depth. The Dashboard shows a storm card when the forecast reaches it.")
         }
@@ -80,8 +79,27 @@ struct ContractTriggerChecksSection: View {
         Section {
             LabeledContent("Snow Trigger",
                            value: contract.triggerInches > 0 ? "\(contract.triggerInches.formatted()) in or more" : "Every snowfall")
-                // The gate sheet hangs off this row, not the Section.
+                // The presentations hang off this always-present row, never
+                // the Section, whose modifiers go to each of its rows.
                 .proGateSheet($gate)
+                .onAppear {
+                    // Start on a day the picker offers: an ended contract's last day.
+                    if let range, !range.contains(day) { day = range.upperBound }
+                }
+                .confirmationDialog("Remove this check?", isPresented: Binding(get: { removing != nil },
+                                                                                set: { if !$0 { removing = nil } }),
+                                    titleVisibility: .visible) {
+                    Button("Remove Check and Photos", role: .destructive) {
+                        if let removing {
+                            TriggerChecks.delete(removing, in: modelContext)
+                            try? modelContext.save()
+                        }
+                        removing = nil
+                    }
+                    Button("Keep", role: .cancel) { removing = nil }
+                } message: {
+                    Text("It was made at the stop on a route, with its photos. It comes off every device and the Service Report.")
+                }
             if let range {
                 DatePicker("Day", selection: $day, in: range, displayedComponents: .date)
                 let sameDay = checks.filter { Calendar.current.isDate($0.day, inSameDayAs: day) }
@@ -131,24 +149,6 @@ struct ContractTriggerChecksSection: View {
             Text(range == nil
                  ? "Days below the trigger can be marked once the contract starts."
                  : "Less fell at the property than the trigger? Mark the day: the storm card and route leave the client out, and the Service Report lists it.")
-        }
-        .onAppear {
-            // Start on a day the picker offers: an ended contract's last day.
-            if let range, !range.contains(day) { day = range.upperBound }
-        }
-        .confirmationDialog("Remove this check?", isPresented: Binding(get: { removing != nil },
-                                                                        set: { if !$0 { removing = nil } }),
-                            titleVisibility: .visible) {
-            Button("Remove Check and Photos", role: .destructive) {
-                if let removing {
-                    TriggerChecks.delete(removing, in: modelContext)
-                    try? modelContext.save()
-                }
-                removing = nil
-            }
-            Button("Keep", role: .cancel) { removing = nil }
-        } message: {
-            Text("It was made at the stop on a route, with its photos. It comes off every device and the Service Report.")
         }
     }
 }

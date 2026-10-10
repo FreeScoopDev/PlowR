@@ -1,7 +1,7 @@
-### Fixed
-- Settings → PlowR Pro → See PlowR Pro closed Settings instead of opening
-  the subscribe screen (seen in the simulator before release). The screen
-  was attached to the whole Form section, and SwiftUI hands a section's
-  modifiers to each of its rows, so the presentations collided. They now
-  hang off one row, and the same is done for the snow trigger's gate on a
-  contract.
+### Internal
+- PlowR Pro's sheets are presented from a screen's Form, never from a Form
+  section: SwiftUI hands a section's modifiers to each of its rows, and in
+  the simulator See PlowR Pro closed Settings instead of opening the
+  subscribe screen. The same applies to the snow trigger's gate on a
+  contract, and the contract page's "Remove this check?" dialog moved off
+  its section too. Found before release.
