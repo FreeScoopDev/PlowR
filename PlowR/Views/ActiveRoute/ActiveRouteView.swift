@@ -216,6 +216,7 @@ struct ActiveRouteView: View {
                     .frame(minWidth: 44, minHeight: 44)
                     .contentShape(Rectangle())
             }
+            .accessibilityLabel("Open Settings to set Location to Always")
         }
         .padding(.horizontal)
         .padding(.vertical, 8)
