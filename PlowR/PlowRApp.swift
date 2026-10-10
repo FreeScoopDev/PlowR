@@ -44,6 +44,8 @@ struct PlowRApp: App {
             ClientStops.followRemoteChanges(of: container)
             // Parts of a payment recorded on two devices, now together.
             Payments.settleAll(in: container.mainContext)
+            // An invoice number two devices both gave out (InvoiceRecords).
+            InvoiceRecords.resolveDuplicateNumbers(in: container.mainContext)
             DocumentSent.clearTextStamps(in: container.mainContext)
             ClientRemoval.takeInactiveClientsOffRoutes(in: container.mainContext)
             // The Service Log: the same work recorded on two devices, merged.
@@ -208,6 +210,8 @@ struct PlowRApp: App {
                 if !Self.isRunningUnderTests {
                     ClientStops.updateAll(in: container.mainContext)
                     Payments.settleAll(in: container.mainContext)
+                    // An invoice number two devices both gave out (InvoiceRecords).
+                    InvoiceRecords.resolveDuplicateNumbers(in: container.mainContext)
                     lookUpImportPins()
                     // A subscription that ran out while away sends no update.
                     Task { await Subscription.shared.refresh() }

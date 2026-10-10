@@ -603,6 +603,29 @@ struct PDFGenerator {
         drawHRule(x: lX, y: curY, width: lW + vW, weight: 0.75, color: ruleMid)
         curY += 12
 
+        // Void: kept on record, owes nothing; never "TOTAL DUE".
+        if isInvoice, proposal.voidedAt != nil {
+            subtotalRow("Total", value: proposal.total, lX: lX, lW: lW, vX: vX, vW: vW, y: curY)
+            curY += 20
+            let reason = proposal.voidNote.isEmpty ? "VOID" : "VOID · \(proposal.voidNote)"
+            drawText(reason, x: lX, y: curY, width: lW + vW,
+                     font: labelFont(10), color: UIColor.systemRed, kern: 1.5, alignment: .right)
+            return curY + 24
+        }
+
+        // Paid in full: the total, what was paid, and nothing due (a receipt).
+        if isInvoice, proposal.invoicePaidAt != nil {
+            subtotalRow("Total", value: proposal.total, lX: lX, lW: lW, vX: vX, vW: vW, y: curY)
+            curY += 17
+            subtotalRow("Paid", value: proposal.amountPaid, lX: lX, lW: lW, vX: vX, vW: vW, y: curY, negate: true)
+            curY += 20
+            drawText("PAID · BALANCE DUE", x: lX, y: curY, width: lW,
+                     font: labelFont(10), color: accent, kern: 1.5, alignment: .right)
+            drawText(String(format: "$%.2f", proposal.balanceDue), x: vX, y: curY, width: vW,
+                     font: bodyBoldFont(14), color: ink, alignment: .right)
+            return curY + 24
+        }
+
         // Paid in part: the total, what's been paid, and the balance still due.
         if isInvoice, proposal.isPartlyPaid {
             subtotalRow("Total", value: proposal.total, lX: lX, lW: lW, vX: vX, vW: vW, y: curY)

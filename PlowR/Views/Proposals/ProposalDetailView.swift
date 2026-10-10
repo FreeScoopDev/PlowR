@@ -129,13 +129,18 @@ struct ProposalDetailView: View {
         .sheet(isPresented: $showingEditView, onDismiss: { generatePDF() }) {
             ProposalEditView(proposal: proposal)
         }
-        .confirmationDialog("Revise Paid Invoice", isPresented: $showingReviseDialog, titleVisibility: .visible) {
-            Button("Create Revision Copy") { createRevision() }
-            Button("Reset to Draft", role: .destructive) { resetToDraft() }
+        // An invoice that's out is a record: changed by a revision, or voided
+        // (InvoiceRecords). Never edited under its number, never deleted.
+        .confirmationDialog("Revise or Void \(proposal.invoiceNumber)", isPresented: $showingReviseDialog,
+                            titleVisibility: .visible) {
+            Button("Create Revision") { createRevision() }
+            Button("Void Invoice", role: .destructive) {
+                InvoiceRecords.void(proposal, note: "Voided")
+                generatePDF()
+            }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text(["Create a new draft revision, or reset this invoice back to Draft status.",
-                  Payments.clearNote(for: proposal)].filter { !$0.isEmpty }.joined(separator: " "))
+            Text("A revision is a new invoice that replaces this one: what was paid moves to it, and this one is kept as void. Void takes it back with no replacement; it stays on record and owes nothing.")
         }
     }
 
@@ -201,8 +206,8 @@ struct ProposalDetailView: View {
                 .tint(.orange)
 
             case .sent, .overdue:
-                Button { showingEditView = true } label: {
-                    Label("Edit", systemImage: "pencil")
+                Button { $gate.unless(ProGate.edit(access)) { showingReviseDialog = true } } label: {
+                    Label("Revise", systemImage: "doc.badge.plus")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
@@ -238,6 +243,14 @@ struct ProposalDetailView: View {
                 }
                 .buttonStyle(.bordered)
                 .tint(.orange)
+
+            case .void:
+                // Kept on record: its payments (if any) can still be seen.
+                Button { showingPayments = true } label: {
+                    Label("Payments", systemImage: "dollarsign.circle")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
             }
         }
         .padding(.horizontal)
@@ -280,12 +293,6 @@ struct ProposalDetailView: View {
 
     private func markSent() {
         DocumentSent.markSent(proposal, in: modelContext)
-        generatePDF()
-    }
-
-    private func resetToDraft() {
-        Payments.clear(proposal, in: modelContext)
-        proposal.invoiceSentAt = nil
         generatePDF()
     }
 

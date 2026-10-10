@@ -22,6 +22,11 @@ final class Proposal {
     var invoiceSentAt: Date?
     var invoicePaidAt: Date?
     var revisionOf: String = ""
+    /// Voided: kept as a record (its number is never used again) and owing
+    /// nothing. A revised invoice is voided by its revision (InvoiceRecords).
+    var voidedAt: Date?
+    /// Why: "Revised as INV-0042-R1", or what the business wrote.
+    var voidNote: String = ""
     var visitID: String = ""      // scheduled visit this invoice was created from
     /// An installment of a contract (ContractInstallments): its contract,
     /// and which payment (1, 2, …). Empty for any other invoice.
@@ -72,7 +77,9 @@ final class Proposal {
     /// older PlowR, has fewer or none). More, if it was overpaid.
     var amountPaid: Double {
         guard isInvoice else { return 0 }
-        return invoicePaidAt != nil ? max(total, paymentsTotal) : paymentsTotal
+        // A voided invoice's "paid" was moved to its revision as a payment
+        // (ServiceLog.movePayments): only what's still recorded on it counts.
+        return invoicePaidAt != nil && voidedAt == nil ? max(total, paymentsTotal) : paymentsTotal
     }
 
     /// Paid more than its total (edited down after it was paid, or the same
@@ -83,7 +90,7 @@ final class Proposal {
 
     /// What the client still owes on it: nothing on a proposal or a paid invoice.
     var balanceDue: Double {
-        guard isInvoice, invoicePaidAt == nil else { return 0 }
+        guard isInvoice, invoicePaidAt == nil, voidedAt == nil else { return 0 }
         return max(0, InvoiceLines.roundedToCent(total - amountPaid))
     }
 
@@ -118,6 +125,7 @@ final class Proposal {
 
     var invoiceStatus: InvoiceStatus {
         guard isInvoice else { return .proposal }
+        if voidedAt != nil { return .void }
         if invoicePaidAt != nil { return .paid }
         if let due = invoiceDueDate, due < Date(), invoiceSentAt != nil { return .overdue }
         if invoiceSentAt != nil { return .sent }
@@ -139,6 +147,7 @@ enum InvoiceStatus: String {
     case sent     = "Sent"
     case paid     = "Paid"
     case overdue  = "Overdue"
+    case void     = "Void"
 
     var systemImage: String {
         switch self {
@@ -147,6 +156,7 @@ enum InvoiceStatus: String {
         case .sent:     return "paperplane.fill"
         case .paid:     return "checkmark.seal.fill"
         case .overdue:  return "exclamationmark.circle.fill"
+        case .void:     return "xmark.circle"
         }
     }
 
@@ -157,6 +167,7 @@ enum InvoiceStatus: String {
         case .sent:     return .orange
         case .paid:     return .green
         case .overdue:  return .red
+        case .void:     return .secondary
         }
     }
 }

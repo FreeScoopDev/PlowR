@@ -422,7 +422,30 @@ enum ServiceLog {
         revision.lineItems = copies
         context.insert(revision)
         moveBilling(from: original, to: revision, in: context)
+        movePayments(from: original, to: revision, in: context)
+        // The revision replaces it: kept as a record, owing nothing.
+        InvoiceRecords.void(original, note: "Revised as \(revision.invoiceNumber)", now: now)
         return revision
+    }
+
+    /// What the client paid on `original` is paid on its revision, so a
+    /// revision never bills again what was paid (pre-launch review,
+    /// 2026-10-10). One marked paid before payments were kept (no Payment
+    /// for some or all of it) becomes a payment of what that came to, on the
+    /// day it was marked paid.
+    static func movePayments(from original: Proposal, to revision: Proposal, in context: ModelContext) {
+        let payments = (original.payments ?? []).filter { !$0.isDeleted }
+        let recorded = InvoiceLines.roundedToCent(payments.reduce(0) { $0 + $1.amount })
+        if let paidAt = original.invoicePaidAt, original.total - recorded > Payments.tolerance {
+            let implied = Payment(amount: InvoiceLines.roundedToCent(original.total - recorded),
+                                  method: "", receivedAt: paidAt, operatorID: original.operatorID)
+            implied.clientID = original.clientID
+            implied.note = "Marked paid on \(original.invoiceNumber)"
+            context.insert(implied)
+            implied.invoice = revision
+        }
+        for payment in payments { payment.invoice = revision }
+        Payments.settle(revision, in: context)
     }
 
     /// A revision replaces `original`: the work billed on the original, and

@@ -230,20 +230,22 @@ struct EditClientView: View {
                 Text(ClientRemoval.deactivateMessage(for: footprint))
             }
         }
+        // An invoice that's out is a record: revised or voided, never
+        // edited under its number or reset (InvoiceRecords).
         .confirmationDialog(
-            "Revise Paid Invoice",
+            "Revise or Void",
             isPresented: Binding(
                 get: { revisePaidDoc != nil },
                 set: { if !$0 { revisePaidDoc = nil } }
             ),
             titleVisibility: .visible
         ) {
-            Button("Save as Revision Copy") {
+            Button("Create Revision") {
                 if let doc = revisePaidDoc { createRevision(of: doc) }
                 revisePaidDoc = nil
             }
-            Button("Overwrite Original", role: .destructive) {
-                if let doc = revisePaidDoc { overwriteForEdit(doc) }
+            Button("Void Invoice", role: .destructive) {
+                if let doc = revisePaidDoc { InvoiceRecords.void(doc, note: "Voided") }
                 revisePaidDoc = nil
             }
             Button("Cancel", role: .cancel) { revisePaidDoc = nil }
@@ -251,8 +253,7 @@ struct EditClientView: View {
             if let doc = revisePaidDoc {
                 let copyNumber = InvoiceNumbering.nextRevision(of: doc.invoiceNumber,
                                                                operatorID: doc.operatorID, in: modelContext)
-                Text(["'\(doc.invoiceNumber)' is marked paid. 'Save as Revision Copy' creates \(copyNumber) as a new draft. 'Overwrite' resets it to Draft so you can resend.",
-                      Payments.clearNote(for: doc)].filter { !$0.isEmpty }.joined(separator: " "))
+                Text("A revision, \(copyNumber), replaces \(doc.invoiceNumber): what was paid moves to it, and \(doc.invoiceNumber) is kept as void. Void takes \(doc.invoiceNumber) back with no replacement; it stays on record and owes nothing.")
             }
         }
     }
@@ -1035,12 +1036,12 @@ struct EditClientView: View {
                         .buttonStyle(.bordered)
                         .controlSize(.mini)
                         .tint(.green)
-                        Button("Edit") {
-                            editingProposal = document
+                        Button("Revise") {
+                            $gate.unless(ProGate.edit(access)) { revisePaidDoc = document }
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.mini)
-                        .tint(.blue)
+                        .tint(.orange)
                     } else if document.invoiceStatus == .draft {
                         Button("Edit") {
                             editingProposal = document
@@ -1083,12 +1084,6 @@ struct EditClientView: View {
 
     private func createRevision(of original: Proposal) {
         ServiceLog.revise(original, client: client, in: modelContext)
-    }
-
-    private func overwriteForEdit(_ proposal: Proposal) {
-        // Reset to Draft so the operator can resend with updated info
-        Payments.clear(proposal, in: modelContext)
-        proposal.invoiceSentAt = nil
     }
 
     // MARK: - Map

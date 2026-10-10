@@ -63,16 +63,6 @@ enum Payments {
         }
     }
 
-    /// Back to nothing received: Reset to Draft, and a paid document
-    /// reopened to be edited and sent again.
-    static func clear(_ invoice: Proposal, in context: ModelContext) {
-        for payment in live(invoice) {
-            payment.invoice = nil
-            context.delete(payment)
-        }
-        invoice.invoicePaidAt = nil
-    }
-
     /// Paid once its payments cover its total, on the day the last one
     /// came; owed again if they no longer do (a payment taken back, the
     /// invoice edited up). An invoice with no payments is left as it is:
@@ -119,18 +109,6 @@ enum Payments {
         let payments = live(invoice)
         return !payments.isEmpty
             && InvoiceLines.roundedToCent(payments.reduce(0) { $0 + $1.amount }) + tolerance >= invoice.total
-    }
-
-    /// What Reset to Draft (or overwriting a paid invoice) takes away, for
-    /// its confirmation: empty when there are no payments.
-    static func clearNote(for invoice: Proposal) -> String {
-        let payments = live(invoice)
-        guard !payments.isEmpty else { return "" }
-        let sum = InvoiceLines.roundedToCent(payments.reduce(0) { $0 + $1.amount })
-            .formatted(.currency(code: "USD"))
-        return payments.count == 1
-            ? "Its recorded payment (\(sum)) is removed."
-            : "Its \(payments.count) recorded payments (\(sum)) are removed."
     }
 
     // MARK: - Methods
@@ -185,7 +163,9 @@ enum Payments {
         documents.filter(\.isInvoice).flatMap { invoice -> [(date: Date, amount: Double)] in
             let payments = invoice.sortedPayments
             var receipts = payments.map { (date: $0.receivedAt, amount: $0.amount) }
-            if let paidAt = invoice.invoicePaidAt {
+            // A voided invoice's "paid" went to its revision as a payment
+            // (ServiceLog.movePayments): only its own payments count here.
+            if let paidAt = invoice.invoicePaidAt, invoice.voidedAt == nil {
                 let rest = InvoiceLines.roundedToCent(invoice.total - payments.reduce(0) { $0 + $1.amount })
                 if rest > tolerance { receipts.append((paidAt, rest)) }
             }
