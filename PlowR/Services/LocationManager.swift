@@ -34,8 +34,12 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
         manager.requestAlwaysAuthorization()
     }
 
+    /// No distance filter until a fresh fix arrives: the first one iOS
+    /// hands over can be stale and skipped, and with the filter on, a fresh
+    /// one within 20 m of it might not come until the truck moves.
     func startTracking() {
         manager.activityType = .automotiveNavigation
+        manager.distanceFilter = kCLDistanceFilterNone
         manager.startUpdatingLocation()
     }
 
@@ -92,6 +96,7 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
         // text's location wait for a fresh one.
         guard let fix = locations.last(where: { RouteGPS.isFresh($0) }) else { return }
         currentLocation = fix
+        manager.distanceFilter = Self.distanceFilter
     }
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
@@ -117,14 +122,14 @@ enum RouteGPS {
         }
     }
 
-    /// Arrival and departure times need Always: on While Using, iOS hands
-    /// PlowR a job-site crossing only while it's on screen. The route screen
-    /// says so (not on a Mac, which follows no route).
     /// A fix worth using: a real position from the last few seconds.
     static func isFresh(_ fix: CLLocation, now: Date = .now) -> Bool {
         fix.horizontalAccuracy >= 0 && now.timeIntervalSince(fix.timestamp) <= 10
     }
 
+    /// Arrival and departure times need Always: on While Using, iOS hands
+    /// PlowR a job-site crossing only while it's on screen. The route screen
+    /// says so (not on a Mac, which follows no route).
     static func needsAlways(status: CLAuthorizationStatus, isMac: Bool) -> Bool {
         !isMac && status == .authorizedWhenInUse
     }

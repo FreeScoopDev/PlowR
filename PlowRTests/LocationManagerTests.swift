@@ -30,6 +30,10 @@ struct LocationManagerTests {
         defer { location.stopTracking() }
         #expect(!manager.allowsBackgroundLocationUpdates)
         #expect(manager.desiredAccuracy == kCLLocationAccuracyNearestTenMeters)
+        #expect(manager.distanceFilter == kCLDistanceFilterNone)         // until a fresh fix
+        location.locationManager(manager, didUpdateLocations: [CLLocation(
+            coordinate: CLLocationCoordinate2D(latitude: 43.37, longitude: -72.34), altitude: 0,
+            horizontalAccuracy: 10, verticalAccuracy: 10, timestamp: Date())])
         #expect(manager.distanceFilter == 20)
     }
 
@@ -85,6 +89,10 @@ struct LocationManagerTests {
         #expect(location.currentLocation == nil)
         location.locationManager(CLLocationManager(), didUpdateLocations: [fix(ago: 300), fix(ago: 1)])
         #expect(location.currentLocation != nil)
+        // The newest fresh one of a batch.
+        let newest = fix(ago: 1)
+        location.locationManager(CLLocationManager(), didUpdateLocations: [fix(ago: 5), newest])
+        #expect(location.currentLocation?.timestamp == newest.timestamp)
     }
 }
 

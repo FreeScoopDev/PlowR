@@ -207,12 +207,15 @@ struct ActiveRouteView: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             Spacer(minLength: 0)
-            Button("Settings") {
+            Button {
                 if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+            } label: {
+                // The whole 44 pt row is the button, not just the word.
+                Text("Settings")
+                    .font(.footnote.weight(.semibold))
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
             }
-            .font(.footnote.weight(.semibold))
-            .frame(minHeight: 44)
-            .contentShape(Rectangle())
         }
         .padding(.horizontal)
         .padding(.vertical, 8)
