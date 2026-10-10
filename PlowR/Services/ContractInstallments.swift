@@ -150,6 +150,21 @@ enum ContractInstallments {
         return all.first { $0.id != invoice.id && isLiveBilling($0) && paymentKey($0) == paymentKey(invoice) }
     }
 
+    /// What the banner on `invoice` says to do about `other`: take back the
+    /// copy no money came in on, so a client who paid isn't asked again.
+    static func duplicateAdvice(for invoice: Proposal, other: Proposal) -> String {
+        let lead = "Another invoice also bills this contract payment: they were made on two devices before they synced."
+        func paid(_ p: Proposal) -> Bool { p.paymentsTotal > Payments.tolerance || p.invoicePaidAt != nil }
+        switch (paid(invoice), paid(other)) {
+        case (true, false):
+            return "\(lead) This one has a payment: delete or void the other one."
+        case (false, true):
+            return "\(lead) The other one has a payment: delete or void this one."
+        default:
+            return "\(lead) Delete one that wasn't sent (swipe it in Documents), or void one."
+        }
+    }
+
     /// One invoice of each contract payment billed more than once, the
     /// oldest first: for the Dashboard to point to.
     static func duplicates(_ documents: [Proposal], operatorID: String) -> [Proposal] {

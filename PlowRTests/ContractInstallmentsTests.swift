@@ -190,6 +190,11 @@ struct ContractInstallmentsTests {
         #expect(ContractInstallments.duplicates(all, operatorID: "op").isEmpty)
         #expect(season.installmentsMade == [1])
         #expect(ContractInstallments.due(season, now: date(2026, 11, 15, 8), calendar: calendar).isEmpty)
+        // Voiding the last copy gives the payment back.
+        first.invoiceSentAt = h.clock
+        InvoiceRecords.void(first, note: "Wrong amount", now: h.clock, in: h.context)
+        #expect(season.installmentsMade.isEmpty)
+        #expect(ContractInstallments.due(season, now: date(2026, 11, 15, 8), calendar: calendar).map(\.index) == [1])
     }
 
     // A revision is its payment's live invoice: revising one of two copies
@@ -231,6 +236,30 @@ struct ContractInstallmentsTests {
         let all = [a, b, c]
         #expect(all.allSatisfy { !ContractInstallments.hasDuplicate($0, among: all) })
         #expect(ContractInstallments.duplicates(all, operatorID: "op").isEmpty)
+    }
+
+    // A draft copy deleted, then the other voided: the payment is free again.
+    @Test func deletingOneCopyAndVoidingTheOtherGivesThePaymentBack() throws {
+        let h = try Harness(stopCount: 0)
+        let season = contract(h, .season, price: 900, installments: 3, from: date(2026, 11, 15), to: date(2027, 4, 15))
+        let first = try firstPayment(h, season)
+        let copy = secondCopy(of: first, h, at: date(2026, 11, 15, 9))
+        h.context.delete(copy)
+        first.invoiceSentAt = h.clock
+        InvoiceRecords.void(first, note: "Wrong amount", now: h.clock, in: h.context)
+        #expect(season.installmentsMade.isEmpty)
+    }
+
+    // The banner names the copy to take back: the one with no money on it.
+    @Test func theAdviceSparesTheCopyWithAPayment() throws {
+        let h = try Harness(stopCount: 0)
+        let season = contract(h, .season, price: 900, installments: 3, from: date(2026, 11, 15), to: date(2027, 4, 15))
+        let first = try firstPayment(h, season)
+        let other = secondCopy(of: first, h, at: date(2026, 11, 15, 9))
+        #expect(ContractInstallments.duplicateAdvice(for: first, other: other).contains("Delete one that wasn't sent"))
+        Payments.record(100, method: "", receivedAt: h.clock, on: first, in: h.context, now: h.clock)
+        #expect(ContractInstallments.duplicateAdvice(for: first, other: other).contains("void the other one"))
+        #expect(ContractInstallments.duplicateAdvice(for: other, other: first).contains("void this one"))
     }
 }
 
