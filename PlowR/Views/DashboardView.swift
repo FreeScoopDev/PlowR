@@ -503,7 +503,7 @@ struct DashboardView: View {
 
             DashCard {
                 if recentRoutes.isEmpty {
-                    emptyRow("No routes yet", icon: "map.badge.plus")
+                    emptyRow("No routes yet", icon: "point.topleft.down.to.point.bottomright.curvepath")
                 } else {
                     ForEach(Array(recentRoutes.enumerated()), id: \.element.id) { i, route in
                         if i > 0 { Divider().padding(.leading, Self.rowTextInset) }
@@ -616,7 +616,7 @@ struct DashboardView: View {
                     quickActionLabel("New Client", icon: "person.badge.plus", color: .blue)
                 }
                 .buttonStyle(.plain)
-                quickAction("New Route",       icon: "map.badge.plus",      color: .green)  {
+                quickAction("New Route",       icon: "point.topleft.down.to.point.bottomright.curvepath",      color: .green)  {
                     $gate.unless(ProGate.createRoute(access, routes: allRoutes, operatorID: authManager.userID)) { showingCreateRoute = true }
                 }
                 quickAction("Schedule Visit",  icon: "calendar.badge.plus", color: .orange) { showingAddVisit = true }

@@ -23,7 +23,7 @@ struct RouteListView: View {
             if routes.isEmpty {
                 ContentUnavailableView(
                     "No Routes Yet",
-                    systemImage: "map.badge.plus",
+                    systemImage: "point.topleft.down.to.point.bottomright.curvepath",
                     description: Text("Create a route to organize your stops.")
                 )
             } else {
