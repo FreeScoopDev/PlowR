@@ -1,0 +1,72 @@
+# Full test run for every pull request, on GitHub's own macOS runner.
+#
+# Why (2026-10-10): Xcode Cloud's compute hours (shared by every app on the
+# developer membership) ran out mid-month, and every PR's `CI Tests` run was
+# cancelled before it started, so nothing could merge until the period
+# resets. The repository is public, so GitHub-hosted runners are free, macOS
+# included. Xcode Cloud keeps Release Flow (TestFlight and App Store builds).
+# This job reports alongside `CI Tests` first; it replaces it as the required
+# check only once its run time is known (docs/ci.md).
+#
+# What runs: the PlowR scheme's tests through the shared toolkit's
+# bin/test.sh at one pinned toolkit commit, so CI and a local scripts/test.sh
+# judge a run by the same signals: xcodebuild's exit code, the literal
+# ** TEST SUCCEEDED **, and a non-zero count in the result bundle. The local
+# wrapper's StoreKit tests aren't run (Apple's local test store isn't
+# reliable on CI), as on Xcode Cloud.
+
+name: Tests
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Read the code, nothing more.
+permissions:
+  contents: read
+
+# A newer push to the same PR cancels the run in progress.
+concurrency:
+  group: tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    name: Unit tests (iOS)
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      # Pinned to a commit, not main, so a toolkit change is a deliberate bump.
+      - name: Check out the shared toolkit
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          repository: FreeScoopDev/app-toolkit
+          ref: 452ea4bcf8597dac4121dc66cccb60f2a9f6d7e7
+          path: toolkit
+
+      # The newest Xcode 26 on the image: Xcode Cloud builds this project
+      # with Xcode 26 (iOS 26.5 SDK) too.
+      - name: Select Xcode
+        run: |
+          set -euo pipefail
+          XCODE=$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)
+          sudo xcode-select -s "$XCODE"
+          xcodebuild -version
+
+      - name: Run the tests (PlowRTests)
+        env:
+          TEST_OUTPUT_DIR: ${{ runner.temp }}/plowr-tests
+        run: bash toolkit/bin/test.sh "$GITHUB_WORKSPACE"
+
+      - name: Upload the log and result bundle on failure
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: unit-test-results
+          path: ${{ runner.temp }}/plowr-tests
+          retention-days: 7
