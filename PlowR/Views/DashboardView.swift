@@ -102,10 +102,15 @@ struct DashboardView: View {
                     profileCard
                     if let w = dashWeather { dashWeatherStrip(w) }
                     if let storm {
+                        // The forecast for everyone; its tools are PlowR Pro.
                         StormCard(storm: storm, routes: myRoutes, clients: myClients, text: { clients in
-                            stormTextStops = clients.enumerated().map { RouteStop(order: $0.offset, client: $0.element) }
+                            $gate.unless(ProGate.proFeature("The storm card", access)) {
+                                stormTextStops = clients.enumerated().map { RouteStop(order: $0.offset, client: $0.element) }
+                            }
                         }, mark: { trigger, below in
-                            markBelowTrigger(trigger, on: storm.day, below: below)
+                            $gate.unless(ProGate.proFeature("The storm card", access)) {
+                                markBelowTrigger(trigger, on: storm.day, below: below)
+                            }
                         })
                     }
                     todayCard

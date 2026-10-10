@@ -6,15 +6,28 @@ import SwiftUI
 /// a snow service. The Dashboard's storm card goes by it (StormWatch).
 struct ContractTriggerSection: View {
     @Binding var inches: Double
+    @Environment(\.access) private var access
+    @State private var gate: ProGate?
+
+    private var value: String { inches > 0 ? "\(inches.formatted()) in or more" : "Every snowfall" }
 
     var body: some View {
         Section {
-            Stepper(value: $inches, in: 0...12, step: 0.5) {
-                LabeledContent("Snow Trigger", value: inches > 0 ? "\(inches.formatted()) in or more" : "Every snowfall")
+            // A PlowR Pro tool: without Pro the setting shows, and says why it can't change.
+            if let blocked = ProGate.proFeature("The snow trigger", access) {
+                Button { gate = blocked } label: {
+                    LabeledContent("Snow Trigger", value: value)
+                }
+                .foregroundStyle(.primary)
+            } else {
+                Stepper(value: $inches, in: 0...12, step: 0.5) {
+                    LabeledContent("Snow Trigger", value: value)
+                }
             }
         } footer: {
             Text("Snow clearing starts at this depth. The Dashboard shows a storm card when the forecast reaches it.")
         }
+        .proGateSheet($gate)
     }
 }
 
@@ -35,6 +48,8 @@ struct ContractTriggerChecksSection: View {
     let contract: Contract
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.access) private var access
+    @State private var gate: ProGate?
     @Query private var allChecks: [TriggerCheck]
     @Query private var allServices: [ServiceItem]
     @State private var day = Date()
@@ -68,8 +83,11 @@ struct ContractTriggerChecksSection: View {
                 let unmarked = places.filter { place in !sameDay.contains { $0.placeID == place } }
                 if !unmarked.isEmpty {
                     Button(sameDay.isEmpty ? "Mark Below Trigger That Day" : "Mark Its Other Places That Day") {
-                        TriggerChecks.mark(clientID: contract.clientID, clientName: contract.clientName,
-                                           places: unmarked, on: day, operatorID: contract.operatorID, in: modelContext)
+                        // Marking is a PlowR Pro tool; removing a mark never is.
+                        $gate.unless(ProGate.proFeature("The snow trigger", access)) {
+                            TriggerChecks.mark(clientID: contract.clientID, clientName: contract.clientName,
+                                               places: unmarked, on: day, operatorID: contract.operatorID, in: modelContext)
+                        }
                     }
                 }
                 if sameDay.contains(where: { !$0.isFromStop }) {
@@ -108,6 +126,7 @@ struct ContractTriggerChecksSection: View {
                  ? "Days below the trigger can be marked once the contract starts."
                  : "Less fell at the property than the trigger? Mark the day: the storm card and route leave the client out, and the Service Report lists it.")
         }
+        .proGateSheet($gate)
         .onAppear {
             // Start on a day the picker offers: an ended contract's last day.
             if let range, !range.contains(day) { day = range.upperBound }

@@ -222,6 +222,10 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   `.proGateSheet($gate)`, which says why and opens the paywall: a new way
   to add a client, bring one back (Mark Active, a visit for an inactive
   client), make or start a route, or open a Pro tool must go through one.
+  Every PDF generator takes `madeWithPlowR:` (no default):
+  `access.showsMadeWithPlowR` puts PlowR's line on free-tier documents.
+  Read only, `ProGate.shareDocument` lets only an invoice with money owed
+  be shared.
   `Subscription` reads the plan from
   StoreKit (product `Scoops.PlowR.pro.monthly`), follows
   `Transaction.updates` from `PlowRApp.init`, re-reads when the app comes

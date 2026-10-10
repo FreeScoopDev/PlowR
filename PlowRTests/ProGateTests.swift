@@ -103,7 +103,7 @@ struct ProGateTests {
     @Test func theSheetNamesTheFreeRouteAndTheLimit() {
         #expect(ProGate.notFreeRoute(freeRoute: "Monday").message.contains("Monday"))
         #expect(ProGate.clientLimit.message.contains("\(Access.freeClientLimit)"))
-        #expect(ProGate.proFeature("Import Clients").title == "Import Clients Is Part of PlowR Pro")
+        #expect(ProGate.proFeature("Import Clients").message.hasPrefix("Import Clients is part of PlowR Pro"))
         // Read only keeps the promise: records, export, payments.
         let readOnly = ProGate.readOnly.message
         #expect(readOnly.contains("export") && readOnly.contains("record payments"))

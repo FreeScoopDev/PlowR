@@ -8,6 +8,8 @@ struct ClientServiceHistoryView: View {
     let client: Client
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.access) private var access
+    @State private var gate: ProGate?
     @Query private var records: [ServiceRecord]
     @State private var showingLogWork = false
     @State private var showingBillWork = false
@@ -54,7 +56,7 @@ struct ClientServiceHistoryView: View {
                         }
                     }
                     Button {
-                        showingProof = true
+                        $gate.unless(ProGate.proFeature("The Service Report", access)) { showingProof = true }
                     } label: {
                         Label("Service Report", systemImage: "checkmark.seal")
                     }
@@ -92,6 +94,7 @@ struct ClientServiceHistoryView: View {
         .sheet(isPresented: $showingLogWork) {
             LogWorkView(client: client)
         }
+        .proGateSheet($gate)
         .sheet(isPresented: $showingProof) {
             ProofOfServiceView(client: client)
         }

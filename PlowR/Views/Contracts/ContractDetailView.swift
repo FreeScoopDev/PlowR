@@ -8,6 +8,8 @@ struct ContractDetailView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.access) private var access
+    @State private var gate: ProGate?
     @Query private var allServiceItems: [ServiceItem]
     @Query private var allContracts: [Contract]
     @Query private var allProfiles: [BusinessProfile]
@@ -76,7 +78,12 @@ struct ContractDetailView: View {
         .toolbar {
             if let pdfURL {
                 ToolbarItem(placement: .primaryAction) {
-                    ShareLink(item: pdfURL) { Image(systemName: "square.and.arrow.up") }
+                    // Read only: a contract isn't shared until they subscribe again.
+                    if let blocked = ProGate.shareDocument(access, isInvoice: false, owed: 0) {
+                        Button { gate = blocked } label: { Image(systemName: "square.and.arrow.up") }
+                    } else {
+                        ShareLink(item: pdfURL) { Image(systemName: "square.and.arrow.up") }
+                    }
                 }
             }
             if status != .cancelled, status != .ended, contract.client != nil {
@@ -85,7 +92,9 @@ struct ContractDetailView: View {
                 }
             }
         }
+        .proGateSheet($gate)
         .task(id: contract.persistentModelID) { writePDF() }
+        .onChange(of: access.showsMadeWithPlowR) { writePDF() }
         .onChange(of: showingEdit) { _, open in if !open { writePDF() } }
         // Changed here or on another device: the file shared is the page as it is.
         .onChange(of: [contract.name, contract.notes]) { writePDF() }
@@ -269,7 +278,8 @@ struct ContractDetailView: View {
     /// The PDF to share, in the temporary folder.
     private func writePDF() {
         let profile = allProfiles.first { $0.operatorID == contract.operatorID }
-        let data = ContractPDF.generate(contract, client: contract.client, profile: profile, catalog: allServiceItems)
+        let data = ContractPDF.generate(contract, client: contract.client, profile: profile, catalog: allServiceItems,
+                                        madeWithPlowR: access.showsMadeWithPlowR)
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(ContractPDF.fileName(contract))
         if (try? data.write(to: url)) != nil { pdfURL = url }
     }
