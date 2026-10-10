@@ -14,7 +14,7 @@
   "versionSource": "Versions.xcconfig",
   "github": "FreeScoopDev/PlowR",
   "requiredChecks": [
-    "PlowR | CI Tests | Test - iOS",
+    "Unit tests (iOS)",
     "Service-language guard",
     "SwiftLint",
     "Critic verdict"
