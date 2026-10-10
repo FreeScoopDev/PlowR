@@ -1,4 +1,6 @@
+import CoreLocation
 import Foundation
+import WeatherKit
 
 /// Coordinates rounded to two decimals (about 1 km) before they leave the
 /// phone: the Dashboard's weather and the Service Report's both send these.
@@ -7,14 +9,14 @@ nonisolated enum RoundedCoordinates {
 }
 
 /// The estimated weather on a past day at a property, for the Service
-/// Report: the day's snowfall, precipitation, low and high, from Open-Meteo's
-/// historical forecast archive. These are a weather model's estimates for
+/// Report: the day's snowfall, precipitation, low and high, from Apple
+/// WeatherKit's daily history. These are a weather model's estimates for
 /// the area, whole-day totals (before and after the visit), not
 /// measurements at the property, and the report says so on every line.
 ///
-/// Only days the archive really covers are asked for: from 2022 on, and up
-/// to yesterday. (Before 2022 it answers with zeros rather than refusing,
-/// and today's figures are partly forecast.) Days are the phone's, as every
+/// Only days the history surely covers are asked for: from 2022 on (WeatherKit
+/// keeps about five years), and up to yesterday (today's figures are partly
+/// forecast). Days are the phone's, as every
 /// other time in the report is.
 enum VisitWeather {
     struct Day: Equatable {
@@ -50,51 +52,31 @@ enum VisitWeather {
         return start <= end ? start...end : nil
     }
 
-    /// Open-Meteo's daily history for a span at a place, in inches and °F,
-    /// in the phone's time zone.
-    static func url(latitude: Double, longitude: Double, span: ClosedRange<Date>,
-                    calendar: Calendar = .current) -> URL? {
-        var components = URLComponents(string: "https://historical-forecast-api.open-meteo.com/v1/forecast")
-        components?.queryItems = [
-            URLQueryItem(name: "latitude", value: "\(RoundedCoordinates.round(latitude))"),
-            URLQueryItem(name: "longitude", value: "\(RoundedCoordinates.round(longitude))"),
-            URLQueryItem(name: "start_date", value: dayString(span.lowerBound, calendar: calendar)),
-            URLQueryItem(name: "end_date", value: dayString(span.upperBound, calendar: calendar)),
-            URLQueryItem(name: "daily", value: "snowfall_sum,precipitation_sum,temperature_2m_min,temperature_2m_max"),
-            URLQueryItem(name: "temperature_unit", value: "fahrenheit"),
-            URLQueryItem(name: "precipitation_unit", value: "inch"),
-            URLQueryItem(name: "timezone", value: calendar.timeZone.identifier),
-        ]
-        return components?.url
-    }
-
     static func dayString(_ date: Date, calendar: Calendar = .current) -> String {
         let parts = calendar.dateComponents([.year, .month, .day], from: date)
         return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
     }
 
-    private struct Response: Decodable {
-        struct Daily: Decodable {
-            let time: [String]
-            let snowfall_sum: [Double?]
-            let precipitation_sum: [Double?]
-            let temperature_2m_min: [Double?]
-            let temperature_2m_max: [Double?]
-        }
-        let daily: Daily
+    /// One day's figures, already in inches and °F.
+    struct Figures {
+        var date: Date
+        var snowfallInches: Double
+        var precipitationInches: Double
+        var lowF: Double
+        var highF: Double
     }
 
-    /// The days in an Open-Meteo reply, by "yyyy-MM-dd". A day missing any
-    /// figure is left out: the report says it has none, rather than a zero.
-    static func parse(_ data: Data) throws -> [String: Day] {
-        let daily = try JSONDecoder().decode(Response.self, from: data).daily
+    /// The days by "yyyy-MM-dd" in the phone's calendar, as the report's
+    /// visits are; days outside the span are left out.
+    static func days(_ figures: [Figures], span: ClosedRange<Date>,
+                     calendar: Calendar = .current) -> [String: Day] {
         var days: [String: Day] = [:]
-        for (index, day) in daily.time.enumerated() {
-            guard index < daily.snowfall_sum.count, index < daily.precipitation_sum.count,
-                  index < daily.temperature_2m_min.count, index < daily.temperature_2m_max.count,
-                  let snow = daily.snowfall_sum[index], let rain = daily.precipitation_sum[index],
-                  let low = daily.temperature_2m_min[index], let high = daily.temperature_2m_max[index] else { continue }
-            days[day] = Day(snowfall: snow, precipitation: rain, low: low, high: high)
+        for figure in figures {
+            let day = calendar.startOfDay(for: figure.date)
+            guard span.contains(day) else { continue }
+            days[dayString(day, calendar: calendar)] = Day(snowfall: figure.snowfallInches,
+                                                           precipitation: figure.precipitationInches,
+                                                           low: figure.lowF, high: figure.highF)
         }
         return days
     }
@@ -102,17 +84,22 @@ enum VisitWeather {
     /// The estimates for the visits' days at a place. Not looked up without
     /// a pin; failed (not empty) when it can't be had, so the report never
     /// reads a failed lookup as days with no figures.
-    static func lookUp(latitude: Double, longitude: Double, visitDays: [Date], now: Date = .now,
-                       session: URLSession = .shared) async -> Lookup {
+    static func lookUp(latitude: Double, longitude: Double, visitDays: [Date], now: Date = .now) async -> Lookup {
         guard AddressPin.exists(latitude: latitude, longitude: longitude) else { return .notLookedUp }
         guard let span = span(of: visitDays, now: now) else { return .days([:]) }
-        guard let url = url(latitude: latitude, longitude: longitude, span: span) else { return .failed }
-        var request = URLRequest(url: url)
-        request.timeoutInterval = 20
-        guard let (data, response) = try? await session.data(for: request),
-              (response as? HTTPURLResponse)?.statusCode == 200,
-              let days = try? parse(data) else { return .failed }
-        return .days(days)
+        guard !WeatherService.unavailable,
+              let end = Calendar.current.date(byAdding: .day, value: 1, to: span.upperBound),
+              let history = try? await WeatherKit.WeatherService.shared.weather(
+                  for: WeatherService.location(latitude: latitude, longitude: longitude),
+                  including: .daily(startDate: span.lowerBound, endDate: end)) else { return .failed }
+        let figures = history.forecast.map { day in
+            Figures(date: day.date,
+                    snowfallInches: day.precipitationAmountByType.snowfallAmount.amount.converted(to: .inches).value,
+                    precipitationInches: day.precipitationAmountByType.precipitation.converted(to: .inches).value,
+                    lowF: day.lowTemperature.converted(to: .fahrenheit).value,
+                    highF: day.highTemperature.converted(to: .fahrenheit).value)
+        }
+        return .days(days(figures, span: span))
     }
 
     /// An amount in inches as the report prints it: to the hundredth, and

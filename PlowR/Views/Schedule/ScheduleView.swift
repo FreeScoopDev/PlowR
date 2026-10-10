@@ -125,6 +125,13 @@ struct ScheduleView: View {
                 WeatherBannerRow(fetcher: weatherFetcher)
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
+                // WeatherKit's attribution goes wherever its weather shows.
+                if weatherFetcher.condition != nil {
+                    WeatherAttribution()
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                }
             }
         }
     }

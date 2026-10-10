@@ -59,7 +59,7 @@ a text to open, a message to show),
 `NotificationService` (weather alerts, overdue invoices), `CalendarSync`
 (Settings switch, off by default: keeps a "PlowR" calendar in step with the
 schedule through EventKit; `VisitCalendar` works out the changes),
-`WeatherService` (Open-Meteo),
+`WeatherService` (Apple WeatherKit; its attribution must show wherever weather does, `WeatherAttribution`),
 `ElevationService` (Open-Topo-Data), `RouteOptimizer` (nearest-neighbor over
 `MKDirections` or haversine), `WidgetDataStore` (app-group `UserDefaults`,
 key `todayRoute`, read by the widget). Views are grouped by feature under

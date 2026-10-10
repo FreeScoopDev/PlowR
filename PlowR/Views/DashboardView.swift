@@ -100,7 +100,13 @@ struct DashboardView: View {
                     iCloudBanner
                     ProStatusBanner()
                     profileCard
-                    if let w = dashWeather { dashWeatherStrip(w) }
+                    if let w = dashWeather {
+                        // WeatherKit's attribution goes wherever its weather shows.
+                        VStack(alignment: .trailing, spacing: 4) {
+                            dashWeatherStrip(w)
+                            WeatherAttribution()
+                        }
+                    }
                     if let storm {
                         // The forecast for everyone; its tools are PlowR Pro.
                         StormCard(storm: storm, routes: myRoutes, clients: myClients, text: { clients in

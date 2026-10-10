@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 import Testing
+import WeatherKit
 import UserNotifications
 @testable import PlowR
 
@@ -166,20 +167,20 @@ struct StormWatchTests {
         #expect(!StormWatch.offersSnow([snowService(h, operatorID: "other")], operatorID: "op"))
     }
 
-    @Test func snowfallIsReadInCentimetresAndAMissingValueKeepsTheDay() throws {
-        let json = """
-        {"daily":{"time":["2027-01-12","2027-01-13"],"weather_code":[73,3],"temperature_2m_max":[30,32],
-        "temperature_2m_min":[20,22],"precipitation_sum":[10,0],"snowfall_sum":[10.16,null]}}
-        """
-        let days = try WeatherService.forecast(from: Data(json.utf8))
-        #expect(days.count == 2)
-        #expect(abs((days[0].snowfallInches ?? 0) - 4) < 0.0001)
-        #expect(days[1].snowfallInches == nil)
-        let without = """
-        {"daily":{"time":["2027-01-12"],"weather_code":[3],"temperature_2m_max":[30],
-        "temperature_2m_min":[20],"precipitation_sum":[0]}}
-        """
-        #expect(try WeatherService.forecast(from: Data(without.utf8)).first?.snowfallInches == nil)
+    @Test func aForecastDayKeepsItsSnowfallAndCode() {
+        let day = WeatherService.day(date: now, highF: 30, lowF: 20, code: weatherCode(for: .snow),
+                                     precipitationMm: 10, snowfallInches: 4)
+        #expect(day.snowfallInches == 4 && day.weatherCode == 73 && day.description == "Snow")
+    }
+
+    // WeatherKit's conditions become the codes the alerts already know.
+    @Test func weatherKitConditionsMapToTheCodesAlertsUse() {
+        #expect(weatherCode(for: .clear) == 0)
+        #expect(weatherCode(for: .heavySnow) == 75 && weatherCode(for: .blizzard) == 75)
+        #expect(weatherCode(for: .freezingRain) == 66 && weatherCode(for: .wintryMix) == 67)
+        #expect(weatherCode(for: .thunderstorms) == 95)
+        #expect(weatherCode(for: .rain) == 63 && weatherCode(for: .heavyRain) == 65)
+        #expect(weatherCode(for: .cloudy) == 3)
     }
 
     @Test func amountsAndDays() {

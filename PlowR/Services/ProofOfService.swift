@@ -245,9 +245,9 @@ enum ProofOfService {
     static func note(withWeather: Bool = false, withChecks: Bool = false, timeZone: TimeZone = .current) -> String {
         let zone = timeZone.localizedName(for: .generic, locale: .current) ?? timeZone.identifier
         let weather = withWeather
-            ? " Weather figures are estimates from a weather model (Open-Meteo's historical forecast archive, "
-                + "open-meteo.com) for the area within about 1 km: whole-day totals, before and after the visit, not "
-                + "measurements at the property, and not available before 2022 or for today."
+            ? " Weather figures are estimates from \(WeatherAttribution.markText) for the area within about "
+                + "1 km: whole-day totals, before and after the visit, not measurements at the property, and not "
+                + "available before 2022 or for today. Weather data sources: \(WeatherAttribution.legalPage)."
             : ""
         let checksNote = withChecks
             ? " A day below the contract's snow trigger was either checked on a route (Below Trigger saved on the "

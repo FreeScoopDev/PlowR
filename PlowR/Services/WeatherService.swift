@@ -1,4 +1,6 @@
+import CoreLocation
 import Foundation
+import WeatherKit
 
 struct WeatherCondition {
     let temperatureF: Double
@@ -29,31 +31,6 @@ struct DayForecast {
     var hasSignificantPrecip: Bool { precipitationMm >= 2.54 } // ≥ 0.1 in
 }
 
-// MARK: - Private decoders
-
-nonisolated private struct OpenMeteoResponse: Decodable {
-    struct Current: Decodable {
-        let temperature_2m: Double
-        let weather_code: Int
-        let wind_speed_10m: Double
-        let wind_direction_10m: Double
-    }
-    let current: Current
-}
-
-nonisolated private struct ForecastResponse: Decodable {
-    struct Daily: Decodable {
-        let time: [String]
-        let weather_code: [Int]
-        let temperature_2m_max: [Double]
-        let temperature_2m_min: [Double]
-        let precipitation_sum: [Double]
-        /// Centimetres. Optional: a missing value mustn't lose the forecast.
-        let snowfall_sum: [Double?]?
-    }
-    let daily: Daily
-}
-
 // MARK: - WMO weather code lookup (file-scope so DayForecast can use it)
 
 nonisolated private func wmoInfo(_ code: Int) -> (String, String) {
@@ -75,65 +52,87 @@ nonisolated private func wmoInfo(_ code: Int) -> (String, String) {
     }
 }
 
+// MARK: - WeatherKit's conditions as weather codes
+
+/// WeatherKit's condition as the WMO-style code PlowR's screens and alerts
+/// already use (wmoInfo, NotificationService's adverse days), so switching
+/// the source changed nothing downstream.
+nonisolated func weatherCode(for condition: WeatherKit.WeatherCondition) -> Int {
+    switch condition {
+    case .clear, .hot: return 0
+    case .mostlyClear: return 1
+    case .partlyCloudy: return 2
+    case .mostlyCloudy, .cloudy, .breezy, .windy, .frigid: return 3
+    case .foggy, .haze, .smoky, .blowingDust: return 45
+    case .drizzle: return 53
+    case .rain, .sunShowers: return 63
+    case .heavyRain: return 65
+    case .freezingDrizzle, .freezingRain: return 66
+    case .sleet, .wintryMix, .hail: return 67
+    case .flurries, .sunFlurries: return 71
+    case .snow: return 73
+    case .heavySnow, .blizzard, .blowingSnow: return 75
+    case .isolatedThunderstorms, .scatteredThunderstorms, .thunderstorms, .strongStorms,
+         .tropicalStorm, .hurricane: return 95
+    @unknown default: return -1
+    }
+}
+
 // MARK: - Service
 
+/// Weather from Apple's WeatherKit (Joe, 2026-10-10: Open-Meteo's free API
+/// is for non-commercial apps only, and PlowR Pro is a subscription). The
+/// location sent is rounded to about 1 km. Wherever weather shows, Apple's
+/// attribution must too (WeatherAttribution).
 actor WeatherService {
     static let shared = WeatherService()
     private init() {}
 
-    private static let dateParser: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd"
-        f.timeZone = TimeZone.current
-        return f
-    }()
+    /// Never under tests: there's no WeatherKit entitlement or network there.
+    nonisolated static var unavailable: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+    }
+
+    nonisolated static func location(latitude: Double, longitude: Double) -> CLLocation {
+        CLLocation(latitude: RoundedCoordinates.round(latitude), longitude: RoundedCoordinates.round(longitude))
+    }
 
     func fetch(latitude: Double, longitude: Double) async throws -> WeatherCondition {
-        // Rounded (~1.1 km): enough for weather, and less of the location sent to Open-Meteo.
-        let lat = RoundedCoordinates.round(latitude)
-        let lon = RoundedCoordinates.round(longitude)
-        let urlStr = "https://api.open-meteo.com/v1/forecast?latitude=\(lat)&longitude=\(lon)&current=temperature_2m,weather_code,wind_speed_10m,wind_direction_10m&temperature_unit=fahrenheit&wind_speed_unit=mph&forecast_days=1"
-        guard let url = URL(string: urlStr) else { throw URLError(.badURL) }
-        let (data, _) = try await URLSession.shared.data(from: url)
-        let resp = try JSONDecoder().decode(OpenMeteoResponse.self, from: data)
-        let c = resp.current
-        let (desc, sym) = wmoInfo(c.weather_code)
-        return WeatherCondition(
-            temperatureF: c.temperature_2m,
-            description: desc,
-            symbolName: sym,
-            windSpeedMph: c.wind_speed_10m,
-            windDirectionDegrees: c.wind_direction_10m
-        )
+        guard !Self.unavailable else { throw URLError(.notConnectedToInternet) }
+        let current = try await WeatherKit.WeatherService.shared.weather(
+            for: Self.location(latitude: latitude, longitude: longitude), including: .current)
+        return Self.condition(temperatureF: current.temperature.converted(to: .fahrenheit).value,
+                              windMph: current.wind.speed.converted(to: .milesPerHour).value,
+                              windDegrees: current.wind.direction.converted(to: .degrees).value,
+                              code: weatherCode(for: current.condition))
     }
 
     func fetchForecast(latitude: Double, longitude: Double) async throws -> [DayForecast] {
-        let lat = RoundedCoordinates.round(latitude)
-        let lon = RoundedCoordinates.round(longitude)
-        let urlStr = "https://api.open-meteo.com/v1/forecast?latitude=\(lat)&longitude=\(lon)&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,snowfall_sum&temperature_unit=fahrenheit&forecast_days=7&timezone=auto"
-        guard let url = URL(string: urlStr) else { throw URLError(.badURL) }
-        let (data, _) = try await URLSession.shared.data(from: url)
-        return try Self.forecast(from: data)
+        guard !Self.unavailable else { throw URLError(.notConnectedToInternet) }
+        let daily = try await WeatherKit.WeatherService.shared.weather(
+            for: Self.location(latitude: latitude, longitude: longitude), including: .daily)
+        return daily.forecast.prefix(7).map { day in
+            Self.day(date: day.date,
+                     highF: day.highTemperature.converted(to: .fahrenheit).value,
+                     lowF: day.lowTemperature.converted(to: .fahrenheit).value,
+                     code: weatherCode(for: day.condition),
+                     precipitationMm: day.precipitationAmountByType.precipitation.converted(to: .millimeters).value,
+                     snowfallInches: day.precipitationAmountByType.snowfallAmount.amount.converted(to: .inches).value)
+        }
     }
 
-    /// Open-Meteo's daily forecast, as days. Snowfall comes in centimetres.
-    static func forecast(from data: Data) throws -> [DayForecast] {
-        let resp = try JSONDecoder().decode(ForecastResponse.self, from: data)
-        let d = resp.daily
-        return d.time.indices.compactMap { i -> DayForecast? in
-            guard i < d.weather_code.count,
-                  i < d.temperature_2m_max.count,
-                  i < d.temperature_2m_min.count,
-                  i < d.precipitation_sum.count,
-                  let date = dateParser.date(from: d.time[i]) else { return nil }
-            return DayForecast(
-                date: date,
-                maxTempF: d.temperature_2m_max[i],
-                minTempF: d.temperature_2m_min[i],
-                weatherCode: d.weather_code[i],
-                precipitationMm: d.precipitation_sum[i],
-                snowfallInches: d.snowfall_sum.flatMap { i < $0.count ? $0[i] : nil }.map { $0 / 2.54 }
-            )
-        }
+    /// Current conditions, from values already in °F, mph and degrees.
+    nonisolated static func condition(temperatureF: Double, windMph: Double, windDegrees: Double,
+                                      code: Int) -> WeatherCondition {
+        let (description, symbol) = wmoInfo(code)
+        return WeatherCondition(temperatureF: temperatureF, description: description, symbolName: symbol,
+                                windSpeedMph: windMph, windDirectionDegrees: windDegrees)
+    }
+
+    /// A forecast day, from values already in °F, millimetres and inches.
+    nonisolated static func day(date: Date, highF: Double, lowF: Double, code: Int,
+                                precipitationMm: Double, snowfallInches: Double) -> DayForecast {
+        DayForecast(date: date, maxTempF: highF, minTempF: lowF, weatherCode: code,
+                    precipitationMm: precipitationMm, snowfallInches: snowfallInches)
     }
 }
