@@ -156,9 +156,6 @@ enum Payments {
         InvoiceLines.roundedToCent(receipts(documents).reduce(0) { $0 + $1.amount })
     }
 
-    /// Money received, each amount on the day it came: every payment, and a
-    /// paid invoice's rest on the day it was marked paid (all of it, for
-    /// one paid before payments were kept). For money in by month.
     /// What came in during `period` (from its start, up to but not including
     /// its end): the Season Report's figure, the same receipts as `received`.
     static func received(_ documents: [Proposal], in period: DateInterval) -> Double {
@@ -175,10 +172,14 @@ enum Payments {
         return months.map { (start: $0.key, amount: InvoiceLines.roundedToCent($0.value)) }.sorted { $0.start > $1.start }
     }
 
+    /// `receipts` from the start of `period` up to, not including, its end.
     static func receipts(_ documents: [Proposal], in period: DateInterval) -> [(date: Date, amount: Double)] {
         receipts(documents).filter { $0.date >= period.start && $0.date < period.end }
     }
 
+    /// Money received, each amount on the day it came: every payment, and a
+    /// paid invoice's rest on the day it was marked paid (all of it, for
+    /// one paid before payments were kept). For money in by month.
     static func receipts(_ documents: [Proposal]) -> [(date: Date, amount: Double)] {
         documents.filter(\.isInvoice).flatMap { invoice -> [(date: Date, amount: Double)] in
             let payments = invoice.sortedPayments

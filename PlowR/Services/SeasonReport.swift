@@ -30,7 +30,9 @@ enum SeasonReport {
             case .thisYear:
                 return DateInterval(start: year?.start ?? now, end: throughNow)
             case .last12Months:
-                return DateInterval(start: calendar.date(byAdding: .month, value: -12, to: now) ?? now, end: throughNow)
+                // From the start of that day, as the title names it.
+                let start = calendar.date(byAdding: .month, value: -12, to: now) ?? now
+                return DateInterval(start: calendar.startOfDay(for: start), end: throughNow)
             case .lastYear:
                 let start = calendar.date(byAdding: .year, value: -1, to: year?.start ?? now) ?? now
                 return DateInterval(start: start, end: year?.start ?? now)

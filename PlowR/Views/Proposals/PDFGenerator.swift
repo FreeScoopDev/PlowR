@@ -839,8 +839,12 @@ struct PDFGenerator {
             if !figures.months.isEmpty {
                 y = drawSeasonMonthly(figures.months, contentW: contentW, margin: margin, y: y, accent: accent,
                                       ctx: ctx, profile: profile, pageW: pageW, pageH: pageH)
-                y += 20
-                drawHRule(x: margin, y: y, width: contentW, weight: 0.5, color: ruleLight)
+                // The separator only where there's room above the footer; the
+                // client table starts a new page otherwise.
+                if y + 20 <= pageH - margin - 30 {
+                    y += 20
+                    drawHRule(x: margin, y: y, width: contentW, weight: 0.5, color: ruleLight)
+                }
                 y += 20
             }
 

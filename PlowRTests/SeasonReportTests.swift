@@ -180,5 +180,51 @@ struct SeasonReportTests {
         let oldest = try #require(calendar.date(byAdding: .month, value: -35, to: date(2026, 9, 15)))
         #expect(text.contains(oldest.formatted(.dateTime.month(.abbreviated).year()).filter { !$0.isWhitespace }))
     }
+
+    // A client whose money all came in before the period, with no visit in
+    // it, has no row.
+    @Test func aClientPaidOnlyBeforeThePeriodIsntListed() throws {
+        let h = try Harness(stopCount: 0)
+        let bill = invoice(h, total: 60, sent: date(2025, 5, 1))
+        Payments.record(60, method: "", receivedAt: date(2025, 5, 2), on: bill, in: h.context, now: date(2026, 10, 10))
+        let period = SeasonReport.Period.thisYear.interval(now: date(2026, 10, 10), calendar: calendar)
+        let figures = SeasonReport.figures(clients: [h.client], proposals: [bill], records: [], period: period,
+                                           calendar: calendar)
+        #expect(figures.clients.isEmpty && figures.clientCount == 0)
+    }
+
+    // Last 12 months starts at the start of that day, as its title says.
+    @Test func last12MonthsStartsAtTheStartOfTheDay() throws {
+        let afternoon = try #require(calendar.date(from: DateComponents(year: 2026, month: 10, day: 10, hour: 15)))
+        let morning = try #require(calendar.date(from: DateComponents(year: 2025, month: 10, day: 10, hour: 9)))
+        let period = SeasonReport.Period.last12Months.interval(now: afternoon, calendar: calendar)
+        #expect(period.contains(morning))
+    }
+
+    // Every page of a free business's report carries the PlowR line, and the
+    // client table's heading moves to a new page rather than sit alone.
+    @Test func everyPageHasTheLineAndTheTableKeepsItsHeading() throws {
+        let h = try Harness(stopCount: 0)
+        var invoices: [Proposal] = []
+        for k in 0..<21 {
+            let day = try #require(calendar.date(byAdding: .month, value: -k, to: date(2026, 9, 15)))
+            let bill = invoice(h, total: 10, sent: day)
+            Payments.record(10, method: "", receivedAt: day, on: bill, in: h.context, now: date(2026, 10, 10))
+            invoices.append(bill)
+        }
+        let data = PDFGenerator.generateSeasonReport(clients: [h.client], proposals: invoices,
+                                                     records: [visit(h, on: date(2026, 9, 1))],
+                                                     period: .allTime, profile: nil, reportDate: date(2026, 10, 10),
+                                                     madeWithPlowR: true)
+        let document = try #require(PDFDocument(data: data))
+        #expect(document.pageCount >= 2)
+        let pages = (0..<document.pageCount).compactMap { document.page(at: $0)?.string?.filter { !$0.isWhitespace } }
+        #expect(pages.allSatisfy { $0.contains("PreparedwithPlowR") })
+        // The heading is on the same page as the client's row, above it.
+        let name = h.client.name.filter { !$0.isWhitespace }
+        let page = try #require(pages.first { $0.contains("CLIENTBREAKDOWN") })
+        let heading = try #require(page.range(of: "CLIENTBREAKDOWN"))
+        #expect(page[heading.upperBound...].contains(name))
+    }
 }
 
