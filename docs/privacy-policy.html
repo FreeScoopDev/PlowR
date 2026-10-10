@@ -22,10 +22,10 @@
 <h1>Privacy Policy</h1>
 <p class="updated">Last updated: October 10, 2026</p>
 
-<p>This Privacy Policy describes how PlowR ("the App", "We", "Us") handles your information when you use our iOS application, and when you use the pages on getplowr.app that a business's request link, or the Add to PlowR link in a request, opens. PlowR is built for property-service operators — snow removal, lawn care, landscaping, and related trades — to manage clients, plan routes, and generate proposals and invoices. People looking for a service can also use it to find a local business and send them a request.</p>
+<p>This Privacy Policy describes how PlowR ("the App"), made by Scoops Dev LLC ("we", "us"), handles your information when you use our iOS application, and when you use the pages on getplowr.app that a business's request link, or the Add to PlowR link in a request, opens. PlowR is built for property-service operators — snow removal, lawn care, landscaping, and related trades — to manage clients, plan routes, and generate proposals and invoices. People looking for a service can also use it to find a local business and send them a request.</p>
 
 <h2>Summary</h2>
-<p>PlowR is a local-first app. We do not operate servers, do not sell your data, and do not run ads, analytics or tracking. Our website, getplowr.app, is hosted by GitHub Pages; its request pages work entirely on your device (see <a href="#request-pages">Request Pages</a>). Your business and client data is kept on your device and in your own private iCloud account; the developer has no access to it, and it is never sent to us. To work, PlowR sends some data to the services listed under <a href="#third-parties">Third-Party Services</a>: addresses and locations to Apple Maps for maps, directions and arrival estimates, and coordinates to two free weather and elevation services. Like any internet request, these requests carry your device's IP address.</p>
+<p>PlowR is a local-first app. We do not operate servers, do not sell your data, and do not run ads, analytics or tracking. Our website, getplowr.app, is hosted by GitHub Pages; its request pages work entirely on your device (see <a href="#request-pages">Request Pages</a>). Your business and client data is kept on your device and in your own private iCloud account; the developer has no access to it, and it is never sent to us. To work, PlowR sends some data to the services listed under <a href="#third-parties">Third-Party Services</a>: addresses and locations to Apple Maps for maps, directions and arrival estimates, coordinates rounded to about 1 km to Apple Weather for weather (versions of PlowR before 1.6 used Open-Meteo instead), and the corners of areas you measure to a free elevation service. Like any internet request, these requests carry your device's IP address.</p>
 
 <h2>What We Access and Why</h2>
 <table>
@@ -57,7 +57,7 @@
     <tr>
         <td>Approximate location (about 1 km)</td>
         <td>Local weather for the Dashboard, the Schedule and the route screen, the evening weather alert, and the estimated past weather at a client's property on the days of a Service Report</td>
-        <td>Your or the property's coordinates, rounded to about 1 km, and for a Service Report the dates, are sent to <a href="https://open-meteo.com" target="_blank">Open-Meteo</a>. No account information is included.</td>
+        <td>Your or the property's coordinates, rounded to about 1 km, and for a Service Report the dates, are sent to Apple Weather (Apple's WeatherKit), governed by <a href="https://www.apple.com/legal/privacy/" target="_blank">Apple's Privacy Policy</a>. Versions of PlowR before 1.6 sent them to <a href="https://open-meteo.com" target="_blank">Open-Meteo</a> instead. No account information is included.</td>
     </tr>
     <tr>
         <td>Property coordinates (precise)</td>
@@ -67,7 +67,7 @@
     <tr>
         <td>Addresses and map searches</td>
         <td>Suggest addresses as you type, place a client's address on the map and name the place at a pin, show Look Around imagery, give driving directions and arrival estimates, put a route's stops in order, and, for people looking for a service, search for nearby businesses</td>
-        <td>What you type, addresses, coordinates and your current position are sent to Apple Maps (Apple's MapKit and geocoding services), governed by <a href="https://www.apple.com/legal/privacy/" target="_blank">Apple's Privacy Policy</a>. PlowR sends no account information with these requests.</td>
+        <td>What you type, addresses (including one read from a scanned business card or a contact you pick), coordinates and your current position are sent to Apple Maps (Apple's MapKit and geocoding services), governed by <a href="https://www.apple.com/legal/privacy/" target="_blank">Apple's Privacy Policy</a>. PlowR sends no account information with these requests.</td>
     </tr>
     <tr>
         <td>Navigation</td>
@@ -77,7 +77,7 @@
     <tr>
         <td>Lock Screen, widget, Control Center and Siri</td>
         <td>Show your route's progress in a Live Activity, on the home-screen widget and in the Control Center control; complete a stop or text your next client by voice</td>
-        <td>Clients' names and addresses from your route are shown there, so they're visible on your Lock Screen while a route runs. To do this they're kept in storage shared between PlowR and its widget, on your device only. Siri's replies speak client names.</td>
+        <td>Clients' names and addresses from your route are shown there, so they're visible on your Lock Screen (the Live Activity and the Control Center control) while a route runs; the home-screen widget hides them while your device is locked. To do this they're kept in storage shared between PlowR and its widget, on your device only. Siri's replies speak client names, including when your device is locked if you allow Siri there (iOS Settings &rarr; Siri).</td>
     </tr>
     <tr>
         <td>Camera</td>
@@ -102,7 +102,7 @@
     <tr>
         <td>Notifications</td>
         <td>Weather alerts the evening before severe forecast days (for a snow business, with how much snow is forecast and which clients' contract triggers it reaches); overdue invoice reminders; reminders to follow up on a proposal with no reply</td>
-        <td>Local notifications only — no server or push token is involved.</td>
+        <td>Local notifications only — no server or push token is involved. A notification can name a client (a follow-up reminder) or the clients a storm reaches, and shows on your Lock Screen as your iOS notification settings allow.</td>
     </tr>
     <tr>
         <td>Service requests (people looking for a service)</td>
@@ -117,7 +117,7 @@
     <tr>
         <td>Documents, exports and photos you share</td>
         <td>Proposals, invoices, contracts, Service Reports and business reports as PDFs, Export Data's CSV files, and job photos</td>
-        <td>Made on your device. They go only where you send or save them (Messages, Mail, Files and the like), through the share sheet. Copies left in the app's temporary folder are removed by Delete Account &amp; Data.</td>
+        <td>Made on your device. They go only where you send or save them (Messages, Mail, Files and the like), through the share sheet. Copies left in the app's temporary folder are removed the next time PlowR opens, and by Delete Account &amp; Data.</td>
     </tr>
 </table>
 <p>You can turn off any of these permissions at any time in <strong>iOS Settings → PlowR</strong>.</p>
@@ -147,8 +147,9 @@
 <h2 id="third-parties">Third-Party Services</h2>
 <p>PlowR uses the following services. None receives your account information, and none is told who you are; like any internet request, each sees your device's IP address, and may keep it in its own logs under its own policy.</p>
 <ul>
-    <li><strong>Apple</strong> — Sign in with Apple, iCloud sync (CloudKit), App Store purchases (the PlowR Pro subscription), Apple Maps (address suggestions and lookups, directions and arrival estimates, Look Around, business search) and Siri, governed by <a href="https://www.apple.com/legal/privacy/" target="_blank">Apple's Privacy Policy</a>.</li>
-    <li><strong>Open-Meteo</strong> (<a href="https://open-meteo.com" target="_blank">open-meteo.com</a>) — weather conditions, the 7-day forecast, and past weather for a Service Report, based on coordinates rounded to about 1 km. Free and keyless.</li>
+    <li><strong>Apple</strong> — Sign in with Apple, iCloud sync (CloudKit), App Store purchases (the PlowR Pro subscription), Apple Weather, Apple Maps (address suggestions and lookups, directions and arrival estimates, Look Around, business search) and Siri, governed by <a href="https://www.apple.com/legal/privacy/" target="_blank">Apple's Privacy Policy</a>.</li>
+    <li><strong>Apple Weather</strong> (from PlowR 1.6) — weather conditions, the forecast, and past weather for a Service Report, based on coordinates rounded to about 1 km. Weather shown in PlowR carries Apple's attribution and a link to its <a href="https://weatherkit.apple.com/legal-attribution.html" target="_blank">data sources</a>.</li>
+    <li><strong>Open-Meteo</strong> (<a href="https://open-meteo.com" target="_blank">open-meteo.com</a>) — used for the same weather, from the same rounded coordinates, by versions of PlowR before 1.6 only.</li>
     <li><strong>Open Topo Data</strong> (<a href="https://www.opentopodata.org" target="_blank">opentopodata.org</a>) — terrain elevation for the areas you measure on a property. Free and keyless.</li>
     <li><strong>GitHub Pages</strong> — hosts getplowr.app, including this policy and the request pages (see <a href="#request-pages">Request Pages</a>).</li>
     <li><strong>Google Maps or Waze</strong> — only if you choose one for directions; the stop's destination is handed to that app.</li>
@@ -159,13 +160,17 @@
 <ul>
     <li><strong>In-app (business):</strong> Go to <em>Settings → Delete Account &amp; Data</em> and choose one:
         <ul>
-            <li><strong>Remove from This Device</strong> removes PlowR's data from this device only: your iCloud and your other devices keep it. It signs you out, removes PlowR's settings, the route in progress, notifications and shared files, turns iCloud sync off for PlowR on this device, and removes PlowR's database when PlowR next opens. Anything the device hasn't sent to iCloud yet is lost, so be online first. The “PlowR” calendar is left, since it's part of your calendars. Turn sync back on in Settings → Data &amp; Backup to bring your data back.</li>
+            <li><strong>Remove from This Device</strong> removes PlowR's data from this device only: your iCloud and your other devices keep it. It signs you out, removes PlowR's settings, the route in progress, notifications, shared files and saved weather and elevation answers, turns iCloud sync off for PlowR on this device, and removes PlowR's database when PlowR next opens. Anything the device hasn't sent to iCloud yet is lost, so be online first. The “PlowR” calendar is left, since it's part of your calendars. Turn sync back on in Settings → Data &amp; Backup to bring your data back.</li>
             <li><strong>Delete Everything</strong> removes all clients, properties, routes, visits, service history, proposals, invoices, payments, contracts, photos, service requests and settings from your device, ends any route in progress, removes the “PlowR” calendar's events, and signs you out. When iCloud sync is working on this device, it also removes your data from your private iCloud, and so from your other devices signed in to the same Apple ID. Do it with your device online: the deletion reaches iCloud while PlowR is open and connected. While sync is off on a device, after Remove from This Device, Delete Everything isn't offered there, since it couldn't reach iCloud: turn sync back on and reopen PlowR first, or delete from another device.</li>
         </ul>
     </li>
     <li><strong>In-app (people looking for a service):</strong> On the home screen, open the menu and choose <em>Delete My Data</em>. This removes your saved requests and contact details. Requests you've already sent stay with the businesses you sent them to.</li>
     <li><strong>Uninstall:</strong> Deleting the app removes its data from your device. It doesn't remove the “PlowR” calendar (delete it in the Calendar app, or turn off Add Visits to Calendar first), and it doesn't remove your data from iCloud: use Delete Account &amp; Data → Delete Everything for that before deleting the app. iOS may also keep PlowR's sign-in identifier in your Keychain.</li>
 </ul>
+
+<h2>Who We Are and Your Rights</h2>
+<p>PlowR is made by Scoops Dev LLC, a Vermont limited liability company, in the United States. Because your PlowR data is on your device and in your own iCloud, not with us, you can see, export, correct and delete it yourself in the App at any time (Export Data in Settings, and Delete Account &amp; Data above). We hold no copy to give you or delete. If you have a question or a request about your data or this policy, email <a href="mailto:support@getplowr.app">support@getplowr.app</a>.</p>
+<p><strong>Businesses and their clients.</strong> A business using PlowR decides what it records about its clients, how long it keeps it, and what it sends them; PlowR keeps a record until the business deletes it. If you're a client of a business that uses PlowR, ask that business about the information it holds about you: it's in their records, not ours.</p>
 
 <h2>Children's Privacy</h2>
 <p>PlowR is designed for business use by adults. The app is not directed at children under 13 and does not knowingly collect data from children.</p>
@@ -174,7 +179,7 @@
 <p>We may update this Privacy Policy from time to time. Any changes will be posted on this page with an updated date. Continued use of the app after changes are posted constitutes acceptance of the updated policy.</p>
 
 <h2>Contact</h2>
-<p>Questions about this Privacy Policy can be directed to <a href="mailto:support@getplowr.app">support@getplowr.app</a> or by opening an issue on our <a href="https://github.com/FreeScoopDev/PlowR" target="_blank">GitHub repository</a>.</p>
+<p>Scoops Dev LLC, Vermont, USA. Questions about this Privacy Policy: <a href="mailto:support@getplowr.app">support@getplowr.app</a>. Please don't put personal information in a public place, such as a GitHub issue.</p>
 <p>See also our <a href="terms-of-service.html">Terms of Service</a>.</p>
 
 </body>

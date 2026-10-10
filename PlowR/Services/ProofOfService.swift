@@ -264,7 +264,8 @@ enum ProofOfService {
             + "were saved with. \"Taken\" is when PlowR's camera took it. \"File dated\" is the date stored in a "
             + "photo picked from the library, which can be changed, and \"zone assumed\" means the file gave no "
             + "time zone, so it was read in the phone's. A photo with no time is one whose time PlowR doesn't "
-            + "know, and isn't shown to be from that visit.\(checksNote)\(weather) Times are \(zone)."
+            + "know, and isn't shown to be from that visit.\(checksNote)\(weather) Times are \(zone). This is the "
+            + "business's own record, not a certified or independent one, and not legal advice."
     }
 
     /// The report.
