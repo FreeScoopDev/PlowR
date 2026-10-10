@@ -127,7 +127,8 @@ struct ActiveRouteView: View {
         }
         // Back in the app with this screen up: whatever stop it shows is seen,
         // and GPS comes back. In the background it's off: arrivals and
-        // departures are the job-site areas', which iOS watches by itself.
+        // departures are the job-site areas', which iOS watches by itself
+        // with Location set to Always (RouteGPS.needsAlways).
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { store.markCurrentStopSeen() }
             switch RouteGPS.action(for: phase, isMac: OnMac.isMac, status: locationManager.authorizationStatus) {
@@ -210,6 +211,8 @@ struct ActiveRouteView: View {
                 if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
             }
             .font(.footnote.weight(.semibold))
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
         }
         .padding(.horizontal)
         .padding(.vertical, 8)
@@ -878,7 +881,7 @@ struct ActiveRouteView: View {
                 if scenePhase != .background { locationManager.startTracking() }
                 // Arrivals and departures need Always (RouteGPS.needsAlways):
                 // iOS offers the change once; the screen says so after that.
-                locationManager.requestAlways()
+                if scenePhase != .background { locationManager.requestAlways() }
             case .denied, .restricted:
                 showingLocationDeniedAlert = true
             @unknown default:

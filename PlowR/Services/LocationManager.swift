@@ -13,7 +13,8 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
     /// The route screen's GPS: the map's dot, arrival estimates, weather and
     /// the location a text can include. Only while the screen is on screen
     /// with PlowR in front: arrivals and departures are job-site areas
-    /// (SiteMonitor), which iOS watches without it. It followed the phone
+    /// (SiteMonitor), which iOS watches without it when Location is set to
+    /// Always (on While Using, only on screen: RouteGPS.needsAlways). It followed the phone
     /// continuously in the background all route long, which cost crews
     /// battery and wasn't needed (pre-launch review, 2026-10-10).
     static let accuracy = kCLLocationAccuracyNearestTenMeters
@@ -86,7 +87,11 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
     // MARK: - CLLocationManagerDelegate
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        currentLocation = locations.last
+        // The first fix after GPS restarts can be one iOS kept from minutes
+        // ago (where the phone was locked): skipped, so the estimate and a
+        // text's location wait for a fresh one.
+        guard let fix = locations.last(where: { RouteGPS.isFresh($0) }) else { return }
+        currentLocation = fix
     }
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
@@ -115,6 +120,11 @@ enum RouteGPS {
     /// Arrival and departure times need Always: on While Using, iOS hands
     /// PlowR a job-site crossing only while it's on screen. The route screen
     /// says so (not on a Mac, which follows no route).
+    /// A fix worth using: a real position from the last few seconds.
+    static func isFresh(_ fix: CLLocation, now: Date = .now) -> Bool {
+        fix.horizontalAccuracy >= 0 && now.timeIntervalSince(fix.timestamp) <= 10
+    }
+
     static func needsAlways(status: CLAuthorizationStatus, isMac: Bool) -> Bool {
         !isMac && status == .authorizedWhenInUse
     }

@@ -11,7 +11,7 @@ import Testing
 
 /// The route screen's GPS runs only with PlowR in front (pre-launch review,
 /// 2026-10-10): arrivals and departures are job-site areas, which iOS watches
-/// without it.
+/// without it when Location is set to Always.
 @MainActor
 struct LocationManagerTests {
 
@@ -68,6 +68,23 @@ struct LocationManagerTests {
         #expect(!RouteGPS.needsAlways(status: .authorizedAlways, isMac: false))
         #expect(!RouteGPS.needsAlways(status: .denied, isMac: false))
         #expect(!RouteGPS.needsAlways(status: .authorizedWhenInUse, isMac: true))
+    }
+
+    // The first fix after GPS restarts can be minutes old (where the phone
+    // was locked): an estimate or a text's location waits for a fresh one.
+    @Test func anOldFixIsntUsed() {
+        let location = LocationManager(manager: CLLocationManager())
+        let here = CLLocationCoordinate2D(latitude: 43.37, longitude: -72.34)
+        func fix(ago seconds: TimeInterval, accuracy: Double = 10) -> CLLocation {
+            CLLocation(coordinate: here, altitude: 0, horizontalAccuracy: accuracy, verticalAccuracy: 10,
+                       timestamp: Date().addingTimeInterval(-seconds))
+        }
+        location.locationManager(CLLocationManager(), didUpdateLocations: [fix(ago: 300)])
+        #expect(location.currentLocation == nil)
+        location.locationManager(CLLocationManager(), didUpdateLocations: [fix(ago: 0, accuracy: -1)])
+        #expect(location.currentLocation == nil)
+        location.locationManager(CLLocationManager(), didUpdateLocations: [fix(ago: 300), fix(ago: 1)])
+        #expect(location.currentLocation != nil)
     }
 }
 
