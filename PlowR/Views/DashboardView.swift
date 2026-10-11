@@ -448,12 +448,14 @@ struct DashboardView: View {
     private func needsALookRow(_ title: String, detail: String) -> some View {
         HStack(spacing: 12) {
             IconBadge(systemImage: "exclamationmark.triangle.fill", color: .orange)
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
                 Text(detail).font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
             Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
+                .accessibilityHidden(true)
         }
         .padding(14)
         .contentShape(Rectangle())
