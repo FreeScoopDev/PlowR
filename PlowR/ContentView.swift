@@ -31,6 +31,14 @@ struct ContentView: View {
                 }
             }
         }
+        #if DEBUG
+        // Screenshots from the command line (DemoLaunch): signed in, with a
+        // sample business, on the tab asked for.
+        .onAppear {
+            DemoLaunch.prepare(auth: authManager, context: modelContext)
+            if let tab = DemoLaunch.tab { selectedTab = tab }
+        }
+        #endif
         // Only the signed-in business's visits go in the calendar.
         .onChange(of: authManager.userID, initial: true) { _, userID in
             calendarSync.operatorID = userID

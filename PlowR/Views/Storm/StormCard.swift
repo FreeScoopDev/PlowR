@@ -26,7 +26,7 @@ struct StormCard: View {
         VStack(alignment: .leading, spacing: 8) {
             Label("Storm", systemImage: "cloud.snow.fill")
                 .font(.subheadline.weight(.semibold))
-            DashCard {
+            PlowRCard {
                 VStack(alignment: .leading, spacing: 0) {
                     forecast.padding(14)
                     if !storm.met.isEmpty || !storm.notMet.isEmpty || !storm.markedBelow.isEmpty {

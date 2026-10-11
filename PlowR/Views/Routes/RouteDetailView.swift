@@ -98,7 +98,7 @@ struct RouteDetailView: View {
                                     .opacity(isSkipped ? 0.4 : 1)
                                 if isSkipped {
                                     StatusChip(belowTriggerToday.contains(stop.id) ? "Below Trigger" : "Skipped Today",
-                                               color: .secondary)
+                                               status: .neutral)
                                 }
                                 Image(systemName: "chevron.right")
                                     .font(.caption.weight(.semibold))
@@ -179,10 +179,9 @@ struct RouteDetailView: View {
                     }
                 } label: {
                     Text(todaysRun.startTitle)
-                        .font(.headline)
                         .frame(maxWidth: .infinity)
                 }
-                .primaryActionStyle(.blue)
+                .buttonStyle(.plowRAction)
                 .disabled(todaysRun.stops.isEmpty || isOptimizing)
                 .padding(.horizontal)
                 .padding(.vertical, 12)
@@ -238,9 +237,9 @@ struct RouteDetailView: View {
             .filter { !$0.element.equipmentNotes.isEmpty && todaysRun.isIncluded($0.element.id) }
         return Section {
             StatTileRow {
-                StatTile(value: "\(stops.count)", label: stops.count == 1 ? "Stop" : "Stops", color: .blue)
-                StatTile(value: minutes > 0 ? RouteFacts.duration(minutes) : "—", label: "About", color: .blue)
-                StatTile(value: "\(lines.count)", label: lines.count == 1 ? "Service" : "Services", color: .green)
+                StatTile(value: "\(stops.count)", label: stops.count == 1 ? "Stop" : "Stops")
+                StatTile(value: minutes > 0 ? RouteFacts.duration(minutes) : "—", label: "About")
+                StatTile(value: "\(lines.count)", label: lines.count == 1 ? "Service" : "Services")
             }
             .listRowBackground(Color.clear)
             .listRowInsets(EdgeInsets())
@@ -377,7 +376,7 @@ struct RouteDetailView: View {
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(.green)
                 } else if let client = clientFor(stop), client.totalVisits > 0 {
-                    StatusChip("\(client.totalVisits)", color: .blue)
+                    StatusChip("\(client.totalVisits)", status: .neutral)
                 }
                 if stop.latitude == 0 {
                     Image(systemName: "location.slash")

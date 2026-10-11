@@ -211,7 +211,7 @@ struct RequestLinkQRView: View {
                                                                                  image: Image(uiImage: image))) {
                         Label("Save QR Code", systemImage: "square.and.arrow.down")
                     }
-                    .buttonStyle(.borderedProminent)
+                    .plowRProminent()
                     Text("Save Image puts it in Photos, for a flyer, a sign or your truck. The bigger it's printed, the farther away it scans.")
                         .font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
                 } else if made {

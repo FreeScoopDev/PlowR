@@ -202,7 +202,7 @@ struct ProposalDetailView: View {
                         Label("View Contract", systemImage: "signature")
                             .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .plowRProminent()
                 } else {
                     if let client = proposalClient {
                         Button {

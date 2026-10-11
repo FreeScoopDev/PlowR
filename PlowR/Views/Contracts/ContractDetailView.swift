@@ -36,7 +36,7 @@ struct ContractDetailView: View {
     private var list: some View {
         List {
             Section {
-                LabeledContent("Status") { StatusChip(status.title, color: status.chipColor) }
+                LabeledContent("Status") { StatusChip(status.title, status: status.chipStatus) }
                 if contract.client == nil {
                     LabeledContent("Client", value: contract.clientName)
                 }
@@ -233,7 +233,7 @@ struct ContractDetailView: View {
             Spacer()
             Text(installment.amount, format: .currency(code: "USD"))
             if let invoice {
-                StatusChip(invoice.invoiceStatus.rawValue, color: invoice.invoiceStatus.chipColor)
+                StatusChip(invoice.invoiceStatus.rawValue, status: invoice.invoiceStatus.chipStatus)
             }
         }
     }
@@ -314,7 +314,7 @@ struct ContractRow: View {
                 Text(Contracts.priceSummary(of: contract)).font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
-            StatusChip(status.title, color: status.chipColor)
+            StatusChip(status.title, status: status.chipStatus)
         }
     }
 }

@@ -75,10 +75,9 @@ struct RouteRecapView: View {
                         onEndRoute()
                     } label: {
                         Label("End Route", systemImage: "checkmark.circle.fill")
-                            .font(.headline)
                             .frame(maxWidth: .infinity)
                     }
-                    .primaryActionStyle(.green)
+                    .buttonStyle(.plowRAction)
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
                 }
@@ -107,15 +106,15 @@ struct RouteRecapView: View {
     private var summarySection: some View {
         Section {
             StatTileRow {
-                StatTile(value: "\(completedStops.count)", label: "Serviced", color: .green)
+                StatTile(value: "\(completedStops.count)", label: "Serviced", status: .done)
                 if skippedStops.count > 0 {
-                    StatTile(value: "\(skippedStops.count)", label: "Skipped", color: .orange)
+                    StatTile(value: "\(skippedStops.count)", label: "Skipped", status: .owed)
                 }
                 let totalMin = stops.reduce(0) { $0 + $1.actualMinutes }
                 if totalMin > 0 {
                     let h = totalMin / 60, m = totalMin % 60
                     let label = h > 0 ? "\(h)h \(m)m" : "\(m)m"
-                    StatTile(value: label, label: "On Route", color: .blue)
+                    StatTile(value: label, label: "On Route")
                 }
             }
             .listRowBackground(Color.clear)

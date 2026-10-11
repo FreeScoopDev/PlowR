@@ -28,16 +28,21 @@ struct DesignSystemTests {
         }
     }
 
-    // Light-mode accent is the brand navy; dark mode is the brighter blue it
-    // shipped with (0.53, 0.70, 1.00). Pinned by value, so a change to the
-    // dark tint of the whole app shows up here instead of passing silently.
-    @Test func accentIsNavyInLightAndBrightBlueInDark() {
+    // The app's tint is the brand forest green in both appearances (1.7).
+    // Pinned by value, so a change to the tint of the whole app shows up here
+    // instead of passing silently.
+    @Test func accentIsTheBrandGreen() {
         let light = PlowRColor.accentUIColor.resolvedColor(with: UITraitCollection(userInterfaceStyle: .light))
         let dark = PlowRColor.accentUIColor.resolvedColor(with: UITraitCollection(userInterfaceStyle: .dark))
-        #expect(light == PlowRColor.navyUIColor)
-        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-        #expect(dark.getRed(&r, green: &g, blue: &b, alpha: &a))
-        for (actual, want) in zip([r, g, b], [0.53, 0.70, 1.00] as [CGFloat]) {
+        func rgb(_ color: UIColor) -> [CGFloat] {
+            var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+            #expect(color.getRed(&r, green: &g, blue: &b, alpha: &a))
+            return [r, g, b]
+        }
+        for (actual, want) in zip(rgb(light), [0x1F, 0x4D, 0x3A].map { CGFloat($0) / 255 }) {
+            #expect(abs(actual - want) <= 0.001)
+        }
+        for (actual, want) in zip(rgb(dark), [0x9C, 0xCF, 0xB3].map { CGFloat($0) / 255 }) {
             #expect(abs(actual - want) <= 0.001)
         }
     }

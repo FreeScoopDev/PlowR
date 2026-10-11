@@ -55,12 +55,12 @@ enum Contracts {
         /// Signed and not over: the client has agreed to it.
         var isInForce: Bool { self == .upcoming || self == .active }
 
-        /// Green in force, blue a draft, grey over (the status colours).
-        var chipColor: Color {
+        /// Green in force, plain a draft, grey over (`PlowRColor.Status`).
+        var chipStatus: PlowRColor.Status {
             switch self {
-            case .draft: .blue
-            case .upcoming, .active: .green
-            case .ended, .cancelled: .gray
+            case .draft: .neutral
+            case .upcoming, .active: .done
+            case .ended, .cancelled: .void
             }
         }
     }

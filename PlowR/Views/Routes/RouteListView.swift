@@ -39,9 +39,9 @@ struct RouteListView: View {
                                 // The free tier runs one route: it says Free, the others Pro.
                                 if access.tier == .free {
                                     if Access.freeRoute(in: allRoutes, operatorID: authManager.userID)?.id == route.id {
-                                        StatusChip("Free", color: .green)
+                                        StatusChip("Free", status: .done)
                                     } else {
-                                        StatusChip("Pro", color: .gray)
+                                        StatusChip("Pro", status: .neutral)
                                     }
                                 }
                             }
@@ -154,8 +154,10 @@ struct RouteRowView: View {
         RouteRunSummary(route: route, store: activeRoute)
     }
 
-    private var color: Color {
-        run.isRunning ? .orange : (run.isDone ? .green : .blue)
+    /// The brand while running (with the filled map), done green, else
+    /// plain: no status's colour stands in for "running".
+    private var status: PlowRColor.Status? {
+        run.isRunning ? nil : (run.isDone ? .done : .neutral)
     }
 
     private var stopsText: String {
@@ -177,7 +179,7 @@ struct RouteRowView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            IconBadge(systemImage: run.isRunning ? "map.fill" : "map", color: color)
+            IconBadge(systemImage: run.isRunning ? "map.fill" : "map", status: status)
             VStack(alignment: .leading, spacing: 2) {
                 Text(route.name)
                     .font(.subheadline.weight(.semibold))
@@ -187,7 +189,7 @@ struct RouteRowView: View {
                     .foregroundStyle(.secondary)
                 Text(statusText)
                     .font(.caption)
-                    .foregroundStyle(run.isRunning ? .orange : .secondary)
+                    .foregroundStyle(run.isRunning ? PlowRColor.brand : PlowRColor.inkSecondary)
             }
         }
         .padding(.vertical, 4)

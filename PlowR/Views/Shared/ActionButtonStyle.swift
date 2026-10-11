@@ -1,26 +1,30 @@
 import SwiftUI
 
-extension View {
-    /// A screen's main action, full width: Apple's large prominent button in
-    /// `tint`. The route flow's Start, Done, Complete and Review buttons were
-    /// custom filled rectangles (greyed by hand when disabled) while End Route
-    /// used this; now they all do. The label should fill the width
-    /// (`.frame(maxWidth: .infinity)`).
-    func primaryActionStyle(_ tint: Color) -> some View {
-        buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .tint(tint)
-    }
+// MARK: - 1.7 design (Evergreen & Copper)
 
-    /// The quieter choice beside a primary action (Skip, Not Now).
-    func secondaryActionStyle() -> some View {
-        buttonStyle(.bordered)
-            .controlSize(.large)
-            .tint(.secondary)
+extension View {
+    /// Apple's prominent button in the brand green, its label in the colour
+    /// made for text on the brand (`onBrand`): white in light mode, deep
+    /// green on the pale green of dark mode, where a white label was
+    /// unreadable (1.75:1). For a button that isn't the screen's one main
+    /// action; that one is `.plowRAction`.
+    func plowRProminent() -> some View {
+        modifier(PlowRProminent())
     }
 }
 
-// MARK: - 1.7 design (Evergreen & Copper)
+/// `plowRProminent()`: the label takes `onBrand` only while the button is
+/// enabled, so a disabled one keeps the system's dimmed label.
+private struct PlowRProminent: ViewModifier {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func body(content: Content) -> some View {
+        content
+            .buttonStyle(.borderedProminent)
+            .tint(PlowRColor.brand)
+            .foregroundStyle(isEnabled ? PlowRColor.onBrand : PlowRColor.inkSecondary)
+    }
+}
 
 /// A screen's one main action in the 1.7 design: copper, full width, at
 /// least glove height, Barlow label. Greys itself when disabled.

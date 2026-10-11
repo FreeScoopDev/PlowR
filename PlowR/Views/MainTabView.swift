@@ -17,24 +17,24 @@ struct MainTabView: View {
     var body: some View {
         TabView(selection: $selectedTab) {
             DashboardView()
-                .tabItem { Label("Home", systemImage: "house.fill") }
+                .tabItem { Label("Home", systemImage: PlowRSymbol.home.name) }
                 .tag(0)
 
             NavigationStack { ClientListView() }
-                .tabItem { Label("Clients", systemImage: "person.2.fill") }
+                .tabItem { Label("Clients", systemImage: PlowRSymbol.client.name) }
                 .tag(1)
 
             NavigationStack { RouteListView() }
-                .tabItem { Label("Routes", systemImage: "map.fill") }
+                .tabItem { Label("Routes", systemImage: PlowRSymbol.route.name) }
                 .tag(2)
 
             NavigationStack { ProposalListView() }
-                .tabItem { Label("Documents", systemImage: "doc.on.doc.fill") }
+                .tabItem { Label("Documents", systemImage: PlowRSymbol.document.name) }
                 .badge(documentsBadge > 0 ? documentsBadge : 0)
                 .tag(3)
 
             ScheduleView()
-                .tabItem { Label("Schedule", systemImage: "calendar") }
+                .tabItem { Label("Schedule", systemImage: PlowRSymbol.schedule.name) }
                 .tag(4)
         }
         // The route screen is shown from here, the app's root, whenever a route

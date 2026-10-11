@@ -160,14 +160,16 @@ enum InvoiceStatus: String {
         }
     }
 
-    var chipColor: Color {
+    /// Its chip and bar colours (`PlowRColor.Status`): money owed amber,
+    /// late red, paid green, a quote blue, a draft plain.
+    var chipStatus: PlowRColor.Status {
         switch self {
-        case .proposal: return .blue
-        case .draft:    return .gray
-        case .sent:     return .orange
-        case .paid:     return .green
-        case .overdue:  return .red
-        case .void:     return .secondary
+        case .proposal: return .scheduled
+        case .draft:    return .neutral
+        case .sent:     return .owed
+        case .paid:     return .done
+        case .overdue:  return .overdue
+        case .void:     return .void
         }
     }
 }

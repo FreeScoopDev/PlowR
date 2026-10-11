@@ -122,12 +122,14 @@ enum VisitStatus: String, CaseIterable {
         }
     }
 
-    var chipColor: Color {
+    /// Its chip, bar and icon colours (`PlowRColor.Status`). A cancelled
+    /// visit is void, not overdue: red is for money late.
+    var chipStatus: PlowRColor.Status {
         switch self {
-        case .scheduled: return .blue
-        case .completed: return .green
-        case .cancelled: return .red
-        case .skipped:   return .orange
+        case .scheduled: return .scheduled
+        case .completed: return .done
+        case .cancelled: return .void
+        case .skipped:   return .owed
         }
     }
 }

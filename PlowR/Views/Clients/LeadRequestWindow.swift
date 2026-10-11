@@ -104,7 +104,7 @@ private struct DamagedRequestView: View {
             } description: {
                 Text("The link may have been cut short or changed. The request itself is in the text it came with: add them as a client from there.")
             } actions: {
-                Button("OK", action: onClose).buttonStyle(.borderedProminent)
+                Button("OK", action: onClose).plowRProminent()
             }
         }
     }

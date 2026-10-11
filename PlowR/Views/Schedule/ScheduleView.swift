@@ -270,7 +270,7 @@ struct ScheduleView: View {
 
     private func visitRow(_ visit: ScheduledVisit) -> some View {
         HStack(spacing: 12) {
-            AccentBar(color: visit.status.chipColor)
+            AccentBar(status: visit.status.chipStatus)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(visit.clientName)
@@ -297,12 +297,12 @@ struct ScheduleView: View {
 
             VStack(alignment: .trailing, spacing: 4) {
                 StatusChip(visit.status.rawValue, systemImage: visit.status.systemImage,
-                           color: visit.status.chipColor)
+                           status: visit.status.chipStatus)
                 if !visit.proposalID.isEmpty {
-                    StatusChip("Invoiced", systemImage: "doc.text.fill", color: .green)
+                    StatusChip("Invoiced", systemImage: "doc.text.fill", status: .done)
                 }
                 if visit.isAfterHours {
-                    StatusChip("After Hours", systemImage: "moon.fill", color: .orange)
+                    StatusChip("After Hours", systemImage: "moon.fill", status: .neutral)
                 }
             }
         }

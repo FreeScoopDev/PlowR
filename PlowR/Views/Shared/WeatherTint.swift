@@ -34,16 +34,19 @@ enum WeatherKind {
         }
     }
 
-    /// An icon on the page's background: a forecast's symbol. A clear day's
-    /// sun is orange rather than the strip's teal.
+    /// An icon on the page's background: a forecast's symbol, the weather
+    /// card's (1.7 tokens). Snow in the snow service's blue, rain in the
+    /// scheduled blue, sun in amber, thunder in purple so a storm stands
+    /// out, fog and cloud in grey.
     var iconColor: Color {
         switch self {
-        case .snow: .blue
-        case .thunder: .purple
-        case .rain: .indigo
-        case .fog: .gray
-        case .cloudy: Color(.systemGray)
-        case .clear, .other: .orange
+        case .snow: PlowRColor.Service.snow.fill
+        case .rain: PlowRColor.Status.scheduled.fill
+        case .clear, .other: PlowRColor.Status.owed.fill
+        case .thunder: PlowRColor.Status.lead.fill
+        // Grey text's colour, not the neutral status's quieter fill, which
+        // is too faint for a glyph on its own (2:1).
+        case .fog, .cloudy: PlowRColor.inkSecondary
         }
     }
 }
