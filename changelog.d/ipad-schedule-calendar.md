@@ -1,2 +1,0 @@
-### Fixed
-- On iPad the Schedule's month calendar no longer draws the neighbouring months beside and over the current one. The calendar lays out for a phone-width page; given a whole iPad row it showed the previous and next month's weeks around it. It is now held to a phone-sized width, centred, and clipped to its own bounds. Seen on an iPad simulator (iPad Pro 13-inch) before and after; iPhone is unchanged, since it is narrower than the limit.

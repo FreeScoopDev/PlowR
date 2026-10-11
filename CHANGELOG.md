@@ -32,6 +32,7 @@ New entries go in `changelog.d/` (see its README) and are gathered here when a v
 - The Today's Route widget and the Live Activity on the Lock Screen and in the Dynamic Island are in the new design, so they match the app they open: forest green instead of blue, the done green for progress, and the page and card colours behind them. The Dynamic Island keeps the light green that reads on its black in either appearance.
 - The rest of PlowR's screens use the same colours for the same meaning as Home and the lists: money owed and warnings amber, overdue and errors red, paid and done green, everything else forest green. A route's map pins, the Season Report's bars, a client's quick actions, the day pickers and message presets were still blue, orange, purple and teal, each meaning something different from screen to screen. The Schedule's list of visits that slipped by is headed "Past Due" rather than "Overdue": red "overdue" is for money that's late.
 - PlowR's icon is in the new colours: the same mountain and road, now forest green, cream and copper, with the ice-blue peak for snow. It has its own dark and tinted versions for iOS's dark and tinted home screens; until now only one version shipped, so iOS made those itself.
+- The business-name hint on the first-run setup screen reads "Summit Ridge Grounds", an invented name, instead of one that may belong to a real business.
 
 ### Fixed
 - The route map opens with you and your next stop both in view, the stop's name showing: it used to put the stop's pin on the map's top edge. When the stop is more than about 12 km away, the map shows where you are instead of miles of empty road.
@@ -42,10 +43,13 @@ New entries go in `changelog.d/` (see its README) and are gathered here when a v
 - A business has one profile, the same on every device. Two devices could each make one before iCloud brought the other's, and each screen took whichever came first: an invoice could get an empty business name and no sales tax. Extra profiles are now merged into one, keeping every detail.
 - A failed Sign in with Apple says so; it did nothing.
 - Someone already signed in no longer sees the sign-in screen flash up while PlowR checks the saved sign-in.
+- On iPad the Schedule's month calendar no longer draws the neighbouring months beside and over the current one. The calendar lays out for a phone-width page; given a whole iPad row it showed the previous and next month's weeks around it. It is now held to a phone-sized width, centred, and clipped to its own bounds. iPhone is unchanged.
 
 ### Internal
 - The 1.7 design's building blocks, in `DesignSystem.swift`: the Evergreen & Copper colors (light and dark), one set of status colors (done, scheduled, owed, overdue, lead, void) and service colors (snow, lawn, landscaping) meant for every screen, text roles for Barlow headings and numbers that scale with the user's text size, a spacing scale and tap-target sizes, and one SF Symbol per idea. A test checks every text color against its background at the 4.5:1 readability standard, in light and dark mode, since the point is reading it early in the morning and late at night.
 - Debug builds: `-PlowRDemoRoute YES` (with `-PlowRDemo YES`) starts the sample route, for screenshots of the route screen and Live Activity.
+- The sample business behind the Debug demo launch (and Settings > Developer > Populate Sample Clients) uses invented names, streets and 555-01xx phone numbers, with map pins rounded to about 100 m, and has a few weeks of finished route work and sent texts. The repo is public and the App Store screenshots come from this data.
+- Debug builds: `-PlowRDemoPro YES` (with `-PlowRDemo YES`) makes the plan read as PlowR Pro, for screenshots of Pro screens. Compiled out of Release.
 
 ## [1.6.1] - 2026-10-10
 
