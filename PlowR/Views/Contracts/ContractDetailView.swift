@@ -279,7 +279,7 @@ struct ContractDetailView: View {
 
     /// The PDF to share, in the temporary folder.
     private func writePDF() {
-        let profile = allProfiles.first { $0.operatorID == contract.operatorID }
+        let profile = BusinessProfiles.current(allProfiles, operatorID: contract.operatorID)
         let data = ContractPDF.generate(contract, client: contract.client, profile: profile, catalog: allServiceItems,
                                         madeWithPlowR: access.showsMadeWithPlowR)
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(ContractPDF.fileName(contract))

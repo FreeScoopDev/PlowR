@@ -29,7 +29,7 @@ struct RequestLinkView: View {
     @State private var welcome = ""
 
     private var profile: BusinessProfile? {
-        profiles.first { $0.operatorID == authManager.userID }
+        BusinessProfiles.current(profiles, operatorID: authManager.userID)
     }
 
     private var link: URL? {

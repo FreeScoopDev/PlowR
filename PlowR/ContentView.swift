@@ -16,12 +16,16 @@ struct ContentView: View {
     @Query private var clients: [Client]
     /// Setup finished on this device (FirstRun), re-read when it finishes.
     @State private var setupFinished = false
+    /// The business whose tabs have shown this session: setup never takes
+    /// over the app afterwards (say, when the last client is deleted).
+    @State private var tabsShownFor: String?
+    @State private var importWait = CloudImportWait()
 
     /// A new business, with nothing yet: first-run setup (FirstRun).
     private var needsSetup: Bool {
         let id = authManager.userID
-        return FirstRun.needsSetup(hasProfile: profiles.contains { $0.operatorID == id },
-                                   clientCount: clients.filter { $0.operatorID == id }.count,
+        guard tabsShownFor != id else { return false }
+        return FirstRun.needsSetup(profiles: profiles, clients: clients, operatorID: id,
                                    completed: setupFinished || UserDefaults.standard.bool(forKey: FirstRun.completedKey(id)))
     }
 
@@ -38,9 +42,15 @@ struct ContentView: View {
             } else {
                 if authManager.isSignedIn {
                     if needsSetup {
-                        SetupFlowView { setupFinished = true }
+                        if importWait.isDone {
+                            SetupFlowView { setupFinished = true }
+                        } else {
+                            LookingForBusinessView { importWait.finish() }
+                                .task { await importWait.start(syncOff: DeviceSync.isOff()) }
+                        }
                     } else {
                         MainTabView(selectedTab: $selectedTab)
+                            .onAppear { tabsShownFor = authManager.userID }
                     }
                 } else if authManager.isChecking {
                     // The saved sign-in is still being checked: the sign-in
@@ -64,6 +74,11 @@ struct ContentView: View {
         // Only the signed-in business's visits go in the calendar.
         .onChange(of: authManager.userID, initial: true) { _, userID in
             calendarSync.operatorID = userID
+            // Another business signed in (or the same after Delete Account &
+            // Data): its own first run.
+            setupFinished = false
+            if tabsShownFor != userID { tabsShownFor = nil }
+            if !importWait.isDone || userID.isEmpty { importWait = CloudImportWait() }
         }
         .onOpenURL { url in open(url) }
         // A web link (getplowr.app/lead/…) can arrive as a browsing activity.

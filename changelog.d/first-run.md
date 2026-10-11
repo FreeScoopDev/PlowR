@@ -4,11 +4,14 @@
   cleanup: each adds the usual services and prices), and its sales tax
   rate, then offers alerts and location with a sentence on what each is
   for, and says what's free (10 clients and one route) and what PlowR Pro
-  adds, with its free month. Every step can be skipped. Anyone already
-  using PlowR never sees it.
-- Home has a Get Started card until its steps are done (business details,
-  first client, a route, a first invoice sent, and alerts if they haven't
-  been asked about), each a tap away. It can be hidden.
+  adds (with the free month, for an account that can still have it).
+  Every step can be skipped. Anyone already using PlowR never sees it: on
+  a new device signed in to iCloud, PlowR first looks for the business in
+  iCloud, and only offers setup if nothing arrives.
+- Home has a Get Started card after setup until its steps are done
+  (business details, first client, a route, a first invoice sent, and
+  alerts if they haven't been asked about), each a tap away. It can be
+  hidden. Businesses already using PlowR don't see it.
 - Settings → Account → Switch to Client Mode, and client mode's Switch to
   Business Mode: a business could never change the role it picked on the
   first screen.
@@ -20,6 +23,10 @@
   what it's for. It used to appear the moment Home did, with no reason.
 
 ### Fixed
+- A business has one profile, the same on every device. Two devices could
+  each make one before iCloud brought the other's, and each screen took
+  whichever came first: an invoice could get an empty business name and no
+  sales tax. Extra profiles are now merged into one, keeping every detail.
 - A failed Sign in with Apple says so; it did nothing.
 - Someone already signed in no longer sees the sign-in screen flash up
   while PlowR checks the saved sign-in.

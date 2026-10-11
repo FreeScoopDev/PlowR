@@ -266,7 +266,7 @@ struct ClientStatsView: View {
     }
 
     private func buildReportURL(for period: SeasonReport.Period) -> IdentifiableURL? {
-        let profile = profiles.first { $0.operatorID == authManager.userID }
+        let profile = BusinessProfiles.current(profiles, operatorID: authManager.userID)
         let myProposals = allProposals.filter { $0.operatorID == authManager.userID }
         let data = PDFGenerator.generateSeasonReport(
             clients: myClients,

@@ -91,4 +91,98 @@ struct FirstRunTests {
         #expect(SignInFailure.isCancel(ASAuthorizationError(.canceled)))
         #expect(!SignInFailure.isCancel(ASAuthorizationError(.failed)))
     }
+    /// Setup with every step skipped makes no profile: an empty one could
+    /// stand in for the real one still on its way from iCloud.
+    @Test func skippingEverythingMakesNoProfile() throws {
+        let (container, context) = try store()
+        defer { _ = container }
+        FirstRun.save(FirstRun.Answers(), operatorID: "op", in: context)
+        #expect(try context.fetch(FetchDescriptor<BusinessProfile>()).isEmpty)
+    }
+
+    /// A profile that arrived from iCloud while setup was open keeps its name.
+    @Test func setupNeverOverwritesWhatsThere() throws {
+        let (container, context) = try store()
+        defer { _ = container }
+        let synced = BusinessProfile(operatorID: "op")
+        synced.companyName = "From iCloud"
+        context.insert(synced)
+        var answers = FirstRun.Answers()
+        answers.companyName = "Typed"
+        answers.taxRate = "5"
+        FirstRun.save(answers, operatorID: "op", in: context)
+        let profiles = try context.fetch(FetchDescriptor<BusinessProfile>())
+        #expect(profiles.count == 1)
+        #expect(profiles.first?.companyName == "From iCloud")
+        #expect(profiles.first?.defaultTaxRate == 5)       // it had none
+    }
+
+    /// A standard service already there isn't added again.
+    @Test func standardServicesAreAddedOnce() throws {
+        let (container, context) = try store()
+        defer { _ = container }
+        var answers = FirstRun.Answers()
+        answers.categories = [ServiceCatalog.snowKey]
+        FirstRun.save(answers, operatorID: "op", in: context)
+        let first = try context.fetch(FetchDescriptor<ServiceItem>()).count
+        #expect(first > 0)
+        FirstRun.save(answers, operatorID: "op", in: context)
+        #expect(try context.fetch(FetchDescriptor<ServiceItem>()).count == first)
+    }
+
+    /// Another business's records on the device don't count.
+    @Test func onlyThisBusinessesRecordsCount() {
+        let theirs = BusinessProfile(operatorID: "other")
+        let theirClient = Client(name: "T", phone: "", address: "", operatorID: "other")
+        #expect(FirstRun.needsSetup(profiles: [theirs], clients: [theirClient], operatorID: "op", completed: false))
+        let mine = Client(name: "M", phone: "", address: "", operatorID: "op")
+        #expect(!FirstRun.needsSetup(profiles: [theirs], clients: [mine], operatorID: "op", completed: false))
+    }
+
+    /// Get Started is for a business that went through setup here, not for
+    /// one that's used PlowR for a year and updated.
+    @Test func getStartedIsForNewBusinesses() {
+        let open = FirstRun.Checklist(profileDone: false, clientAdded: true, routeMade: false, invoiceSent: false,
+                                      alertsUndecided: false)
+        #expect(FirstRun.showsChecklist(completedSetup: true, hidden: false, checklist: open))
+        #expect(!FirstRun.showsChecklist(completedSetup: false, hidden: false, checklist: open))
+        #expect(!FirstRun.showsChecklist(completedSetup: true, hidden: true, checklist: open))
+    }
+}
+
+/// One profile per business, the same one on every device.
+@MainActor
+struct BusinessProfilesTests {
+    @Test func theSameProfileWhateverTheOrder() {
+        let a = BusinessProfile(operatorID: "op"), b = BusinessProfile(operatorID: "op")
+        let other = BusinessProfile(operatorID: "other")
+        let first = BusinessProfiles.current([a, b, other], operatorID: "op")
+        #expect(first === BusinessProfiles.current([other, b, a], operatorID: "op"))
+        #expect(first === (a.id.uuidString < b.id.uuidString ? a : b))
+    }
+
+    /// The extra is folded in: nothing either had is lost, one is left.
+    @Test func duplicatesMergeIntoOne() throws {
+        let container = try ModelContainer(
+            for: Schema(PlowRApp.models),
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
+        let context = container.mainContext
+        context.autosaveEnabled = false
+        let a = BusinessProfile(operatorID: "op"), b = BusinessProfile(operatorID: "op")
+        a.companyName = "Real Name"
+        b.defaultTaxRate = 6.25
+        b.logoData = Data([9])
+        b.customVisitReasons = ["Salt only"]
+        let other = BusinessProfile(operatorID: "other")
+        [a, b, other].forEach { context.insert($0) }
+        let keep = try #require(BusinessProfiles.current([a, b], operatorID: "op"))
+        #expect(BusinessProfiles.mergeDuplicates(in: context) == 1)
+        let left = try context.fetch(FetchDescriptor<BusinessProfile>()).filter { $0.operatorID == "op" }
+        #expect(left.count == 1 && left.first === keep)
+        #expect(keep.companyName == "Real Name")
+        #expect(keep.defaultTaxRate == 6.25)
+        #expect(keep.logoData == Data([9]))
+        #expect(keep.customVisitReasons == ["Salt only"])
+        #expect(try context.fetch(FetchDescriptor<BusinessProfile>()).count == 2)   // "other" untouched
+    }
 }

@@ -19,7 +19,12 @@ struct SetupFlowView: View {
     @State private var answers = FirstRun.Answers()
     @State private var logoItem: PhotosPickerItem?
     @State private var logoImage: Image?
-    @State private var permissions = SetupPermissions()
+    // Made once the view is up: a @State default is built again on every
+    // re-render of the screen above, and this holds a location manager.
+    @State private var permissions: SetupPermissions?
+    /// The Apple Account can still have the free month (an earlier
+    /// subscriber can't): decides the Pro step's button.
+    @State private var trialAvailable = false
     @State private var showingPaywall = false
 
     var body: some View {
@@ -54,7 +59,12 @@ struct SetupFlowView: View {
                 }
             }
         }
-        .task { await permissions.refresh() }
+        .task {
+            let made = permissions ?? SetupPermissions()
+            permissions = made
+            await made.refresh()
+            trialAvailable = await Subscription.introOfferAvailable()
+        }
     }
 
     // MARK: - Steps
@@ -153,13 +163,13 @@ struct SetupFlowView: View {
             heading("Stay a step ahead", "Two things PlowR can do for you. You can change either in the Settings app.")
             permissionRow(symbol: "bell.badge.fill", title: "Alerts",
                           detail: "A heads-up the evening before snow or a storm, and a reminder when an invoice goes overdue.",
-                          state: permissions.notifications) {
-                Task { await permissions.askForNotifications() }
+                          state: permissions?.notifications ?? .undecided) {
+                Task { await permissions?.askForNotifications() }
             }
             permissionRow(symbol: "location.fill", title: "Your location",
                           detail: "Today's weather on Home, and arrival times to your stops when you run a route.",
-                          state: permissions.location) {
-                permissions.askForLocation()
+                          state: permissions?.location ?? .undecided) {
+                permissions?.askForLocation()
             }
         }
     }
@@ -180,9 +190,9 @@ struct SetupFlowView: View {
                         }
                         .font(.subheadline)
                     }
-                    // Apple's paywall says whether this Apple Account still has
-                    // the free month: not everyone does.
-                    Text("New subscribers get their first month free. Cancel any time in the App Store; nothing you've made is ever deleted.")
+                    Text(trialAvailable
+                         ? "Your first month is free. Cancel any time in the App Store; nothing you've made is ever deleted."
+                         : "Cancel any time in the App Store; nothing you've made is ever deleted.")
                         .font(.footnote)
                         .foregroundStyle(PlowRColor.inkSecondary)
                 }
@@ -192,15 +202,9 @@ struct SetupFlowView: View {
         }
     }
 
-    /// What Pro adds (Access): never the price, which Apple's paywall shows.
-    static let proFeatures = [
-        "Unlimited clients and routes",
-        "Service Reports for every visit",
-        "Storm tools: text clients, mark below trigger",
-        "Import clients from a spreadsheet",
-        "A request link for new customers",
-        "Documents without \u{201C}Made with PlowR\u{201D}"
-    ]
+    /// What Pro adds: the paywall's own list (ProPitch), so the two can't
+    /// drift. Never the price, which Apple's paywall shows.
+    static var proFeatures: [String] { ProPitch.features.map(\.text) }
 
     // MARK: - Pieces
 
@@ -220,7 +224,9 @@ struct SetupFlowView: View {
     private var buttons: some View {
         VStack(spacing: PlowRLayout.space2) {
             if step == .pro {
-                Button { showingPaywall = true } label: { Text("Try Pro Free for a Month") }
+                Button { showingPaywall = true } label: {
+                    Text(trialAvailable ? "Try Pro Free for a Month" : "See PlowR Pro")
+                }
                     .buttonStyle(.plowRAction)
                 Button("Not Now") { finish() }
                     .font(.body.weight(.semibold))
@@ -341,7 +347,7 @@ final class SetupPermissions: NSObject, CLLocationManagerDelegate {
     }
 
     func askForNotifications() async {
-        _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound])
+        await NotificationService.shared.requestAuthorization()
         await refresh()
     }
 

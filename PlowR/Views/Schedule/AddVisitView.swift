@@ -158,7 +158,7 @@ struct AddVisitView: View {
     }
 
     private var operatorProfile: BusinessProfile? {
-        allProfiles.first { $0.operatorID == authManager.userID }
+        BusinessProfiles.current(allProfiles, operatorID: authManager.userID)
     }
 
     private var allReasonPresets: [String] {

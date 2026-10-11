@@ -55,7 +55,7 @@ struct BusinessProfileView: View {
     @State private var logoData: Data?
 
     private var profile: BusinessProfile? {
-        profiles.first { $0.operatorID == authManager.userID }
+        BusinessProfiles.current(profiles, operatorID: authManager.userID)
     }
 
     // PlowR Pro: read only, this editor shows why instead (EditsNeedPro).

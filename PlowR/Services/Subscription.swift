@@ -138,6 +138,18 @@ final class Subscription {
                         revoked: transaction.revocationDate != nil, expires: transaction.expirationDate)
     }
 
+    /// Whether this Apple Account can still start Pro with its free trial:
+    /// the product has one and the account hasn't used it. False when the
+    /// App Store can't say (offline, under tests), so nothing promises a
+    /// free month that may not come.
+    nonisolated static func introOfferAvailable() async -> Bool {
+        if PlowRApp.isRunningUnderTests { return false }
+        guard let product = try? await Product.products(for: [productID]).first,
+              let subscription = product.subscription,
+              subscription.introductoryOffer?.paymentMode == .freeTrial else { return false }
+        return await subscription.isEligibleForIntroOffer
+    }
+
     nonisolated static func readStoreKit() async -> Entitlements {
         var current: [Purchase] = []
         for await result in Transaction.currentEntitlements { current.append(purchase(result)) }

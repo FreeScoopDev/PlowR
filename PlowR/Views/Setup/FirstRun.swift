@@ -15,6 +15,23 @@ enum FirstRun {
         !completed && !hasProfile && clientCount == 0
     }
 
+    /// `needsSetup` for `operatorID`: another business's records on the
+    /// device don't count.
+    static func needsSetup(profiles: [BusinessProfile], clients: [Client], operatorID: String,
+                           completed: Bool) -> Bool {
+        needsSetup(hasProfile: profiles.contains { $0.operatorID == operatorID },
+                   clientCount: clients.filter { $0.operatorID == operatorID }.count,
+                   completed: completed)
+    }
+
+    /// The Get Started card is for a business that went through setup on
+    /// this device, until its steps are done or it's hidden: someone who
+    /// has used PlowR for a year, without a business name or invoices sent
+    /// from it, isn't told to "get started" after an update.
+    static func showsChecklist(completedSetup: Bool, hidden: Bool, checklist: Checklist) -> Bool {
+        completedSetup && !hidden && !checklist.isComplete
+    }
+
     /// Per business, in standard preferences (Delete Account & Data clears them).
     static func completedKey(_ operatorID: String) -> String { "setupCompleted.\(operatorID)" }
     static func checklistHiddenKey(_ operatorID: String) -> String { "getStartedHidden.\(operatorID)" }
@@ -35,15 +52,22 @@ enum FirstRun {
     @MainActor
     static func save(_ answers: Answers, operatorID: String, in context: ModelContext) {
         let profiles = (try? context.fetch(FetchDescriptor<BusinessProfile>())) ?? []
-        let profile = profiles.first { $0.operatorID == operatorID } ?? {
-            let new = BusinessProfile(operatorID: operatorID)
-            context.insert(new)
-            return new
-        }()
         let name = answers.companyName.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !name.isEmpty { profile.companyName = name }
-        if let logo = answers.logoData { profile.logoData = logo }
-        if let rate = Proposal.readTaxRate(answers.taxRate), rate > 0 { profile.defaultTaxRate = rate }
+        let rate = Proposal.readTaxRate(answers.taxRate) ?? 0
+        // Nothing given, nothing made: an empty profile could stand in for
+        // a real one still on its way from iCloud (BusinessProfiles).
+        if !name.isEmpty || answers.logoData != nil || rate > 0 {
+            let profile = BusinessProfiles.current(profiles, operatorID: operatorID) ?? {
+                let new = BusinessProfile(operatorID: operatorID)
+                context.insert(new)
+                return new
+            }()
+            // Only what's empty: a profile that arrived from iCloud while
+            // setup was open keeps what it had.
+            if !name.isEmpty && profile.companyName.isEmpty { profile.companyName = name }
+            if let logo = answers.logoData, profile.logoData == nil { profile.logoData = logo }
+            if rate > 0 && profile.defaultTaxRate == 0 { profile.defaultTaxRate = rate }
+        }
         let existing = (try? context.fetch(FetchDescriptor<ServiceItem>())) ?? []
         for category in ServiceCatalog.standardCategories where answers.categories.contains(category.key) {
             let current = (try? context.fetch(FetchDescriptor<ServiceItem>())) ?? existing

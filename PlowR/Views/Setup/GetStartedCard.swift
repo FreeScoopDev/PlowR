@@ -1,5 +1,4 @@
 import SwiftUI
-import UserNotifications
 
 /// The Dashboard's Get Started card (FirstRun.Checklist): the first things a
 /// new business does in PlowR, each a tap away, ticked off as they happen.
@@ -10,20 +9,25 @@ struct GetStartedCard: View {
     let newRoute: () -> Void
     let hide: () -> Void
     @Binding var alertsUndecided: Bool
+    /// Alerts were just allowed: schedule the ones waiting.
+    var alertsAllowed: () -> Void = {}
 
     var body: some View {
         VStack(alignment: .leading, spacing: PlowRLayout.space2) {
             HStack {
-                Text("Get Started · \(checklist.doneCount) of 4")
+                Text("Get Started · \(checklist.doneCount) of \(alertsUndecided ? 5 : 4)")
                     .font(PlowRFont.label)
                     .textCase(.uppercase)
                     .tracking(0.6)
                     .foregroundStyle(PlowRColor.inkSecondary)
                     .accessibilityAddTraits(.isHeader)
                 Spacer()
-                Button("Hide", action: hide)
-                    .font(.subheadline.weight(.semibold))
-                    .frame(minHeight: PlowRLayout.minTapTarget)
+                Button(action: hide) {
+                    Text("Hide")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(minWidth: PlowRLayout.minTapTarget, minHeight: PlowRLayout.minTapTarget)
+                        .contentShape(Rectangle())
+                }
             }
             PlowRCard {
                 NavigationLink { BusinessProfileView() } label: {
@@ -53,8 +57,7 @@ struct GetStartedCard: View {
                     divider
                     Button {
                         Task {
-                            _ = try? await UNUserNotificationCenter.current()
-                                .requestAuthorization(options: [.alert, .badge, .sound])
+                            if await NotificationService.shared.requestAuthorization() { alertsAllowed() }
                             alertsUndecided = false
                         }
                     } label: {

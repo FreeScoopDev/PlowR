@@ -49,7 +49,7 @@ struct DashboardView: View {
     // MARK: - Derived Data
 
     private var profile: BusinessProfile? {
-        allProfiles.first { $0.operatorID == authManager.userID }
+        BusinessProfiles.current(allProfiles, operatorID: authManager.userID)
     }
 
     private var myClients: [Client] {
@@ -208,7 +208,6 @@ struct DashboardView: View {
             // with why: the alert used to appear the moment Home did.
             alertsUndecided = await UNUserNotificationCenter.current().notificationSettings()
                 .authorizationStatus == .notDetermined
-            checklistHidden = UserDefaults.standard.bool(forKey: FirstRun.checklistHiddenKey(authManager.userID))
             NotificationService.shared.scheduleOverdueReminder(count: overdueCount)
             await fetchDashboardWeather()
         }
@@ -279,7 +278,11 @@ struct DashboardView: View {
     private var getStarted: some View {
         let checklist = FirstRun.checklist(profile: profile, clients: myClients.count, routes: myRoutes.count,
                                            documents: myProposals, alertsUndecided: alertsUndecided)
-        if !checklistHidden && !checklist.isComplete {
+        let id = authManager.userID
+        // Read here, not after the page appears: a hidden card flashed up.
+        if FirstRun.showsChecklist(completedSetup: UserDefaults.standard.bool(forKey: FirstRun.completedKey(id)),
+                                   hidden: checklistHidden || UserDefaults.standard.bool(forKey: FirstRun.checklistHiddenKey(id)),
+                                   checklist: checklist) {
             GetStartedCard(checklist: checklist,
                            addClient: { $gate.unless(ProGate.addClient(access)) { showingAddClient = true } },
                            newRoute: {
@@ -291,7 +294,8 @@ struct DashboardView: View {
                                UserDefaults.standard.set(true, forKey: FirstRun.checklistHiddenKey(authManager.userID))
                                withAnimation { checklistHidden = true }
                            },
-                           alertsUndecided: $alertsUndecided)
+                           alertsUndecided: $alertsUndecided,
+                           alertsAllowed: { NotificationService.shared.scheduleOverdueReminder(count: overdueCount) })
         }
     }
 

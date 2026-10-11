@@ -29,7 +29,7 @@ struct ProposalDetailView: View {
     // MARK: - Computed Properties
 
     private var profile: BusinessProfile? {
-        allProfiles.first { $0.operatorID == proposal.operatorID }
+        BusinessProfiles.current(allProfiles, operatorID: proposal.operatorID)
     }
 
     private var activePaymentMethods: [PaymentMethod] {

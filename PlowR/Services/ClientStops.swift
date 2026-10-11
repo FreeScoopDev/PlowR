@@ -95,6 +95,8 @@ enum ClientStops {
                 // Another device's records of the same work have arrived, or
                 // the invoice of a visit copied into the log before it had.
                 ServiceLog.mergeDuplicates(in: container.mainContext)
+                // A profile made on another device before this one's synced.
+                BusinessProfiles.mergeDuplicates(in: container.mainContext)
                 ServiceLog.linkEarlierVisits(in: container.mainContext)
                 // Payments recorded on another device may now cover an invoice.
                 Payments.settleAll(in: container.mainContext)
