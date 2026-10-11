@@ -6,7 +6,8 @@ import SwiftData
 /// command line with no taps: launched with `-PlowRDemo YES`, PlowR signs in
 /// as the dev user, skips the role screen and, the first time, fills the store
 /// with clients, a route, today's visits and invoices in every state.
-/// `-PlowRDemoTab 2` opens a tab (0 Home … 4 Schedule). Debug builds only.
+/// `-PlowRDemoTab 2` opens a tab (0 Home … 4 Schedule); `-PlowRDemoRoute YES`
+/// starts the sample route. Debug builds only.
 ///
 ///     xcrun simctl launch <device> Scoops.PlowR -PlowRDemo YES -PlowRDemoTab 1
 enum DemoLaunch {
@@ -51,8 +52,13 @@ enum DemoLaunch {
         // build (whose data syncs to iCloud) gets nothing added.
         guard auth.userID == operatorID else { return }
         let mine = FetchDescriptor<Client>(predicate: #Predicate { $0.operatorID == "dev-user" })
-        guard ((try? context.fetchCount(mine)) ?? 0) == 0 else { return }
-        seed(in: context, now: .now)
+        if ((try? context.fetchCount(mine)) ?? 0) == 0 { seed(in: context, now: .now) }
+        // `-PlowRDemoRoute YES`: the sample route running, for the route
+        // screen, Live Activity and widget.
+        if UserDefaults.standard.bool(forKey: "PlowRDemoRoute"), !ActiveRouteStore.shared.isActive,
+           let route = (try? context.fetch(FetchDescriptor<PlowRoute>()))?.first(where: { $0.operatorID == operatorID }) {
+            ActiveRouteStore.shared.start(route)
+        }
     }
 
     @MainActor

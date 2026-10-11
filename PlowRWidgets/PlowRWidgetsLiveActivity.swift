@@ -6,13 +6,13 @@ struct PlowRWidgetsLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: PlowRRouteAttributes.self) { context in
             LockScreenLiveActivityView(context: context)
-                .activityBackgroundTint(Color(.systemBackground))
+                .activityBackgroundTint(PlowRColor.surface)
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     HStack(spacing: 6) {
                         Image(systemName: "truck.box.fill")
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(PlowRColor.brand)
                             .font(.title3)
                         VStack(alignment: .leading, spacing: 1) {
                             Text(context.attributes.routeName)
@@ -31,7 +31,7 @@ struct PlowRWidgetsLiveActivity: Widget {
                         value: Double(context.state.currentStopNumber),
                         total: Double(context.state.totalStops)
                     )
-                    .tint(.blue)
+                    .tint(PlowRColor.Status.done.fill)
                     .frame(width: 60)
                     .padding(.trailing, 8)
                 }
@@ -51,7 +51,7 @@ struct PlowRWidgetsLiveActivity: Widget {
                         }
                         Spacer()
                         Image(systemName: "location.fill")
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(PlowRColor.brand)
                             .font(.caption)
                     }
                     .padding(.horizontal, 8)
@@ -60,7 +60,7 @@ struct PlowRWidgetsLiveActivity: Widget {
             } compactLeading: {
                 HStack(spacing: 4) {
                     Image(systemName: "truck.box.fill")
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(PlowRColor.brand)
                         .font(.caption2)
                     Text("\(context.state.currentStopNumber)/\(context.state.totalStops)")
                         .font(.caption2.bold())
@@ -72,10 +72,10 @@ struct PlowRWidgetsLiveActivity: Widget {
                     .frame(maxWidth: 70)
             } minimal: {
                 Image(systemName: "truck.box.fill")
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(PlowRColor.brand)
             }
             .widgetURL(PlowRLink.activeRoute.url)
-            .keylineTint(.blue)
+            .keylineTint(PlowRColor.brand)
         }
     }
 }
@@ -89,7 +89,7 @@ struct LockScreenLiveActivityView: View {
         HStack(spacing: 16) {
             Image(systemName: "truck.box.fill")
                 .font(.system(size: 28))
-                .foregroundStyle(.blue)
+                .foregroundStyle(PlowRColor.brand)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(context.attributes.routeName)
@@ -111,12 +111,12 @@ struct LockScreenLiveActivityView: View {
             VStack(alignment: .trailing, spacing: 4) {
                 Text("\(context.state.currentStopNumber)/\(context.state.totalStops)")
                     .font(.title3.bold())
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(PlowRColor.brand)
                 ProgressView(
                     value: Double(context.state.currentStopNumber),
                     total: Double(context.state.totalStops)
                 )
-                .tint(.blue)
+                .tint(PlowRColor.Status.done.fill)
                 .frame(width: 50)
             }
         }
