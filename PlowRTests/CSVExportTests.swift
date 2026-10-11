@@ -74,7 +74,76 @@ struct CSVExportTests {
         let lines = rows(CSVExport.invoices([invoice, quote], operatorID: "op"))
         #expect(lines.count == 2)
         #expect(lines[1].hasPrefix("INV-0007,"))
-        #expect(lines[1].contains(",40.00,0.00,0.00,40.00,"))
+        // Subtotal, Discount, Tax Rate %, Tax, Total.
+        #expect(lines[0].contains(",Subtotal,Discount,Tax Rate %,Tax,Total,"))
+        #expect(lines[1].contains(",40.00,0.00,0,0.00,40.00,"))
+    }
+
+    @Test func invoicesSayTheTaxRateCharged() throws {
+        let h = try Harness(stopCount: 1)
+        let invoice = Proposal(operatorID: "op", client: h.client)
+        invoice.invoiceNumber = "INV-0008"
+        invoice.taxRate = 8.875
+        let item = ProposalLineItem(serviceName: "Clear", zoneLabel: "", quantity: 1, unitType: "flat", unitPrice: 100)
+        h.context.insert(item)
+        invoice.lineItems = [item]
+        h.context.insert(invoice)
+        let lines = rows(CSVExport.invoices([invoice], operatorID: "op"))
+        #expect(lines[1].contains(",100.00,0.00,8.875,8.88,108.88,"))
+    }
+
+    /// One row per line, so income can be split by service.
+    @Test func invoiceLinesListEveryServiceBilled() throws {
+        let h = try Harness(stopCount: 1)
+        let invoice = Proposal(operatorID: "op", client: h.client)
+        invoice.invoiceNumber = "INV-0009"
+        let clear = ProposalLineItem(serviceName: "Clear", zoneLabel: "Driveway", quantity: 1_234.5,
+                                     unitType: "perSqFt", unitPrice: 0.04, sortOrder: 0)
+        let salt = ProposalLineItem(serviceName: "Salt", zoneLabel: "", quantity: 1, unitType: "flat",
+                                    unitPrice: 15, sortOrder: 1)
+        [clear, salt].forEach { h.context.insert($0) }
+        invoice.lineItems = [salt, clear]
+        let quote = Proposal(operatorID: "op", client: h.client)
+        let theirs = Proposal(operatorID: "someone else", client: h.client)
+        theirs.invoiceNumber = "INV-0001"
+        [invoice, quote, theirs].forEach { h.context.insert($0) }
+        let lines = rows(CSVExport.invoiceLines([invoice, quote, theirs], operatorID: "op"))
+        #expect(lines.count == 3)
+        #expect(lines[0] == "Invoice,Client,Status,Created,Service,Place,Quantity,Unit,Unit Price,Line Total")
+        #expect(lines[1].hasPrefix("INV-0009,") && lines[1].hasSuffix(",Clear,Driveway,1234.5,sq ft,0.04,49.38"))
+        #expect(lines[2].hasSuffix(",Salt,,1,each,15.00,15.00"))
+    }
+
+    /// The Payments file lists the money the reports count: an invoice marked
+    /// paid with no payment recorded is in it, on the day it was marked paid.
+    @Test func paymentsIncludeAnInvoiceMarkedPaidWithoutAPayment() throws {
+        let h = try Harness(stopCount: 1)
+        func invoice(_ number: String, _ price: Double) -> Proposal {
+            let bill = Proposal(operatorID: "op", client: h.client)
+            bill.invoiceNumber = number
+            let item = ProposalLineItem(serviceName: "Clear", zoneLabel: "", quantity: 1, unitType: "flat", unitPrice: price)
+            h.context.insert(item)
+            bill.lineItems = [item]
+            h.context.insert(bill)
+            return bill
+        }
+        let partly = invoice("INV-0010", 100)
+        Payments.record(30, method: "Check", note: "#1042", receivedAt: h.clock.addingTimeInterval(-86_400),
+                        on: partly, in: h.context, now: h.clock)
+        partly.invoicePaidAt = h.clock          // marked paid; $70 never recorded
+        let older = invoice("INV-0002", 50)
+        older.invoicePaidAt = h.clock.addingTimeInterval(-2 * 86_400)   // before payments were kept
+        let documents = [partly, older]
+        let lines = rows(CSVExport.payments(documents, operatorID: "op"))
+        #expect(lines.count == 4)
+        #expect(lines[1].contains(",INV-0002,") && lines[1].contains(",50.00,Marked Paid,"))
+        #expect(lines[2].contains(",INV-0010,") && lines[2].contains(",30.00,Check,#1042"))
+        #expect(lines[3].contains(",INV-0010,") && lines[3].contains(",70.00,Marked Paid,"))
+        // Adds up to the reports' money in.
+        let fileTotal = lines.dropFirst().compactMap { line in
+            line.split(separator: ",").compactMap { Double($0) }.first
+        }.reduce(0, +)
+        #expect(abs(fileTotal - Payments.received(documents)) < 0.001)
     }
 
     @Test func theServiceHistoryHasEachJobWithItsBilling() throws {
