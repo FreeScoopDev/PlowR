@@ -7,7 +7,7 @@ import SwiftData
 /// as the dev user, skips the role screen and, the first time, fills the store
 /// with clients, a route, today's visits and invoices in every state.
 /// `-PlowRDemoTab 2` opens a tab (0 Home … 4 Schedule); `-PlowRDemoRoute YES`
-/// starts the sample route. Debug builds only.
+/// starts the sample route; `-PlowRDemoPro YES` shows PlowR Pro. Debug builds only.
 ///
 ///     xcrun simctl launch <device> Scoops.PlowR -PlowRDemo YES -PlowRDemoTab 1
 enum DemoLaunch {
@@ -27,6 +27,9 @@ enum DemoLaunch {
         ("Pat Calloway", "603-555-0106", "12 Meadowview Ave, Claremont, NH 03743", 43.373, -72.342)
     ]
 
+    /// `-PlowRDemoPro YES`: the plan reads as PlowR Pro, for screenshots of
+    /// the Pro screens (see `Subscription.shared`).
+    static var isPro: Bool { UserDefaults.standard.bool(forKey: "PlowRDemoPro") }
     static var isOn: Bool { UserDefaults.standard.bool(forKey: "PlowRDemo") }
     /// `-PlowRDemoNew YES`: a brand-new business instead (its own user, no
     /// data, setup not done), to see first-run setup.
