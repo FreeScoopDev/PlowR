@@ -51,10 +51,12 @@ struct ClientHomeView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {
-                        Button(role: .destructive) {
-                            userRole = ""
+                        // Not destructive: the business's data stays, and its
+                        // sign-in, so switching back is one tap.
+                        Button {
+                            userRole = UserRole.business
                         } label: {
-                            Label("Switch to Operator Mode", systemImage: "arrow.left.arrow.right")
+                            Label("Switch to Business Mode", systemImage: "arrow.left.arrow.right")
                         }
                         Button(role: .destructive) {
                             showingDeleteConfirm = true

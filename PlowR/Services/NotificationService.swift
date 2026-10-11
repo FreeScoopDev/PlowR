@@ -39,13 +39,15 @@ final class NotificationService {
         "\(count) invoice\(count == 1 ? "" : "s") past due — follow up in PlowR."
     }
 
-    func requestAuthorization() {
+    /// Asks for notifications: from setup and Home's Get Started, each with
+    /// a reason beside it. Returns whether they're allowed.
+    @discardableResult
+    func requestAuthorization() async -> Bool {
         #if DEBUG
-        if DemoLaunch.isOn { return }     // no system alert over a screenshot
+        if DemoLaunch.isOn { return false }     // no system alert over a screenshot
         #endif
-        UNUserNotificationCenter.current().requestAuthorization(
-            options: [.alert, .badge, .sound]
-        ) { _, _ in }
+        return (try? await UNUserNotificationCenter.current()
+            .requestAuthorization(options: [.alert, .badge, .sound])) ?? false
     }
 
     /// Schedule a weather alert if adverse conditions (snow, heavy rain, storms) are

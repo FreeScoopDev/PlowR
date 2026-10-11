@@ -3,6 +3,7 @@ import SwiftData
 import UIKit
 
 struct SettingsView: View {
+    @AppStorage(UserRole.key) private var userRole = ""
     @Environment(AuthManager.self) private var authManager
     @Environment(ActiveRouteStore.self) private var activeRoute
     @Environment(CalendarSync.self) private var calendarSync
@@ -161,6 +162,14 @@ struct SettingsView: View {
                     LabeledContent("Name", value: authManager.operatorName)
                 }
                 LabeledContent("Account", value: "Apple ID")
+                // The role chosen on PlowR's first screen, changeable: looking
+                // for a service yourself. Nothing of the business changes;
+                // client mode's menu switches back.
+                Button {
+                    userRole = UserRole.client
+                } label: {
+                    Label("Switch to Client Mode", systemImage: "arrow.left.arrow.right")
+                }
             }
 
             Section {

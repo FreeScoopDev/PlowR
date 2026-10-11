@@ -65,7 +65,7 @@ struct ProposalBuilderView: View {
     private var hasZones: Bool { !zones.isEmpty }
 
     private var profile: BusinessProfile? {
-        allProfiles.first { $0.operatorID == authManager.userID }
+        BusinessProfiles.current(allProfiles, operatorID: authManager.userID)
     }
 
     private var activePaymentMethods: [PaymentMethod] {

@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import CoreLocation
+import UserNotifications
 
 struct DashboardView: View {
     @Environment(ActiveRouteStore.self) private var activeRoute
@@ -33,6 +34,11 @@ struct DashboardView: View {
     @State private var now = Date()
     @Environment(\.scenePhase) private var scenePhase
 
+    /// Notifications not yet asked about (Get Started offers them).
+    @State private var alertsUndecided = false
+    /// The Get Started card was hidden (FirstRun.checklistHiddenKey).
+    @State private var checklistHidden = false
+
     @State private var showingSettings = false
     @State private var gate: ProGate?
     @State private var showingAddClient = false
@@ -43,7 +49,7 @@ struct DashboardView: View {
     // MARK: - Derived Data
 
     private var profile: BusinessProfile? {
-        allProfiles.first { $0.operatorID == authManager.userID }
+        BusinessProfiles.current(allProfiles, operatorID: authManager.userID)
     }
 
     private var myClients: [Client] {
@@ -131,6 +137,7 @@ struct DashboardView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: PlowRLayout.space4) {
                     header
+                    getStarted
                     iCloudBanner
                     ProStatusBanner()
                     if let storm {
@@ -197,7 +204,10 @@ struct DashboardView: View {
         .sheet(item: $overpaidInvoice) { InvoicePaymentsView(invoice: $0) }
         .task {
             iCloud.watch()
-            NotificationService.shared.requestAuthorization()
+            // Notifications are asked for in setup and from Get Started,
+            // with why: the alert used to appear the moment Home did.
+            alertsUndecided = await UNUserNotificationCenter.current().notificationSettings()
+                .authorizationStatus == .notDetermined
             NotificationService.shared.scheduleOverdueReminder(count: overdueCount)
             await fetchDashboardWeather()
         }
@@ -259,6 +269,36 @@ struct DashboardView: View {
     private func openWeather() {
         if let url = URL(string: "weather://"), UIApplication.shared.canOpenURL(url) {
             UIApplication.shared.open(url)
+        }
+    }
+
+    // MARK: - Get Started
+
+    @ViewBuilder
+    private var getStarted: some View {
+        let checklist = FirstRun.checklist(profile: profile, clients: myClients.count, routes: myRoutes.count,
+                                           documents: myProposals, alertsUndecided: alertsUndecided)
+        let id = authManager.userID
+        // Read here, not after the page appears: a hidden card flashed up.
+        if FirstRun.showsChecklist(completedSetup: UserDefaults.standard.bool(forKey: FirstRun.completedKey(id)),
+                                   hidden: checklistHidden || UserDefaults.standard.bool(forKey: FirstRun.checklistHiddenKey(id)),
+                                   checklist: checklist) {
+            GetStartedCard(checklist: checklist,
+                           addClient: { $gate.unless(ProGate.addClient(access)) { showingAddClient = true } },
+                           newRoute: {
+                               $gate.unless(ProGate.createRoute(access, routes: allRoutes, operatorID: authManager.userID)) {
+                                   showingCreateRoute = true
+                               }
+                           },
+                           hide: {
+                               UserDefaults.standard.set(true, forKey: FirstRun.checklistHiddenKey(authManager.userID))
+                               withAnimation { checklistHidden = true }
+                           },
+                           alertsUndecided: $alertsUndecided,
+                           alertsAllowed: {
+                               NotificationService.shared.scheduleOverdueReminder(count: overdueCount)
+                               NotificationService.shared.scheduleWeatherAlert(for: forecastDays, storm: storm)
+                           })
         }
     }
 

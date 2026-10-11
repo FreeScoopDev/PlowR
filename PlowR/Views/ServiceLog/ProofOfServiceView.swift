@@ -156,7 +156,7 @@ struct ProofOfServiceView: View {
     }
 
     private func write(_ snapshot: Snapshot, weather: VisitWeather.Lookup) {
-        let profile = allProfiles.first { $0.operatorID == client.operatorID }
+        let profile = BusinessProfiles.current(allProfiles, operatorID: client.operatorID)
         let data = ProofOfService.pdf(client: client, place: snapshot.place, period: snapshot.period,
                                       visits: snapshot.visits, checks: snapshot.checks, profile: profile,
                                       weather: weather)

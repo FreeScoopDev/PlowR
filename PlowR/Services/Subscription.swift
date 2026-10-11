@@ -138,6 +138,31 @@ final class Subscription {
                         revoked: transaction.revocationDate != nil, expires: transaction.expirationDate)
     }
 
+    /// How long this Apple Account's free trial of Pro would be ("a
+    /// month", "2 weeks"), or nil when it can't have one: the product has no
+    /// free trial, the account has used it, or the App Store can't say
+    /// (offline, under tests). Nothing promises a free month that may not come.
+    nonisolated static func freeTrialLength() async -> String? {
+        if PlowRApp.isRunningUnderTests { return nil }
+        guard let product = try? await Product.products(for: [productID]).first,
+              let subscription = product.subscription,
+              let offer = subscription.introductoryOffer, offer.paymentMode == .freeTrial,
+              await subscription.isEligibleForIntroOffer else { return nil }
+        return trialLength(value: offer.period.value, unit: offer.period.unit)
+    }
+
+    /// "a month", "2 weeks", "a year".
+    nonisolated static func trialLength(value: Int, unit: Product.SubscriptionPeriod.Unit) -> String {
+        let name = switch unit {
+        case .day: "day"
+        case .week: "week"
+        case .month: "month"
+        case .year: "year"
+        @unknown default: "period"
+        }
+        return value == 1 ? "a \(name)" : "\(value) \(name)s"
+    }
+
     nonisolated static func readStoreKit() async -> Entitlements {
         var current: [Purchase] = []
         for await result in Transaction.currentEntitlements { current.append(purchase(result)) }

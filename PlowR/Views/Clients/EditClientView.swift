@@ -991,7 +991,7 @@ struct EditClientView: View {
     private var totalRevenuePaid: Double { Payments.received(clientInvoices) }
 
     private var operatorProfile: BusinessProfile? {
-        allProfiles.first { $0.operatorID == client.operatorID }
+        BusinessProfiles.current(allProfiles, operatorID: client.operatorID)
     }
 
     private var operatorPaymentMethods: [PaymentMethod] {

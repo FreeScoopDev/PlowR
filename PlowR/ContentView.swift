@@ -12,6 +12,22 @@ struct ContentView: View {
     @State private var leadWindow = LeadRequestWindow.shared
     /// The sign-in alert was seen: the link waits quietly for the sign-in.
     @State private var signInAcknowledged = false
+    @Query private var profiles: [BusinessProfile]
+    @Query private var clients: [Client]
+    /// Setup finished on this device (FirstRun), re-read when it finishes.
+    @State private var setupFinished = false
+    /// The business whose tabs have shown this session: setup never takes
+    /// over the app afterwards (say, when the last client is deleted).
+    @State private var tabsShownFor: String?
+    @State private var importWait = CloudImportWait()
+
+    /// A new business, with nothing yet: first-run setup (FirstRun).
+    private var needsSetup: Bool {
+        let id = authManager.userID
+        guard tabsShownFor != id else { return false }
+        return FirstRun.needsSetup(profiles: profiles, clients: clients, operatorID: id,
+                                   completed: setupFinished || UserDefaults.standard.bool(forKey: FirstRun.completedKey(id)))
+    }
 
     var body: some View {
         Group {
@@ -25,7 +41,25 @@ struct ContentView: View {
                 ClientHomeView()
             } else {
                 if authManager.isSignedIn {
-                    MainTabView(selectedTab: $selectedTab)
+                    if needsSetup {
+                        if importWait.isReady {
+                            SetupFlowView { setupFinished = true }
+                        } else {
+                            LookingForBusinessView { importWait.finish() }
+                                .task(id: authManager.userID) {
+                                    await importWait.start(for: authManager.userID, syncOff: DeviceSync.isOff())
+                                }
+                        }
+                    } else {
+                        MainTabView(selectedTab: $selectedTab)
+                            .onAppear { tabsShownFor = authManager.userID }
+                    }
+                } else if authManager.isChecking {
+                    // The saved sign-in is still being checked: the sign-in
+                    // screen flashed up for someone already signed in.
+                    ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(PlowRColor.ground)
                 } else {
                     SignInView()
                 }
@@ -42,6 +76,11 @@ struct ContentView: View {
         // Only the signed-in business's visits go in the calendar.
         .onChange(of: authManager.userID, initial: true) { _, userID in
             calendarSync.operatorID = userID
+            // Another business signed in (or the same after Delete Account &
+            // Data): its own first run.
+            setupFinished = false
+            if tabsShownFor != userID { tabsShownFor = nil }
+            importWait.reset(for: userID)
         }
         .onOpenURL { url in open(url) }
         // A web link (getplowr.app/lead/…) can arrive as a browsing activity.
