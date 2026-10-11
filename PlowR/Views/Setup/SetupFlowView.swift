@@ -74,7 +74,7 @@ struct SetupFlowView: View {
             heading("Welcome to PlowR",
                     "A few quick questions to set up your business. Skip anything; it's all in Settings later.")
             field("Business name") {
-                TextField("e.g. Green Mountain Grounds", text: $answers.companyName)
+                TextField("e.g. Summit Ridge Grounds", text: $answers.companyName)
                     .textContentType(.organizationName)
                     .submitLabel(.done)
             }
