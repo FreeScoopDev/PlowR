@@ -42,6 +42,16 @@ struct RouteMapFramingTests {
         #expect(roomAbove(there, in: region) >= 60)
     }
 
+    @Test(arguments: [90.0, 270])
+    func aStopDueEastOrWestHasRoomForItsName(bearing: Double) {
+        let there = stop(5_000, bearing: bearing)
+        let region = RouteMapFraming.region(driver: driver, stop: there)
+        let edge = region.center.longitude + (bearing == 90 ? 1 : -1) * region.span.longitudeDelta / 2
+        let room = abs(edge - there.longitude) / region.span.longitudeDelta * 330
+        // Half of a long name's capsule, centred on the stop.
+        #expect(room >= 60)
+    }
+
     @Test func aStopNextDoorStillGetsAStreetsWorthOfMap() {
         let there = stop(20, bearing: 90)
         let region = RouteMapFraming.region(driver: driver, stop: there)

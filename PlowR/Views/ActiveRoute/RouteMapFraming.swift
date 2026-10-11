@@ -18,7 +18,10 @@ nonisolated enum RouteMapFraming {
     /// above it. With the pair centred, a span of 2.4 × their distance
     /// leaves 240 × (0.5 − 0.5 / 2.4) = 70 pt.
     static let northSouthFactor = 2.4
-    static let eastWestFactor = 1.4
+    /// East–west: the stop's name is centred on its point, so a stop due
+    /// east or west needs half a long name's width (about 60 pt) beside it
+    /// on a map about 330 pt wide: 330 × (0.5 − 0.5 / 1.8) ≈ 73 pt.
+    static let eastWestFactor = 1.8
     /// Room around a stop next door to the driver, so the pins don't touch.
     static let minimumSpanMeters: CLLocationDistance = 400
 

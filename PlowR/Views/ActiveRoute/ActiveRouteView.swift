@@ -264,8 +264,11 @@ struct ActiveRouteView: View {
             .navigationTitle(route.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
+                // Red on purpose (a system status colour): in the
+                // confirmation slot iOS 26 draws a tinted go-ahead button.
+                ToolbarItem(placement: .topBarTrailing) {
                     Button("End Route", role: .destructive) { showingRouteRecap = true }
+                        .foregroundStyle(.red)
                 }
             }
         }
@@ -702,9 +705,23 @@ struct ActiveRouteView: View {
                     // Keeps its name once work is recorded: it's still the
                     // way back in to add a service or a photo.
                     let recorded = stop.completedServiceIDs.count
+                    // The count sits in the icon's place, so the title
+                    // doesn't wrap at half the card's width.
                     Button { recorderStop = stop } label: {
-                        Label(recorded == 0 ? "Record Services" : "Record Services · \(recorded)",
-                              systemImage: "doc.badge.plus")
+                        Label {
+                            Text("Record Services")
+                        } icon: {
+                            if recorded == 0 {
+                                Image(systemName: "doc.badge.plus")
+                            } else {
+                                Text("\(recorded)")
+                                    .font(PlowRFont.label)
+                                    .monospacedDigit()
+                                    .foregroundStyle(PlowRColor.onBrand)
+                                    .frame(minWidth: 20, minHeight: 20)
+                                    .background(PlowRColor.brand, in: Circle())
+                            }
+                        }
                     }
                     .buttonStyle(.plowRSecondary)
                     .accessibilityLabel("Record Services")
