@@ -163,7 +163,9 @@ enum Payments {
     /// a client's page said money was owed that had never been billed
     /// (pre-launch review, 2026-10-10). The one rule for every owed figure.
     static func isOwed(_ invoice: Proposal) -> Bool {
-        invoice.balanceDue > 0 && (InvoiceRecords.isIssued(invoice) || !invoice.revisionOf.isEmpty)
+        // balanceDue is 0 for a void invoice, so isBilled's void check
+        // changes nothing here: one rule for "billed".
+        invoice.balanceDue > 0 && InvoiceRecords.isBilled(invoice)
     }
 
     /// What's owed across `documents` (`isOwed`).

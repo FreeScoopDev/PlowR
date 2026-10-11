@@ -1,8 +1,10 @@
 ### Added
-- Export Data has an Invoice Lines file: every service on every invoice,
-  one row each, with its place, quantity, unit price and line total. A
-  bookkeeper needs it to split income by service; the Invoices file only
-  had each invoice's totals.
+- Export Data has an Invoice Lines file: every service on every invoice
+  billed, one row each, with its place, quantity, unit price and line
+  total, before the invoice's discount and tax. A bookkeeper needs it to
+  split income by service; the Invoices file only had each invoice's
+  totals. Drafts and void invoices aren't in it (a revised invoice is void
+  and its revision has its lines), so nothing counts twice.
 
 ### Changed
 - The Invoices file has a Tax Rate % column beside Tax, so the rate

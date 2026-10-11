@@ -18,6 +18,18 @@ import Foundation
 /// tests; the app target defaults everything to @MainActor.
 nonisolated enum DecimalText {
 
+    /// `value` with up to `places` decimals and no trailing zeros (8.875,
+    /// 1234.5, 2); "0" for a value that isn't a number.
+    static func trimmed(_ value: Double, places: Int = 4) -> String {
+        guard value.isFinite else { return "0" }
+        var text = String(format: "%.\(places)f", value)
+        if text.contains(".") {
+            while text.hasSuffix("0") { text.removeLast() }
+            if text.hasSuffix(".") { text.removeLast() }
+        }
+        return text == "-0" ? "0" : text
+    }
+
     /// The number in `text`, or nil when there isn't one.
     static func number(_ text: String?, locale: Locale = .current) -> Double? {
         number(text, decimalComma: locale.decimalSeparator == ",")

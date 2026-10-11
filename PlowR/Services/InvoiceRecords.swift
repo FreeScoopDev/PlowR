@@ -14,6 +14,12 @@ import SwiftData
 /// - Its number is never used again (InvoiceNumbering counts every invoice
 ///   kept), and a number two devices both gave out is fixed here.
 enum InvoiceRecords {
+    /// Billed and standing: out of draft (or a revision, which replaces one
+    /// that was), and not void. What the client was actually charged.
+    static func isBilled(_ document: Proposal) -> Bool {
+        (isIssued(document) || (document.isInvoice && !document.revisionOf.isEmpty)) && document.voidedAt == nil
+    }
+
     /// Out of draft: sent, paid toward, paid, or voided.
     static func isIssued(_ document: Proposal) -> Bool {
         guard document.isInvoice else { return false }

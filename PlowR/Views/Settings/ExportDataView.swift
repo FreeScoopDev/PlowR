@@ -45,7 +45,7 @@ struct ExportDataView: View {
                 }
             } footer: {
                 Text(failed ? "The files couldn't be made. Try again."
-                     : "Spreadsheet (CSV) files that open in Numbers, Excel or Google Sheets, and import into most accounting software. Money has two decimals; dates are year-month-day. They're a copy to keep: routes, photos and settings aren't in them. Import Clients can bring back the Clients file's names, phones, emails, addresses, tags and notes (not whether a client is inactive or comped, their discount, or their other properties); the other files can't be loaded into PlowR.")
+                     : "Spreadsheet (CSV) files that open in Numbers, Excel or Google Sheets, and import into most accounting software. Money has two decimals; dates are year-month-day. Invoice Lines has the services on invoices billed (not drafts or void ones), before discount and tax, which are in Invoices. They're a copy to keep: routes, photos and settings aren't in them. Import Clients can bring back the Clients file's names, phones, emails, addresses, tags and notes (not whether a client is inactive or comped, their discount, or their other properties); the other files can't be loaded into PlowR.")
             }
         }
         .navigationTitle("Export Data")
@@ -72,7 +72,7 @@ struct ExportDataView: View {
                        url: try CSVExport.file("Invoices",
                                                contents: CSVExport.invoices(documents, operatorID: operatorID))),
                 Export(title: "Invoice Lines",
-                       detail: "Each service billed, for splitting income by service",
+                       detail: "\(CSVExport.billedInvoices(documents, operatorID: operatorID).reduce(0) { $0 + ($1.lineItems?.count ?? 0) }) lines billed",
                        systemImage: "list.bullet.rectangle",
                        url: try CSVExport.file("Invoice Lines",
                                                contents: CSVExport.invoiceLines(documents, operatorID: operatorID))),

@@ -83,31 +83,40 @@ enum CSVExport {
                         rows: rows)
     }
 
-    /// Every line of every invoice, in invoice order: what a bookkeeper
-    /// needs to split income by service. A line's total is before the
-    /// invoice's discount and tax, which are in Invoices.
-    static func invoiceLines(_ documents: [Proposal], operatorID: String) -> String {
-        let rows = documents.filter { $0.operatorID == operatorID && $0.isInvoice }
+    /// The invoices whose lines are income: billed and not void
+    /// (`InvoiceRecords.isBilled`). A draft isn't billed yet, and a revised
+    /// invoice is void with its lines copied onto the revision, so counting
+    /// either would add income twice or early. Invoices lists them all.
+    static func billedInvoices(_ documents: [Proposal], operatorID: String) -> [Proposal] {
+        documents.filter { $0.operatorID == operatorID && InvoiceRecords.isBilled($0) }
             .sorted { $0.createdAt < $1.createdAt }
-            .flatMap { invoice in
-                invoice.sortedLineItems.map { line -> [Cell] in
-                    [.text(invoice.invoiceNumber), .text(invoice.clientName), .plain(invoice.invoiceStatus.rawValue),
-                     day(invoice.createdAt), .text(line.serviceName), .text(line.zoneLabel),
-                     .plain(quantity(line.quantity)), .text(line.unitType == "perSqFt" ? "sq ft" : "each"),
-                     money(line.unitPrice), money(line.lineTotal)]
-                }
+    }
+
+    /// Every line of every billed invoice (`billedInvoices`), in invoice
+    /// order: what a bookkeeper needs to split income by service. A line's
+    /// total is before the invoice's discount and tax, which are in Invoices.
+    static func invoiceLines(_ documents: [Proposal], operatorID: String) -> String {
+        let rows = billedInvoices(documents, operatorID: operatorID).flatMap { invoice in
+            invoice.sortedLineItems.map { line -> [Cell] in
+                [.text(invoice.invoiceNumber), .text(invoice.clientName), .plain(invoice.invoiceStatus.rawValue),
+                 day(invoice.createdAt), .text(line.serviceName), .text(line.zoneLabel),
+                 .plain(DecimalText.trimmed(line.quantity)), .text(line.unitType == "perSqFt" ? "sq ft" : "each"),
+                 .plain(unitPrice(of: line)), money(line.lineTotal)]
             }
+        }
         return document(header: ["Invoice", "Client", "Status", "Created", "Service", "Place", "Quantity", "Unit",
                                  "Unit Price", "Line Total"], rows: rows)
     }
 
-    /// A quantity without trailing zeros (1, 2.5, 1234.75).
-    static func quantity(_ value: Double) -> String {
-        guard value.isFinite else { return "0" }
-        var text = String(format: "%.4f", value)
-        while text.hasSuffix("0") { text.removeLast() }
-        if text.hasSuffix(".") { text.removeLast() }
-        return text
+    /// What one unit was charged, worked out from the line's total: the
+    /// stored unit price goes stale when an amount is typed or edited (the
+    /// PDF never prints it), so quantity × this is the line total. A
+    /// square-foot rate keeps up to four decimals ($0.035).
+    static func unitPrice(of line: ProposalLineItem) -> String {
+        if line.unitType == "perSqFt", line.quantity > 0, line.quantity.isFinite {
+            return DecimalText.trimmed(line.lineTotal / line.quantity)
+        }
+        return String(format: "%.2f", InvoiceLines.roundedToCent(line.lineTotal))
     }
 
     /// Every amount received, oldest first: what the business's books need
@@ -121,10 +130,19 @@ enum CSVExport {
             .map { receipt -> [Cell] in
                 [day(receipt.date), .text(receipt.invoice.invoiceNumber), .text(receipt.invoice.clientName),
                  money(receipt.amount),
-                 .text(receipt.payment?.method ?? "Marked Paid"),
+                 .text(method(of: receipt)),
                  .text(receipt.payment?.note ?? "Marked paid with no payment recorded")]
             }
         return document(header: ["Received", "Invoice", "Client", "Amount", "Method", "Note"], rows: rows)
+    }
+
+    /// "Marked Paid" for money an invoice was marked paid with, whether it's
+    /// still on that invoice or a revision took it as a payment
+    /// (InvoiceRecords.recordImpliedPayment: no method, "Marked paid on …").
+    static func method(of receipt: Payments.Receipt) -> String {
+        guard let payment = receipt.payment else { return "Marked Paid" }
+        if payment.method.isEmpty, payment.note.hasPrefix("Marked paid on") { return "Marked Paid" }
+        return payment.method
     }
 
     /// Every job in the Service Log, oldest first, one row per job.
