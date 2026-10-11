@@ -63,3 +63,52 @@ struct DashboardTodayTests {
                                        "1 invoice paid more than its total"])
     }
 }
+
+/// The plan and the day's run decide the Today card's button.
+@MainActor
+struct DashboardLeadStateTests {
+    private let now = Date(timeIntervalSinceReferenceDate: 800_000_000)
+
+    /// On the free tier only the oldest route runs: it leads even when a
+    /// newer one was run more recently (during Pro).
+    @Test func theFreeRouteLeadsOnTheFreeTier() {
+        let oldest = PlowRoute(name: "Oldest", operatorID: "op")
+        oldest.createdAt = now.addingTimeInterval(-90 * 86_400)
+        let newer = PlowRoute(name: "Newer", operatorID: "op")
+        newer.createdAt = now.addingTimeInterval(-10 * 86_400)
+        let lastRuns = [newer.id.uuidString: now.addingTimeInterval(-3_600)]
+        #expect(DashboardToday.leadRoute([oldest, newer], lastRuns: lastRuns, canStart: { $0 === oldest }) === oldest)
+        // Read only, nothing can start: still the day's route, so the card shows it.
+        #expect(DashboardToday.leadRoute([oldest, newer], lastRuns: lastRuns, canStart: { _ in false }) === newer)
+    }
+
+    @Test func notRunTodayIsReady() {
+        let yesterday = now.addingTimeInterval(-86_400)
+        #expect(DashboardToday.leadState(done: 5, total: 5, isDone: true, lastRun: yesterday, canStart: true,
+                                         now: now) == .ready)
+        #expect(DashboardToday.leadState(done: 0, total: 5, isDone: false, lastRun: nil, canStart: true,
+                                         now: now) == .ready)
+    }
+
+    @Test func runTodayIsDoneOrPartlyDone() {
+        let earlier = now.addingTimeInterval(-600)
+        #expect(DashboardToday.leadState(done: 5, total: 5, isDone: true, lastRun: earlier, canStart: true,
+                                         now: now) == .doneToday)
+        #expect(DashboardToday.leadState(done: 3, total: 5, isDone: false, lastRun: earlier, canStart: true,
+                                         now: now) == .partlyDone(done: 3, total: 5))
+    }
+
+    @Test func aRouteThePlanWontStartIsLocked() {
+        #expect(DashboardToday.leadState(done: 0, total: 5, isDone: false, lastRun: nil, canStart: false,
+                                         now: now) == .locked)
+    }
+
+    /// Contract payments due add up to the cent, in ContractInstallments.
+    @Test func paymentsDueAddUpToTheCent() {
+        let contract = Contract(name: "Season", startDate: now, endDate: now, operatorID: "op")
+        let due = (0..<3).map {
+            (contract: contract, installment: ContractInstallments.Installment(index: $0 + 1, date: now, amount: 0.1))
+        }
+        #expect(ContractInstallments.amountDue(due) == 0.3)
+    }
+}

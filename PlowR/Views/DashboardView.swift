@@ -28,6 +28,11 @@ struct DashboardView: View {
     @State private var stormTextStops: [RouteStop]?
     private let iCloud = ICloudStatus.shared
 
+    /// Today, refreshed when the app comes back and when the day changes:
+    /// left open overnight, the page said yesterday's date.
+    @State private var now = Date()
+    @Environment(\.scenePhase) private var scenePhase
+
     @State private var showingSettings = false
     @State private var gate: ProGate?
     @State private var showingAddClient = false
@@ -53,12 +58,12 @@ struct DashboardView: View {
         allVisits.filter {
             $0.operatorID == authManager.userID &&
             $0.status == .scheduled &&
-            Calendar.current.isDateInToday($0.scheduledDate)
+            Calendar.current.isDate($0.scheduledDate, inSameDayAs: now)
         }
     }
 
     private var upcomingVisits: [ScheduledVisit] {
-        let tomorrow = Calendar.current.startOfDay(for: Date()).addingTimeInterval(86400)
+        let tomorrow = Calendar.current.startOfDay(for: now).addingTimeInterval(86400)
         let weekEnd  = tomorrow.addingTimeInterval(86400 * 7)
         return allVisits.filter {
             $0.operatorID == authManager.userID &&
@@ -90,23 +95,33 @@ struct DashboardView: View {
 
     // MARK: - Today, first (Joe, 2026-10-11)
 
-    /// The route that leads Today (DashboardToday.leadRoute).
-    private var leadRoute: PlowRoute? {
-        DashboardToday.leadRoute(myRoutes, lastRuns: RouteFacts.lastRuns(in: allRecords))
+    /// Can the plan start `route` (Access: free runs only the oldest).
+    private func canStart(_ route: PlowRoute) -> Bool {
+        access.canStartRoute(route, among: allRoutes, operatorID: authManager.userID)
     }
 
-    /// What's waiting on the business, in order (DashboardToday.attention).
-    private var attention: [DashboardAttention] {
+    /// What's waiting on the business, in order (DashboardToday.attention),
+    /// with the first record of each kind to check, worked out once.
+    private struct Waiting {
+        var items: [DashboardAttention]
+        var firstBilledTwice: Proposal?
+        var firstOverpaid: Proposal?
+    }
+
+    private var waiting: Waiting {
         let overdue = myProposals.filter { $0.invoiceStatus == .overdue }
         let due = ContractInstallments.allDue(allContracts, operatorID: authManager.userID)
         let drafts = myProposals.filter { $0.isInvoice && $0.invoiceStatus == .draft }
-        return DashboardToday.attention(
+        let billedTwice = ContractInstallments.duplicates(myProposals, operatorID: authManager.userID)
+        let overpaid = Payments.overpaid(myProposals)
+        let items = DashboardToday.attention(
             overdue: (overdue.count, Payments.balance(of: overdue)),
-            paymentsDue: (due.count, due.reduce(0) { $0 + $1.installment.amount }),
+            paymentsDue: (due.count, ContractInstallments.amountDue(due)),
             readyToSend: (drafts.count, Payments.balance(of: drafts)),
             followUps: pipeline.filter(\.needsFollowUp).count,
-            billedTwice: ContractInstallments.duplicates(myProposals, operatorID: authManager.userID).count,
-            overpaid: Payments.overpaid(myProposals).count)
+            billedTwice: billedTwice.count,
+            overpaid: overpaid.count)
+        return Waiting(items: items, firstBilledTwice: billedTwice.first, firstOverpaid: overpaid.first)
     }
 
     // MARK: - Body
@@ -130,6 +145,9 @@ struct DashboardView: View {
                                 markBelowTrigger(trigger, on: storm.day, below: below)
                             }
                         })
+                        if dashWeather == nil {
+                            WeatherAttribution().frame(maxWidth: .infinity, alignment: .trailing)
+                        }
                     }
                     todayCard
                     needsYouSection
@@ -161,6 +179,10 @@ struct DashboardView: View {
             }
         }
         .onChange(of: access.plan, initial: true) { _, plan in ProStatusBanner.reopenOnSubscribe(plan) }
+        .onChange(of: scenePhase) { _, phase in if phase == .active { now = .now } }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
+            now = .now
+        }
         .sheet(isPresented: $showingSettings) { NavigationStack { SettingsView() } }
         .sheet(isPresented: $showingAddClient)  { AddClientView() }
         .proGateSheet($gate)
@@ -187,7 +209,7 @@ struct DashboardView: View {
     /// It replaces the profile card and the weather strip.
     private var header: some View {
         VStack(alignment: .leading, spacing: PlowRLayout.space1) {
-            Text(Date.now, format: .dateTime.weekday(.wide).month(.wide).day())
+            Text(now, format: .dateTime.weekday(.wide).month(.wide).day())
                 .font(PlowRFont.label)
                 .textCase(.uppercase)
                 .tracking(0.6)
@@ -225,9 +247,9 @@ struct DashboardView: View {
                 }
                 .buttonStyle(.plain)
             }
-            // WeatherKit's attribution, wherever its weather shows: the
-            // conditions above, or the storm card's forecast on its own.
-            if WeatherAttribution.isNeeded(current: dashWeather != nil, forecast: storm != nil) {
+            // WeatherKit's attribution, under the conditions it supplied (the
+            // storm card's forecast alone gets it under the card).
+            if dashWeather != nil {
                 WeatherAttribution()
             }
         }
@@ -312,7 +334,8 @@ struct DashboardView: View {
     /// is where a run starts (skip a stop today, below trigger, the
     /// load-out), so the copper button opens it rather than starting blind.
     private var todayCard: some View {
-        VStack(alignment: .leading, spacing: PlowRLayout.space2) {
+        let leadRoute = DashboardToday.leadRoute(myRoutes, lastRuns: lastRuns, canStart: canStart)
+        return VStack(alignment: .leading, spacing: PlowRLayout.space2) {
             sectionLabel("Today", badge: todayVisits.isEmpty ? nil : "\(todayVisits.count) visit\(todayVisits.count == 1 ? "" : "s")")
             PlowRCard {
                 if let route = leadRoute {
@@ -339,11 +362,16 @@ struct DashboardView: View {
         }
     }
 
+    private var lastRuns: [String: Date] { RouteFacts.lastRuns(in: allRecords) }
+
     private func leadRouteRow(_ route: PlowRoute) -> some View {
         let run = RouteRunSummary(route: route, store: activeRoute)
         let minutes = RouteFacts.estimatedMinutes(of: RouteRunSummary.stops(of: route, store: activeRoute),
                                                   clients: myClients)
         let others = myRoutes.count - 1
+        let state = DashboardToday.leadState(done: run.done, total: run.total, isDone: run.isDone,
+                                             lastRun: lastRuns[route.id.uuidString], canStart: canStart(route),
+                                             now: now)
         return VStack(alignment: .leading, spacing: PlowRLayout.space3) {
             HStack(alignment: .firstTextBaseline) {
                 Text(route.name)
@@ -356,10 +384,27 @@ struct DashboardView: View {
                     .font(.subheadline)
                     .foregroundStyle(PlowRColor.inkSecondary)
             }
-            NavigationLink { RouteDetailView(route: route) } label: {
-                Label(run.total == 0 ? "Add Stops" : "Start Route", systemImage: PlowRSymbol.route.name)
+            switch state {
+            case .doneToday:
+                StatusChip("Done today · \(run.total) of \(run.total)", systemImage: PlowRSymbol.complete.name, status: .done)
+            case let .partlyDone(done, total):
+                StatusChip("\(done) of \(total) done today", status: .owed)
+            case .ready, .locked:
+                EmptyView()
             }
-            .buttonStyle(.plowRAction)
+            // The route's page is where a run starts (and where the plan says
+            // why one can't): a route ready to go gets the copper button.
+            if state == .ready && run.total > 0 {
+                NavigationLink { RouteDetailView(route: route) } label: {
+                    Label("Start Route", systemImage: PlowRSymbol.route.name)
+                }
+                .buttonStyle(.plowRAction)
+            } else {
+                NavigationLink { RouteDetailView(route: route) } label: {
+                    Label(run.total == 0 ? "Add Stops" : "Open Route", systemImage: PlowRSymbol.route.name)
+                }
+                .buttonStyle(.plowRSecondary)
+            }
             if others > 0 {
                 NavigationLink { RouteListView() } label: {
                     Text(others == 1 ? "1 other route" : "\(others) other routes")
@@ -447,7 +492,8 @@ struct DashboardView: View {
         VStack(alignment: .leading, spacing: PlowRLayout.space2) {
             sectionLabel("Needs You")
             PlowRCard {
-                let items = attention
+                let waiting = waiting
+                let items = waiting.items
                 if items.isEmpty {
                     HStack(spacing: PlowRLayout.space3) {
                         IconBadge(systemImage: PlowRSymbol.complete.name, status: .done, size: 36)
@@ -460,7 +506,7 @@ struct DashboardView: View {
                 } else {
                     ForEach(Array(items.enumerated()), id: \.element.id) { i, item in
                         if i > 0 { Divider().overlay(PlowRColor.line).padding(.leading, Self.rowTextInset) }
-                        attentionRow(item)
+                        attentionRow(item, waiting: waiting)
                     }
                 }
             }
@@ -468,7 +514,7 @@ struct DashboardView: View {
     }
 
     @ViewBuilder
-    private func attentionRow(_ item: DashboardAttention) -> some View {
+    private func attentionRow(_ item: DashboardAttention, waiting: Waiting) -> some View {
         switch item.kind {
         case .overdue:
             NavigationLink { ProposalListView(initialFilter: .overdue) } label: {
@@ -478,14 +524,18 @@ struct DashboardView: View {
         case .paymentsDue:
             HStack(spacing: PlowRLayout.space3) {
                 attentionText(item, symbol: "calendar.badge.clock", status: .owed)
-                Button(item.count == 1 ? "Make Invoice" : "Make Invoices") {
+                Button {
                     $gate.unless(ProGate.edit(access)) {
                         ContractInstallments.makeAllDue(operatorID: authManager.userID, in: modelContext)
                     }
+                } label: {
+                    Text(item.count == 1 ? "Make Invoice" : "Make Invoices")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(PlowRColor.brand)
+                        .frame(minHeight: PlowRLayout.minTapTarget)
+                        .contentShape(Rectangle())
                 }
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(PlowRColor.brand)
-                .frame(minHeight: PlowRLayout.minTapTarget)
+                .buttonStyle(.plain)
             }
             .padding(.horizontal, PlowRLayout.space4)
             .padding(.vertical, PlowRLayout.space2)
@@ -500,7 +550,7 @@ struct DashboardView: View {
             }
             .buttonStyle(.plain)
         case .billedTwice:
-            if let first = ContractInstallments.duplicates(myProposals, operatorID: authManager.userID).first {
+            if let first = waiting.firstBilledTwice {
                 NavigationLink { ProposalDetailView(proposal: first) } label: {
                     attentionContent(item, symbol: PlowRSymbol.warning.name, status: .owed,
                                      detail: "\(first.clientName) \(first.invoiceNumber): delete or void one of its invoices.")
@@ -508,7 +558,7 @@ struct DashboardView: View {
                 .buttonStyle(.plain)
             }
         case .overpaid:
-            if let first = Payments.overpaid(myProposals).first {
+            if let first = waiting.firstOverpaid {
                 Button { overpaidInvoice = first } label: {
                     attentionContent(item, symbol: PlowRSymbol.warning.name, status: .owed,
                                      detail: "\(first.clientName) \(first.invoiceNumber): a payment may be recorded twice, or the client is owed a credit.")
@@ -553,8 +603,8 @@ struct DashboardView: View {
 
     /// What's owed, and what came in this month.
     private var moneySection: some View {
-        let month = Calendar.current.dateInterval(of: .month, for: .now)
-            ?? DateInterval(start: .now, duration: 0)
+        let month = Calendar.current.dateInterval(of: .month, for: now)
+            ?? DateInterval(start: now, duration: 0)
         let received = Payments.received(myProposals, in: month)
         return VStack(alignment: .leading, spacing: PlowRLayout.space2) {
             sectionLabel("Money")
