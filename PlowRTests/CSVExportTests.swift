@@ -74,7 +74,123 @@ struct CSVExportTests {
         let lines = rows(CSVExport.invoices([invoice, quote], operatorID: "op"))
         #expect(lines.count == 2)
         #expect(lines[1].hasPrefix("INV-0007,"))
-        #expect(lines[1].contains(",40.00,0.00,0.00,40.00,"))
+        // Subtotal, Discount, Tax Rate %, Tax, Total.
+        #expect(lines[0].contains(",Subtotal,Discount,Tax Rate %,Tax,Total,"))
+        #expect(lines[1].contains(",40.00,0.00,0,0.00,40.00,"))
+    }
+
+    @Test func invoicesSayTheTaxRateCharged() throws {
+        let h = try Harness(stopCount: 1)
+        let invoice = Proposal(operatorID: "op", client: h.client)
+        invoice.invoiceNumber = "INV-0008"
+        invoice.taxRate = 8.875
+        let item = ProposalLineItem(serviceName: "Clear", zoneLabel: "", quantity: 1, unitType: "flat", unitPrice: 100)
+        h.context.insert(item)
+        invoice.lineItems = [item]
+        h.context.insert(invoice)
+        let lines = rows(CSVExport.invoices([invoice], operatorID: "op"))
+        #expect(lines[1].contains(",100.00,0.00,8.875,8.88,108.88,"))
+    }
+
+    /// One row per line of each invoice billed, so income can be split by
+    /// service: not a proposal, a draft, a revised invoice (its revision has
+    /// its lines), or another business's; a void invoice that kept its
+    /// money is.
+    @Test func invoiceLinesListEveryServiceBilled() throws {
+        let h = try Harness(stopCount: 1)
+        func document(_ number: String, operatorID: String = "op", lines: [ProposalLineItem]) -> Proposal {
+            let doc = Proposal(operatorID: operatorID, client: h.client)
+            doc.invoiceNumber = number
+            lines.forEach { h.context.insert($0) }
+            doc.lineItems = lines
+            h.context.insert(doc)
+            return doc
+        }
+        func flat(_ name: String, _ price: Double, order: Int = 0) -> ProposalLineItem {
+            ProposalLineItem(serviceName: name, zoneLabel: "", quantity: 1, unitType: "flat", unitPrice: price, sortOrder: order)
+        }
+        let clear = ProposalLineItem(serviceName: "Clear", zoneLabel: "Driveway", quantity: 1_000,
+                                     unitType: "perSqFt", unitPrice: 0.035, sortOrder: 0)
+        let salt = flat("Salt", 50, order: 1)
+        salt.lineTotal = 75                       // amount edited; unitPrice still says 50
+        let sent = document("INV-0009", lines: [salt, clear])
+        sent.invoiceSentAt = h.clock
+        let original = document("INV-0004", lines: [flat("Mow", 300)])
+        original.invoiceSentAt = h.clock
+        original.voidedAt = h.clock               // revised: the revision has its lines
+        let revision = document("INV-0005", lines: [flat("Mow", 300)])
+        revision.revisionOf = "INV-0004"
+        _ = document("INV-0006", lines: [flat("Rake", 40)])                       // draft, never sent
+        let paidThenVoided = document("INV-0007", lines: [flat("Edge", 60)])      // Void keeps its money
+        paidThenVoided.invoiceSentAt = h.clock
+        let kept = Payment(amount: 60, method: "Cash", receivedAt: h.clock, operatorID: "op")
+        h.context.insert(kept)
+        paidThenVoided.payments = [kept]
+        paidThenVoided.voidedAt = h.clock
+        let quote = document("", lines: [flat("Quote", 99)])                      // a proposal
+        let theirs = document("INV-0001", operatorID: "someone else", lines: [flat("Theirs", 10)])
+        theirs.invoiceSentAt = h.clock
+        let all = try h.context.fetch(FetchDescriptor<Proposal>())
+        #expect(all.contains { $0 === quote })
+        let lines = rows(CSVExport.invoiceLines(all, operatorID: "op"))
+        #expect(lines[0] == "Invoice,Client,Status,Created,Service,Place,Quantity,Unit,Unit Price,Line Total")
+        let body = Array(lines.dropFirst())
+        #expect(body.count == 4)
+        #expect(body.contains { $0.hasPrefix("INV-0007,") && $0.hasSuffix(",Edge,,1,each,60.00,60.00") })
+        #expect(body.contains { $0.hasPrefix("INV-0009,") && $0.hasSuffix(",Clear,Driveway,1000,sq ft,0.035,35.00") })
+        #expect(body.contains { $0.hasPrefix("INV-0009,") && $0.hasSuffix(",Salt,,1,each,75.00,75.00") })
+        #expect(body.contains { $0.hasPrefix("INV-0005,") && $0.hasSuffix(",Mow,,1,each,300.00,300.00") })
+    }
+
+    /// Money a revision took over from an invoice marked paid is a payment
+    /// with no method; it reads "Marked Paid" like the rest.
+    @Test func moneyMovedFromAMarkedPaidInvoiceSaysMarkedPaid() throws {
+        let h = try Harness(stopCount: 1)
+        let revision = Proposal(operatorID: "op", client: h.client)
+        revision.invoiceNumber = "INV-0005"
+        let item = ProposalLineItem(serviceName: "Clear", zoneLabel: "", quantity: 1, unitType: "flat", unitPrice: 40)
+        let moved = Payment(amount: 40, method: "", receivedAt: h.clock, operatorID: "op")
+        moved.note = "\(InvoiceRecords.impliedPaymentNotePrefix) INV-0004"
+        [item].forEach { h.context.insert($0) }
+        h.context.insert(moved)
+        revision.lineItems = [item]
+        revision.payments = [moved]
+        h.context.insert(revision)
+        let lines = rows(CSVExport.payments([revision], operatorID: "op"))
+        #expect(lines.count == 2)
+        #expect(lines[1].contains(",40.00,Marked Paid,Marked paid on INV-0004"))
+    }
+
+    /// The Payments file lists the money the reports count: an invoice marked
+    /// paid with no payment recorded is in it, on the day it was marked paid.
+    @Test func paymentsIncludeAnInvoiceMarkedPaidWithoutAPayment() throws {
+        let h = try Harness(stopCount: 1)
+        func invoice(_ number: String, _ price: Double) -> Proposal {
+            let bill = Proposal(operatorID: "op", client: h.client)
+            bill.invoiceNumber = number
+            let item = ProposalLineItem(serviceName: "Clear", zoneLabel: "", quantity: 1, unitType: "flat", unitPrice: price)
+            h.context.insert(item)
+            bill.lineItems = [item]
+            h.context.insert(bill)
+            return bill
+        }
+        let partly = invoice("INV-0010", 100)
+        Payments.record(30, method: "Check", note: "#1042", receivedAt: h.clock.addingTimeInterval(-86_400),
+                        on: partly, in: h.context, now: h.clock)
+        partly.invoicePaidAt = h.clock          // marked paid; $70 never recorded
+        let older = invoice("INV-0002", 50)
+        older.invoicePaidAt = h.clock.addingTimeInterval(-2 * 86_400)   // before payments were kept
+        let documents = [partly, older]
+        let lines = rows(CSVExport.payments(documents, operatorID: "op"))
+        #expect(lines.count == 4)
+        #expect(lines[1].contains(",INV-0002,") && lines[1].contains(",50.00,Marked Paid,"))
+        #expect(lines[2].contains(",INV-0010,") && lines[2].contains(",30.00,Check,#1042"))
+        #expect(lines[3].contains(",INV-0010,") && lines[3].contains(",70.00,Marked Paid,"))
+        // Adds up to the reports' money in.
+        let fileTotal = lines.dropFirst().compactMap { line in
+            line.split(separator: ",").compactMap { Double($0) }.first
+        }.reduce(0, +)
+        #expect(abs(fileTotal - Payments.received(documents)) < 0.001)
     }
 
     @Test func theServiceHistoryHasEachJobWithItsBilling() throws {

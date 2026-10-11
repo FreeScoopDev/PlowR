@@ -163,7 +163,9 @@ enum Payments {
     /// a client's page said money was owed that had never been billed
     /// (pre-launch review, 2026-10-10). The one rule for every owed figure.
     static func isOwed(_ invoice: Proposal) -> Bool {
-        invoice.balanceDue > 0 && (InvoiceRecords.isIssued(invoice) || !invoice.revisionOf.isEmpty)
+        // balanceDue is 0 for a void invoice, so isBilled's void check
+        // changes nothing here: one rule for "billed".
+        invoice.balanceDue > 0 && InvoiceRecords.isBilled(invoice)
     }
 
     /// What's owed across `documents` (`isOwed`).
@@ -208,14 +210,29 @@ enum Payments {
     /// paid invoice's rest on the day it was marked paid (all of it, for
     /// one paid before payments were kept). For money in by month.
     static func receipts(_ documents: [Proposal]) -> [(date: Date, amount: Double)] {
-        documents.filter(\.isInvoice).flatMap { invoice -> [(date: Date, amount: Double)] in
+        receiptEntries(documents).map { (date: $0.date, amount: $0.amount) }
+    }
+
+    /// One amount received, with where it came from: a payment, or (with no
+    /// `payment`) the rest of an invoice marked paid without one.
+    struct Receipt {
+        let date: Date
+        let amount: Double
+        let invoice: Proposal
+        let payment: Payment?
+    }
+
+    /// `receipts`, each with its invoice and payment: the bookkeeping export
+    /// lists the same money the reports count.
+    static func receiptEntries(_ documents: [Proposal]) -> [Receipt] {
+        documents.filter(\.isInvoice).flatMap { invoice -> [Receipt] in
             let payments = invoice.sortedPayments
-            var receipts = payments.map { (date: $0.receivedAt, amount: $0.amount) }
+            var receipts = payments.map { Receipt(date: $0.receivedAt, amount: $0.amount, invoice: invoice, payment: $0) }
             // A voided invoice's "paid" went to its revision as a payment
             // (ServiceLog.movePayments): only its own payments count here.
             if let paidAt = invoice.invoicePaidAt, invoice.voidedAt == nil {
                 let rest = InvoiceLines.roundedToCent(invoice.total - payments.reduce(0) { $0 + $1.amount })
-                if rest > tolerance { receipts.append((paidAt, rest)) }
+                if rest > tolerance { receipts.append(Receipt(date: paidAt, amount: rest, invoice: invoice, payment: nil)) }
             }
             return receipts
         }

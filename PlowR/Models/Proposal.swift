@@ -197,10 +197,7 @@ extension Proposal {
     /// decimals, but an older one can hold four (7.0625), so up to four are
     /// shown: the label always states the rate charged.
     nonisolated static func percentText(_ rate: Double) -> String {
-        var text = String(format: "%.4f", rate)
-        while text.hasSuffix("0") { text.removeLast() }
-        if text.hasSuffix(".") { text.removeLast() }
-        return text
+        DecimalText.trimmed(rate)
     }
 
     /// A typed tax rate: a number from 0 to 100, kept to three decimals so the

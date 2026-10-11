@@ -73,26 +73,84 @@ enum CSVExport {
             .map { invoice -> [Cell] in
                 [.text(invoice.invoiceNumber), .text(invoice.clientName), .plain(invoice.invoiceStatus.rawValue),
                  day(invoice.createdAt), day(invoice.invoiceSentAt), day(invoice.invoiceDueDate), day(invoice.invoicePaidAt),
-                 money(invoice.subtotal), money(invoice.appliedDiscount), money(invoice.taxAmount),
+                 money(invoice.subtotal), money(invoice.appliedDiscount),
+                 .plain(Proposal.percentText(invoice.taxRate)), money(invoice.taxAmount),
                  money(invoice.total), money(invoice.amountPaid), money(invoice.balanceDue), .text(invoice.revisionOf)]
             }
         return document(header: ["Invoice", "Client", "Status", "Created", "Sent", "Due", "Paid",
-                                 "Subtotal", "Discount", "Tax", "Total", "Amount Paid", "Balance Due", "Revision Of"],
+                                 "Subtotal", "Discount", "Tax Rate %", "Tax", "Total", "Amount Paid", "Balance Due",
+                                 "Revision Of"],
                         rows: rows)
     }
 
-    /// Every payment received, oldest first: what the business's books need
-    /// to match deposits. An invoice marked paid before payments were kept
-    /// has none, and shows as paid in Invoices.
+    /// The invoices whose lines are income: billed and not void
+    /// (`InvoiceRecords.isBilled`), and a void one that still holds money
+    /// (Void keeps a paid invoice's money and work with it, and Payments
+    /// lists that money). A draft isn't billed yet, and a revised invoice's
+    /// lines and money went to its revision, so counting either would add
+    /// income early or twice. Invoices lists them all.
+    static func billedInvoices(_ documents: [Proposal], operatorID: String) -> [Proposal] {
+        documents.filter { invoice in
+            invoice.operatorID == operatorID && invoice.isInvoice
+                && (InvoiceRecords.isBilled(invoice)
+                    || (invoice.voidedAt != nil && invoice.paymentsTotal > Payments.tolerance))
+        }
+        .sorted { $0.createdAt < $1.createdAt }
+    }
+
+    /// Every line of every billed invoice (`billedInvoices`), in invoice
+    /// order: what a bookkeeper needs to split income by service. A line's
+    /// total is before the invoice's discount and tax, which are in Invoices.
+    static func invoiceLines(_ documents: [Proposal], operatorID: String) -> String {
+        let rows = billedInvoices(documents, operatorID: operatorID).flatMap { invoice in
+            invoice.sortedLineItems.map { line -> [Cell] in
+                [.text(invoice.invoiceNumber), .text(invoice.clientName), .plain(invoice.invoiceStatus.rawValue),
+                 day(invoice.createdAt), .text(line.serviceName), .text(line.zoneLabel),
+                 .plain(DecimalText.trimmed(line.quantity)), .text(line.unitType == "perSqFt" ? "sq ft" : "each"),
+                 .plain(unitPrice(of: line)), money(line.lineTotal)]
+            }
+        }
+        return document(header: ["Invoice", "Client", "Status", "Created", "Service", "Place", "Quantity", "Unit",
+                                 "Unit Price", "Line Total"], rows: rows)
+    }
+
+    /// What one unit was charged, worked out from the line's total: the
+    /// stored unit price goes stale when an amount is typed or edited (the
+    /// PDF never prints it). A square-foot rate keeps up to six decimals
+    /// ($0.035, or $0.03998 from a typed $1,999 over 50,000 sq ft), so
+    /// quantity × this is the line total to within rounding; Line Total is
+    /// the figure charged.
+    static func unitPrice(of line: ProposalLineItem) -> String {
+        if line.unitType == "perSqFt", line.quantity > 0, line.quantity.isFinite {
+            return DecimalText.trimmed(line.lineTotal / line.quantity, places: 6)
+        }
+        return String(format: "%.2f", InvoiceLines.roundedToCent(line.lineTotal))
+    }
+
+    /// Every amount received, oldest first: what the business's books need
+    /// to match deposits. The same money the reports count
+    /// (`Payments.receiptEntries`): each payment, and the rest of an invoice
+    /// marked paid without a payment for it, on the day it was marked paid.
+    /// Those used to be left out, so this file added up to less than Money In.
     static func payments(_ documents: [Proposal], operatorID: String) -> String {
-        let rows = documents.filter { $0.operatorID == operatorID && $0.isInvoice }
-            .flatMap { invoice in invoice.sortedPayments.map { (invoice, $0) } }
-            .sorted { $0.1.receivedAt < $1.1.receivedAt }
-            .map { invoice, payment -> [Cell] in
-                [day(payment.receivedAt), .text(invoice.invoiceNumber), .text(invoice.clientName),
-                 money(payment.amount), .text(payment.method), .text(payment.note)]
+        let rows = Payments.receiptEntries(documents.filter { $0.operatorID == operatorID })
+            .sorted { $0.date < $1.date }
+            .map { receipt -> [Cell] in
+                [day(receipt.date), .text(receipt.invoice.invoiceNumber), .text(receipt.invoice.clientName),
+                 money(receipt.amount),
+                 .text(method(of: receipt)),
+                 .text(receipt.payment?.note ?? "Marked paid with no payment recorded")]
             }
         return document(header: ["Received", "Invoice", "Client", "Amount", "Method", "Note"], rows: rows)
+    }
+
+    /// "Marked Paid" for money an invoice was marked paid with, whether it's
+    /// still on that invoice or a revision took it as a payment
+    /// (InvoiceRecords.recordImpliedPayment: no method, "Marked paid on …").
+    static func method(of receipt: Payments.Receipt) -> String {
+        guard let payment = receipt.payment else { return "Marked Paid" }
+        if payment.method.isEmpty, payment.note.hasPrefix(InvoiceRecords.impliedPaymentNotePrefix) { return "Marked Paid" }
+        return payment.method
     }
 
     /// Every job in the Service Log, oldest first, one row per job.

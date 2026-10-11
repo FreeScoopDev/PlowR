@@ -14,6 +14,17 @@ import SwiftData
 /// - Its number is never used again (InvoiceNumbering counts every invoice
 ///   kept), and a number two devices both gave out is fixed here.
 enum InvoiceRecords {
+    /// The note on money a revision takes over from an invoice marked paid
+    /// (`recordImpliedPayment`), before the invoice's number. The export
+    /// reads it to label that money "Marked Paid".
+    static let impliedPaymentNotePrefix = "Marked paid on"
+
+    /// Billed and standing: out of draft (or a revision, which replaces one
+    /// that was), and not void. What the client was actually charged.
+    static func isBilled(_ document: Proposal) -> Bool {
+        (isIssued(document) || (document.isInvoice && !document.revisionOf.isEmpty)) && document.voidedAt == nil
+    }
+
     /// Out of draft: sent, paid toward, paid, or voided.
     static func isIssued(_ document: Proposal) -> Bool {
         guard document.isInvoice else { return false }
@@ -100,7 +111,7 @@ enum InvoiceRecords {
         guard rest > Payments.tolerance else { return }
         let implied = Payment(amount: rest, method: "", receivedAt: paidAt, operatorID: invoice.operatorID)
         implied.clientID = invoice.clientID
-        implied.note = "Marked paid on \(invoice.invoiceNumber)"
+        implied.note = "\(impliedPaymentNotePrefix) \(invoice.invoiceNumber)"
         context.insert(implied)
         implied.invoice = target
     }
