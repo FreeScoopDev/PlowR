@@ -108,7 +108,7 @@ struct ActiveRouteView: View {
 
     /// No offer to text the next client: they'd rather not be texted, or this
     /// device can't text (an iPad without Messages, a Mac). The button then
-    /// says Mark Stop Complete and moves on.
+    /// says Complete Stop and moves on.
     private var shouldSkipNextNotify: Bool {
         nextStopClient?.skipNotificationPrompt == true || !MFMessageComposeViewController.canSendText()
     }
@@ -242,9 +242,9 @@ struct ActiveRouteView: View {
                     if RouteGPS.needsAlways(status: locationManager.authorizationStatus, isMac: OnMac.isMac) {
                         alwaysLocationNote
                     }
-                    routeMap
-                    weatherStrip
-                    VStack(spacing: 12) {
+                    VStack(spacing: PlowRLayout.space3) {
+                        routeMap
+                        weatherStrip
                         if let stop = currentStop {
                             currentStopCard(stop)
                         } else {
@@ -254,18 +254,21 @@ struct ActiveRouteView: View {
                             upcomingStopsSection
                         }
                     }
-                    .padding()
+                    .padding(.horizontal, PlowRLayout.space4)
+                    .padding(.bottom, PlowRLayout.space6)
                 }
             }
+            .background(PlowRColor.ground)
             .navigationTitle(route.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("End Route") { showingRouteRecap = true }
-                        .foregroundStyle(.red)
+                        .foregroundStyle(PlowRColor.Status.overdue.text)
                 }
             }
         }
+        .tint(PlowRColor.brand)
         .onAppear {
             beginTracking()
             // Built with the app in the background (a location relaunch), it
@@ -384,24 +387,40 @@ struct ActiveRouteView: View {
 
     // MARK: - Progress Header
 
+    /// Where the route stands: a segment per stop (done, current, ahead),
+    /// or a bar on a long route, where segments would be slivers.
     private var progressHeader: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: PlowRLayout.space2) {
+            HStack(alignment: .firstTextBaseline) {
                 Text("Stop \(min(currentStopIndex + 1, sortedStops.count)) of \(sortedStops.count)")
-                    .font(.headline)
-                if let eta = etaMinutes {
-                    Text("ETA \(eta) min")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                    .font(PlowRFont.number)
+                    .monospacedDigit()
+                Spacer()
+                Text("\(min(currentStopIndex, sortedStops.count)) done")
+                    .font(.subheadline)
+                    .monospacedDigit()
+                    .foregroundStyle(PlowRColor.inkSecondary)
             }
-            Spacer()
-            ProgressView(value: Double(currentStopIndex), total: Double(max(sortedStops.count, 1)))
-                .frame(width: 120)
-                .tint(.blue)
+            .foregroundStyle(PlowRColor.ink)
+            if sortedStops.count <= 24 {
+                HStack(spacing: 3) {
+                    ForEach(sortedStops.indices, id: \.self) { index in
+                        Capsule()
+                            .fill(index < currentStopIndex ? PlowRColor.Status.done.fill
+                                  : index == currentStopIndex ? PlowRColor.action : PlowRColor.line)
+                            .frame(height: 6)
+                    }
+                }
+                .accessibilityHidden(true)
+            } else {
+                ProgressView(value: Double(currentStopIndex), total: Double(max(sortedStops.count, 1)))
+                    .tint(PlowRColor.Status.done.fill)
+                    .accessibilityHidden(true)
+            }
         }
-        .padding()
-        .background(Color(.systemGroupedBackground))
+        .padding(.horizontal, PlowRLayout.space4)
+        .padding(.vertical, PlowRLayout.space3)
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: - Route Map
@@ -433,7 +452,8 @@ struct ActiveRouteView: View {
                 }
             }
             .mapStyle(.standard(pointsOfInterest: .excludingAll))
-            .frame(height: 260)
+            .frame(height: 240)
+            .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
             .onMapCameraChange(frequency: .onEnd) { _ in
                 if isSettingCamera {
                     isSettingCamera = false
@@ -461,57 +481,57 @@ struct ActiveRouteView: View {
         }
     }
 
-    // Pulsing blue truck — unmistakably the driver
+    // The driver: forest green, the brand. The pins use the same colors as
+    // the rest of the route: copper for where you're going now, outlined
+    // green for what's ahead (RouteDetailView's pins follow in its own PR).
     private var driverAnnotationView: some View {
         ZStack {
             Circle()
-                .fill(Color.blue.opacity(0.18))
-                .frame(width: 58, height: 58)
+                .fill(PlowRColor.brand.opacity(0.18))
+                .frame(width: 56, height: 56)
             Circle()
-                .stroke(Color.blue.opacity(0.35), lineWidth: 2)
-                .frame(width: 58, height: 58)
-            Circle()
-                .fill(Color.blue)
+                .fill(PlowRColor.brand)
                 .frame(width: 38, height: 38)
-                .shadow(color: .black.opacity(0.3), radius: 5, y: 3)
+                .overlay(Circle().stroke(PlowRColor.surface, lineWidth: 3))
             Image(systemName: "truck.box.fill")
                 .font(.system(size: 17, weight: .bold))
-                .foregroundStyle(.white)
+                .foregroundStyle(PlowRColor.onBrand)
         }
+        .accessibilityLabel("You")
     }
 
     private func currentStopAnnotationView(name: String) -> some View {
-        VStack(spacing: 2) {
+        VStack(spacing: 3) {
             ZStack {
                 Circle()
-                    .fill(Color.red)
-                    .frame(width: 36, height: 36)
-                    .shadow(color: .black.opacity(0.3), radius: 4, y: 2)
-                Image(systemName: "house.fill")
+                    .fill(PlowRColor.action)
+                    .frame(width: 38, height: 38)
+                    .overlay(Circle().stroke(PlowRColor.surface, lineWidth: 3))
+                Image(systemName: PlowRSymbol.home.name)
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(PlowRColor.onAction)
             }
             Text(name)
-                .font(.system(size: 9, weight: .semibold))
-                .foregroundStyle(.white)
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(PlowRColor.onAction)
                 .lineLimit(1)
-                .padding(.horizontal, 5)
+                .padding(.horizontal, 6)
                 .padding(.vertical, 2)
-                .background(Color.red)
-                .clipShape(Capsule())
+                .background(PlowRColor.action, in: Capsule())
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Current stop, \(name)")
     }
 
     private func upcomingStopAnnotationView(number: Int) -> some View {
-        ZStack {
-            Circle()
-                .fill(Color.orange)
-                .frame(width: 26, height: 26)
-                .shadow(color: .black.opacity(0.2), radius: 3, y: 1)
-            Text("\(number)")
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(.white)
-        }
+        Text("\(number)")
+            .font(PlowRFont.label)
+            .monospacedDigit()
+            .foregroundStyle(PlowRColor.brand)
+            .frame(width: 28, height: 28)
+            .background(PlowRColor.surface, in: Circle())
+            .overlay(Circle().stroke(PlowRColor.brand, lineWidth: 2.5))
+            .accessibilityLabel("Stop \(number)")
     }
 
     // MARK: - Map Camera Logic
@@ -570,51 +590,59 @@ struct ActiveRouteView: View {
             }
             .font(.subheadline)
             .foregroundStyle(.white)
-            .padding(.horizontal)
-            .padding(.vertical, 10)
-            .background(WeatherKind(w.description).background)
+            .padding(.horizontal, PlowRLayout.space4)
+            .padding(.vertical, PlowRLayout.space3)
+            .background(WeatherKind(w.description).background,
+                        in: RoundedRectangle(cornerRadius: PlowRLayout.cornerMedium, style: .continuous))
             .onTapGesture { openWeather() }
             // WeatherKit's attribution goes wherever its weather shows.
             WeatherAttribution()
                 .frame(maxWidth: .infinity, alignment: .trailing)
-                .padding(.horizontal)
         }
     }
 
     // MARK: - Stop Cards
 
     private func currentStopCard(_ stop: RouteStop) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Label("Current Stop", systemImage: "location.fill")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(Color.blue)
-                    .clipShape(Capsule())
-                Spacer()
-                Button { openNavigation(for: stop) } label: {
-                    Label("Navigate", systemImage: "arrow.triangle.turn.up.right.circle.fill")
-                        .font(.subheadline.weight(.semibold))
+        VStack(alignment: .leading, spacing: PlowRLayout.space4) {
+            // Who and where, with the time to get there as big as the name.
+            HStack(alignment: .top, spacing: PlowRLayout.space3) {
+                VStack(alignment: .leading, spacing: PlowRLayout.space1) {
+                    Text("NOW · STOP \(currentStopIndex + 1)")
+                        .font(PlowRFont.label)
+                        .tracking(0.6)
+                        .foregroundStyle(PlowRColor.actionText)
+                        .padding(.horizontal, PlowRLayout.space2)
+                        .padding(.vertical, 3)
+                        .background(PlowRColor.actionSoft, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                    Text(stop.clientName)
+                        .font(PlowRFont.stopName)
+                        .foregroundStyle(PlowRColor.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if !stop.clientAddress.isEmpty {
+                        Text(stop.clientAddress)
+                            .font(.body)
+                            .foregroundStyle(PlowRColor.inkSecondary)
+                    }
+                    if !stop.clientPhone.isEmpty {
+                        Text(stop.clientPhone)
+                            .font(.subheadline)
+                            .foregroundStyle(PlowRColor.inkSecondary)
+                    }
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(.blue)
-                .disabled(stop.latitude == 0 && stop.clientAddress.isEmpty)
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(stop.clientName)
-                    .font(.title2.weight(.bold))
-                if !stop.clientAddress.isEmpty {
-                    Text(stop.clientAddress)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                if !stop.clientPhone.isEmpty {
-                    Text(stop.clientPhone)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+                if let eta = etaMinutes {
+                    VStack(alignment: .trailing, spacing: 0) {
+                        Text("\(eta)")
+                            .font(PlowRFont.bigNumber)
+                            .monospacedDigit()
+                            .foregroundStyle(PlowRColor.ink)
+                        Text("min away")
+                            .font(.footnote)
+                            .foregroundStyle(PlowRColor.inkSecondary)
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("\(eta) minutes away")
                 }
             }
 
@@ -623,57 +651,55 @@ struct ActiveRouteView: View {
             let expected = expectedServiceNames(for: stop)
             let target = RouteFacts.targetMinutes(of: stop, client: client(for: stop))
             if !expected.isEmpty || target > 0 {
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: PlowRLayout.space2) {
                     if !expected.isEmpty {
                         Label(expected.formatted(.list(type: .and)), systemImage: "checklist")
-                            .font(.caption.weight(.medium))
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(PlowRColor.ink)
                     }
                     if target > 0 {
                         Label("Target \(RouteFacts.duration(target))", systemImage: "timer")
-                            .font(.caption)
-                            .foregroundStyle(.blue)
+                            .font(.subheadline)
+                            .foregroundStyle(PlowRColor.inkSecondary)
                     }
                 }
             }
 
             if !stop.stopNotes.isEmpty || !stop.equipmentNotes.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: PlowRLayout.space2) {
                     if !stop.stopNotes.isEmpty {
                         Label(stop.stopNotes, systemImage: "note.text")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .font(.subheadline)
+                            .foregroundStyle(PlowRColor.ink)
                     }
                     if !stop.equipmentNotes.isEmpty {
                         Label(stop.equipmentNotes, systemImage: "wrench.and.screwdriver")
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(.orange)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(PlowRColor.Status.owed.text)
                     }
                 }
-                .padding(10)
+                .padding(PlowRLayout.space3)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(.systemGray6))
-                .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerSmall, style: .continuous))
+                .background(PlowRColor.raised, in: RoundedRectangle(cornerRadius: PlowRLayout.cornerMedium, style: .continuous))
             }
 
-            if !stop.isCustomStop {
-                Button {
-                    recorderStop = stop
-                } label: {
-                    HStack {
-                        Label("Record Services", systemImage: "doc.badge.plus")
-                            .font(.subheadline)
-                        Spacer()
-                        if !stop.completedServiceIDs.isEmpty {
-                            StatusChip("\(stop.completedServiceIDs.count) recorded", color: .green)
+            // Getting there, and the record of the work: the quieter choices.
+            HStack(spacing: PlowRLayout.space2) {
+                Button { openNavigation(for: stop) } label: {
+                    Label("Navigate", systemImage: PlowRSymbol.navigate.name)
+                }
+                .buttonStyle(.plowRSecondary)
+                .disabled(stop.latitude == 0 && stop.clientAddress.isEmpty)
+                if !stop.isCustomStop {
+                    Button { recorderStop = stop } label: {
+                        if stop.completedServiceIDs.isEmpty {
+                            Label("Record Services", systemImage: "doc.badge.plus")
+                        } else {
+                            Label("\(stop.completedServiceIDs.count) Recorded", systemImage: PlowRSymbol.complete.name)
                         }
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .padding(.horizontal)
-                    .background(Color(.systemGray6))
-                    .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerMedium, style: .continuous))
+                    .buttonStyle(.plowRSecondary)
                 }
-                .buttonStyle(.plain)
             }
 
             // A contract with a snow trigger in force today: less may have
@@ -683,16 +709,11 @@ struct ActiveRouteView: View {
                     $gate.unless(ProGate.proFeature("Marking below trigger", access)) { belowTriggerStop = stop }
                 } label: {
                     Label("Below Trigger", systemImage: "arrow.down.circle")
-                        .font(.subheadline)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.vertical, 10)
-                        .padding(.horizontal)
-                        .background(Color(.systemGray6))
-                        .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerMedium, style: .continuous))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.plowRSecondary)
             }
 
+            // The one main action, in copper, glove-sized.
             if isLastStop {
                 Button {
                     switch store.completeCurrentStop(expecting: stop.id) {
@@ -707,92 +728,104 @@ struct ActiveRouteView: View {
                         break
                     }
                 } label: {
-                    Label("Complete Route", systemImage: "checkmark.circle.fill")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
+                    Label("Complete Route", systemImage: PlowRSymbol.complete.name)
                 }
-                .primaryActionStyle(.green)
+                .buttonStyle(.plowRAction)
             } else {
                 Button { triggerNotifyPrompt() } label: {
                     Label(
-                        shouldSkipNextNotify ? "Mark Stop Complete" : "Done — Notify Next Client",
-                        systemImage: shouldSkipNextNotify ? "checkmark.circle.fill" : "arrow.right.circle.fill"
+                        shouldSkipNextNotify ? "Complete Stop" : "Complete · Text Next Client",
+                        systemImage: shouldSkipNextNotify ? PlowRSymbol.complete.name : "arrow.right.circle.fill"
                     )
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
                 }
-                .primaryActionStyle(.blue)
+                .buttonStyle(.plowRAction)
             }
         }
-        .padding()
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
-        .shadow(color: .black.opacity(0.07), radius: 8, y: 2)
+        .padding(PlowRLayout.space4)
+        .background(PlowRColor.surface, in: RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous)
+            .stroke(PlowRColor.line, lineWidth: 1))
     }
 
     private var routeCompleteCard: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 64))
-                .foregroundStyle(.green)
-            Text("All stops complete!")
-                .font(.title2.weight(.bold))
-            Button {
-                showingRouteRecap = true
-            } label: {
+        VStack(spacing: PlowRLayout.space4) {
+            Image(systemName: PlowRSymbol.complete.name)
+                .font(.system(size: 56))
+                .foregroundStyle(PlowRColor.Status.done.fill)
+                .accessibilityHidden(true)
+            Text("All stops complete")
+                .font(PlowRFont.title)
+                .foregroundStyle(PlowRColor.ink)
+            Button { showingRouteRecap = true } label: {
                 Text("Review & End Route")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
             }
-            .primaryActionStyle(.green)
+            .buttonStyle(.plowRAction)
         }
-        .padding()
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
-        .shadow(color: .black.opacity(0.07), radius: 8, y: 2)
+        .padding(PlowRLayout.space4)
+        .frame(maxWidth: .infinity)
+        .background(PlowRColor.surface, in: RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous)
+            .stroke(PlowRColor.line, lineWidth: 1))
     }
 
     private var upcomingStopsSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: PlowRLayout.space2) {
             HStack {
-                Text("Up Next")
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
+                Text("NEXT UP")
+                    .font(PlowRFont.label)
+                    .tracking(0.8)
+                    .foregroundStyle(PlowRColor.inkSecondary)
+                    .accessibilityAddTraits(.isHeader)
                 Spacer()
                 Button {
                     showingMassMessage = true
                 } label: {
-                    Label("Message All", systemImage: "bubble.left.and.bubble.right.fill")
-                        .font(.caption.weight(.semibold))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(Color.blue.opacity(0.12))
-                        .foregroundStyle(.blue)
-                        .clipShape(Capsule())
+                    Label("Message All", systemImage: PlowRSymbol.text.name)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(PlowRColor.ink)
+                        .padding(.horizontal, PlowRLayout.space3)
+                        .frame(minHeight: PlowRLayout.minTapTarget)
+                        .background(PlowRColor.raised, in: Capsule())
                 }
                 .buttonStyle(.plain)
             }
             ForEach(Array(upcomingStops.enumerated()), id: \.element.id) { index, stop in
-                HStack(spacing: 12) {
-                    StopNumberBadge(number: currentStopIndex + 2 + index)
+                HStack(spacing: PlowRLayout.space3) {
+                    Text("\(currentStopIndex + 2 + index)")
+                        .font(PlowRFont.label)
+                        .monospacedDigit()
+                        .foregroundStyle(PlowRColor.onBrand)
+                        .frame(width: 30, height: 30)
+                        .background(PlowRColor.brand, in: Circle())
+                        .accessibilityLabel("Stop \(currentStopIndex + 2 + index)")
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(stop.clientName).font(.subheadline.weight(.medium))
+                        Text(stop.clientName)
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(PlowRColor.ink)
                         if !stop.clientAddress.isEmpty {
-                            Text(stop.clientAddress).font(.caption).foregroundStyle(.secondary)
+                            Text(stop.clientAddress)
+                                .font(.subheadline)
+                                .foregroundStyle(PlowRColor.inkSecondary)
                         }
                     }
                     Spacer()
                     Button { openNavigation(for: stop) } label: {
-                        Image(systemName: "arrow.triangle.turn.up.right.circle")
-                            .foregroundStyle(.blue)
+                        Image(systemName: PlowRSymbol.navigate.name)
+                            .font(.title2)
+                            .foregroundStyle(PlowRColor.brand)
+                            .frame(width: PlowRLayout.minTapTarget, height: PlowRLayout.minTapTarget)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .disabled(stop.latitude == 0 && stop.clientAddress.isEmpty)
+                    .accessibilityLabel("Directions to \(stop.clientName)")
                 }
-                .padding(.vertical, 8)
-                .padding(.horizontal, 12)
-                .background(Color(.systemGray6))
-                .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerMedium, style: .continuous))
+                .padding(.vertical, PlowRLayout.space1)
+                .padding(.leading, PlowRLayout.space3)
+                .padding(.trailing, PlowRLayout.space1)
+                .background(PlowRColor.surface, in: RoundedRectangle(cornerRadius: PlowRLayout.cornerMedium, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: PlowRLayout.cornerMedium, style: .continuous)
+                    .stroke(PlowRColor.line, lineWidth: 1))
             }
         }
     }
