@@ -235,6 +235,8 @@ nonisolated extension PlowRLayout {
 
     /// Apple's minimum tap target.
     static let minTapTarget: CGFloat = 44
+    /// Secondary buttons beside a glove-height one (Navigate, Record Services).
+    static let secondaryTapTarget: CGFloat = 48
     /// The main buttons on the route screen: big enough for gloves.
     static let gloveTapTarget: CGFloat = 56
 }

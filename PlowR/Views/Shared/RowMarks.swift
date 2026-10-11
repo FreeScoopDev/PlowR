@@ -13,7 +13,8 @@ struct AccentBar: View {
     }
 }
 
-/// A stop's number in a route's list of stops: blue, or green once it's done.
+/// A stop's number in a route's list of stops: forest green, or the done
+/// colour once it's done (1.7 tokens).
 /// Route details, building or editing a route and the route screen's Up Next
 /// used to draw it four ways (a solid circle with a shadow, a tinted circle,
 /// a bare number at two widths). The route map's pins stay solid: they have
@@ -23,9 +24,9 @@ struct StopNumberBadge: View {
     var isDone = false
 
     var body: some View {
-        let color: Color = isDone ? .green : .blue
+        let color: Color = isDone ? PlowRColor.Status.done.text : PlowRColor.brand
         Text("\(number)")
-            .font(.caption.weight(.bold))
+            .font(PlowRFont.label)
             .monospacedDigit()
             .foregroundStyle(color)
             .frame(width: 28, height: 28)
