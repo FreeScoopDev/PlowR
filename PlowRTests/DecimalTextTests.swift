@@ -13,6 +13,19 @@ import Foundation
 struct DecimalTextTests {
 
     private let german = Locale(identifier: "de_DE")
+
+    /// Rates and quantities in exports: no trailing zeros, and never "nan"
+    /// or "-0" in a spreadsheet.
+    @Test func trimmedNumbers() {
+        #expect(DecimalText.trimmed(8.875) == "8.875")
+        #expect(DecimalText.trimmed(1_234.5) == "1234.5")
+        #expect(DecimalText.trimmed(2) == "2")
+        #expect(DecimalText.trimmed(0.035, places: 6) == "0.035")
+        #expect(DecimalText.trimmed(.nan) == "0")
+        #expect(DecimalText.trimmed(.infinity) == "0")
+        #expect(DecimalText.trimmed(-0.00001) == "0")
+        #expect(DecimalText.trimmed(-0.0) == "0")
+    }
     private let us = Locale(identifier: "en_US")
 
     @Test func oneCommaAndNoDotIsADecimalCommaWhereTheRegionWritesOne() {

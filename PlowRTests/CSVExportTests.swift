@@ -93,8 +93,9 @@ struct CSVExportTests {
     }
 
     /// One row per line of each invoice billed, so income can be split by
-    /// service: not a proposal, a draft, a voided invoice (its revision has
-    /// its lines), or another business's.
+    /// service: not a proposal, a draft, a revised invoice (its revision has
+    /// its lines), or another business's; a void invoice that kept its
+    /// money is.
     @Test func invoiceLinesListEveryServiceBilled() throws {
         let h = try Harness(stopCount: 1)
         func document(_ number: String, operatorID: String = "op", lines: [ProposalLineItem]) -> Proposal {
@@ -120,6 +121,12 @@ struct CSVExportTests {
         let revision = document("INV-0005", lines: [flat("Mow", 300)])
         revision.revisionOf = "INV-0004"
         _ = document("INV-0006", lines: [flat("Rake", 40)])                       // draft, never sent
+        let paidThenVoided = document("INV-0007", lines: [flat("Edge", 60)])      // Void keeps its money
+        paidThenVoided.invoiceSentAt = h.clock
+        let kept = Payment(amount: 60, method: "Cash", receivedAt: h.clock, operatorID: "op")
+        h.context.insert(kept)
+        paidThenVoided.payments = [kept]
+        paidThenVoided.voidedAt = h.clock
         let quote = document("", lines: [flat("Quote", 99)])                      // a proposal
         let theirs = document("INV-0001", operatorID: "someone else", lines: [flat("Theirs", 10)])
         theirs.invoiceSentAt = h.clock
@@ -128,7 +135,8 @@ struct CSVExportTests {
         let lines = rows(CSVExport.invoiceLines(all, operatorID: "op"))
         #expect(lines[0] == "Invoice,Client,Status,Created,Service,Place,Quantity,Unit,Unit Price,Line Total")
         let body = Array(lines.dropFirst())
-        #expect(body.count == 3)
+        #expect(body.count == 4)
+        #expect(body.contains { $0.hasPrefix("INV-0007,") && $0.hasSuffix(",Edge,,1,each,60.00,60.00") })
         #expect(body.contains { $0.hasPrefix("INV-0009,") && $0.hasSuffix(",Clear,Driveway,1000,sq ft,0.035,35.00") })
         #expect(body.contains { $0.hasPrefix("INV-0009,") && $0.hasSuffix(",Salt,,1,each,75.00,75.00") })
         #expect(body.contains { $0.hasPrefix("INV-0005,") && $0.hasSuffix(",Mow,,1,each,300.00,300.00") })
@@ -142,7 +150,7 @@ struct CSVExportTests {
         revision.invoiceNumber = "INV-0005"
         let item = ProposalLineItem(serviceName: "Clear", zoneLabel: "", quantity: 1, unitType: "flat", unitPrice: 40)
         let moved = Payment(amount: 40, method: "", receivedAt: h.clock, operatorID: "op")
-        moved.note = "Marked paid on INV-0004"
+        moved.note = "\(InvoiceRecords.impliedPaymentNotePrefix) INV-0004"
         [item].forEach { h.context.insert($0) }
         h.context.insert(moved)
         revision.lineItems = [item]

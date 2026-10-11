@@ -3,8 +3,9 @@
   billed, one row each, with its place, quantity, unit price and line
   total, before the invoice's discount and tax. A bookkeeper needs it to
   split income by service; the Invoices file only had each invoice's
-  totals. Drafts and void invoices aren't in it (a revised invoice is void
-  and its revision has its lines), so nothing counts twice.
+  totals. Drafts aren't in it, nor a revised invoice (its revision has its
+  lines), so nothing counts twice; a void invoice that kept money it was
+  paid is.
 
 ### Changed
 - The Invoices file has a Tax Rate % column beside Tax, so the rate

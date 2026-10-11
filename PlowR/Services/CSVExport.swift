@@ -84,12 +84,18 @@ enum CSVExport {
     }
 
     /// The invoices whose lines are income: billed and not void
-    /// (`InvoiceRecords.isBilled`). A draft isn't billed yet, and a revised
-    /// invoice is void with its lines copied onto the revision, so counting
-    /// either would add income twice or early. Invoices lists them all.
+    /// (`InvoiceRecords.isBilled`), and a void one that still holds money
+    /// (Void keeps a paid invoice's money and work with it, and Payments
+    /// lists that money). A draft isn't billed yet, and a revised invoice's
+    /// lines and money went to its revision, so counting either would add
+    /// income early or twice. Invoices lists them all.
     static func billedInvoices(_ documents: [Proposal], operatorID: String) -> [Proposal] {
-        documents.filter { $0.operatorID == operatorID && InvoiceRecords.isBilled($0) }
-            .sorted { $0.createdAt < $1.createdAt }
+        documents.filter { invoice in
+            invoice.operatorID == operatorID && invoice.isInvoice
+                && (InvoiceRecords.isBilled(invoice)
+                    || (invoice.voidedAt != nil && invoice.paymentsTotal > Payments.tolerance))
+        }
+        .sorted { $0.createdAt < $1.createdAt }
     }
 
     /// Every line of every billed invoice (`billedInvoices`), in invoice
@@ -110,11 +116,13 @@ enum CSVExport {
 
     /// What one unit was charged, worked out from the line's total: the
     /// stored unit price goes stale when an amount is typed or edited (the
-    /// PDF never prints it), so quantity × this is the line total. A
-    /// square-foot rate keeps up to four decimals ($0.035).
+    /// PDF never prints it). A square-foot rate keeps up to six decimals
+    /// ($0.035, or $0.03998 from a typed $1,999 over 50,000 sq ft), so
+    /// quantity × this is the line total to within rounding; Line Total is
+    /// the figure charged.
     static func unitPrice(of line: ProposalLineItem) -> String {
         if line.unitType == "perSqFt", line.quantity > 0, line.quantity.isFinite {
-            return DecimalText.trimmed(line.lineTotal / line.quantity)
+            return DecimalText.trimmed(line.lineTotal / line.quantity, places: 6)
         }
         return String(format: "%.2f", InvoiceLines.roundedToCent(line.lineTotal))
     }
@@ -141,7 +149,7 @@ enum CSVExport {
     /// (InvoiceRecords.recordImpliedPayment: no method, "Marked paid on …").
     static func method(of receipt: Payments.Receipt) -> String {
         guard let payment = receipt.payment else { return "Marked Paid" }
-        if payment.method.isEmpty, payment.note.hasPrefix("Marked paid on") { return "Marked Paid" }
+        if payment.method.isEmpty, payment.note.hasPrefix(InvoiceRecords.impliedPaymentNotePrefix) { return "Marked Paid" }
         return payment.method
     }
 
