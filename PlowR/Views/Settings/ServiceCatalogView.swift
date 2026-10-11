@@ -187,7 +187,7 @@ struct ServiceItemEditView: View {
                     if !price.isEmpty, ServiceCatalog.price(typed: price) == nil {
                         Text("Enter a price, such as 45.00.")
                             .font(.footnote)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(PlowRColor.Status.overdue.text)
                     }
                 }
                 .listRowBackground(PlowRColor.surface)

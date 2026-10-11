@@ -165,7 +165,7 @@ struct NotifyPromptView: View {
 
     private var etaRow: some View {
         HStack(spacing: 8) {
-            Image(systemName: "clock.fill").foregroundStyle(.blue)
+            Image(systemName: "clock.fill").foregroundStyle(PlowRColor.brand)
             if estimatedMinutes == nil {
                 ProgressView().scaleEffect(0.8)
                 Text("Calculating ETA…").foregroundStyle(.secondary)
@@ -196,8 +196,8 @@ struct NotifyPromptView: View {
                                 .font(.caption.weight(.semibold))
                                 .padding(.horizontal, 14)
                                 .padding(.vertical, 8)
-                                .background(isOn ? Color.blue : Color(.systemGray5))
-                                .foregroundStyle(isOn ? .white : .primary)
+                                .background(isOn ? PlowRColor.brand : PlowRColor.raised)
+                                .foregroundStyle(isOn ? PlowRColor.onBrand : PlowRColor.ink)
                                 .clipShape(Capsule())
                         }
                         .buttonStyle(.plain)
@@ -228,7 +228,7 @@ struct NotifyPromptView: View {
             Label("Include my location link", systemImage: "location.fill")
                 .font(.subheadline)
         }
-        .tint(.blue)
+        .tint(PlowRColor.brand)
         .padding(.vertical, 12)
         .padding(.horizontal, 16)
         .background(Color(.systemGray6))

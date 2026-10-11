@@ -142,12 +142,12 @@ struct ClientStatsView: View {
                             if bucket.revenue > 0 {
                                 Text(bucket.revenue, format: .currency(code: "USD").precision(.fractionLength(0)))
                                     .font(.caption.weight(.semibold))
-                                    .foregroundStyle(.green)
+                                    .foregroundStyle(PlowRColor.Status.done.text)
                             }
                             if bucket.outstanding > 0 {
                                 Text(bucket.outstanding, format: .currency(code: "USD").precision(.fractionLength(0)))
                                     .font(.caption)
-                                    .foregroundStyle(.orange)
+                                    .foregroundStyle(PlowRColor.Status.owed.text)
                             }
                         }
                     }
@@ -156,12 +156,12 @@ struct ClientStatsView: View {
                         let outRatio = CGFloat(bucket.outstanding / maxTotal)
                         if revRatio > 0 {
                             RoundedRectangle(cornerRadius: 3)
-                                .fill(Color.green)
+                                .fill(PlowRColor.Status.done.fill)
                                 .frame(width: max(revRatio * 200, 4), height: 6)
                         }
                         if outRatio > 0 {
                             RoundedRectangle(cornerRadius: 3)
-                                .fill(Color.orange.opacity(0.7))
+                                .fill(PlowRColor.Status.owed.fill.opacity(0.7))
                                 .frame(width: max(outRatio * 200, 4), height: 6)
                         }
                         Spacer()
@@ -173,8 +173,8 @@ struct ClientStatsView: View {
             Text("Revenue by Month")
         } footer: {
             HStack(spacing: 16) {
-                Label("Collected", systemImage: "square.fill").foregroundStyle(.green)
-                Label("Outstanding", systemImage: "square.fill").foregroundStyle(.orange)
+                Label("Collected", systemImage: "square.fill").foregroundStyle(PlowRColor.Status.done.fill)
+                Label("Outstanding", systemImage: "square.fill").foregroundStyle(PlowRColor.Status.owed.fill)
             }
             .font(.caption)
         }
@@ -258,7 +258,7 @@ struct ClientStatsView: View {
                     systemImage: "exclamationmark.circle.fill"
                 )
                 .font(.caption.weight(.medium))
-                .foregroundStyle(.orange)                // outstanding, as everywhere
+                .foregroundStyle(PlowRColor.Status.owed.text)                // outstanding, as everywhere
             }
         }
         .padding(.vertical, 4)

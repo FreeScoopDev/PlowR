@@ -231,7 +231,7 @@ struct ScheduleView: View {
             Section {
                 ForEach(overdue.prefix(3)) { visit in
                     HStack(spacing: 10) {
-                        Circle().fill(Color.orange).frame(width: 8, height: 8)
+                        Circle().fill(PlowRColor.Status.owed.fill).frame(width: 8, height: 8)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(visit.clientName).font(.subheadline.weight(.medium))
                             Text(visit.scheduledDate, style: .date)
@@ -249,7 +249,7 @@ struct ScheduleView: View {
                 // Styled as the day and Upcoming headers on this screen.
                 Label("\(overdue.count) Overdue", systemImage: "exclamationmark.circle.fill")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(PlowRColor.Status.owed.text)
                     .textCase(nil)
             }
             .listRowBackground(PlowRColor.surface)
@@ -290,7 +290,7 @@ struct ScheduleView: View {
                     }
                     if visit.isRecurring {
                         Image(systemName: "arrow.triangle.2.circlepath")
-                            .font(.caption2).foregroundStyle(.blue)
+                            .font(.caption2).foregroundStyle(PlowRColor.brand)
                     }
                 }
                 if !visit.notes.isEmpty {
@@ -326,7 +326,7 @@ struct ScheduleView: View {
                         .foregroundStyle(.secondary)
                     Text(visit.scheduledDate.formatted(.dateTime.day()))
                         .font(.title3.weight(.bold))
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(PlowRColor.brand)
                 }
                 .frame(width: 36)
 
@@ -343,7 +343,7 @@ struct ScheduleView: View {
                         }
                         if visit.isRecurring {
                             Image(systemName: "arrow.triangle.2.circlepath")
-                                .font(.caption2).foregroundStyle(.blue)
+                                .font(.caption2).foregroundStyle(PlowRColor.brand)
                         }
                     }
                 }
@@ -353,7 +353,7 @@ struct ScheduleView: View {
                 if !visit.proposalID.isEmpty {
                     Image(systemName: "doc.text.fill")
                         .font(.caption2)
-                        .foregroundStyle(.green)
+                        .foregroundStyle(PlowRColor.Status.done.text)
                 }
 
                 Image(systemName: "chevron.right")
@@ -594,7 +594,7 @@ private struct WeatherBannerRow: View {
             if day.hasSignificantPrecip {
                 Text(String(format: "%.1f\"", day.precipitationMm / 25.4))
                     .font(.system(size: 8))
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(PlowRColor.brand)
             } else {
                 Color.clear.frame(height: 10)
             }

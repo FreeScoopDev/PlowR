@@ -194,9 +194,9 @@ struct BusinessRow: View {
                     } label: {
                         Image(systemName: "phone.fill")
                             .font(.caption.weight(.semibold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(PlowRColor.onBrand)
                             .padding(8)
-                            .background(Color.green)
+                            .background(PlowRColor.brand)
                             .clipShape(Circle())
                     }
                     .buttonStyle(.borderless)
@@ -207,9 +207,9 @@ struct BusinessRow: View {
                     } label: {
                         Image(systemName: "safari")
                             .font(.caption.weight(.semibold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(PlowRColor.onBrand)
                             .padding(8)
-                            .background(Color.blue)
+                            .background(PlowRColor.brand)
                             .clipShape(Circle())
                     }
                     .buttonStyle(.borderless)

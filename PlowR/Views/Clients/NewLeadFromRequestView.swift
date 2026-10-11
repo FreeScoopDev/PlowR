@@ -88,7 +88,7 @@ struct NewLeadFromRequestView: View {
                     .disabled(cleaned == nil || isSaved)
             } footer: {
                 Text(problem ?? "Saved as a lead in your Pipeline, tagged with today's date, and put on the map from the address. Check the details first: the request came in a text, and anyone could have sent it.")
-                    .foregroundStyle(problem == nil ? Color.secondary : Color.orange)
+                    .foregroundStyle(problem == nil ? PlowRColor.inkSecondary : PlowRColor.Status.owed.text)
             }
             .listRowBackground(PlowRColor.surface)
         }

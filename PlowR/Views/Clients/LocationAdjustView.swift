@@ -145,7 +145,7 @@ struct LocationAdjustView: View {
         VStack(spacing: 12) {
             HStack(alignment: .top, spacing: 10) {
                 Image(systemName: suggestion.isLookingUp ? "arrow.triangle.2.circlepath" : "mappin.circle.fill")
-                    .foregroundStyle(suggestion.isLookingUp ? Color(.secondaryLabel) : Color.blue)
+                    .foregroundStyle(suggestion.isLookingUp ? Color(.secondaryLabel) : PlowRColor.brand)
                     .symbolEffect(.rotate, isActive: suggestion.isLookingUp)
 
                 VStack(alignment: .leading, spacing: 3) {

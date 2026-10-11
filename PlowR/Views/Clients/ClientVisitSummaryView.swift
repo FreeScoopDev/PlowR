@@ -73,7 +73,7 @@ struct ClientVisitSummaryView: View {
                         ? "On target"
                         : (diff > 0 ? "\(Int(diff))m over" : "\(Int(-diff))m under")
                     Text(label)
-                        .foregroundStyle(abs(diff) < 2 ? .green : (diff > 0 ? .orange : .green))
+                        .foregroundStyle(abs(diff) < 2 ? PlowRColor.Status.done.text : (diff > 0 ? PlowRColor.Status.owed.text : PlowRColor.Status.done.text))
                 }
             }
         }
@@ -85,14 +85,14 @@ struct ClientVisitSummaryView: View {
             if outstanding > 0 {
                 LabeledContent("Outstanding") {
                     Text(outstanding, format: .currency(code: "USD"))
-                        .foregroundStyle(.orange)        // outstanding, as everywhere
+                        .foregroundStyle(PlowRColor.Status.owed.text)        // outstanding, as everywhere
                         .fontWeight(.semibold)
                 }
             }
             if paid > 0 {
                 LabeledContent("Total Paid") {
                     Text(paid, format: .currency(code: "USD"))
-                        .foregroundStyle(.green)
+                        .foregroundStyle(PlowRColor.Status.done.text)
                 }
             }
             LabeledContent("Invoice Count", value: "\(clientInvoices.count)")

@@ -153,7 +153,7 @@ struct RouteRecapView: View {
     private func recapPin(isDone: Bool) -> some View {
         ZStack {
             Circle()
-                .fill(isDone ? Color.green : Color(.systemGray3))
+                .fill(isDone ? PlowRColor.Status.done.fill : PlowRColor.line)
                 .frame(width: 20, height: 20)
                 .shadow(color: .black.opacity(0.25), radius: 2, x: 0, y: 1)
             Image(systemName: isDone ? "checkmark" : "minus")
@@ -171,11 +171,11 @@ struct RouteRecapView: View {
             HStack(spacing: 12) {
                 ZStack {
                     Circle()
-                        .fill(completed ? Color.green.opacity(0.15) : Color(.systemGray5))
+                        .fill(completed ? PlowRColor.Status.done.soft : PlowRColor.raised)
                         .frame(width: 32, height: 32)
                     Image(systemName: completed ? "checkmark" : "minus")
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(completed ? .green : .secondary)
+                        .foregroundStyle(completed ? PlowRColor.Status.done.text : PlowRColor.inkSecondary)
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -196,7 +196,7 @@ struct RouteRecapView: View {
                     if !stop.completedServiceIDs.isEmpty {
                         Text("\(stop.completedServiceIDs.count) service\(stop.completedServiceIDs.count == 1 ? "" : "s")")
                             .font(.caption.weight(.medium))
-                            .foregroundStyle(.green)
+                            .foregroundStyle(PlowRColor.Status.done.text)
                     } else {
                         Text("No services")
                             .font(.caption)
@@ -210,7 +210,7 @@ struct RouteRecapView: View {
                 }
 
                 Image(systemName: "pencil.circle")
-                    .foregroundStyle(.blue.opacity(0.7))
+                    .foregroundStyle(PlowRColor.brand.opacity(0.7))
                     .font(.subheadline)
             }
             .padding(.vertical, 2)

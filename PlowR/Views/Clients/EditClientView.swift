@@ -289,14 +289,14 @@ struct EditClientView: View {
                             } label: { Label("Email", systemImage: "envelope.fill") }
                         }
                     } label: {
-                        ClientActionTile(title: "Contact", icon: "phone.badge.waveform.fill", color: .blue)
+                        ClientActionTile(title: "Contact", icon: "phone.badge.waveform.fill", color: PlowRColor.brand)
                     }
                     // Styled as the other tiles are: a menu otherwise tints
                     // and pads its label its own way.
                     .menuStyle(.button)
                     .buttonStyle(.plain)
                     .menuIndicator(.hidden)
-                    actionTile(title: "Invoice", icon: "doc.badge.arrow.up", color: .orange) {
+                    actionTile(title: "Invoice", icon: "doc.badge.arrow.up", color: PlowRColor.brand) {
                         // The newest invoice still being drafted; one that's out is a
                         // record, so a new invoice is started instead (InvoiceRecords).
                         if let latest = clientDocuments.first(where: {
@@ -307,13 +307,13 @@ struct EditClientView: View {
                             showingInvoiceBuilder = true
                         }
                     }
-                    actionTile(title: "Schedule", icon: "calendar.badge.plus", color: .purple) {
+                    actionTile(title: "Schedule", icon: "calendar.badge.plus", color: PlowRColor.brand) {
                         showingAddVisit = true
                     }
                     NavigationLink {
                         ClientPhotoGalleryView(client: client)
                     } label: {
-                        ClientActionTile(title: "Photos", icon: "photo.on.rectangle.angled", color: .teal)
+                        ClientActionTile(title: "Photos", icon: "photo.on.rectangle.angled", color: PlowRColor.brand)
                     }
                     .buttonStyle(.plain)
                 }
@@ -349,7 +349,7 @@ struct EditClientView: View {
                         openURL(url)
                     } label: {
                         Image(systemName: "phone.fill")
-                            .foregroundStyle(.green)
+                            .foregroundStyle(PlowRColor.Status.done.text)
                     }
                     .buttonStyle(.borderless)
                 }
@@ -364,7 +364,7 @@ struct EditClientView: View {
                         openURL(url)
                     } label: {
                         Image(systemName: "envelope.fill")
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(PlowRColor.brand)
                     }
                     .buttonStyle(.borderless)
                 }
@@ -536,7 +536,7 @@ struct EditClientView: View {
                 } label: {
                     HStack(spacing: 12) {
                         Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                            .foregroundStyle(isSelected ? .blue : .secondary)
+                            .foregroundStyle(isSelected ? PlowRColor.brand : .secondary)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(service.name).foregroundStyle(.primary)
                             Text(service.category.capitalized)
@@ -761,25 +761,25 @@ struct EditClientView: View {
                             ? "On target"
                             : (diff > 0 ? "\(Int(diff))m over" : "\(Int(-diff))m under")
                         Text(label)
-                            .foregroundStyle(abs(diff) < 2 ? .green : (diff > 0 ? .orange : .green))
+                            .foregroundStyle(abs(diff) < 2 ? PlowRColor.Status.done.text : (diff > 0 ? PlowRColor.Status.owed.text : PlowRColor.Status.done.text))
                     }
                 }
                 if totalRevenuePaid > 0 {
                     LabeledContent("Revenue Collected") {
                         Text(totalRevenuePaid, format: .currency(code: "USD"))
-                            .foregroundStyle(.green)
+                            .foregroundStyle(PlowRColor.Status.done.text)
                     }
                 }
             }
             if outstandingBalance > 0 {
                 LabeledContent("Outstanding Balance") {
                     Text(outstandingBalance, format: .currency(code: "USD"))
-                        .foregroundStyle(.orange)        // outstanding, as everywhere
+                        .foregroundStyle(PlowRColor.Status.owed.text)        // outstanding, as everywhere
                         .fontWeight(.semibold)
                 }
             } else if !clientInvoices.isEmpty {
                 LabeledContent("Balance") {
-                    Text("Paid in full").foregroundStyle(.green)
+                    Text("Paid in full").foregroundStyle(PlowRColor.Status.done.text)
                 }
             }
 
@@ -791,7 +791,7 @@ struct EditClientView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(awaitingResponse ? "Awaiting Response" : "Client Responded")
                             .font(.subheadline)
-                            .foregroundStyle(awaitingResponse ? .orange : .green)
+                            .foregroundStyle(awaitingResponse ? PlowRColor.Status.owed.text : PlowRColor.Status.done.text)
                         Text("Invoice or proposal sent \(sent, format: .relative(presentation: .named))")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -954,7 +954,7 @@ struct EditClientView: View {
                 ForEach(upcomingClientVisits) { visit in
                     HStack(spacing: 10) {
                         Image(systemName: "calendar")
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(PlowRColor.brand)
                             .frame(width: 20)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(visit.scheduledDate, format: .dateTime.weekday(.abbreviated).month(.abbreviated).day())

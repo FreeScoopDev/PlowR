@@ -350,7 +350,7 @@ struct AddVisitView: View {
         .font(.caption.weight(.medium))
         .buttonStyle(.bordered)
         .controlSize(.small)
-        .tint(isSelected ? .blue : nil)
+        .tint(isSelected ? PlowRColor.brand : nil)
     }
 
     private var visitInfoSection: some View {
@@ -408,7 +408,7 @@ struct AddVisitView: View {
                 } label: {
                     HStack {
                         Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                            .foregroundStyle(isSelected ? .blue : .secondary)
+                            .foregroundStyle(isSelected ? PlowRColor.brand : .secondary)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(service.name)
                                 .foregroundStyle(.primary)

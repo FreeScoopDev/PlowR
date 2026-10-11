@@ -99,7 +99,7 @@ struct ProposalDetailView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Label(ContractInstallments.duplicateAdvice(for: proposal, other: other),
                           systemImage: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(PlowRColor.Status.owed.text)
                     NavigationLink { ProposalDetailView(proposal: other) } label: {
                         // Two sent copies can share a number: then by when it was made.
                         Text(other.invoiceNumber.isEmpty || other.invoiceNumber == proposal.invoiceNumber
@@ -120,7 +120,7 @@ struct ProposalDetailView: View {
                 Label("Another invoice also has the number \(proposal.invoiceNumber). They were made on two devices before they synced; revise or void one.",
                       systemImage: "exclamationmark.triangle.fill")
                     .font(.footnote)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(PlowRColor.Status.owed.text)
                     .padding(10)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(.ultraThinMaterial)

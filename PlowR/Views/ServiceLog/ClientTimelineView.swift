@@ -60,7 +60,7 @@ struct ClientTimelineView: View {
             Spacer()
             if let amount = event.amount {
                 Text(amount, format: .currency(code: "USD")).font(.subheadline).monospacedDigit()
-                    .foregroundStyle(event.kind.isPaid ? .green : .primary)
+                    .foregroundStyle(event.kind.isPaid ? PlowRColor.Status.done.text : PlowRColor.ink)
             }
         }
         switch event.kind {

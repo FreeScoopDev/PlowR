@@ -114,7 +114,7 @@ struct FindServiceFlow: View {
                             VStack(spacing: 10) {
                                 Image(systemName: cat.icon)
                                     .font(.system(size: 32))
-                                    .foregroundStyle(.blue)
+                                    .foregroundStyle(PlowRColor.brand)
                                 Text(cat.name)
                                     .font(.subheadline.bold())
                                     .foregroundStyle(.primary)

@@ -257,7 +257,7 @@ struct RouteDetailView: View {
             }
             ForEach(equipment, id: \.element.id) { index, stop in
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Image(systemName: "wrench.and.screwdriver").foregroundStyle(.orange)
+                    Image(systemName: "wrench.and.screwdriver").foregroundStyle(PlowRColor.Status.owed.text)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(stop.equipmentNotes).font(.subheadline)
                         Text("Stop \(index + 1) · \(stop.clientName)").font(.caption).foregroundStyle(.secondary)
@@ -343,7 +343,7 @@ struct RouteDetailView: View {
                 if target > 0 {
                     Label("Target \(RouteFacts.duration(target))", systemImage: "timer")
                         .font(.caption2)
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(PlowRColor.brand)
                 }
                 // Expected service icons
                 let icons = expectedServiceIcons(for: stop)
@@ -352,7 +352,7 @@ struct RouteDetailView: View {
                         ForEach(icons, id: \.self) { icon in
                             Image(systemName: icon)
                                 .font(.caption2)
-                                .foregroundStyle(.blue.opacity(0.7))
+                                .foregroundStyle(PlowRColor.brand.opacity(0.7))
                         }
                     }
                 }
@@ -362,12 +362,12 @@ struct RouteDetailView: View {
                         if !stop.stopNotes.isEmpty {
                             Label("Notes", systemImage: "note.text")
                                 .font(.caption2)
-                                .foregroundStyle(.orange)
+                                .foregroundStyle(PlowRColor.Status.owed.text)
                         }
                         if !stop.equipmentNotes.isEmpty {
                             Label("Equipment", systemImage: "wrench.and.screwdriver")
                                 .font(.caption2)
-                                .foregroundStyle(.purple)
+                                .foregroundStyle(PlowRColor.inkSecondary)
                         }
                     }
                 }
@@ -379,7 +379,7 @@ struct RouteDetailView: View {
                 if stop.actualMinutes > 0 {
                     Label("\(stop.actualMinutes)m", systemImage: "checkmark.circle.fill")
                         .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.green)
+                        .foregroundStyle(PlowRColor.Status.done.text)
                 } else if let client = clientFor(stop), client.totalVisits > 0 {
                     StatusChip("\(client.totalVisits)", status: .neutral)
                 }
@@ -402,7 +402,7 @@ struct RouteDetailView: View {
     private func stopPin(number: Int, isDone: Bool) -> some View {
         ZStack {
             Circle()
-                .fill(isDone ? Color.green : Color.blue)
+                .fill(isDone ? PlowRColor.Status.done.fill : PlowRColor.brand)
                 .frame(width: 26, height: 26)
                 .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
             Text("\(number)")

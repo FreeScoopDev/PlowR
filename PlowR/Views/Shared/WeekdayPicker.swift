@@ -16,8 +16,8 @@ struct WeekdayPicker: View {
                     Text(Calendar(identifier: .gregorian).veryShortStandaloneWeekdaySymbols[weekday - 1])
                         .font(.caption.weight(.semibold))
                         .frame(width: 32, height: 32)
-                        .background(selected ? Color.blue : Color(.systemGray5))
-                        .foregroundStyle(selected ? .white : .primary)
+                        .background(selected ? PlowRColor.brand : PlowRColor.raised)
+                        .foregroundStyle(selected ? PlowRColor.onBrand : PlowRColor.ink)
                         .clipShape(Circle())
                 }
                 .buttonStyle(.plain)

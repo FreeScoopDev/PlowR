@@ -142,7 +142,7 @@ struct ServiceLinesSections: View {
                 if showsPriceNote(for: service) {
                     Text("Priced by the square foot, and there's no measured area: enter the price.")
                         .font(.caption)
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(PlowRColor.Status.owed.text)
                         .padding(.leading, 48)
                         .padding(.bottom, 6)
                 }
