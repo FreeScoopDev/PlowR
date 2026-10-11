@@ -68,7 +68,6 @@ struct ActiveRouteView: View {
     // Map camera state
     @State private var mapCameraPosition: MapCameraPosition = .automatic
     @State private var followDriver = true
-    @State private var isSettingCamera = false
 
     var sortedStops: [RouteStop] { store.sortedStops }
     var currentStopIndex: Int { store.currentStopIndex }
@@ -454,13 +453,16 @@ struct ActiveRouteView: View {
             .mapStyle(.standard(pointsOfInterest: .excludingAll))
             .frame(height: 240)
             .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
-            .onMapCameraChange(frequency: .onEnd) { _ in
-                if isSettingCamera {
-                    isSettingCamera = false
-                } else {
-                    followDriver = false
-                }
-            }
+            // Frame the driver and the stop from the start: MapKit's
+            // automatic framing put the stop's pin on the top edge.
+            .onAppear { recenterMap() }
+            // Only a finger on the map stops following the driver. Telling
+            // the app's camera moves apart by their camera changes failed:
+            // MapKit can report more than one for a move, and the screen took
+            // the extra one for a pan, showing Re-center before anyone had
+            // touched the map.
+            .simultaneousGesture(DragGesture(minimumDistance: 8).onChanged { _ in followDriver = false })
+            .simultaneousGesture(MagnifyGesture().onChanged { _ in followDriver = false })
 
             // Re-center button appears when user has panned away
             if !followDriver {
@@ -537,9 +539,7 @@ struct ActiveRouteView: View {
     // MARK: - Map Camera Logic
 
     private func recenterMap() {
-        let newPosition = computedMapCamera
-        isSettingCamera = true
-        mapCameraPosition = newPosition
+        mapCameraPosition = computedMapCamera
     }
 
     private var computedMapCamera: MapCameraPosition {
@@ -554,14 +554,21 @@ struct ActiveRouteView: View {
         }
 
         if let userLoc {
-            let stopLoc = CLLocation(latitude: stop.latitude, longitude: stop.longitude)
-            let dist = userLoc.distance(from: stopLoc)
-            let cameraDistance = max(250, min(dist * 1.6, 12_000))
-            let midLat = userLoc.coordinate.latitude * 0.6 + stop.latitude * 0.4
-            let midLon = userLoc.coordinate.longitude * 0.6 + stop.longitude * 0.4
-            return .camera(MapCamera(
-                centerCoordinate: CLLocationCoordinate2D(latitude: midLat, longitude: midLon),
-                distance: cameraDistance
+            // A region holding both pins, which MapKit fits inside the map
+            // whatever its shape: a camera distance is a height, and on this
+            // wide, short map it left the stop's pin on the top edge. The
+            // margin is room for the stop's pin and name above its point.
+            let here = userLoc.coordinate
+            let center = CLLocationCoordinate2D(latitude: (here.latitude + stop.latitude) / 2,
+                                                longitude: (here.longitude + stop.longitude) / 2)
+            let northSouth = CLLocation(latitude: here.latitude, longitude: stop.longitude)
+                .distance(from: CLLocation(latitude: stop.latitude, longitude: stop.longitude))
+            let eastWest = CLLocation(latitude: stop.latitude, longitude: here.longitude)
+                .distance(from: CLLocation(latitude: stop.latitude, longitude: stop.longitude))
+            return .region(MKCoordinateRegion(
+                center: center,
+                latitudinalMeters: min(max(northSouth * 1.6 + 300, 300), 15_000),
+                longitudinalMeters: min(max(eastWest * 1.3 + 200, 300), 15_000)
             ))
         }
         return .camera(MapCamera(
@@ -575,25 +582,34 @@ struct ActiveRouteView: View {
     @ViewBuilder
     private var weatherStrip: some View {
         if let w = weather {
-            HStack(spacing: 8) {
+            // A card like the stop's, the weather's colour on its icon only:
+            // white text on the old coloured strip was faint in dark mode,
+            // where the system grey turns light.
+            HStack(spacing: PlowRLayout.space2) {
                 Image(systemName: w.symbolName)
+                    .foregroundStyle(WeatherKind(w.description).iconColor)
                 Text("\(Int(w.temperatureF))°F")
-                    .fontWeight(.semibold)
+                    .font(PlowRFont.number)
                 Text("·")
+                    .foregroundStyle(PlowRColor.inkSecondary)
                 Text(w.description)
                 Spacer()
                 Text("\(Int(w.windSpeedMph)) mph \(w.windDirectionLabel)")
-                    .foregroundStyle(.white.opacity(0.75))
+                    .foregroundStyle(PlowRColor.inkSecondary)
                 Image(systemName: "chevron.right")
                     .font(.caption2)
-                    .foregroundStyle(.white.opacity(0.5))
+                    .foregroundStyle(PlowRColor.inkSecondary)
             }
             .font(.subheadline)
-            .foregroundStyle(.white)
+            .foregroundStyle(PlowRColor.ink)
             .padding(.horizontal, PlowRLayout.space4)
             .padding(.vertical, PlowRLayout.space3)
-            .background(WeatherKind(w.description).background,
+            .background(PlowRColor.surface,
                         in: RoundedRectangle(cornerRadius: PlowRLayout.cornerMedium, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: PlowRLayout.cornerMedium, style: .continuous)
+                    .strokeBorder(PlowRColor.line)
+            )
             .onTapGesture { openWeather() }
             // WeatherKit's attribution goes wherever its weather shows.
             WeatherAttribution()
