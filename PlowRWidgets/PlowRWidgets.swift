@@ -152,9 +152,10 @@ struct PlowRWidgetEntryView: View {
                             .font(.subheadline.bold())
                             .lineLimit(1)
                         Spacer()
+                        // The brand, not done's green: the route is running.
                         Label("Active", systemImage: "circle.fill")
                             .font(.caption2)
-                            .foregroundStyle(PlowRColor.Status.done.fill)
+                            .foregroundStyle(PlowRColor.brand)
                     }
                     ProgressView(value: entry.data.progress)
                         .tint(PlowRColor.Status.done.fill)

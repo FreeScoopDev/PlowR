@@ -12,7 +12,7 @@ struct PlowRWidgetsLiveActivity: Widget {
                 DynamicIslandExpandedRegion(.leading) {
                     HStack(spacing: 6) {
                         Image(systemName: "truck.box.fill")
-                            .foregroundStyle(PlowRColor.brand)
+                            .foregroundStyle(PlowRColor.island)
                             .font(.title3)
                         VStack(alignment: .leading, spacing: 1) {
                             Text(context.attributes.routeName)
@@ -31,7 +31,7 @@ struct PlowRWidgetsLiveActivity: Widget {
                         value: Double(context.state.currentStopNumber),
                         total: Double(context.state.totalStops)
                     )
-                    .tint(PlowRColor.Status.done.fill)
+                    .tint(PlowRColor.islandDone)
                     .frame(width: 60)
                     .padding(.trailing, 8)
                 }
@@ -51,7 +51,7 @@ struct PlowRWidgetsLiveActivity: Widget {
                         }
                         Spacer()
                         Image(systemName: "location.fill")
-                            .foregroundStyle(PlowRColor.brand)
+                            .foregroundStyle(PlowRColor.island)
                             .font(.caption)
                     }
                     .padding(.horizontal, 8)
@@ -60,7 +60,7 @@ struct PlowRWidgetsLiveActivity: Widget {
             } compactLeading: {
                 HStack(spacing: 4) {
                     Image(systemName: "truck.box.fill")
-                        .foregroundStyle(PlowRColor.brand)
+                        .foregroundStyle(PlowRColor.island)
                         .font(.caption2)
                     Text("\(context.state.currentStopNumber)/\(context.state.totalStops)")
                         .font(.caption2.bold())
@@ -72,10 +72,10 @@ struct PlowRWidgetsLiveActivity: Widget {
                     .frame(maxWidth: 70)
             } minimal: {
                 Image(systemName: "truck.box.fill")
-                    .foregroundStyle(PlowRColor.brand)
+                    .foregroundStyle(PlowRColor.island)
             }
             .widgetURL(PlowRLink.activeRoute.url)
-            .keylineTint(PlowRColor.brand)
+            .keylineTint(PlowRColor.island)
         }
     }
 }
