@@ -12,7 +12,8 @@ names whose first release is iOS 26.0 or earlier). Raise it, with the
 deployment target, by regenerating it the same way.
 
 Only literal names are checked: systemImage:, systemName:, icon:,
-symbol:. A name built at run time isn't seen.
+symbol:, and the cases of PlowRSymbol in DesignSystem.swift (case x = "...").
+A name built at run time isn't seen.
 """
 import pathlib
 import re
@@ -21,13 +22,28 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 KNOWN = set((ROOT / "scripts" / "sf-symbols-ios26.0.txt").read_text().split())
 PATTERN = re.compile(r'\b(?:systemImage|systemName|icon|symbol):\s*"([a-z0-9]+(?:\.[a-z0-9]+)*)"')
+# PlowRSymbol's cases: screens name icons through it, not as literals. One
+# case per line; a line in the enum that names no symbol fails the check.
+TOKEN_PATTERN = re.compile(r'^\s*case\s+\w+\s*=\s*"([a-z0-9]+(?:\.[a-z0-9]+)*)"\s*$')
 
 failures = []
 checked = 0
 for folder in ("PlowR", "PlowRWidgets"):
     for path in sorted((ROOT / folder).rglob("*.swift")):
+        in_symbols = False
         for number, line in enumerate(path.read_text().splitlines(), start=1):
-            for name in PATTERN.findall(line):
+            names = PATTERN.findall(line)
+            if path.name == "DesignSystem.swift":
+                if "enum PlowRSymbol" in line:
+                    in_symbols = True
+                elif in_symbols and line.strip() == "}":
+                    in_symbols = False
+                elif in_symbols and line.strip().startswith("case "):
+                    found = TOKEN_PATTERN.findall(line)
+                    if not found:
+                        failures.append(f"{path.relative_to(ROOT)}:{number}: write one PlowRSymbol case per line, as case x = \"symbol.name\"")
+                    names += found
+            for name in names:
                 checked += 1
                 if name not in KNOWN:
                     failures.append(f"{path.relative_to(ROOT)}:{number}: '{name}' isn't an SF Symbol on iOS 26.0")
