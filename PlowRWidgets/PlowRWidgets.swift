@@ -69,7 +69,7 @@ struct PlowRWidgetEntryView: View {
             HStack(spacing: 5) {
                 Image(systemName: "truck.box.fill")
                     .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(PlowRColor.brand)
                 Text("PlowR")
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(.secondary)
@@ -87,7 +87,7 @@ struct PlowRWidgetEntryView: View {
                     .foregroundStyle(.secondary)
                     .padding(.top, 1)
                 ProgressView(value: entry.data.progress)
-                    .tint(.blue)
+                    .tint(PlowRColor.Status.done.fill)
                     .padding(.vertical, 5)
                 // A client's name and address are hidden while the phone is
                 // locked (StandBy, an iPad's Lock Screen); the counts aren't.
@@ -101,7 +101,7 @@ struct PlowRWidgetEntryView: View {
                 Spacer()
                 Image(systemName: "checkmark.circle.fill")
                     .font(.title2)
-                    .foregroundStyle(.green)
+                    .foregroundStyle(PlowRColor.Status.done.fill)
                 Text("Route Complete")
                     .font(.subheadline.bold())
                     .padding(.top, 4)
@@ -133,10 +133,10 @@ struct PlowRWidgetEntryView: View {
                 VStack(spacing: 6) {
                     Image(systemName: "truck.box.fill")
                         .font(.system(size: 30, weight: .semibold))
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(PlowRColor.brand)
                     Text("\(entry.data.completedStops)/\(entry.data.totalStops)")
                         .font(.title3.bold())
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(PlowRColor.brand)
                     Text("stops")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
@@ -152,12 +152,13 @@ struct PlowRWidgetEntryView: View {
                             .font(.subheadline.bold())
                             .lineLimit(1)
                         Spacer()
+                        // The brand, not done's green: the route is running.
                         Label("Active", systemImage: "circle.fill")
                             .font(.caption2)
-                            .foregroundStyle(.green)
+                            .foregroundStyle(PlowRColor.brand)
                     }
                     ProgressView(value: entry.data.progress)
-                        .tint(.blue)
+                        .tint(PlowRColor.Status.done.fill)
                     if !entry.data.nextStopName.isEmpty {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("NEXT STOP")
@@ -182,7 +183,7 @@ struct PlowRWidgetEntryView: View {
             } else if entry.data.isComplete {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 40))
-                    .foregroundStyle(.green)
+                    .foregroundStyle(PlowRColor.Status.done.fill)
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Route Complete")
                         .font(.headline.bold())
@@ -224,7 +225,7 @@ struct PlowRTodayRouteWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: PlowRWidgetProvider()) { entry in
             PlowRWidgetEntryView(entry: entry)
-                .containerBackground(.fill.tertiary, for: .widget)
+                .containerBackground(PlowRColor.ground, for: .widget)
         }
         .configurationDisplayName("Today's Route")
         .description("See your active route progress and next stop at a glance.")

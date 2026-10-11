@@ -95,6 +95,12 @@ nonisolated extension PlowRColor {
     static let actionSoftUIColor = adaptive(0xF4E1D2, 0x3A2715)
     static let actionTextUIColor = adaptive(0x7E4318, 0xF0B27A)
 
+    /// The Dynamic Island is always black, whatever the phone's appearance:
+    /// the brand and done colours there are their dark-mode versions,
+    /// fixed, so they can't resolve to the light ones (2:1 on black).
+    static let island = Color(brandUIColor.resolvedColor(with: UITraitCollection(userInterfaceStyle: .dark)))
+    static let islandDone = Color(Status.done.fillUIColor.resolvedColor(with: UITraitCollection(userInterfaceStyle: .dark)))
+
     static let ground = Color(groundUIColor)
     static let surface = Color(surfaceUIColor)
     static let raised = Color(raisedUIColor)
