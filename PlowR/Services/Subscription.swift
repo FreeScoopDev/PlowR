@@ -28,6 +28,10 @@ final class Subscription {
     /// Never asks StoreKit under tests.
     static let shared = Subscription(read: {
         if PlowRApp.isRunningUnderTests { return Entitlements(active: false, everSubscribed: false) }
+        #if DEBUG
+        // `-PlowRDemoPro YES`: screenshots of the Pro screens, with no purchase.
+        if DemoLaunch.isPro { return Entitlements(active: true, everSubscribed: true) }
+        #endif
         return await readStoreKit()
     })
 

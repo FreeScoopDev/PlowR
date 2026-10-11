@@ -7,7 +7,7 @@ import SwiftData
 /// as the dev user, skips the role screen and, the first time, fills the store
 /// with clients, a route, today's visits and invoices in every state.
 /// `-PlowRDemoTab 2` opens a tab (0 Home … 4 Schedule); `-PlowRDemoRoute YES`
-/// starts the sample route. Debug builds only.
+/// starts the sample route; `-PlowRDemoPro YES` shows PlowR Pro. Debug builds only.
 ///
 ///     xcrun simctl launch <device> Scoops.PlowR -PlowRDemo YES -PlowRDemoTab 1
 enum DemoLaunch {
@@ -27,6 +27,9 @@ enum DemoLaunch {
         ("Pat Calloway", "603-555-0106", "12 Meadowview Ave, Claremont, NH 03743", 43.373, -72.342)
     ]
 
+    /// `-PlowRDemoPro YES` (with `-PlowRDemo YES`): the plan reads as PlowR Pro,
+    /// for screenshots of the Pro screens (see `Subscription.shared`).
+    static var isPro: Bool { isOn && UserDefaults.standard.bool(forKey: "PlowRDemoPro") }
     static var isOn: Bool { UserDefaults.standard.bool(forKey: "PlowRDemo") }
     /// `-PlowRDemoNew YES`: a brand-new business instead (its own user, no
     /// data, setup not done), to see first-run setup.
@@ -132,6 +135,58 @@ enum DemoLaunch {
         context.insert(quoteLine)
         quote.lineItems = [quoteLine]
         context.insert(quote)
+
+        // A few weeks of finished route work and texts, so a client's page,
+        // Timeline and All Work have something in them.
+        let routeStops = Dictionary((route.stops ?? []).map { ($0.clientID.uuidString, $0) }, uniquingKeysWith: { first, _ in first })
+        let services: [(String, Double)] = [("Plow driveway", 60), ("Salt walkway", 25)]
+        for (clientIndex, client) in clients.enumerated() {
+            let daysBack = [3, 10, 17, 24].prefix(clientIndex == 5 ? 2 : 4)
+            for (visitIndex, back) in daysBack.enumerated() {
+                let key = "demo:\(client.id.uuidString):\(back)"
+                let record = ServiceRecord(operatorID: operatorID, sourceKey: key, source: .route)
+                record.clientID = client.id.uuidString
+                record.propertyID = client.id.uuidString
+                record.clientName = client.name
+                record.propertyAddress = client.address
+                let start = calendar.date(bySettingHour: 8 + clientIndex, minute: 10, second: 0, of: day(-back)) ?? day(-back)
+                let minutes = Double(24 + (clientIndex * 3 + visitIndex * 5) % 17)
+                record.startedAt = start
+                record.arrivedAt = start
+                record.performedAt = start.addingTimeInterval(minutes * 60)
+                record.leftAt = record.performedAt
+                record.minutes = minutes
+                // Only a client on the route has route work; the sixth is off it.
+                let stop = routeStops[client.id.uuidString]
+                record.routeName = stop == nil ? "" : route.name
+                record.routeID = stop == nil ? "" : route.id.uuidString
+                record.stopID = stop?.id.uuidString ?? ""
+                record.lines = (visitIndex % 2 == 0 ? services : [services[0]]).enumerated().map { index, service in
+                    ServiceRecord.Line(serviceID: "demo-\(index)", name: service.0, unitType: "flat", price: service.1)
+                }
+                context.insert(record)
+                client.totalVisits += 1
+                client.totalServiceMinutes += minutes
+                if client.lastServiceDate == nil { client.lastServiceDate = record.performedAt }
+            }
+        }
+        // Texts read from the records they're about, so they stay true if the
+        // seed changes or the day is another one.
+        let first: (Client) -> String = { $0.name.split(separator: " ").first.map(String.init) ?? $0.name }
+        let dueDay = (owed.invoiceDueDate ?? day(24)).formatted(.dateTime.month(.abbreviated).day())
+        let heading = calendar.date(bySettingHour: 8, minute: 0, second: 0, of: day(-3)) ?? day(-3)
+        let texts: [(Client, String, Date)] = [
+            (clients[2], "Hi \(first(clients[2])), your invoice \(owed.invoiceNumber) is due \(dueDay). Thanks!", day(-2)),
+            (clients[1], "Hi \(first(clients[1])), a friendly reminder that \(overdue.invoiceNumber) is past due.", day(-2)),
+            (clients[0], "Hi \(first(clients[0])), we're on our way. See you in about 10 minutes.", heading)
+        ]
+        for (client, body, sentAt) in texts {
+            let text = SentText(clientID: client.id.uuidString, kind: TextLog.Kind.text.rawValue, body: body,
+                                sentAt: sentAt)
+            text.operatorID = operatorID
+            text.clientName = client.name
+            context.insert(text)
+        }
         try? context.save()
     }
 }
