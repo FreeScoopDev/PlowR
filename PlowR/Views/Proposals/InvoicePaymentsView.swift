@@ -35,10 +35,10 @@ struct InvoicePaymentsView: View {
                     LabeledContent("Balance Due") {
                         money(invoice.balanceDue)
                             .fontWeight(.semibold)
-                            .foregroundStyle(invoice.balanceDue > 0 ? .orange : .green)
+                            .foregroundStyle(invoice.balanceDue > 0 ? PlowRColor.Status.owed.text : PlowRColor.Status.done.text)
                     }
                     if invoice.overpaid > 0 {
-                        LabeledContent("Overpaid") { money(invoice.overpaid).foregroundStyle(.purple) }
+                        LabeledContent("Overpaid") { money(invoice.overpaid).foregroundStyle(PlowRColor.Status.owed.text) }
                     }
                 } footer: {
                     if invoice.overpaid > 0 {

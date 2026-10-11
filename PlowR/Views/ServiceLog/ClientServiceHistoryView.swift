@@ -47,7 +47,7 @@ struct ClientServiceHistoryView: View {
                     LabeledContent("Jobs", value: "\(records.count)")
                     LabeledContent("Not Billed Yet") {
                         Text(unbilled, format: .currency(code: "USD"))
-                            .foregroundStyle(unbilled > 0 ? .orange : .secondary)
+                            .foregroundStyle(unbilled > 0 ? PlowRColor.Status.owed.text : PlowRColor.inkSecondary)
                     }
                     if unbilled > 0 {
                         Button {

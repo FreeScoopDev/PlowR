@@ -84,7 +84,7 @@ struct StormCard: View {
                     Label {
                         Text("\(count(storm.met)) reached")
                     } icon: {
-                        Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                        Image(systemName: "checkmark.circle.fill").foregroundStyle(PlowRColor.Status.done.text)
                     }
                     .font(.subheadline)
                 }

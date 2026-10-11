@@ -144,7 +144,7 @@ struct ProposalEditView: View {
                 dismiss()
             } label: {
                 Label("Mark as Sent", systemImage: "paperplane.fill")
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(PlowRColor.Status.owed.text)
             }
         } footer: {
             Text("Records the send date and starts the due date countdown.")

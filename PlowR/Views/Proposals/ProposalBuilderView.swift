@@ -147,7 +147,7 @@ struct ProposalBuilderView: View {
             if zones.isEmpty {
                 HStack {
                     Image(systemName: "exclamationmark.triangle")
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(PlowRColor.Status.owed.text)
                     Text("No measured area: services priced by the square foot need a price entered.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -155,7 +155,7 @@ struct ProposalBuilderView: View {
             }
             if afterHoursMultiplier > 1.0 {
                 HStack(spacing: 8) {
-                    Image(systemName: "moon.fill").foregroundStyle(.orange)
+                    Image(systemName: "moon.fill").foregroundStyle(PlowRColor.inkSecondary)
                     Text("After hours — \(String(format: "%.2g", afterHoursMultiplier))× multiplier applied to service prices.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -201,7 +201,7 @@ struct ProposalBuilderView: View {
                                     if zone.areaSquareFeet <= 0, InvoiceLines.price(typed: amounts[key], default: 0) <= 0 {
                                         Text("This zone has no measured area: enter the price.")
                                             .font(.caption)
-                                            .foregroundStyle(.orange)
+                                            .foregroundStyle(PlowRColor.Status.owed.text)
                                             .padding(.leading, 8)
                                             .padding(.top, 4)
                                     }
@@ -235,7 +235,7 @@ struct ProposalBuilderView: View {
                                InvoiceLines.price(typed: amounts[key], default: 0) <= 0 {
                                 Text("Priced by the square foot, and there's no measured area: enter the price.")
                                     .font(.caption)
-                                    .foregroundStyle(.orange)
+                                    .foregroundStyle(PlowRColor.Status.owed.text)
                                     .padding(.leading, 8)
                                     .padding(.top, 4)
                             }

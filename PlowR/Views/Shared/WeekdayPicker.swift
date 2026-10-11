@@ -16,13 +16,11 @@ struct WeekdayPicker: View {
                     Text(Calendar(identifier: .gregorian).veryShortStandaloneWeekdaySymbols[weekday - 1])
                         .font(.caption.weight(.semibold))
                         .frame(width: 32, height: 32)
-                        .background(selected ? Color.blue : Color(.systemGray5))
-                        .foregroundStyle(selected ? .white : .primary)
+                        .plowRChip(selected: selected)
                         .clipShape(Circle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(Calendar(identifier: .gregorian).standaloneWeekdaySymbols[weekday - 1])
-                .accessibilityAddTraits(selected ? .isSelected : [])
                 if weekday < 7 { Spacer() }
             }
         }

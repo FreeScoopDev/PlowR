@@ -489,7 +489,7 @@ struct ClientRowView: View {
                         HStack(spacing: 4) {
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.caption2)
-                                .foregroundStyle(.green)
+                                .foregroundStyle(PlowRColor.Status.done.text)
                             if let last = client.lastServiceDate {
                                 Text(last, format: .dateTime.month(.abbreviated).day())
                                     .font(.caption2)

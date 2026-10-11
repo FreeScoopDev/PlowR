@@ -158,8 +158,7 @@ struct MassMessageView: View {
                                 .font(.caption.weight(.semibold))
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 7)
-                                .background(isActive ? Color.blue : Color(.systemGray5))
-                                .foregroundStyle(isActive ? .white : .primary)
+                                .plowRChip(selected: isActive)
                                 .clipShape(Capsule())
                         }
                         .buttonStyle(.plain)

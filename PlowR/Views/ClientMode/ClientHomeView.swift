@@ -17,7 +17,7 @@ struct ClientHomeView: View {
                     VStack(spacing: 10) {
                         Image(systemName: "location.magnifyingglass")
                             .font(.system(size: 48))
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(PlowRColor.brand)
                         Text("Find Local Services")
                             .font(.title.bold())
                         Text("Find nearby operators for snow removal, lawn care, landscaping, and more. Send a property-specific request in minutes.")

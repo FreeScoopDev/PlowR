@@ -41,9 +41,9 @@ struct SettingsView: View {
 
     private var iCloudTint: Color {
         switch iCloud.summary.kind {
-        case .backedUp: return .blue
+        case .backedUp: return PlowRColor.Status.done.text
         case .unknown: return .secondary
-        case .problem: return .orange
+        case .problem: return PlowRColor.Status.owed.text
         }
     }
 
@@ -132,7 +132,7 @@ struct SettingsView: View {
                     } else {
                         Text("Close PlowR and open it again to sync. Your iCloud data comes back to this device, and anything added here while sync was off goes to iCloud.")
                             .font(.caption)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(PlowRColor.Status.owed.text)
                     }
                 }
 
@@ -199,7 +199,7 @@ struct SettingsView: View {
                             Text(calendar.reason)
                         }
                     }
-                    .foregroundStyle(.red)
+                    .foregroundStyle(PlowRColor.Status.overdue.text)
                 }
             }
             .listRowBackground(PlowRColor.surface)
@@ -283,7 +283,7 @@ struct SettingsView: View {
             }
         } else if let problem = calendarSync.problem {
             Text(problem)
-                .foregroundStyle(.red)
+                .foregroundStyle(PlowRColor.Status.overdue.text)
         } else {
             Text("Adds your visits from the last month and the next six months to a “PlowR” calendar, with a reminder an hour before, and keeps it up to date when visits are moved, skipped or deleted. The switch is for this device; in iCloud, the calendar shows on your other devices too.")
         }

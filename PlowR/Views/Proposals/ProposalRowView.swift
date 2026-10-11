@@ -30,7 +30,7 @@ struct ProposalRowView: View {
                     if let due = proposal.invoiceDueDate {
                         Text(proposal.isInvoice ? "· Due \(due.formatted(.dateTime.month(.abbreviated).day()))" : "")
                             .font(.caption2)
-                            .foregroundStyle(status == .overdue ? Color.red : Color(.tertiaryLabel))
+                            .foregroundStyle(status == .overdue ? PlowRColor.Status.overdue.text : Color(.tertiaryLabel))
                     } else {
                         Text(proposal.createdAt.formatted(.dateTime.month(.abbreviated).day().year()))
                             .font(.caption2)

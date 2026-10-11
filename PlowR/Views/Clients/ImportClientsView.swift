@@ -107,7 +107,7 @@ struct ImportClientsView: View {
         if let fileProblem {
             Section {
                 Label(fileProblem, systemImage: "exclamationmark.triangle")
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(PlowRColor.Status.owed.text)
             }
             .listRowBackground(PlowRColor.surface)
         }
@@ -217,7 +217,7 @@ struct ImportClientsView: View {
         } footer: {
             if let line = table.unclosedQuoteLine {
                 Text("A quote opened on line \(line) is never closed, so everything after it may be in one cell. Check the rows from there in the preview.")
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(PlowRColor.Status.owed.text)
             }
         }
         .listRowBackground(PlowRColor.surface)
@@ -255,7 +255,7 @@ struct ImportClientsView: View {
         } footer: {
             Text(hasName ? "PlowR guessed what each column holds from its name. Change any that's wrong; columns set to Don't Import are left out."
                  : "Choose which column holds the client's name (or first and last name, or company).")
-                .foregroundStyle(hasName ? Color.secondary : Color.orange)
+                .foregroundStyle(hasName ? PlowRColor.inkSecondary : PlowRColor.Status.owed.text)
         }
         .listRowBackground(PlowRColor.surface)
 
@@ -333,10 +333,10 @@ struct ImportClientsView: View {
         } footer: {
             if previewChanged {
                 Text("Clients arrived from iCloud since the file was chosen, so what will happen has changed. Check it, then import.")
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(PlowRColor.Status.owed.text)
             } else if saveFailed {
                 Text("The clients couldn't be saved, and nothing was imported. Make sure there's free space on this device, then try again.")
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(PlowRColor.Status.owed.text)
             } else {
                 Text("Each client is tagged with the import, so you can find them under Clients and undo it.")
             }
@@ -395,7 +395,7 @@ struct ImportClientsView: View {
                 }
             } icon: {
                 Image(systemName: undone == nil ? "checkmark.circle.fill" : "arrow.uturn.backward.circle.fill")
-                    .foregroundStyle(undone == nil ? .green : .secondary)
+                    .foregroundStyle(undone == nil ? PlowRColor.Status.done.text : PlowRColor.inkSecondary)
             }
             if result.propertiesSkipped > 0 {
                 Text("\(count(result.propertiesSkipped, "property wasn't", "properties weren't")) added: the client was deleted meanwhile.")
@@ -573,7 +573,7 @@ struct ImportPreviewList: View {
                             Text(row.title).font(.subheadline)
                             Text(row.detail).font(.caption).foregroundStyle(.secondary)
                             if let note = row.note {
-                                Text(note).font(.caption).foregroundStyle(.orange)
+                                Text(note).font(.caption).foregroundStyle(PlowRColor.Status.owed.text)
                             }
                         }
                     }

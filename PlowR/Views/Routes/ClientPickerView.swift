@@ -91,7 +91,7 @@ struct ClientPickerView: View {
                 Spacer()
                 if isAdded {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
+                        .foregroundStyle(PlowRColor.Status.done.text)
                 }
             }
         }

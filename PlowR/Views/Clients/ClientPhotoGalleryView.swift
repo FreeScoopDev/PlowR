@@ -127,7 +127,7 @@ struct ClientPhotoGalleryView: View {
                     .clipped()
             } else {
                 Rectangle()
-                    .fill(Color(.systemGray5))
+                    .fill(PlowRColor.raised)
                     .frame(height: 110)
             }
             Label(photo.kindLabel,

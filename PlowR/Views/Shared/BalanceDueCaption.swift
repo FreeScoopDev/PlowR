@@ -8,7 +8,7 @@ struct BalanceDueCaption: View {
         if document.isPartlyPaid {
             Text("\(document.balanceDue.formatted(.currency(code: "USD"))) due")
                 .font(.caption2.weight(.semibold))
-                .foregroundStyle(.orange)
+                .foregroundStyle(PlowRColor.Status.owed.text)
         }
     }
 }

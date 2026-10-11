@@ -128,7 +128,7 @@ struct BillWorkView: View {
                         Text(unpriced == 1 ? "1 job has a service at $0: set its price on the job's page (All Work)"
                                            : "\(unpriced) jobs have a service at $0: set their price on each job's page (All Work)")
                             .font(.caption)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(PlowRColor.Status.owed.text)
                     }
                 }
                 Spacer()

@@ -75,7 +75,7 @@ struct BusinessProfileView: View {
                                 .clipShape(RoundedRectangle(cornerRadius: 16))
                         } else {
                             RoundedRectangle(cornerRadius: 16)
-                                .fill(Color(.systemGray5))
+                                .fill(PlowRColor.raised)
                                 .frame(width: 90, height: 90)
                                 .overlay {
                                     Image(systemName: "building.2")
@@ -137,7 +137,7 @@ struct BusinessProfileView: View {
                 if Proposal.readTaxRate(defaultTaxRate) == nil {
                     Text("Enter a rate from 0 to 100, such as 6.625.")
                         .font(.footnote)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(PlowRColor.Status.overdue.text)
                 }
             } header: {
                 Text("Tax")
