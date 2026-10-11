@@ -13,15 +13,18 @@ import SwiftData
 enum DemoLaunch {
     static let operatorID = "dev-user"
 
-    /// Sample clients in Claremont, NH: the demo business's, and what
-    /// Settings → Developer → Populate Sample Clients adds.
+    /// Sample clients near Claremont, NH: the demo business's, and what
+    /// Settings → Developer → Populate Sample Clients adds. Invented names,
+    /// streets and 555-01xx phones (this repo is public, and the shots go on
+    /// the App Store); the pins are real but rounded to about 100 m, so no
+    /// address is a real household's.
     static let sampleClients: [(name: String, phone: String, address: String, lat: Double, lon: Double)] = [
-        ("Linda Fortier", "603-543-2345", "231 Pleasant St, Claremont, NH 03743", 43.3782, -72.3435),
-        ("Mike Gagnon", "603-543-6789", "55 Church St, Claremont, NH 03743", 43.3761, -72.3489),
-        ("Ray Doucette", "603-542-8901", "7 Elm St, Claremont, NH 03743", 43.3756, -72.3462),
-        ("Sandra Pierce", "603-542-5678", "88 Washington St, Claremont, NH 03743", 43.3742, -72.3478),
-        ("Tom Belanger", "603-542-1234", "14 Maple St, Claremont, NH 03743", 43.3770, -72.3451),
-        ("Pat Russo", "603-542-4410", "12 Broad St, Claremont, NH 03743", 43.3729, -72.3420)
+        ("Dana Whitfield", "603-555-0101", "231 Orchard Ln, Claremont, NH 03743", 43.378, -72.344),
+        ("Marcus Hale", "603-555-0102", "55 Birchwood Way, Claremont, NH 03743", 43.376, -72.349),
+        ("Ellen Park", "603-555-0103", "7 Alder Ct, Claremont, NH 03743", 43.376, -72.346),
+        ("Sam Ortega", "603-555-0104", "88 Larkspur Rd, Claremont, NH 03743", 43.374, -72.348),
+        ("Tom Brewer", "603-555-0105", "14 Cedar Hollow Dr, Claremont, NH 03743", 43.377, -72.345),
+        ("Pat Calloway", "603-555-0106", "12 Meadowview Ave, Claremont, NH 03743", 43.373, -72.342)
     ]
 
     static var isOn: Bool { UserDefaults.standard.bool(forKey: "PlowRDemo") }
@@ -70,7 +73,7 @@ enum DemoLaunch {
         }
 
         let profile = BusinessProfile(operatorID: operatorID)
-        profile.companyName = "Green Mountain Grounds"
+        profile.companyName = "Summit Ridge Grounds"
         profile.tagline = "Snow · Lawn · Landscaping"
         profile.defaultTaxRate = 6
         context.insert(profile)
