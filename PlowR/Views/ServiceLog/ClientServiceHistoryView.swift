@@ -40,6 +40,7 @@ struct ClientServiceHistoryView: View {
                     Button("Log Work") { showingLogWork = true }
                         .plowRProminent()
                 }
+                .listRowBackground(Color.clear)   // the empty state sits on the page
             } else {
                 let unbilled = unbilledTotal
                 Section {

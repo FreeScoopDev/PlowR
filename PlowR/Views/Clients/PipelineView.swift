@@ -28,6 +28,7 @@ struct PipelineView: View {
             if entries.isEmpty {
                 ContentUnavailableView("No Leads", systemImage: "person.crop.circle.badge.plus",
                                        description: Text("Clients with no work booked or done yet show here: new leads, and those you've sent a proposal."))
+                .listRowBackground(Color.clear)   // the empty state sits on the page
             }
             section("Follow Up", followUp,
                     footer: "Sent a proposal \(Pipeline.followUpDays) or more days ago with no reply yet.")

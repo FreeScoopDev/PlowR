@@ -51,9 +51,12 @@ struct ProofOfServiceView: View {
         NavigationStack {
             Form {
                 if places.count > 1 {
-                    Picker("Property", selection: $placeID) {
-                        ForEach(places) { place in Text(place.label).tag(place.id) }
+                    Section {
+                        Picker("Property", selection: $placeID) {
+                            ForEach(places) { place in Text(place.label).tag(place.id) }
+                        }
                     }
+                    .listRowBackground(PlowRColor.surface)
                 }
                 Section {
                     Picker("Period", selection: Binding(get: { periodID ?? periods.first?.id }, set: { periodID = $0 })) {

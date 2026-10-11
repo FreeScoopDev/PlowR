@@ -55,6 +55,7 @@ struct BillWorkView: View {
                     } description: {
                         Text("No work in this period is waiting to be billed. Jobs come from completed stops and visits, and from Log Work.")
                     }
+                    .listRowBackground(Color.clear)   // the empty state sits on the page
                 } else {
                     Section {
                         ForEach(works) { work in

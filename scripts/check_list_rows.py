@@ -8,7 +8,9 @@ skipped. A missed one only shows in dark mode, as a grey card among green.
   python3 scripts/check_list_rows.py --check FILES   # the guard: lists what's missing
   python3 scripts/check_list_rows.py FILES           # adds what's missing
 
-Swift is scanned with balanced brackets, skipping strings and comments."""
+Swift is scanned with balanced brackets, skipping strings and comments.
+Not checked: rows of List(data) { row }, bare rows straight in a List/Form,
+rows built in helper properties. Put those in a Section or add by hand."""
 
 import re, sys
 
@@ -164,7 +166,7 @@ def main(argv):
         for line in missing: print(line)
         if missing:
             print('Every List/Form needs .plowRGrouped(), and every Section (and every ForEach straight in a List) '
-                  '.listRowBackground(PlowRColor.surface): fix with python3 scripts/check_list_rows.py PlowR/Views/**/*.swift')
+                  '.listRowBackground(PlowRColor.surface): fix with python3 scripts/check_list_rows.py $(find PlowR/Views -name "*.swift")')
             return 1
         print('List rows check passed.')
     return 0

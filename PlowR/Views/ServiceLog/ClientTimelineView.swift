@@ -15,6 +15,7 @@ struct ClientTimelineView: View {
                 if events.isEmpty {
                     ContentUnavailableView("Nothing Yet", systemImage: "clock",
                                            description: Text("Jobs, visits, invoices, texts and photos for \(client.name) will show here."))
+                    .listRowBackground(Color.clear)   // the empty state sits on the page
                 } else {
                     ForEach(months(of: events), id: \.month) { group in
                         Section(group.month.formatted(.dateTime.month(.wide).year())) {

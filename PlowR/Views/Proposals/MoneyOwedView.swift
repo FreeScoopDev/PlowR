@@ -18,6 +18,7 @@ struct MoneyOwedView: View {
             if summary.clients.isEmpty {
                 ContentUnavailableView("Nothing Owed", systemImage: "checkmark.seal",
                                        description: Text("No invoice that went out has a balance. Drafts count once they're sent."))
+                .listRowBackground(Color.clear)   // the empty state sits on the page
             } else {
                 Section {
                     LabeledContent("Total Owed") {

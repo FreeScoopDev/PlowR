@@ -87,6 +87,7 @@ struct RouteDetailView: View {
                     systemImage: "mappin.slash",
                     description: Text("Tap Edit to add stops to this route.")
                 )
+                .listRowBackground(Color.clear)   // the empty state sits on the page
             } else {
                 Section("Stops") {
                     ForEach(Array(route.sortedStops.enumerated()), id: \.element.id) { index, stop in

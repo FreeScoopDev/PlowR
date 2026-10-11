@@ -323,7 +323,10 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   `PlowRCard`. Every List and Form takes `.plowRGrouped()` and every
   Section (and ForEach straight in a List) `.listRowBackground(PlowRColor.surface)`:
   the guard step "List rows check" (`scripts/check_list_rows.py --check`)
-  fails a PR that misses one, and the script without `--check` adds them. iOS 26 ignores UIKit's title
+  fails a PR that misses one of those, and the script without `--check`
+  adds them. It can't see rows of `List(data) { row }`, bare rows straight
+  in a List/Form, or rows built in helper properties: put those in a
+  Section, or add the modifier by hand. iOS 26 ignores UIKit's title
   fonts and crashes on a flexible view in the `.largeTitle` toolbar slot, so
   a Barlow screen heading goes in the content, as the route screen does.
   **1.7 design (Evergreen & Copper, Joe 2026-10-10):** the tokens screens move
