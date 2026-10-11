@@ -111,7 +111,7 @@ nonisolated struct StopRecording {
     }
 
     /// An amount as a price field shows it.
-    static func money(_ amount: Double) -> String { String(format: "%.2f", amount) }
+    static func money(_ amount: Double) -> String { String(format: "%.2f", InvoiceLines.roundedToCent(amount)) }
 
     /// Custom items that go on the bill: named, with a readable price above zero.
     private var pricedCustomItems: [(name: String, price: Double)] {

@@ -36,7 +36,7 @@ enum ContractInstallments {
             return []
         case .season:
             let count = max(1, contract.installments)
-            let cents = Int((contract.price * 100).rounded())
+            let cents = InvoiceLines.cents(contract.price)
             let share = cents / count
             return (0..<count).compactMap { k in
                 guard let date = month(k) else { return nil }
