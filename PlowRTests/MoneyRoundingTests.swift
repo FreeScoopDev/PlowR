@@ -52,6 +52,9 @@ struct MoneyRoundingTests {
         #expect(InvoiceLines.cents(999_999.99) == 99_999_999)
         #expect(InvoiceLines.cents(123_456_789.125) == 12_345_678_913)
         #expect(InvoiceLines.cents(99_999_999.995) == 10_000_000_000)
+        // Needs the tolerance to grow with the amount (a few units in the
+        // last place): a fixed millionth of a cent gets this one wrong.
+        #expect(InvoiceLines.cents(134_219_608.265) == 13_421_960_827)
     }
 
     /// An exact half anywhere up to the largest amount rounds up.
