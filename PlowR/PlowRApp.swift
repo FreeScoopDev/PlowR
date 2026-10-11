@@ -34,6 +34,9 @@ struct PlowRApp: App {
 
     init() {
         let schema = Schema(Self.models)
+        // The first import from iCloud, watched from before the store opens
+        // (first-run setup waits for it, CloudImportWait).
+        if !Self.isRunningUnderTests { CloudImportWatch.shared.start() }
         container = Self.makeContainer(schema: schema)
         // Stops that fell behind their client, before the route in progress
         // is restored from them; then whenever iCloud brings changes. And

@@ -22,9 +22,9 @@ struct SetupFlowView: View {
     // Made once the view is up: a @State default is built again on every
     // re-render of the screen above, and this holds a location manager.
     @State private var permissions: SetupPermissions?
-    /// The Apple Account can still have the free month (an earlier
-    /// subscriber can't): decides the Pro step's button.
-    @State private var trialAvailable = false
+    /// The free trial this Apple Account can still have ("a month"), or nil
+    /// (an earlier subscriber can't): decides the Pro step's wording.
+    @State private var trialLength: String?
     @State private var showingPaywall = false
 
     var body: some View {
@@ -63,7 +63,7 @@ struct SetupFlowView: View {
             let made = permissions ?? SetupPermissions()
             permissions = made
             await made.refresh()
-            trialAvailable = await Subscription.introOfferAvailable()
+            trialLength = await Subscription.freeTrialLength()
         }
     }
 
@@ -190,9 +190,8 @@ struct SetupFlowView: View {
                         }
                         .font(.subheadline)
                     }
-                    Text(trialAvailable
-                         ? "Your first month is free. Cancel any time in the App Store; nothing you've made is ever deleted."
-                         : "Cancel any time in the App Store; nothing you've made is ever deleted.")
+                    Text((trialLength.map { "Free for \($0) to start. " } ?? "")
+                         + "Cancel any time in the App Store; nothing you've made is ever deleted.")
                         .font(.footnote)
                         .foregroundStyle(PlowRColor.inkSecondary)
                 }
@@ -225,7 +224,7 @@ struct SetupFlowView: View {
         VStack(spacing: PlowRLayout.space2) {
             if step == .pro {
                 Button { showingPaywall = true } label: {
-                    Text(trialAvailable ? "Try Pro Free for a Month" : "See PlowR Pro")
+                    Text(trialLength.map { "Try Pro Free for \($0)" } ?? "See PlowR Pro")
                 }
                     .buttonStyle(.plowRAction)
                 Button("Not Now") { finish() }

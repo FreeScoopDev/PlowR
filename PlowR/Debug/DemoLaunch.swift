@@ -27,7 +27,8 @@ enum DemoLaunch {
     /// `-PlowRDemoNew YES`: a brand-new business instead (its own user, no
     /// data, setup not done), to see first-run setup.
     static var isNew: Bool { UserDefaults.standard.bool(forKey: "PlowRDemoNew") }
-    static let newOperatorID = "dev-new"
+    /// A fresh business each launch, so setup shows every time.
+    static let newOperatorID = "dev-new-\(Int(Date().timeIntervalSince1970))"
     static var tab: Int? {
         UserDefaults.standard.object(forKey: "PlowRDemoTab") == nil ? nil : UserDefaults.standard.integer(forKey: "PlowRDemoTab")
     }

@@ -1,5 +1,6 @@
 import AuthenticationServices
 import Foundation
+import StoreKit
 import SwiftData
 import Testing
 @testable import PlowR
@@ -169,6 +170,9 @@ struct BusinessProfilesTests {
         let context = container.mainContext
         context.autosaveEnabled = false
         let a = BusinessProfile(operatorID: "op"), b = BusinessProfile(operatorID: "op")
+        // a is kept (lowest ID), so b's tax, logo and reasons must be copied.
+        a.id = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
+        b.id = UUID(uuidString: "00000000-0000-0000-0000-000000000002")!
         a.companyName = "Real Name"
         b.defaultTaxRate = 6.25
         b.logoData = Data([9])
@@ -176,6 +180,7 @@ struct BusinessProfilesTests {
         let other = BusinessProfile(operatorID: "other")
         [a, b, other].forEach { context.insert($0) }
         let keep = try #require(BusinessProfiles.current([a, b], operatorID: "op"))
+        #expect(keep === a)
         #expect(BusinessProfiles.mergeDuplicates(in: context) == 1)
         let left = try context.fetch(FetchDescriptor<BusinessProfile>()).filter { $0.operatorID == "op" }
         #expect(left.count == 1 && left.first === keep)
@@ -184,5 +189,56 @@ struct BusinessProfilesTests {
         #expect(keep.logoData == Data([9]))
         #expect(keep.customVisitReasons == ["Salt only"])
         #expect(try context.fetch(FetchDescriptor<BusinessProfile>()).count == 2)   // "other" untouched
+    }
+}
+
+/// First-run setup waits for iCloud's first import, watched from launch.
+@MainActor
+struct CloudImportWaitTests {
+    /// The import finished before anyone reached setup: no waiting at all.
+    @Test func anImportFinishedEarlierEndsTheWaitAtOnce() {
+        let watch = CloudImportWatch()
+        watch.record(importEnded: true)
+        #expect(CloudImportWait(watch: watch).isReady)
+    }
+
+    @Test func noICloudAccountMeansNoWait() async {
+        let wait = CloudImportWait(watch: CloudImportWatch())
+        await wait.start(syncOff: false, underTests: false, accountAvailable: { false })
+        #expect(wait.isReady)
+    }
+
+    @Test func syncOffMeansNoWait() async {
+        let wait = CloudImportWait(watch: CloudImportWatch())
+        await wait.start(syncOff: true, underTests: false, accountAvailable: { true })
+        #expect(wait.isReady)
+    }
+
+    /// The limit counts from launch: past it, setup shows at once.
+    @Test func theLimitCountsFromLaunch() async {
+        let watch = CloudImportWatch()
+        let wait = CloudImportWait(watch: watch)
+        await wait.start(syncOff: false, underTests: false, accountAvailable: { true },
+                         now: { watch.launchedAt.addingTimeInterval(CloudImportWait.limit + 1) })
+        #expect(wait.isReady)
+    }
+
+    /// An event that isn't a finished import doesn't end the wait.
+    @Test func onlyAFinishedImportCounts() {
+        let watch = CloudImportWatch()
+        watch.record(importEnded: false)
+        #expect(!CloudImportWait(watch: watch).isReady)
+    }
+
+    @Test func aNewBusinessWaitsAfresh() {
+        let wait = CloudImportWait(watch: CloudImportWatch())
+        wait.finish()
+        wait.reset()
+        #expect(!wait.isReady)
+    }
+
+    @Test func trialLengthsReadNaturally() {
+        #expect(Subscription.trialLength(value: 1, unit: .month) == "a month")
+        #expect(Subscription.trialLength(value: 2, unit: .week) == "2 weeks")
     }
 }

@@ -295,7 +295,10 @@ struct DashboardView: View {
                                withAnimation { checklistHidden = true }
                            },
                            alertsUndecided: $alertsUndecided,
-                           alertsAllowed: { NotificationService.shared.scheduleOverdueReminder(count: overdueCount) })
+                           alertsAllowed: {
+                               NotificationService.shared.scheduleOverdueReminder(count: overdueCount)
+                               NotificationService.shared.scheduleWeatherAlert(for: forecastDays, storm: storm)
+                           })
         }
     }
 

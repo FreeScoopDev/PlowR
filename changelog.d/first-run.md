@@ -4,10 +4,11 @@
   cleanup: each adds the usual services and prices), and its sales tax
   rate, then offers alerts and location with a sentence on what each is
   for, and says what's free (10 clients and one route) and what PlowR Pro
-  adds (with the free month, for an account that can still have it).
-  Every step can be skipped. Anyone already using PlowR never sees it: on
-  a new device signed in to iCloud, PlowR first looks for the business in
-  iCloud, and only offers setup if nothing arrives.
+  adds (with its free trial, for an account that can still have one).
+  Every step can be skipped. It's for new businesses: on a new device
+  signed in to iCloud, PlowR first looks for the business there and offers
+  setup only if nothing arrives; if setup still runs before the business's
+  records do, what it made is merged into them.
 - Home has a Get Started card after setup until its steps are done
   (business details, first client, a route, a first invoice sent, and
   alerts if they haven't been asked about), each a tap away. It can be
