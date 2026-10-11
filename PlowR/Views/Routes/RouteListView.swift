@@ -189,7 +189,7 @@ struct RouteRowView: View {
                     .foregroundStyle(.secondary)
                 Text(statusText)
                     .font(.caption)
-                    .foregroundStyle(run.isRunning ? .orange : .secondary)
+                    .foregroundStyle(run.isRunning ? PlowRColor.brand : PlowRColor.inkSecondary)
             }
         }
         .padding(.vertical, 4)
