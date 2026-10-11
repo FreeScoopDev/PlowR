@@ -98,6 +98,13 @@ struct DashboardLeadStateTests {
                                          now: now) == .partlyDone(done: 3, total: 5))
     }
 
+    /// Run again today and ended with nothing done (a run starts afresh):
+    /// ready to start, not "0 of 5 done today".
+    @Test func aRunTodayWithNothingDoneIsReady() {
+        #expect(DashboardToday.leadState(done: 0, total: 5, isDone: false, lastRun: now.addingTimeInterval(-600),
+                                         canStart: true, now: now) == .ready)
+    }
+
     @Test func aRouteThePlanWontStartIsLocked() {
         #expect(DashboardToday.leadState(done: 0, total: 5, isDone: false, lastRun: nil, canStart: false,
                                          now: now) == .locked)

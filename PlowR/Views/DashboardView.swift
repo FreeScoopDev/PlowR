@@ -334,12 +334,13 @@ struct DashboardView: View {
     /// is where a run starts (skip a stop today, below trigger, the
     /// load-out), so the copper button opens it rather than starting blind.
     private var todayCard: some View {
-        let leadRoute = DashboardToday.leadRoute(myRoutes, lastRuns: lastRuns, canStart: canStart)
+        let runs = lastRuns
+        let leadRoute = DashboardToday.leadRoute(myRoutes, lastRuns: runs, canStart: canStart)
         return VStack(alignment: .leading, spacing: PlowRLayout.space2) {
             sectionLabel("Today", badge: todayVisits.isEmpty ? nil : "\(todayVisits.count) visit\(todayVisits.count == 1 ? "" : "s")")
             PlowRCard {
                 if let route = leadRoute {
-                    leadRouteRow(route)
+                    leadRouteRow(route, lastRuns: runs)
                 } else if todayVisits.isEmpty {
                     nothingToday
                 }
@@ -364,7 +365,7 @@ struct DashboardView: View {
 
     private var lastRuns: [String: Date] { RouteFacts.lastRuns(in: allRecords) }
 
-    private func leadRouteRow(_ route: PlowRoute) -> some View {
+    private func leadRouteRow(_ route: PlowRoute, lastRuns: [String: Date]) -> some View {
         let run = RouteRunSummary(route: route, store: activeRoute)
         let minutes = RouteFacts.estimatedMinutes(of: RouteRunSummary.stops(of: route, store: activeRoute),
                                                   clients: myClients)
