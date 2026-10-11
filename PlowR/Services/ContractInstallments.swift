@@ -82,6 +82,11 @@ enum ContractInstallments {
         }
     }
 
+    /// What `due` comes to, to the cent: the Dashboard's contract payments due.
+    static func amountDue(_ due: [(contract: Contract, installment: Installment)]) -> Double {
+        InvoiceLines.roundedToCent(due.reduce(0) { $0 + $1.installment.amount })
+    }
+
     /// Every payment due across this business's contracts.
     static func allDue(_ contracts: [Contract], operatorID: String, now: Date = .now, calendar: Calendar = .current)
         -> [(contract: Contract, installment: Installment)] {
