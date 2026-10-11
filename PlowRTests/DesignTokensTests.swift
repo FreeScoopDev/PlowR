@@ -104,23 +104,33 @@ struct DesignTokensTests {
         }
     }
 
-    // Without Barlow, each role is the system font at its text style and
-    // weight, so it still scales with the user's text size.
-    @Test func withoutBarlowEachRoleIsTheScalingSystemFont() {
-        typealias F = PlowRFont
-        let expected: [(Font.TextStyle, F.Weight, CGFloat)] = [
-            (.largeTitle, .bold, 32), (.title2, .bold, 22), (.title, .extraBold, 26), (.largeTitle, .extraBold, 40),
-            (.headline, .semibold, 17), (.headline, .bold, 17), (.footnote, .semibold, 13)
-        ]
-        for (style, weight, size) in expected {
-            #expect(F.barlow(weight, size: size, relativeTo: style, available: false)
-                    == .system(style, weight: weight.system))
-            #expect(F.barlow(weight, size: size, relativeTo: style, available: false) != .system(size: size))
+    /// Each role as it should be: text style, Barlow face, size.
+    private let roles: [(String, Font, Font.TextStyle, PlowRFont.Weight, CGFloat)] = [
+        ("screenTitle", PlowRFont.screenTitle, .largeTitle, .bold, 32),
+        ("title", PlowRFont.title, .title2, .bold, 22),
+        ("stopName", PlowRFont.stopName, .title, .extraBold, 26),
+        ("bigNumber", PlowRFont.bigNumber, .largeTitle, .extraBold, 40),
+        ("number", PlowRFont.number, .headline, .semibold, 17),
+        ("button", PlowRFont.button, .headline, .bold, 17),
+        ("label", PlowRFont.label, .footnote, .semibold, 13)
+    ]
+
+    // Every role, whichever path this build takes: without Barlow, the system
+    // font at its text style and weight (so it scales with text size); with
+    // it, the named face at its size, scaling with its style.
+    @Test func everyRoleIsItsStyleAndWeight() {
+        let systemWeight: [PlowRFont.Weight: Font.Weight] = [.medium: .medium, .semibold: .semibold,
+                                                             .bold: .bold, .extraBold: .heavy]
+        for (name, font, style, weight, size) in roles {
+            if PlowRFont.isBarlowAvailable {
+                #expect(font == .custom(weight.rawValue, size: size, relativeTo: style), "\(name)")
+            } else {
+                #expect(font == .system(style, weight: systemWeight[weight] ?? .regular), "\(name)")
+                #expect(font != .system(size: size), "\(name) must scale")
+            }
         }
-        if !F.isBarlowAvailable {
-            #expect(F.screenTitle == .system(.largeTitle, weight: .bold))
-            #expect(F.stopName == .system(.title, weight: .heavy))
-            #expect(F.label == .system(.footnote, weight: .semibold))
+        for weight in PlowRFont.Weight.allCases {
+            #expect(weight.system == systemWeight[weight])
         }
     }
 

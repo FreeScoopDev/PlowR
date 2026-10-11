@@ -180,7 +180,7 @@ nonisolated extension PlowRColor {
 /// font. Every role scales with the user's text size (`relativeTo`), and
 /// falls back to the system font, same weight, when Barlow isn't bundled.
 nonisolated enum PlowRFont {
-    enum Weight: String {
+    enum Weight: String, CaseIterable {
         case medium = "Barlow-Medium", semibold = "Barlow-SemiBold", bold = "Barlow-Bold", extraBold = "Barlow-ExtraBold"
 
         var system: Font.Weight {
@@ -193,8 +193,10 @@ nonisolated enum PlowRFont {
         }
     }
 
-    /// Whether the Barlow files are in the app (registered in Info.plist).
-    static let isBarlowAvailable = UIFont(name: Weight.bold.rawValue, size: 12) != nil
+    /// Whether every Barlow face is in the app (registered in Info.plist): a
+    /// missing face would draw as the regular system font, not fall back at
+    /// its weight.
+    static let isBarlowAvailable = Weight.allCases.allSatisfy { UIFont(name: $0.rawValue, size: 12) != nil }
 
     /// Barlow at `size`, scaling with `style`; the system font if Barlow is
     /// missing (`available` is a parameter so both paths are tested).
