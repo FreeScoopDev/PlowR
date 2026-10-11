@@ -244,8 +244,8 @@ struct MassMessageView: View {
                                     .font(.caption.weight(.semibold))
                                     .padding(.horizontal, 12)
                                     .padding(.vertical, 7)
-                                    .background(allSelected ? Color.accentColor : Color(.systemGray5))
-                                    .foregroundStyle(allSelected ? .white : .primary)
+                                    .background(allSelected ? PlowRColor.brand : PlowRColor.raised)
+                                    .foregroundStyle(allSelected ? PlowRColor.onBrand : PlowRColor.ink)
                                     .clipShape(Capsule())
                             }
                             .buttonStyle(.plain)

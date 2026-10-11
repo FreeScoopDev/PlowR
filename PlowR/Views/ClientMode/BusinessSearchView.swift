@@ -52,7 +52,7 @@ struct BusinessSearchView: View {
             } else {
                 Button("Search") { Task { await search() } }
                     .disabled(locationQuery.trimmingCharacters(in: .whitespaces).isEmpty)
-                    .buttonStyle(.borderedProminent)
+                    .plowRProminent()
                     .controlSize(.small)
             }
         }

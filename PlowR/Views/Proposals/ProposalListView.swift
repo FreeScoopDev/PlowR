@@ -190,7 +190,7 @@ struct ProposalListView: View {
                     )
                 }
                 if overdueCount > 0 {
-                    StatTile(value: "\(overdueCount)", label: "Overdue", status: overdueCount > 0 ? .overdue : nil)
+                    StatTile(value: "\(overdueCount)", label: "Overdue", status: .overdue)
                 }
                 if draftCount > 0 {
                     StatTile(value: "\(draftCount)", label: "Drafts")

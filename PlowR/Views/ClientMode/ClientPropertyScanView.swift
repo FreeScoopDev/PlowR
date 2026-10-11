@@ -230,7 +230,7 @@ struct ClientPropertyScanView: View {
                 Button("Cancel") { currentPoints = []; isDrawing = false }.foregroundStyle(.secondary)
                 Spacer()
                 Button("Close Zone") { showingLabelSheet = true }
-                    .buttonStyle(.borderedProminent)
+                    .plowRProminent()
                     .disabled(currentPoints.count < 3)
             } else {
                 Button {
@@ -238,7 +238,7 @@ struct ClientPropertyScanView: View {
                 } label: {
                     Label("Draw Zone", systemImage: "pencil.and.outline").frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
+                .plowRProminent()
             }
         }
         .padding()

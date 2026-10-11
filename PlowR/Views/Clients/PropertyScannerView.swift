@@ -335,7 +335,7 @@ struct PropertyScannerView: View {
                     .frame(maxWidth: .infinity)
 
                 Button("Looks Right") { addressConfirmed = true }
-                    .buttonStyle(.borderedProminent)
+                    .plowRProminent()
                     .frame(maxWidth: .infinity)
             }
         }
@@ -509,7 +509,7 @@ struct PropertyScannerView: View {
                     guard currentPoints.count >= 3 else { return }
                     showingLabelEntry = true
                 }
-                .buttonStyle(.borderedProminent)
+                .plowRProminent()
                 .disabled(currentPoints.count < 3)
             } else if editingZoneIndex != nil {
                 Button("Exit Edit") {
@@ -528,7 +528,7 @@ struct PropertyScannerView: View {
                     Label("Draw Zone", systemImage: "pencil.and.outline")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
+                .plowRProminent()
             }
         }
         .padding()

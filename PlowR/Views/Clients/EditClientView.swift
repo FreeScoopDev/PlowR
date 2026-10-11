@@ -811,7 +811,7 @@ struct EditClientView: View {
                 .buttonStyle(.bordered)
                 .controlSize(.small)
             } label: {
-                StatusChip(stage.title, status: stage == .lost ? .void : .lead)
+                StatusChip(stage.title, status: stage.chipStatus)
             }
         }
     }
@@ -949,7 +949,7 @@ struct EditClientView: View {
                         Spacer()
                         Label(visit.status.rawValue, systemImage: visit.status.systemImage)
                             .font(.caption2)
-                            .foregroundStyle(visit.status.chipStatus.fill)
+                            .foregroundStyle(visit.status.chipStatus.text)
                     }
                 }
             }

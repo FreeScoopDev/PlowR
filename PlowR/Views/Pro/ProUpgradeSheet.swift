@@ -50,7 +50,7 @@ struct ProGateMessage: View {
                 Text(gate == .readOnly ? "Subscribe Again" : "See PlowR Pro")
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
+            .plowRProminent()
             .controlSize(.large)
         }
     }

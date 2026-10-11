@@ -144,7 +144,7 @@ struct ContactScannerView: View {
                     }
                     .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
+                .plowRProminent()
                 .disabled(name.isEmpty || isSaving)
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))

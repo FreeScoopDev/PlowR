@@ -306,13 +306,7 @@ struct SettingsView: View {
 
     private func insertSampleData() {
         let operatorID = authManager.userID
-        let clients: [(name: String, phone: String, address: String, lat: Double, lon: Double)] = [
-            ("Tom Belanger", "603-542-1234", "14 Maple St, Claremont, NH 03743", 43.3770, -72.3451),
-            ("Sandra Pierce", "603-542-5678", "88 Washington St, Claremont, NH 03743", 43.3742, -72.3478),
-            ("Ray Doucette", "603-542-8901", "7 Elm St, Claremont, NH 03743", 43.3756, -72.3462),
-            ("Linda Fortier", "603-543-2345", "231 Pleasant St, Claremont, NH 03743", 43.3782, -72.3435),
-            ("Mike Gagnon", "603-543-6789", "55 Church St, Claremont, NH 03743", 43.3761, -72.3489),
-        ]
+        let clients = DemoLaunch.sampleClients
         for c in clients {
             let client = Client(name: c.name, phone: c.phone, address: c.address, operatorID: operatorID)
             client.latitude = c.lat

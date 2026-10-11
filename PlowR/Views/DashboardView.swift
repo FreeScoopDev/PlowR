@@ -293,11 +293,11 @@ struct DashboardView: View {
                 .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerMedium, style: .continuous))
         } else {
             RoundedRectangle(cornerRadius: PlowRLayout.cornerMedium, style: .continuous)
-                .fill(Color.accentColor.gradient)
+                .fill(PlowRColor.brand.gradient)
                 .overlay {
                     Text((profile?.companyName ?? "").dashInitials)
                         .font(.title2.weight(.bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(PlowRColor.onBrand)
                 }
         }
     }
@@ -537,14 +537,14 @@ struct DashboardView: View {
                               badge: followUps > 0 ? "\(followUps) to follow up" : nil, badgeStatus: .owed)
                 let leads = entries.filter { $0.stage == .lead }.count
                 let quoted = entries.filter { $0.stage == .quoted }.count
-                // Each its own link to the Pipeline, and zero in grey, as the finance tiles.
+                // Each its own link to the Pipeline; a zero is plain, as the finance tiles.
                 StatTileRow {
                     NavigationLink { PipelineView() } label: {
-                        StatTile(value: "\(leads)", label: "Leads", status: leads > 0 ? .lead : nil)
+                        StatTile(value: "\(leads)", label: "Leads", status: leads > 0 ? Pipeline.Stage.lead.chipStatus : nil)
                     }
                     .buttonStyle(.plain)
                     NavigationLink { PipelineView() } label: {
-                        StatTile(value: "\(quoted)", label: "Quoted", status: quoted > 0 ? .scheduled : nil)
+                        StatTile(value: "\(quoted)", label: "Quoted", status: quoted > 0 ? Pipeline.Stage.quoted.chipStatus : nil)
                     }
                     .buttonStyle(.plain)
                     NavigationLink { PipelineView() } label: {

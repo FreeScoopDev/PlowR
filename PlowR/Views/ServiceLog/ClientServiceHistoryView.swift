@@ -38,7 +38,7 @@ struct ClientServiceHistoryView: View {
                     Text("Completed route stops and scheduled visits show up here. Work done any other way can be logged by hand.")
                 } actions: {
                     Button("Log Work") { showingLogWork = true }
-                        .buttonStyle(.borderedProminent)
+                        .plowRProminent()
                 }
             } else {
                 let unbilled = unbilledTotal

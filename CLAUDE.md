@@ -310,12 +310,17 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   compiled into the app and the widget extension (membership exception in
   `project.pbxproj`). Add a token the moment a value is needed in a second
   place, instead of copying it.
-  **A status is a `PlowRColor.Status`, never a system colour:** owed amber,
-  overdue red, done green, scheduled blue, lead purple, void grey, neutral
-  (a draft, a zero, comped). `StatusChip`, `StatTile`, `AccentBar` and
-  `IconBadge` take one (`status:`), and invoices, visits and contracts say
-  theirs with `chipStatus`. Main buttons are `.plowRAction` (copper) and
-  `.plowRSecondary`; cards are `PlowRCard`. iOS 26 ignores UIKit's title
+  **A status is a `PlowRColor.Status`, not a system colour** (moving there
+  screen by screen in 1.7; raw `.green`/`.orange`/`.red` still left on some
+  screens are to convert, not to copy): owed amber, overdue red, done
+  green, scheduled blue, lead purple, void grey, neutral (a draft, comped);
+  a zero has none (plain ink). `StatusChip`, `StatTile`, `AccentBar` and
+  `IconBadge` take one (`status:`), and invoices, visits, contracts and
+  pipeline stages say theirs with `chipStatus`. Main buttons are
+  `.plowRAction` (copper), `.plowRSecondary`, and `.plowRProminent()` (the
+  system's prominent button with a label readable on the brand; never
+  `.white` on the accent, which is pale green in dark mode); cards are
+  `PlowRCard`. iOS 26 ignores UIKit's title
   fonts and crashes on a flexible view in the `.largeTitle` toolbar slot, so
   a Barlow screen heading goes in the content, as the route screen does.
   **1.7 design (Evergreen & Copper, Joe 2026-10-10):** the tokens screens move

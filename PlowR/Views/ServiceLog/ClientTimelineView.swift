@@ -114,8 +114,6 @@ struct ClientTimelineView: View {
         }
     }
 
-    // Status colours as elsewhere: green done or paid, orange outstanding or
-    // missed, red cancelled.
     /// Done green, needing attention amber, cancelled grey; anything else
     /// the brand (`PlowRColor.Status`).
     private func status(_ kind: ClientTimelineKind) -> PlowRColor.Status? {
