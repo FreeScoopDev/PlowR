@@ -12,6 +12,18 @@ struct ContentView: View {
     @State private var leadWindow = LeadRequestWindow.shared
     /// The sign-in alert was seen: the link waits quietly for the sign-in.
     @State private var signInAcknowledged = false
+    @Query private var profiles: [BusinessProfile]
+    @Query private var clients: [Client]
+    /// Setup finished on this device (FirstRun), re-read when it finishes.
+    @State private var setupFinished = false
+
+    /// A new business, with nothing yet: first-run setup (FirstRun).
+    private var needsSetup: Bool {
+        let id = authManager.userID
+        return FirstRun.needsSetup(hasProfile: profiles.contains { $0.operatorID == id },
+                                   clientCount: clients.filter { $0.operatorID == id }.count,
+                                   completed: setupFinished || UserDefaults.standard.bool(forKey: FirstRun.completedKey(id)))
+    }
 
     var body: some View {
         Group {
@@ -25,7 +37,17 @@ struct ContentView: View {
                 ClientHomeView()
             } else {
                 if authManager.isSignedIn {
-                    MainTabView(selectedTab: $selectedTab)
+                    if needsSetup {
+                        SetupFlowView { setupFinished = true }
+                    } else {
+                        MainTabView(selectedTab: $selectedTab)
+                    }
+                } else if authManager.isChecking {
+                    // The saved sign-in is still being checked: the sign-in
+                    // screen flashed up for someone already signed in.
+                    ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(PlowRColor.ground)
                 } else {
                     SignInView()
                 }

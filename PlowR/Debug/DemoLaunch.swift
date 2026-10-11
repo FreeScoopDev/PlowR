@@ -24,12 +24,23 @@ enum DemoLaunch {
     ]
 
     static var isOn: Bool { UserDefaults.standard.bool(forKey: "PlowRDemo") }
+    /// `-PlowRDemoNew YES`: a brand-new business instead (its own user, no
+    /// data, setup not done), to see first-run setup.
+    static var isNew: Bool { UserDefaults.standard.bool(forKey: "PlowRDemoNew") }
+    static let newOperatorID = "dev-new"
     static var tab: Int? {
         UserDefaults.standard.object(forKey: "PlowRDemoTab") == nil ? nil : UserDefaults.standard.integer(forKey: "PlowRDemoTab")
     }
 
     @MainActor
     static func prepare(auth: AuthManager, context: ModelContext) {
+        if isNew {
+            UserDefaults.standard.set(UserRole.business, forKey: UserRole.key)
+            UserDefaults.standard.removeObject(forKey: FirstRun.completedKey(newOperatorID))
+            UserDefaults.standard.removeObject(forKey: FirstRun.checklistHiddenKey(newOperatorID))
+            if auth.userID != newOperatorID { auth.signIn(userID: newOperatorID, fullName: nil) }
+            return
+        }
         guard isOn else { return }
         if (UserDefaults.standard.string(forKey: UserRole.key) ?? "").isEmpty {
             UserDefaults.standard.set(UserRole.business, forKey: UserRole.key)

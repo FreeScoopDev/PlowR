@@ -1,75 +1,69 @@
 import SwiftUI
 
+/// The first screen: a business, or someone looking for one. Either can be
+/// changed later (Settings → Switch to Client Mode; client mode's menu).
 struct RoleSelectionView: View {
     @AppStorage(UserRole.key) private var userRole = ""
 
     var body: some View {
         VStack(spacing: 0) {
             Spacer()
-            VStack(spacing: 8) {
-                Image(systemName: "map.fill")
-                    .font(.system(size: 56))
-                    .foregroundStyle(.blue)
-                Text("PlowR")
-                    .font(.largeTitle.bold())
-                Text("How will you be using PlowR?")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.bottom, 48)
+            BrandMark(tagline: "How will you be using PlowR?")
+                .padding(.bottom, PlowRLayout.space6 * 2)
 
-            VStack(spacing: 16) {
+            VStack(spacing: PlowRLayout.space3) {
                 roleCard(
                     icon: "truck.box.fill",
                     title: "I run a service business",
-                    description: "Manage clients, plan routes, build proposals, and track jobs.",
-                    color: .blue
+                    description: "Manage clients, plan routes, build proposals, and track jobs."
                 ) {
                     userRole = UserRole.business
                 }
                 roleCard(
                     icon: "location.magnifyingglass",
                     title: "I'm looking for services",
-                    description: "Find local operators and send a detailed request for your property.",
-                    color: .green
+                    description: "Find local operators and send a detailed request for your property."
                 ) {
                     userRole = UserRole.client
                 }
             }
-            .padding(.horizontal, 24)
+            .padding(.horizontal, PlowRLayout.space6)
 
             Spacer()
 
             TermsAgreement()
-                .padding(.horizontal, 40)
-                .padding(.bottom, 24)
+                .padding(.horizontal, PlowRLayout.space6 + PlowRLayout.space4)
+                .padding(.bottom, PlowRLayout.space6)
         }
+        .frame(maxWidth: .infinity)
+        .background(PlowRColor.ground.ignoresSafeArea())
     }
 
-    private func roleCard(icon: String, title: String, description: String, color: Color, action: @escaping () -> Void) -> some View {
+    private func roleCard(icon: String, title: String, description: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: 16) {
-                Image(systemName: icon)
-                    .font(.system(size: 28))
-                    .foregroundStyle(color)
-                    .frame(width: 44)
-                VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: PlowRLayout.space4) {
+                IconBadge(systemImage: icon, size: 48)
+                VStack(alignment: .leading, spacing: PlowRLayout.space1) {
                     Text(title)
                         .font(.headline)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(PlowRColor.ink)
                     Text(description)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer()
                 Image(systemName: "chevron.right")
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(PlowRColor.inkSecondary)
                     .font(.subheadline)
+                    .accessibilityHidden(true)
             }
-            .padding(20)
-            .background(.regularMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
+            .padding(PlowRLayout.space4 + PlowRLayout.space1)
+            .background(PlowRColor.surface,
+                        in: RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous)
+                .strokeBorder(PlowRColor.line))
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
