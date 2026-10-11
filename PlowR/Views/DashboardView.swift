@@ -68,10 +68,6 @@ struct DashboardView: View {
         }.prefix(5).map { $0 }
     }
 
-    private var recentRoutes: [PlowRoute] {
-        allRoutes.filter { $0.operatorID == authManager.userID }.prefix(3).map { $0 }
-    }
-
     private var outstandingBalance: Double {
         Payments.owed(myProposals)
     }
@@ -91,18 +87,37 @@ struct DashboardView: View {
     }
 
     private var overdueCount: Int { myProposals.filter { $0.invoiceStatus == .overdue }.count }
-    private var draftCount:   Int { myProposals.filter { $0.invoiceStatus == .draft   }.count }
+
+    // MARK: - Today, first (Joe, 2026-10-11)
+
+    /// The route that leads Today (DashboardToday.leadRoute).
+    private var leadRoute: PlowRoute? {
+        DashboardToday.leadRoute(myRoutes, lastRuns: RouteFacts.lastRuns(in: allRecords))
+    }
+
+    /// What's waiting on the business, in order (DashboardToday.attention).
+    private var attention: [DashboardAttention] {
+        let overdue = myProposals.filter { $0.invoiceStatus == .overdue }
+        let due = ContractInstallments.allDue(allContracts, operatorID: authManager.userID)
+        let drafts = myProposals.filter { $0.isInvoice && $0.invoiceStatus == .draft }
+        return DashboardToday.attention(
+            overdue: (overdue.count, Payments.balance(of: overdue)),
+            paymentsDue: (due.count, due.reduce(0) { $0 + $1.installment.amount }),
+            readyToSend: (drafts.count, Payments.balance(of: drafts)),
+            followUps: pipeline.filter(\.needsFollowUp).count,
+            billedTwice: ContractInstallments.duplicates(myProposals, operatorID: authManager.userID).count,
+            overpaid: Payments.overpaid(myProposals).count)
+    }
 
     // MARK: - Body
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 16) {
+                VStack(alignment: .leading, spacing: PlowRLayout.space4) {
+                    header
                     iCloudBanner
                     ProStatusBanner()
-                    profileCard
-                    if let w = dashWeather { dashWeatherStrip(w) }
                     if let storm {
                         // The forecast for everyone; its tools are PlowR Pro.
                         StormCard(storm: storm, routes: myRoutes, clients: myClients, text: { clients in
@@ -116,32 +131,32 @@ struct DashboardView: View {
                             }
                         })
                     }
-                    // WeatherKit's attribution, wherever its weather shows: the
-                    // conditions above, or the storm card's forecast on its own.
-                    if WeatherAttribution.isNeeded(current: dashWeather != nil, forecast: storm != nil) {
-                        WeatherAttribution()
-                            .frame(maxWidth: .infinity, alignment: .trailing)
-                    }
                     todayCard
-                    financeRow
-                    readyToSendRow
+                    needsYouSection
+                    moneySection
                     pipelineRow
-                    routesCard
                     if !upcomingVisits.isEmpty { upcomingCard }
                     quickActionsGrid
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 4)
-                .padding(.bottom, 32)
+                .padding(.horizontal, PlowRLayout.space4)
+                .padding(.top, PlowRLayout.space1)
+                .padding(.bottom, PlowRLayout.space6 + PlowRLayout.space2)
             }
-            .background(Color(.systemGroupedBackground))
-            .navigationTitle("Dashboard")
-            .navigationBarTitleDisplayMode(.large)
+            // Cards fade under the gear and the clock as they scroll, as
+            // under a navigation bar: with no title, nothing else does.
+            .scrollEdgeEffectStyle(.hard, for: .top)
+            .background(PlowRColor.ground)
+            .navigationTitle("Home")
+            .navigationBarTitleDisplayMode(.inline)
+            // The page's own heading (the date and the business) says where
+            // you are: Barlow can't go in iOS 26's title (CLAUDE.md).
+            .toolbar(removing: .title)
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button { showingSettings = true } label: {
-                        Image(systemName: "gearshape.fill")
+                        Image(systemName: PlowRSymbol.settings.name)
                     }
+                    .accessibilityLabel("Settings")
                 }
             }
         }
@@ -156,11 +171,72 @@ struct DashboardView: View {
             MassMessageView(stops: stormTextStops ?? [], allClients: myClients,
                             presets: StormCard.presets, kind: .text)
         }
+        // Payments open as a sheet, as from an invoice's page.
+        .sheet(item: $overpaidInvoice) { InvoicePaymentsView(invoice: $0) }
         .task {
             iCloud.watch()
             NotificationService.shared.requestAuthorization()
             NotificationService.shared.scheduleOverdueReminder(count: overdueCount)
             await fetchDashboardWeather()
+        }
+    }
+
+    // MARK: - Header
+
+    /// The day, the business (its profile, a tap away) and the weather.
+    /// It replaces the profile card and the weather strip.
+    private var header: some View {
+        VStack(alignment: .leading, spacing: PlowRLayout.space1) {
+            Text(Date.now, format: .dateTime.weekday(.wide).month(.wide).day())
+                .font(PlowRFont.label)
+                .textCase(.uppercase)
+                .tracking(0.6)
+                .foregroundStyle(PlowRColor.inkSecondary)
+            NavigationLink { BusinessProfileView() } label: {
+                HStack(spacing: PlowRLayout.space2) {
+                    Text(profile?.companyName.dashNilIfEmpty ?? "My Business")
+                        .font(PlowRFont.screenTitle)
+                        .foregroundStyle(PlowRColor.ink)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.7)
+                        .multilineTextAlignment(.leading)
+                    Image(systemName: "chevron.right")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(PlowRColor.inkSecondary)
+                        .accessibilityHidden(true)
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Opens your business profile")
+            .accessibilityAddTraits(.isHeader)
+            if let w = dashWeather {
+                Button { openWeather() } label: {
+                    HStack(spacing: PlowRLayout.space2) {
+                        Image(systemName: w.symbolName)
+                            .foregroundStyle(WeatherKind(w.description).iconColor)
+                        Text("\(Int(w.temperatureF))°F").font(PlowRFont.number)
+                        Text(w.description)
+                        Text("· \(Int(w.windSpeedMph)) mph \(w.windDirectionLabel)")
+                            .foregroundStyle(PlowRColor.inkSecondary)
+                    }
+                    .font(.subheadline)
+                    .foregroundStyle(PlowRColor.ink)
+                    .frame(minHeight: PlowRLayout.minTapTarget)
+                }
+                .buttonStyle(.plain)
+            }
+            // WeatherKit's attribution, wherever its weather shows: the
+            // conditions above, or the storm card's forecast on its own.
+            if WeatherAttribution.isNeeded(current: dashWeather != nil, forecast: storm != nil) {
+                WeatherAttribution()
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func openWeather() {
+        if let url = URL(string: "weather://"), UIApplication.shared.canOpenURL(url) {
+            UIApplication.shared.open(url)
         }
     }
 
@@ -172,32 +248,31 @@ struct DashboardView: View {
     @ViewBuilder
     private var iCloudBanner: some View {
         if let banner = iCloud.banner {
-            HStack(alignment: .top, spacing: 12) {
-                Image(systemName: "icloud.slash")
-                    .font(.title3)
-                    .foregroundStyle(.orange)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(banner.title)
-                        .font(.subheadline.weight(.semibold))
-                    Text(banner.message)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+            PlowRCard {
+                HStack(alignment: .top, spacing: PlowRLayout.space3) {
+                    IconBadge(systemImage: "icloud.slash", status: .owed, size: 36)
+                    VStack(alignment: .leading, spacing: PlowRLayout.space1) {
+                        Text(banner.title)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(PlowRColor.ink)
+                        Text(banner.message)
+                            .font(.caption)
+                            .foregroundStyle(PlowRColor.inkSecondary)
+                    }
+                    Spacer(minLength: 0)
+                    Button {
+                        iCloud.dismissBanner()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(PlowRColor.inkSecondary)
+                            .frame(minWidth: PlowRLayout.minTapTarget, minHeight: PlowRLayout.minTapTarget)  // In gloves, too.
+                            .contentShape(Rectangle())
+                    }
+                    .accessibilityLabel("Hide")
                 }
-                Spacer(minLength: 0)
-                Button {
-                    iCloud.dismissBanner()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(.secondary)
-                        .frame(minWidth: 44, minHeight: 44)     // In gloves, too.
-                        .contentShape(Rectangle())
-                }
-                .accessibilityLabel("Hide")
+                .padding(PlowRLayout.space3)
             }
-            .padding(14)
-            .background(Color(.secondarySystemGroupedBackground))
-            .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
         }
     }
 
@@ -215,31 +290,6 @@ struct DashboardView: View {
 
     // MARK: - Weather
 
-    @ViewBuilder
-    private func dashWeatherStrip(_ w: WeatherCondition) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: w.symbolName)
-            Text("\(Int(w.temperatureF))°F")
-                .fontWeight(.semibold)
-            Text("·")
-            Text(w.description)
-            Spacer()
-            Text("\(Int(w.windSpeedMph)) mph \(w.windDirectionLabel)")
-                .foregroundStyle(.white.opacity(0.75))
-        }
-        .font(.subheadline)
-        .foregroundStyle(.white)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 11)
-        .background(WeatherKind(w.description).background)
-        .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
-        .onTapGesture {
-            if let url = URL(string: "weather://"), UIApplication.shared.canOpenURL(url) {
-                UIApplication.shared.open(url)
-            }
-        }
-    }
-
     private func fetchDashboardWeather() async {
         let clManager = CLLocationManager()
         let status = clManager.authorizationStatus
@@ -256,79 +306,95 @@ struct DashboardView: View {
         }
     }
 
-    // MARK: - Profile Card
-
-    private var profileCard: some View {
-        HStack(spacing: 14) {
-            logoMark.frame(width: 52, height: 52)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(profile?.companyName.dashNilIfEmpty ?? "My Business")
-                    .font(.title3.weight(.bold))
-                    .lineLimit(1)
-                Group {
-                    if let tagline = profile?.tagline.dashNilIfEmpty {
-                        Text(tagline)
-                    } else {
-                        Text("\(myClients.count) client\(myClients.count == 1 ? "" : "s")")
-                    }
-                }
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-            }
-            Spacer()
-        }
-        .padding(16)
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
-    }
-
-    @ViewBuilder
-    private var logoMark: some View {
-        if let data = profile?.logoData, let img = UIImage(data: data) {
-            Image(uiImage: img)
-                .resizable()
-                .scaledToFill()
-                .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerMedium, style: .continuous))
-        } else {
-            RoundedRectangle(cornerRadius: PlowRLayout.cornerMedium, style: .continuous)
-                .fill(Color.accentColor.gradient)
-                .overlay {
-                    Text((profile?.companyName ?? "").dashInitials)
-                        .font(.title2.weight(.bold))
-                        .foregroundStyle(.white)
-                }
-        }
-    }
-
     // MARK: - Today
 
+    /// Today's route, ready to start, and today's visits. The route's page
+    /// is where a run starts (skip a stop today, below trigger, the
+    /// load-out), so the copper button opens it rather than starting blind.
     private var todayCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            sectionHeader("Today", icon: "calendar",
-                          badge: todayVisits.isEmpty ? nil : "\(todayVisits.count)",
-                          badgeStatus: .scheduled)
-
+        VStack(alignment: .leading, spacing: PlowRLayout.space2) {
+            sectionLabel("Today", badge: todayVisits.isEmpty ? nil : "\(todayVisits.count) visit\(todayVisits.count == 1 ? "" : "s")")
             PlowRCard {
-                if todayVisits.isEmpty {
-                    emptyRow("No visits scheduled today", icon: "calendar.badge.plus")
-                } else {
+                if let route = leadRoute {
+                    leadRouteRow(route)
+                } else if todayVisits.isEmpty {
+                    nothingToday
+                }
+                if !todayVisits.isEmpty {
+                    if leadRoute != nil { Divider().overlay(PlowRColor.line) }
                     ForEach(Array(todayVisits.prefix(5).enumerated()), id: \.element.id) { i, visit in
-                        if i > 0 { Divider().padding(.leading, Self.rowTextInset) }
+                        if i > 0 { Divider().overlay(PlowRColor.line).padding(.leading, Self.rowTextInset) }
                         visitRow(visit)
                     }
                     if todayVisits.count > 5 {
-                        Divider()
+                        Divider().overlay(PlowRColor.line)
                         Text("+ \(todayVisits.count - 5) more")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(PlowRColor.inkSecondary)
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 8)
+                            .padding(.vertical, PlowRLayout.space2)
                     }
                 }
             }
         }
+    }
+
+    private func leadRouteRow(_ route: PlowRoute) -> some View {
+        let run = RouteRunSummary(route: route, store: activeRoute)
+        let minutes = RouteFacts.estimatedMinutes(of: RouteRunSummary.stops(of: route, store: activeRoute),
+                                                  clients: myClients)
+        let others = myRoutes.count - 1
+        return VStack(alignment: .leading, spacing: PlowRLayout.space3) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(route.name)
+                    .font(PlowRFont.title)
+                    .foregroundStyle(PlowRColor.ink)
+                    .lineLimit(2)
+                Spacer(minLength: PlowRLayout.space2)
+                Text(run.total == 0 ? "No stops"
+                     : "\(run.total) stop\(run.total == 1 ? "" : "s")" + (minutes > 0 ? " · \(RouteFacts.duration(minutes))" : ""))
+                    .font(.subheadline)
+                    .foregroundStyle(PlowRColor.inkSecondary)
+            }
+            NavigationLink { RouteDetailView(route: route) } label: {
+                Label(run.total == 0 ? "Add Stops" : "Start Route", systemImage: PlowRSymbol.route.name)
+            }
+            .buttonStyle(.plowRAction)
+            if others > 0 {
+                NavigationLink { RouteListView() } label: {
+                    Text(others == 1 ? "1 other route" : "\(others) other routes")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(PlowRColor.brand)
+                        .frame(minHeight: PlowRLayout.minTapTarget)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(PlowRLayout.space4)
+    }
+
+    /// No route and nothing booked: the two ways to put something on.
+    private var nothingToday: some View {
+        VStack(alignment: .leading, spacing: PlowRLayout.space3) {
+            Text("Nothing on today")
+                .font(.body.weight(.semibold))
+                .foregroundStyle(PlowRColor.ink)
+            HStack(spacing: PlowRLayout.space2) {
+                Button {
+                    $gate.unless(ProGate.createRoute(access, routes: allRoutes, operatorID: authManager.userID)) {
+                        showingCreateRoute = true
+                    }
+                } label: {
+                    Label("New Route", systemImage: PlowRSymbol.route.name)
+                }
+                .buttonStyle(.plowRSecondary)
+                Button { showingAddVisit = true } label: {
+                    Label("Schedule Visit", systemImage: "calendar.badge.plus")
+                }
+                .buttonStyle(.plowRSecondary)
+            }
+        }
+        .padding(PlowRLayout.space4)
     }
 
     private func visitRow(_ visit: ScheduledVisit) -> some View {
@@ -345,174 +411,165 @@ struct DashboardView: View {
         }
     }
 
-    /// Where a row's text starts (row padding, icon or date column, gap), so
-    /// a separator lines up with it, as iOS lists do. The separators used to
-    /// start 10 and 6 points short.
-    private static let rowTextInset: CGFloat = 14 + 28 + 12
-    private static let dateRowTextInset: CGFloat = 14 + 36 + 12
+    /// Where a row's text starts (row padding, icon column, gap), so a
+    /// separator lines up with it, as iOS lists do.
+    private static let rowTextInset: CGFloat = PlowRLayout.space4 + 36 + PlowRLayout.space3
 
     private func visitRowContent(_ visit: ScheduledVisit) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: "calendar.circle.fill")
-                .font(.title3)
-                .foregroundStyle(visit.status.chipStatus.fill)
-                .frame(width: 28)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(visit.clientName).font(.subheadline.weight(.medium)).lineLimit(1)
-                Text(visit.scheduledDate, style: .time).font(.caption).foregroundStyle(.secondary)
+        HStack(spacing: PlowRLayout.space3) {
+            IconBadge(systemImage: PlowRSymbol.schedule.name, status: visit.status.chipStatus, size: 36)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(visit.clientName)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(PlowRColor.ink)
+                    .lineLimit(1)
+                Text(visit.scheduledDate, style: .time)
+                    .font(.caption)
+                    .foregroundStyle(PlowRColor.inkSecondary)
             }
             Spacer()
             if visit.estimatedMinutes > 0 {
-                Text("\(visit.estimatedMinutes)m").font(.caption2).foregroundStyle(.tertiary)
+                Text("\(visit.estimatedMinutes)m").font(.caption).foregroundStyle(PlowRColor.inkSecondary)
             }
-            Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.tertiary)
+            chevron
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-    }
-
-    // MARK: - Finances
-
-    private var financeRow: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            sectionHeader("Finances", icon: "dollarsign.circle",
-                          badge: overdueCount > 0 ? "\(overdueCount) overdue" : nil,
-                          badgeStatus: .overdue)
-            StatTileRow {
-                // Outstanding opens what's owed by how late it is.
-                NavigationLink {
-                    MoneyOwedView()
-                } label: {
-                    StatTile(
-                        value: outstandingBalance.formatted(.currency(code: "USD").precision(.fractionLength(0))),
-                        label: "Outstanding",
-                        status: outstandingBalance > 0 ? .owed : nil
-                    )
-                }
-                .buttonStyle(.plain)
-
-                NavigationLink {
-                    ProposalListView(initialFilter: .overdue)
-                } label: {
-                    StatTile(value: "\(overdueCount)", label: "Overdue",
-                             status: overdueCount > 0 ? .overdue : nil)
-                }
-                .buttonStyle(.plain)
-
-                NavigationLink {
-                    ProposalListView(initialFilter: .draft)
-                } label: {
-                    StatTile(value: "\(draftCount)", label: "Drafts",
-                             status: nil)
-                }
-                .buttonStyle(.plain)
-            }
-            needsALookRows
-        }
-        // Payments open as a sheet, as from an invoice's page.
-        .sheet(item: $overpaidInvoice) { InvoicePaymentsView(invoice: $0) }
-    }
-
-    /// Money records that need a look, most likely made on two devices before
-    /// they synced: a contract payment billed by two invoices, and an invoice
-    /// paid more than its total. PlowR doesn't fix either by itself (one may
-    /// already be with the client, or the extra may be a real credit); each
-    /// row opens the invoice to decide.
-    @ViewBuilder
-    private var needsALookRows: some View {
-        let billedTwice = ContractInstallments.duplicates(myProposals, operatorID: authManager.userID)
-        let overpaid = Payments.overpaid(myProposals)
-        if !billedTwice.isEmpty || !overpaid.isEmpty {
-            PlowRCard {
-                if let first = billedTwice.first {
-                    NavigationLink { ProposalDetailView(proposal: first) } label: {
-                        needsALookRow(billedTwice.count == 1 ? "1 contract payment billed twice"
-                                                             : "\(billedTwice.count) contract payments billed twice",
-                                      detail: "\(first.clientName) \(first.invoiceNumber): delete or void one of its invoices.")
-                    }
-                    .buttonStyle(.plain)
-                }
-                if let first = overpaid.first {
-                    if !billedTwice.isEmpty { Divider().padding(.leading, 14) }
-                    Button { overpaidInvoice = first } label: {
-                        needsALookRow(overpaid.count == 1 ? "1 invoice paid more than its total"
-                                                          : "\(overpaid.count) invoices paid more than their total",
-                                      detail: "\(first.clientName) \(first.invoiceNumber): a payment may be recorded twice, or the client is owed a credit.")
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        }
-    }
-
-    private func needsALookRow(_ title: String, detail: String) -> some View {
-        HStack(spacing: 12) {
-            IconBadge(systemImage: "exclamationmark.triangle.fill", status: .owed)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
-                Text(detail).font(.caption).foregroundStyle(.secondary)
-            }
-            Spacer()
-            Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
-                .accessibilityHidden(true)
-        }
-        .padding(14)
+        .padding(.horizontal, PlowRLayout.space4)
+        .padding(.vertical, PlowRLayout.space3)
         .contentShape(Rectangle())
     }
 
-    // MARK: - Contract payments
+    // MARK: - Needs you
 
-    /// Contract payments due (Make Invoices makes their drafts here, on
-    /// this device), and drafts made and waiting to be sent.
-    @ViewBuilder
-    private var readyToSendRow: some View {
-        let due = ContractInstallments.allDue(allContracts, operatorID: authManager.userID)
-        let ready = ContractInstallments.readyToSend(allProposals, operatorID: authManager.userID)
-        if !due.isEmpty || !ready.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
-                sectionHeader("Contract Payments", icon: "doc.text")
-                PlowRCard {
-                    if !due.isEmpty {
-                        HStack(spacing: 12) {
-                            IconBadge(systemImage: "calendar.badge.clock", status: .owed)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(due.count == 1 ? "1 payment due" : "\(due.count) payments due")
-                                    .font(.subheadline.weight(.semibold))
-                                Text(due.reduce(0) { $0 + $1.installment.amount }.formatted(.currency(code: "USD")))
-                                    .font(.caption).foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            Button(due.count == 1 ? "Make Invoice" : "Make Invoices") {
-                                $gate.unless(ProGate.edit(access)) {
-                                    ContractInstallments.makeAllDue(operatorID: authManager.userID, in: modelContext)
-                                }
-                            }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
-                        }
-                        .padding(14)
+    /// What's waiting on the business, each opening where it's dealt with.
+    /// With nothing waiting it says so, so an empty section isn't mistaken
+    /// for one that didn't load.
+    private var needsYouSection: some View {
+        VStack(alignment: .leading, spacing: PlowRLayout.space2) {
+            sectionLabel("Needs You")
+            PlowRCard {
+                let items = attention
+                if items.isEmpty {
+                    HStack(spacing: PlowRLayout.space3) {
+                        IconBadge(systemImage: PlowRSymbol.complete.name, status: .done, size: 36)
+                        Text("All caught up")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(PlowRColor.ink)
+                        Spacer()
                     }
-                    if !ready.isEmpty {
-                        if !due.isEmpty { Divider().padding(.leading, 14) }
-                        NavigationLink { ProposalListView(initialFilter: .draft) } label: {
-                            HStack(spacing: 12) {
-                                IconBadge(systemImage: "doc.text.fill")
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(ready.count == 1 ? "1 invoice ready to send" : "\(ready.count) invoices ready to send")
-                                        .font(.subheadline.weight(.semibold))
-                                        .foregroundStyle(.primary)
-                                    Text("\(Payments.balance(of: ready).formatted(.currency(code: "USD"))) · in Drafts")
-                                        .font(.caption).foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
-                            }
-                            .padding(14)
-                        }
-                        .buttonStyle(.plain)
+                    .padding(PlowRLayout.space4)
+                } else {
+                    ForEach(Array(items.enumerated()), id: \.element.id) { i, item in
+                        if i > 0 { Divider().overlay(PlowRColor.line).padding(.leading, Self.rowTextInset) }
+                        attentionRow(item)
                     }
                 }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func attentionRow(_ item: DashboardAttention) -> some View {
+        switch item.kind {
+        case .overdue:
+            NavigationLink { ProposalListView(initialFilter: .overdue) } label: {
+                attentionContent(item, symbol: "exclamationmark.circle.fill", status: .overdue)
+            }
+            .buttonStyle(.plain)
+        case .paymentsDue:
+            HStack(spacing: PlowRLayout.space3) {
+                attentionText(item, symbol: "calendar.badge.clock", status: .owed)
+                Button(item.count == 1 ? "Make Invoice" : "Make Invoices") {
+                    $gate.unless(ProGate.edit(access)) {
+                        ContractInstallments.makeAllDue(operatorID: authManager.userID, in: modelContext)
+                    }
+                }
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(PlowRColor.brand)
+                .frame(minHeight: PlowRLayout.minTapTarget)
+            }
+            .padding(.horizontal, PlowRLayout.space4)
+            .padding(.vertical, PlowRLayout.space2)
+        case .readyToSend:
+            NavigationLink { ProposalListView(initialFilter: .draft) } label: {
+                attentionContent(item, symbol: PlowRSymbol.document.name, status: nil)
+            }
+            .buttonStyle(.plain)
+        case .followUps:
+            NavigationLink { PipelineView() } label: {
+                attentionContent(item, symbol: "clock", status: .owed)
+            }
+            .buttonStyle(.plain)
+        case .billedTwice:
+            if let first = ContractInstallments.duplicates(myProposals, operatorID: authManager.userID).first {
+                NavigationLink { ProposalDetailView(proposal: first) } label: {
+                    attentionContent(item, symbol: PlowRSymbol.warning.name, status: .owed,
+                                     detail: "\(first.clientName) \(first.invoiceNumber): delete or void one of its invoices.")
+                }
+                .buttonStyle(.plain)
+            }
+        case .overpaid:
+            if let first = Payments.overpaid(myProposals).first {
+                Button { overpaidInvoice = first } label: {
+                    attentionContent(item, symbol: PlowRSymbol.warning.name, status: .owed,
+                                     detail: "\(first.clientName) \(first.invoiceNumber): a payment may be recorded twice, or the client is owed a credit.")
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func attentionContent(_ item: DashboardAttention, symbol: String, status: PlowRColor.Status?,
+                                  detail: String? = nil) -> some View {
+        HStack(spacing: PlowRLayout.space3) {
+            attentionText(item, symbol: symbol, status: status, detail: detail)
+            chevron
+        }
+        .padding(.horizontal, PlowRLayout.space4)
+        .padding(.vertical, PlowRLayout.space3)
+        .contentShape(Rectangle())
+    }
+
+    private func attentionText(_ item: DashboardAttention, symbol: String, status: PlowRColor.Status?,
+                               detail: String? = nil) -> some View {
+        HStack(spacing: PlowRLayout.space3) {
+            IconBadge(systemImage: symbol, status: status, size: 36)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(PlowRColor.ink)
+                if let detail {
+                    Text(detail).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
+                } else if let amount = item.amount, amount > 0 {
+                    Text(amount, format: .currency(code: "USD"))
+                        .font(.caption)
+                        .foregroundStyle(status?.text ?? PlowRColor.inkSecondary)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    // MARK: - Money
+
+    /// What's owed, and what came in this month.
+    private var moneySection: some View {
+        let month = Calendar.current.dateInterval(of: .month, for: .now)
+            ?? DateInterval(start: .now, duration: 0)
+        let received = Payments.received(myProposals, in: month)
+        return VStack(alignment: .leading, spacing: PlowRLayout.space2) {
+            sectionLabel("Money")
+            StatTileRow {
+                // Outstanding opens what's owed by how late it is.
+                NavigationLink { MoneyOwedView() } label: {
+                    StatTile(value: outstandingBalance.formatted(.currency(code: "USD").precision(.fractionLength(0))),
+                             label: "Owed", status: outstandingBalance > 0 ? .owed : nil)
+                }
+                .buttonStyle(.plain)
+                NavigationLink { ClientStatsView() } label: {
+                    StatTile(value: received.formatted(.currency(code: "USD").precision(.fractionLength(0))),
+                             label: "In this month", status: received > 0 ? .done : nil)
+                }
+                .buttonStyle(.plain)
             }
         }
     }
@@ -526,18 +583,16 @@ struct DashboardView: View {
                                                stops: allRoutes.flatMap { $0.stops ?? [] }))
     }
 
-    /// Leads, quotes and follow-ups, when there are any: each opens the Pipeline.
+    /// Leads and quotes, when there are any: each opens the Pipeline.
+    /// Follow-ups are in Needs You.
     @ViewBuilder
     private var pipelineRow: some View {
         let entries = pipeline.filter { $0.stage != .lost }
         if !entries.isEmpty {
-            let followUps = entries.filter(\.needsFollowUp).count
-            VStack(alignment: .leading, spacing: 8) {
-                sectionHeader("Pipeline", icon: "person.crop.circle.badge.plus",
-                              badge: followUps > 0 ? "\(followUps) to follow up" : nil, badgeStatus: .owed)
+            VStack(alignment: .leading, spacing: PlowRLayout.space2) {
+                sectionLabel("Pipeline")
                 let leads = entries.filter { $0.stage == .lead }.count
                 let quoted = entries.filter { $0.stage == .quoted }.count
-                // Each its own link to the Pipeline, and zero in grey, as the finance tiles.
                 StatTileRow {
                     NavigationLink { PipelineView() } label: {
                         StatTile(value: "\(leads)", label: "Leads", status: leads > 0 ? .lead : nil)
@@ -547,74 +602,19 @@ struct DashboardView: View {
                         StatTile(value: "\(quoted)", label: "Quoted", status: quoted > 0 ? .scheduled : nil)
                     }
                     .buttonStyle(.plain)
-                    NavigationLink { PipelineView() } label: {
-                        StatTile(value: "\(followUps)", label: "Follow Up", status: followUps > 0 ? .owed : nil)
-                    }
-                    .buttonStyle(.plain)
                 }
             }
         }
-    }
-
-    // MARK: - Routes
-
-    private var routesCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            sectionHeader("Routes", icon: "map")
-
-            PlowRCard {
-                if recentRoutes.isEmpty {
-                    emptyRow("No routes yet", icon: "point.topleft.down.to.point.bottomright.curvepath")
-                } else {
-                    ForEach(Array(recentRoutes.enumerated()), id: \.element.id) { i, route in
-                        if i > 0 { Divider().padding(.leading, Self.rowTextInset) }
-                        NavigationLink { RouteDetailView(route: route) } label: {
-                            routeRow(route)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-        }
-    }
-
-    private func routeRow(_ route: PlowRoute) -> some View {
-        let run = RouteRunSummary(route: route, store: activeRoute)
-        let total = run.total
-        let done = run.done
-        let isActive = run.isRunning
-        let isDone = run.isDone
-
-        return HStack(spacing: 12) {
-            Image(systemName: isActive ? "map.fill"
-                             : (isDone ? "checkmark.circle.fill" : "map"))
-                .font(.title3)
-                .foregroundStyle(isActive ? .orange : (isDone ? .green : .secondary))
-                .frame(width: 28)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(route.name).font(.subheadline.weight(.medium)).foregroundStyle(.primary)
-                Text(total == 0  ? "No stops"
-                     : isDone    ? "Completed"
-                     : done == 0 ? "\(total) stop\(total == 1 ? "" : "s")"
-                                 : "\(done)/\(total) complete")
-                    .font(.caption)
-                    .foregroundStyle(isActive ? .orange : .secondary)
-            }
-            Spacer()
-            Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
     }
 
     // MARK: - Upcoming
 
     private var upcomingCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            sectionHeader("Coming Up", icon: "calendar.badge.clock")
+        VStack(alignment: .leading, spacing: PlowRLayout.space2) {
+            sectionLabel("Coming Up")
             PlowRCard {
                 ForEach(Array(upcomingVisits.enumerated()), id: \.element.id) { i, visit in
-                    if i > 0 { Divider().padding(.leading, Self.dateRowTextInset) }
+                    if i > 0 { Divider().overlay(PlowRColor.line).padding(.leading, Self.rowTextInset) }
                     let client = allClients.first { $0.id.uuidString == visit.clientID }
                     let rowContent = upcomingVisitRow(visit)
                     if let client {
@@ -629,44 +629,49 @@ struct DashboardView: View {
     }
 
     private func upcomingVisitRow(_ visit: ScheduledVisit) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: PlowRLayout.space3) {
             VStack(spacing: 0) {
                 Text(visit.scheduledDate, format: .dateTime.weekday(.abbreviated))
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(PlowRColor.inkSecondary)
                     .textCase(.uppercase)
                 Text(visit.scheduledDate, format: .dateTime.day())
-                    .font(.title3.weight(.bold))
+                    .font(PlowRFont.number)
+                    .foregroundStyle(PlowRColor.ink)
             }
             .frame(width: 36)
-
-            VStack(alignment: .leading, spacing: 1) {
-                Text(visit.clientName).font(.subheadline.weight(.medium)).lineLimit(1)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(visit.clientName)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(PlowRColor.ink)
+                    .lineLimit(1)
                 Text(visit.scheduledDate, style: .time)
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.caption).foregroundStyle(PlowRColor.inkSecondary)
             }
             Spacer()
             if visit.isAfterHours {
-                Image(systemName: "moon.fill").font(.caption2).foregroundStyle(.indigo)
+                Image(systemName: "moon.fill").font(.caption2).foregroundStyle(PlowRColor.inkSecondary)
+                    .accessibilityLabel("After hours")
             }
-            Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.tertiary)
+            chevron
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        .padding(.horizontal, PlowRLayout.space4)
+        .padding(.vertical, PlowRLayout.space3)
+        .contentShape(Rectangle())
     }
 
     // MARK: - Quick Actions
 
     private var quickActionsGrid: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            sectionHeader("Quick Actions", icon: "bolt.fill")
+        VStack(alignment: .leading, spacing: PlowRLayout.space2) {
+            sectionLabel("Quick Actions")
             // Four actions, a full 2 × 2. Settings is the gear at the top.
             LazyVGrid(columns: [GridItem(.flexible(), spacing: PlowRLayout.tileSpacing),
                                 GridItem(.flexible(), spacing: PlowRLayout.tileSpacing)],
                       spacing: PlowRLayout.tileSpacing) {
                 Menu {
                     Button { $gate.unless(ProGate.addClient(access)) { showingAddClient = true } } label: {
-                        Label("Add Manually", systemImage: "person.badge.plus")
+                        Label("Add Manually", systemImage: PlowRSymbol.addClient.name)
                     }
                     if CameraPicker.isAvailable {
                         Button { $gate.unless(ProGate.addClient(access)) { showingContactScanner = true } } label: {
@@ -674,65 +679,71 @@ struct DashboardView: View {
                         }
                     }
                 } label: {
-                    quickActionLabel("New Client", icon: "person.badge.plus", color: .blue)
+                    quickActionLabel("New Client", icon: PlowRSymbol.addClient.name)
                 }
                 .buttonStyle(.plain)
-                quickAction("New Route",       icon: "point.topleft.down.to.point.bottomright.curvepath",      color: .green)  {
+                quickAction("New Route", icon: PlowRSymbol.route.name) {
                     $gate.unless(ProGate.createRoute(access, routes: allRoutes, operatorID: authManager.userID)) { showingCreateRoute = true }
                 }
-                quickAction("Schedule Visit",  icon: "calendar.badge.plus", color: .orange) { showingAddVisit = true }
+                quickAction("Schedule Visit", icon: "calendar.badge.plus") { showingAddVisit = true }
                 NavigationLink { ClientStatsView() } label: {
-                    quickActionLabel("Season Report", icon: "chart.bar.doc.horizontal", color: .indigo)
+                    quickActionLabel("Season Report", icon: "chart.bar.doc.horizontal")
                 }
                 .buttonStyle(.plain)
             }
         }
     }
 
-    private func quickActionLabel(_ title: String, icon: String, color: Color) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: icon)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(color)
-                .frame(width: 22, alignment: .center)
+    private func quickActionLabel(_ title: String, icon: String) -> some View {
+        HStack(spacing: PlowRLayout.space3) {
+            IconBadge(systemImage: icon, size: 32)
             Text(title)
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(.primary)
-            Spacer()
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(PlowRColor.ink)
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+            Spacer(minLength: 0)
         }
-        .padding(14)
-        .background(Color(.secondarySystemGroupedBackground),
+        .padding(PlowRLayout.space3)
+        .frame(minHeight: PlowRLayout.secondaryTapTarget + PlowRLayout.space2)
+        .background(PlowRColor.surface,
                     in: RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous)
+            .strokeBorder(PlowRColor.line))
+        .contentShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
     }
 
-    private func quickAction(_ title: String, icon: String, color: Color,
-                             action: @escaping () -> Void) -> some View {
+    private func quickAction(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            quickActionLabel(title, icon: icon, color: color)
+            quickActionLabel(title, icon: icon)
         }
         .buttonStyle(.plain)
     }
 
     // MARK: - Shared Helpers
 
-    private func sectionHeader(_ title: String, icon: String,
-                                badge: String? = nil, badgeStatus: PlowRColor.Status = .owed) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Label(title, systemImage: icon)
-                .font(.subheadline.weight(.semibold))
+    /// A section's label: small capitals, as on the route screen, with an
+    /// optional count beside it.
+    private func sectionLabel(_ title: String, badge: String? = nil) -> some View {
+        HStack(spacing: PlowRLayout.space2) {
+            Text(title)
+                .font(PlowRFont.label)
+                .textCase(.uppercase)
+                .tracking(0.6)
+                .foregroundStyle(PlowRColor.inkSecondary)
+                .accessibilityAddTraits(.isHeader)
             if let badge {
-                StatusChip(badge, status: badgeStatus)
+                StatusChip(badge, status: .scheduled)
             }
             Spacer()
         }
     }
 
-    private func emptyRow(_ message: String, icon: String) -> some View {
-        Label(message, systemImage: icon)
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(14)
+    private var chevron: some View {
+        Image(systemName: "chevron.right")
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(PlowRColor.inkSecondary)
+            .accessibilityHidden(true)
     }
 }
 
