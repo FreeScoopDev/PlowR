@@ -75,7 +75,7 @@ struct BusinessProfileView: View {
                                 .clipShape(RoundedRectangle(cornerRadius: 16))
                         } else {
                             RoundedRectangle(cornerRadius: 16)
-                                .fill(Color(.systemGray5))
+                                .fill(PlowRColor.raised)
                                 .frame(width: 90, height: 90)
                                 .overlay {
                                     Image(systemName: "building.2")

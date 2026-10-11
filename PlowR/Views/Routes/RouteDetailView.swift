@@ -257,7 +257,7 @@ struct RouteDetailView: View {
             }
             ForEach(equipment, id: \.element.id) { index, stop in
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Image(systemName: "wrench.and.screwdriver").foregroundStyle(PlowRColor.Status.owed.text)
+                    Image(systemName: "wrench.and.screwdriver").foregroundStyle(PlowRColor.inkSecondary)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(stop.equipmentNotes).font(.subheadline)
                         Text("Stop \(index + 1) · \(stop.clientName)").font(.caption).foregroundStyle(.secondary)
@@ -362,7 +362,7 @@ struct RouteDetailView: View {
                         if !stop.stopNotes.isEmpty {
                             Label("Notes", systemImage: "note.text")
                                 .font(.caption2)
-                                .foregroundStyle(PlowRColor.Status.owed.text)
+                                .foregroundStyle(PlowRColor.inkSecondary)
                         }
                         if !stop.equipmentNotes.isEmpty {
                             Label("Equipment", systemImage: "wrench.and.screwdriver")
@@ -407,7 +407,7 @@ struct RouteDetailView: View {
                 .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
             Text("\(number)")
                 .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(.white)
+                .foregroundStyle(PlowRColor.onBrand)
         }
     }
 

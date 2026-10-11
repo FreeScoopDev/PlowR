@@ -241,13 +241,13 @@ struct ScheduleView: View {
                         Button("Complete") { $gate.unless(ProGate.edit(access)) { markComplete(visit) } }
                             .font(.caption.weight(.semibold))
                             .buttonStyle(.bordered)
-                            .tint(.green)
+                            .tint(PlowRColor.Status.done.text)
                             .controlSize(.small)
                     }
                 }
             } header: {
                 // Styled as the day and Upcoming headers on this screen.
-                Label("\(overdue.count) Overdue", systemImage: "exclamationmark.circle.fill")
+                Label("\(overdue.count) Past Due", systemImage: "exclamationmark.circle.fill")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(PlowRColor.Status.owed.text)
                     .textCase(nil)
@@ -610,7 +610,7 @@ private struct WeatherBannerRow: View {
         .background {
             if Calendar.current.isDateInToday(day.date) {
                 RoundedRectangle(cornerRadius: PlowRLayout.cornerSmall, style: .continuous)
-                    .fill(Color(.systemGray6))
+                    .fill(PlowRColor.raised)
             }
         }
     }

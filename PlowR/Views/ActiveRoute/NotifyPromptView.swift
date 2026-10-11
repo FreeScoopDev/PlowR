@@ -175,7 +175,7 @@ struct NotifyPromptView: View {
         }
         .padding(.vertical, 12)
         .padding(.horizontal, 20)
-        .background(Color(.systemGray6))
+        .background(PlowRColor.raised)
         .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
     }
 
@@ -196,8 +196,7 @@ struct NotifyPromptView: View {
                                 .font(.caption.weight(.semibold))
                                 .padding(.horizontal, 14)
                                 .padding(.vertical, 8)
-                                .background(isOn ? PlowRColor.brand : PlowRColor.raised)
-                                .foregroundStyle(isOn ? PlowRColor.onBrand : PlowRColor.ink)
+                                .plowRChip(selected: isOn)
                                 .clipShape(Capsule())
                         }
                         .buttonStyle(.plain)
@@ -218,7 +217,7 @@ struct NotifyPromptView: View {
                 .font(.subheadline)
                 .lineLimit(1...4)
                 .padding(14)
-                .background(Color(.systemGray6))
+                .background(PlowRColor.raised)
                 .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
         }
     }
@@ -231,7 +230,7 @@ struct NotifyPromptView: View {
         .tint(PlowRColor.brand)
         .padding(.vertical, 12)
         .padding(.horizontal, 16)
-        .background(Color(.systemGray6))
+        .background(PlowRColor.raised)
         .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
     }
 
@@ -244,7 +243,7 @@ struct NotifyPromptView: View {
                 .font(.subheadline)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(14)
-                .background(Color(.systemGray6))
+                .background(PlowRColor.raised)
                 .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
         }
     }

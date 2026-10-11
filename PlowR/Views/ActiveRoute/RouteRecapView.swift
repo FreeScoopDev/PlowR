@@ -153,7 +153,7 @@ struct RouteRecapView: View {
     private func recapPin(isDone: Bool) -> some View {
         ZStack {
             Circle()
-                .fill(isDone ? PlowRColor.Status.done.fill : PlowRColor.line)
+                .fill(isDone ? PlowRColor.Status.done.fill : PlowRColor.Status.neutral.fill)
                 .frame(width: 20, height: 20)
                 .shadow(color: .black.opacity(0.25), radius: 2, x: 0, y: 1)
             Image(systemName: isDone ? "checkmark" : "minus")

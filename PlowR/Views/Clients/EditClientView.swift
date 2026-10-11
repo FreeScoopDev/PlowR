@@ -349,7 +349,7 @@ struct EditClientView: View {
                         openURL(url)
                     } label: {
                         Image(systemName: "phone.fill")
-                            .foregroundStyle(PlowRColor.Status.done.text)
+                            .foregroundStyle(PlowRColor.brand)
                     }
                     .buttonStyle(.borderless)
                 }
@@ -451,7 +451,7 @@ struct EditClientView: View {
                                     .font(.caption.weight(.medium))
                                     .padding(.horizontal, 10)
                                     .padding(.vertical, 4)
-                                    .background(Color(.systemGray5))
+                                    .background(PlowRColor.raised)
                                     .foregroundStyle(.secondary)
                                     .clipShape(Capsule())
                             }
@@ -1066,20 +1066,20 @@ struct EditClientView: View {
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.mini)
-                        .tint(.green)
+                        .tint(PlowRColor.Status.done.text)
                         Button("Revise") {
                             $gate.unless(ProGate.edit(access)) { revisePaidDoc = document }
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.mini)
-                        .tint(.orange)
+                        .tint(PlowRColor.brand)
                     } else if document.invoiceStatus == .draft {
                         Button("Edit") {
                             editingProposal = document
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.mini)
-                        .tint(.blue)
+                        .tint(PlowRColor.brand)
                     } else if document.invoiceStatus == .paid, InvoiceRecords.canEditInPlace(document) {
                         // A paid invoice's revision not yet sent: still edited.
                         Button("Edit") {
@@ -1087,14 +1087,14 @@ struct EditClientView: View {
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.mini)
-                        .tint(.blue)
+                        .tint(PlowRColor.brand)
                     } else if document.invoiceStatus == .paid {
                         Button("Revise") {
                             $gate.unless(ProGate.edit(access)) { revisePaidDoc = document }
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.mini)
-                        .tint(.orange)
+                        .tint(PlowRColor.brand)
                     }
                 }
             }

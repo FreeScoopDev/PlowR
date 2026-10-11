@@ -342,15 +342,19 @@ struct AddVisitView: View {
 
     private func timeButton(_ label: String, hour: Int) -> some View {
         let isSelected = Calendar.current.component(.hour, from: scheduledDate) == hour
-        return Button(label) {
+        return Button {
             scheduledDate = Calendar.current.date(
                 bySettingHour: hour, minute: 0, second: 0, of: scheduledDate
             ) ?? scheduledDate
+        } label: {
+            Text(label)
+                .font(.caption.weight(.semibold))
+                .padding(.horizontal, PlowRLayout.space3)
+                .padding(.vertical, PlowRLayout.space2)
+                .plowRChip(selected: isSelected)
+                .clipShape(Capsule())
         }
-        .font(.caption.weight(.medium))
-        .buttonStyle(.bordered)
-        .controlSize(.small)
-        .tint(isSelected ? PlowRColor.brand : nil)
+        .buttonStyle(.plain)
     }
 
     private var visitInfoSection: some View {

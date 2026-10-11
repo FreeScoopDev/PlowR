@@ -58,7 +58,7 @@ struct ClientPropertyScanView: View {
             if let error = geocodeError {
                 Section {
                     Text(error)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(PlowRColor.Status.overdue.text)
                         .font(.caption)
                 }
                 .listRowBackground(PlowRColor.surface)

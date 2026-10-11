@@ -41,9 +41,9 @@ struct SettingsView: View {
 
     private var iCloudTint: Color {
         switch iCloud.summary.kind {
-        case .backedUp: return PlowRColor.Status.done.fill
+        case .backedUp: return PlowRColor.Status.done.text
         case .unknown: return .secondary
-        case .problem: return PlowRColor.Status.owed.fill
+        case .problem: return PlowRColor.Status.owed.text
         }
     }
 
