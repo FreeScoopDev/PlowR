@@ -195,6 +195,8 @@ struct SettingsView: View {
                 if let url = URL(string: "https://getplowr.app/terms-of-service.html") {
                     Link("Terms of Service", destination: url)
                 }
+                // Barlow's licence (SIL Open Font License) travels with the font.
+                NavigationLink("Font Licenses") { FontLicenseView() }
             }
 
             #if DEBUG
