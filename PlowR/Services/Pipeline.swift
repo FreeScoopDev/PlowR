@@ -16,6 +16,17 @@ enum Pipeline {
 
         var id: Int { rawValue }
 
+        /// Its chip and tile colour (`PlowRColor.Status`): a lead purple, a
+        /// quote blue like a proposal document, a customer done, lost void.
+        var chipStatus: PlowRColor.Status {
+            switch self {
+            case .lead: .lead
+            case .quoted: .scheduled
+            case .customer: .done
+            case .lost: .void
+            }
+        }
+
         var title: String {
             switch self {
             case .lead: "Lead"

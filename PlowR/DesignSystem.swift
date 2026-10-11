@@ -113,7 +113,8 @@ nonisolated extension PlowRColor {
     /// is never the only signal.
     nonisolated enum Status: CaseIterable {
         case done, scheduled, owed, overdue, lead, void
-        /// Nothing to flag: a draft, a zero, an inactive place.
+        /// Nothing to flag: a draft, comped, an inactive place. A zero has
+        /// no status at all (plain ink).
         case neutral
 
         /// For dots, bars and map pins.
@@ -125,7 +126,9 @@ nonisolated extension PlowRColor {
             case .overdue: adaptive(0xC53030, 0xF28B8B)
             case .lead: adaptive(0x6B46C1, 0xB49AF0)
             case .void: adaptive(0x6B7280, 0x9CA3AF)
-            case .neutral: adaptive(0x7A817C, 0x8E9A92)
+            // Lighter than void in light mode, darker in dark: the two greys
+            // differ by at least 2:1, so a draft's bar isn't a void one's.
+            case .neutral: adaptive(0xB3ACA0, 0x55625A)
             }
         }
 

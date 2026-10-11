@@ -102,7 +102,7 @@ struct ClientStatsView: View {
                     label: "Revenue",
                     status: .done
                 )
-                // Outstanding is orange everywhere (red is for overdue).
+                // Outstanding is amber (owed) everywhere; red is for overdue.
                 StatTile(
                     value: totalOutstanding == 0 ? "$0" : totalOutstanding.formatted(.currency(code: "USD").precision(.fractionLength(0))),
                     label: "Outstanding",

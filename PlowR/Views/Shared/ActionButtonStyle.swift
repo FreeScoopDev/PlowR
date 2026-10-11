@@ -2,6 +2,19 @@ import SwiftUI
 
 // MARK: - 1.7 design (Evergreen & Copper)
 
+extension View {
+    /// Apple's prominent button in the brand green, its label in the colour
+    /// made for text on the brand (`onBrand`): white in light mode, deep
+    /// green on the pale green of dark mode, where a white label was
+    /// unreadable (1.75:1). For a button that isn't the screen's one main
+    /// action; that one is `.plowRAction`.
+    func plowRProminent() -> some View {
+        buttonStyle(.borderedProminent)
+            .tint(PlowRColor.brand)
+            .foregroundStyle(PlowRColor.onBrand)
+    }
+}
+
 /// A screen's one main action in the 1.7 design: copper, full width, at
 /// least glove height, Barlow label. Greys itself when disabled.
 struct PlowRActionButtonStyle: ButtonStyle {

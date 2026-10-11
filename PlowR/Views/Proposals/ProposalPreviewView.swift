@@ -50,7 +50,7 @@ struct ProposalPreviewView: View {
                                 Text("Save")
                                     .fontWeight(.semibold)
                             }
-                            .buttonStyle(.borderedProminent)
+                            .plowRProminent()
                         }
                     }
                 }

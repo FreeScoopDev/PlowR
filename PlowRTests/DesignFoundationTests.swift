@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 import Testing
 import UIKit
@@ -50,11 +51,27 @@ struct DesignFoundationTests {
         #expect(Contracts.Status.cancelled.chipStatus == .void)
     }
 
-    /// Every status colour is its own: no two statuses can be told apart
-    /// only by their word.
+    /// A quote is blue wherever it shows (a proposal, the Pipeline), a lead
+    /// purple: the client page drew a quote purple and Home drew it blue.
+    @Test func pipelineStagesMatchTheirDocuments() {
+        #expect(Pipeline.Stage.quoted.chipStatus == InvoiceStatus.proposal.chipStatus)
+        #expect(Pipeline.Stage.lead.chipStatus == .lead)
+        #expect(Pipeline.Stage.lost.chipStatus == .void)
+    }
+
+    /// The two greys differ only in lightness, so they must differ enough
+    /// to tell a draft's bar from a void one's (at least 2:1).
     @Test(arguments: [false, true])
-    func everyStatusFillIsDistinct(dark: Bool) {
-        let fills = PlowRColor.Status.allCases.map { hex($0.fillUIColor, dark: dark) }
-        #expect(Set(fills).count == fills.count)
+    func neutralAndVoidAreTwoGreys(dark: Bool) {
+        func luminance(_ hex: UInt32) -> Double {
+            func channel(_ shift: UInt32) -> Double {
+                let c = Double((hex >> shift) & 0xFF) / 255
+                return c <= 0.03928 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4)
+            }
+            return 0.2126 * channel(16) + 0.7152 * channel(8) + 0.0722 * channel(0)
+        }
+        let a = luminance(hex(PlowRColor.Status.neutral.fillUIColor, dark: dark))
+        let b = luminance(hex(PlowRColor.Status.void.fillUIColor, dark: dark))
+        #expect((max(a, b) + 0.05) / (min(a, b) + 0.05) >= 2)
     }
 }

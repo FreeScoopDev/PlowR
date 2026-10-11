@@ -148,7 +148,7 @@ struct ClientListView: View {
                 } actions: {
                     if !isFiltered {
                         Button("Add a Client") { addClient() }
-                            .buttonStyle(.borderedProminent)
+                            .plowRProminent()
                         Button("Import from a Spreadsheet") { importClients() }
                     }
                 }

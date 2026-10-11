@@ -36,7 +36,7 @@ struct ClientHomeView: View {
                             .frame(maxWidth: .infinity)
                             .padding()
                     }
-                    .buttonStyle(.borderedProminent)
+                    .plowRProminent()
                     .padding(.horizontal, 32)
 
                     // Past Requests

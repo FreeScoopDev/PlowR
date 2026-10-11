@@ -184,7 +184,7 @@ struct LocationAdjustView: View {
                     .frame(maxWidth: .infinity)
 
                 Button("Confirm Location") { saveAndDismiss() }
-                    .buttonStyle(.borderedProminent)
+                    .plowRProminent()
                     .frame(maxWidth: .infinity)
                     .disabled(!canConfirm)
             }

@@ -595,11 +595,11 @@ struct DashboardView: View {
                 let quoted = entries.filter { $0.stage == .quoted }.count
                 StatTileRow {
                     NavigationLink { PipelineView() } label: {
-                        StatTile(value: "\(leads)", label: "Leads", status: leads > 0 ? .lead : nil)
+                        StatTile(value: "\(leads)", label: "Leads", status: leads > 0 ? Pipeline.Stage.lead.chipStatus : nil)
                     }
                     .buttonStyle(.plain)
                     NavigationLink { PipelineView() } label: {
-                        StatTile(value: "\(quoted)", label: "Quoted", status: quoted > 0 ? .scheduled : nil)
+                        StatTile(value: "\(quoted)", label: "Quoted", status: quoted > 0 ? Pipeline.Stage.quoted.chipStatus : nil)
                     }
                     .buttonStyle(.plain)
                 }

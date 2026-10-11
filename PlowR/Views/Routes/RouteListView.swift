@@ -154,10 +154,10 @@ struct RouteRowView: View {
         RouteRunSummary(route: route, store: activeRoute)
     }
 
-    /// Copper while running (the route screen's colour), done green, else
-    /// the brand.
+    /// The brand while running (with the filled map), done green, else
+    /// plain: no status's colour stands in for "running".
     private var status: PlowRColor.Status? {
-        run.isRunning ? .owed : (run.isDone ? .done : nil)
+        run.isRunning ? nil : (run.isDone ? .done : .neutral)
     }
 
     private var stopsText: String {
