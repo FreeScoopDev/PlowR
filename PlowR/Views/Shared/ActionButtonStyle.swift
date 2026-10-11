@@ -49,7 +49,7 @@ struct PlowRSecondaryButtonStyle: ButtonStyle {
         configuration.label
             .font(.subheadline.weight(.semibold))
             .foregroundStyle(isEnabled ? PlowRColor.ink : PlowRColor.inkSecondary)
-            .frame(maxWidth: .infinity, minHeight: 48)
+            .frame(maxWidth: .infinity, minHeight: PlowRLayout.secondaryTapTarget)
             .padding(.horizontal, PlowRLayout.space3)
             .background(PlowRColor.raised, in: RoundedRectangle(cornerRadius: PlowRLayout.cornerMedium, style: .continuous))
             .opacity(configuration.isPressed ? 0.8 : (isEnabled ? 1 : 0.6))

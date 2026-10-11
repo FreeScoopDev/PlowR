@@ -257,17 +257,18 @@ struct ActiveRouteView: View {
                     .padding(.bottom, PlowRLayout.space6)
                 }
             }
+            // On this screen's content only: a tint here reached the sheets
+            // it opens, which aren't in the new design yet.
+            .tint(PlowRColor.brand)
             .background(PlowRColor.ground)
             .navigationTitle(route.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("End Route") { showingRouteRecap = true }
-                        .foregroundStyle(PlowRColor.Status.overdue.text)
+                    Button("End Route", role: .destructive) { showingRouteRecap = true }
                 }
             }
         }
-        .tint(PlowRColor.brand)
         .onAppear {
             beginTracking()
             // Built with the app in the background (a location relaunch), it
@@ -402,7 +403,7 @@ struct ActiveRouteView: View {
             }
             .foregroundStyle(PlowRColor.ink)
             if sortedStops.count <= 24 {
-                HStack(spacing: 3) {
+                HStack(spacing: PlowRLayout.space1) {
                     ForEach(sortedStops.indices, id: \.self) { index in
                         Capsule()
                             .fill(index < currentStopIndex ? PlowRColor.Status.done.fill
@@ -463,6 +464,8 @@ struct ActiveRouteView: View {
             // touched the map.
             .simultaneousGesture(DragGesture(minimumDistance: 8).onChanged { _ in followDriver = false })
             .simultaneousGesture(MagnifyGesture().onChanged { _ in followDriver = false })
+            .simultaneousGesture(RotateGesture().onChanged { _ in followDriver = false })
+            .simultaneousGesture(SpatialTapGesture(count: 2).onEnded { _ in followDriver = false })
 
             // Re-center button appears when user has panned away
             if !followDriver {
@@ -471,14 +474,16 @@ struct ActiveRouteView: View {
                     recenterMap()
                 } label: {
                     Label("Re-center", systemImage: "location.fill")
-                        .font(.caption.weight(.semibold))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(.regularMaterial)
-                        .clipShape(Capsule())
-                        .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(PlowRColor.brand)
+                        .padding(.horizontal, PlowRLayout.space3)
+                        .frame(minHeight: PlowRLayout.minTapTarget)
+                        .background(PlowRColor.surface, in: Capsule())
+                        .overlay(Capsule().strokeBorder(PlowRColor.line))
+                        .contentShape(Capsule())
                 }
-                .padding(10)
+                .buttonStyle(.plain)
+                .padding(PlowRLayout.space2)
             }
         }
     }
@@ -503,7 +508,7 @@ struct ActiveRouteView: View {
     }
 
     private func currentStopAnnotationView(name: String) -> some View {
-        VStack(spacing: 3) {
+        VStack(spacing: PlowRLayout.space1) {
             ZStack {
                 Circle()
                     .fill(PlowRColor.action)
@@ -517,8 +522,8 @@ struct ActiveRouteView: View {
                 .font(.caption2.weight(.bold))
                 .foregroundStyle(PlowRColor.onAction)
                 .lineLimit(1)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
+                .padding(.horizontal, PlowRLayout.space2)
+                .padding(.vertical, PlowRLayout.space1)
                 .background(PlowRColor.action, in: Capsule())
         }
         .accessibilityElement(children: .combine)
@@ -554,22 +559,9 @@ struct ActiveRouteView: View {
         }
 
         if let userLoc {
-            // A region holding both pins, which MapKit fits inside the map
-            // whatever its shape: a camera distance is a height, and on this
-            // wide, short map it left the stop's pin on the top edge. The
-            // margin is room for the stop's pin and name above its point.
-            let here = userLoc.coordinate
-            let center = CLLocationCoordinate2D(latitude: (here.latitude + stop.latitude) / 2,
-                                                longitude: (here.longitude + stop.longitude) / 2)
-            let northSouth = CLLocation(latitude: here.latitude, longitude: stop.longitude)
-                .distance(from: CLLocation(latitude: stop.latitude, longitude: stop.longitude))
-            let eastWest = CLLocation(latitude: stop.latitude, longitude: here.longitude)
-                .distance(from: CLLocation(latitude: stop.latitude, longitude: stop.longitude))
-            return .region(MKCoordinateRegion(
-                center: center,
-                latitudinalMeters: min(max(northSouth * 1.6 + 300, 300), 15_000),
-                longitudinalMeters: min(max(eastWest * 1.3 + 200, 300), 15_000)
-            ))
+            return .region(RouteMapFraming.region(
+                driver: userLoc.coordinate,
+                stop: CLLocationCoordinate2D(latitude: stop.latitude, longitude: stop.longitude)))
         }
         return .camera(MapCamera(
             centerCoordinate: CLLocationCoordinate2D(latitude: stop.latitude, longitude: stop.longitude),
@@ -629,8 +621,8 @@ struct ActiveRouteView: View {
                         .tracking(0.6)
                         .foregroundStyle(PlowRColor.actionText)
                         .padding(.horizontal, PlowRLayout.space2)
-                        .padding(.vertical, 3)
-                        .background(PlowRColor.actionSoft, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        .padding(.vertical, PlowRLayout.space1)
+                        .background(PlowRColor.actionSoft, in: RoundedRectangle(cornerRadius: PlowRLayout.cornerSmall, style: .continuous))
                     Text(stop.clientName)
                         .font(PlowRFont.stopName)
                         .foregroundStyle(PlowRColor.ink)
@@ -707,14 +699,16 @@ struct ActiveRouteView: View {
                 .buttonStyle(.plowRSecondary)
                 .disabled(stop.latitude == 0 && stop.clientAddress.isEmpty)
                 if !stop.isCustomStop {
+                    // Keeps its name once work is recorded: it's still the
+                    // way back in to add a service or a photo.
+                    let recorded = stop.completedServiceIDs.count
                     Button { recorderStop = stop } label: {
-                        if stop.completedServiceIDs.isEmpty {
-                            Label("Record Services", systemImage: "doc.badge.plus")
-                        } else {
-                            Label("\(stop.completedServiceIDs.count) Recorded", systemImage: PlowRSymbol.complete.name)
-                        }
+                        Label(recorded == 0 ? "Record Services" : "Record Services · \(recorded)",
+                              systemImage: "doc.badge.plus")
                     }
                     .buttonStyle(.plowRSecondary)
+                    .accessibilityLabel("Record Services")
+                    .accessibilityValue(recorded == 0 ? "" : "\(recorded) recorded")
                 }
             }
 
@@ -807,13 +801,7 @@ struct ActiveRouteView: View {
             }
             ForEach(Array(upcomingStops.enumerated()), id: \.element.id) { index, stop in
                 HStack(spacing: PlowRLayout.space3) {
-                    Text("\(currentStopIndex + 2 + index)")
-                        .font(PlowRFont.label)
-                        .monospacedDigit()
-                        .foregroundStyle(PlowRColor.onBrand)
-                        .frame(width: 30, height: 30)
-                        .background(PlowRColor.brand, in: Circle())
-                        .accessibilityLabel("Stop \(currentStopIndex + 2 + index)")
+                    StopNumberBadge(number: currentStopIndex + 2 + index)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(stop.clientName)
                             .font(.body.weight(.semibold))
