@@ -7,6 +7,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 New entries go in `changelog.d/` (see its README) and are gathered here when a version is cut.
 
+## [1.6.1] - 2026-10-10
+
+### Changed
+- The route screen follows your location only while PlowR is on screen, a fix every 20 metres or so, instead of continuously at full accuracy all route long, in the background too. It saves a crew's battery over a long day, and PlowR no longer declares the background location mode, which App Review asks every app to justify. The map, arrival estimates and weather catch up the moment you come back, and an estimate or a text's location is never worked out from where the phone was minutes ago. The Privacy Policy says so.
+- Arrival and departure times, and the offer to text the next client, come from the job-site areas iOS watches with the app closed, which needs Location set to **Always**. On While Using they worked only because GPS kept running in the background. Starting a route on While Using now asks iOS once for Always, and while it's still While Using the route screen says arrival times are recorded only with PlowR on screen, with a button to Settings.
+
+### Fixed
+- Money owed counts only invoices the client has been billed: sent (or shared with Mark as Sent), paid toward, or a revision of one that was. It applies on the Dashboard, the client list, a client's page, Money Owed, Reports and the business report. A draft nobody had seen counted as owed, so the totals said money was owed that had never been billed. Drafts still show under Drafts, and the Documents tab shows its Drafts tile even when nothing is owed yet.
+- A contract payment invoiced on two devices before they synced (Make Invoices on both) is pointed out: each invoice's page says another bills the same payment, and the Dashboard lists it under Finances, so one can be deleted or voided. The client would otherwise be billed twice. PlowR doesn't remove either itself, since the other device may already have sent its copy or recorded a payment on it.
+- An invoice paid more than its total is listed on the Dashboard too, opening its payments: most likely one payment recorded on two devices, or a real credit owed to the client. Until it's sorted out, the extra counts as money received.
+- The Season Report covers the period you choose from its Share menu (This Year, Last 12 Months, Last Year or All Time), and says which on the report. It always covered everything since the business started, whatever the season. Visits and time on site now come from the Service Log for that period (route visits from before the Service Log aren't in it), money collected from the payments that came in during it, and "Owed now" is what's owed today. A client since removed keeps a row under their name, so the rows add up to the totals. Money is printed to the cent ($1,234.50) instead of rounded to whole dollars, so the report agrees with the invoices, and a long history flows onto more pages instead of running off the first.
+- A service priced by the square foot, at a place with no measured area, started at the rate itself: $0.08 a square foot became an 8-cent price for the whole property, on a new proposal or invoice, in Record Services, and on work recorded from a route or ticked off on the Schedule. It now starts at $0. The proposal builder and Record Services say to enter the price, and Bill Unbilled Work points out each client's jobs with a service at $0, so it isn't billed unseen.
+- VoiceOver: the route screen's Settings button says what it's for (set Location to Always), and the Dashboard's "needs a look" rows no longer read out their decorative icons.
+
+### Internal
+- Pull requests run the full test suite on GitHub Actions again (`.github/workflows/tests.yml`, macOS runner, free for a public repo). Xcode Cloud's monthly hours, shared by every app on the membership, ran out and cancelled every PR's test run. Xcode Cloud keeps Release Flow. The new job reports alongside `CI Tests` until its run time is known; then it becomes the required check (docs/ci.md).
+- The required test check on `main` is GitHub Actions' `Unit tests (iOS)`, in place of Xcode Cloud's `CI Tests`, whose hours ran out. CLAUDE.md, `.claude/app.json` and docs/ci.md say so.
+
 ## [1.6.0] - 2026-10-10
 
 ### Added
