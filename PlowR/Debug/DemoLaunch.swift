@@ -132,6 +132,47 @@ enum DemoLaunch {
         context.insert(quoteLine)
         quote.lineItems = [quoteLine]
         context.insert(quote)
+
+        // A few weeks of finished route work and texts, so a client's page,
+        // Timeline and All Work have something in them.
+        let routeStops = Dictionary(uniqueKeysWithValues: (route.stops ?? []).map { ($0.clientID.uuidString, $0) })
+        let services: [(String, Double)] = [("Plow driveway", 60), ("Salt walkway", 25)]
+        for (clientIndex, client) in clients.enumerated() {
+            let daysBack = [3, 10, 17, 24].prefix(clientIndex == 5 ? 2 : 4)
+            for (visitIndex, back) in daysBack.enumerated() {
+                let key = "demo:\(client.id.uuidString):\(back)"
+                let record = ServiceRecord(operatorID: operatorID, sourceKey: key, source: .route)
+                record.clientID = client.id.uuidString
+                record.propertyID = client.id.uuidString
+                record.clientName = client.name
+                record.propertyAddress = client.address
+                let start = calendar.date(bySettingHour: 8 + clientIndex, minute: 10, second: 0, of: day(-back)) ?? day(-back)
+                let minutes = Double(24 + (clientIndex * 3 + visitIndex * 5) % 17)
+                record.startedAt = start
+                record.arrivedAt = start
+                record.performedAt = start.addingTimeInterval(minutes * 60)
+                record.leftAt = record.performedAt
+                record.minutes = minutes
+                record.routeName = route.name
+                record.stopID = routeStops[client.id.uuidString]?.id.uuidString ?? ""
+                record.lines = (visitIndex % 2 == 0 ? services : [services[0]]).enumerated().map { index, service in
+                    ServiceRecord.Line(serviceID: "demo-\(index)", name: service.0, unitType: "flat", price: service.1)
+                }
+                context.insert(record)
+                client.totalVisits += 1
+                client.totalServiceMinutes += minutes
+                if client.lastServiceDate == nil { client.lastServiceDate = record.performedAt }
+            }
+        }
+        for (client, body) in [(clients[2], "Hi Ellen, your invoice INV-0002 is due Nov 4. Thanks!"),
+                               (clients[1], "Hi Marcus, a friendly reminder that INV-0001 is past due."),
+                               (clients[0], "Hi Dana, we're on our way. See you in about 10 minutes.")] {
+            let text = SentText(clientID: client.id.uuidString, kind: TextLog.Kind.text.rawValue, body: body,
+                                sentAt: day(-2))
+            text.operatorID = operatorID
+            text.clientName = client.name
+            context.insert(text)
+        }
         try? context.save()
     }
 }
