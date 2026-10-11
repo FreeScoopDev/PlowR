@@ -310,6 +310,17 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   is needed in a second place, instead of copying it.
   Status colours (`.red` overdue, `.orange` outstanding, `.purple` comped,
   `.green` done) are system colours on purpose.
+  **1.7 design (Evergreen & Copper, Joe 2026-10-10):** the tokens screens move
+  to are in the same file: surfaces (`ground`, `surface`, `raised`, `line`),
+  text (`ink`, `inkSecondary`), `brand` (forest green), `action` (copper, the
+  one main action per screen), `PlowRColor.Status` (done, scheduled, owed,
+  overdue, lead, void: fill, soft, text) and `PlowRColor.Service` (snow, lawn,
+  landscaping); `PlowRFont` roles (Barlow headings, numbers and buttons,
+  scaling with Dynamic Type; system font for body); `PlowRLayout` spacing
+  `space1`–`space6` and tap targets; `PlowRSymbol`, one SF Symbol per idea.
+  `DesignTokensTests` checks every text-on-background pair at 4.5:1 in light
+  and dark: a new color pair goes in that test. Screens move over one PR at a
+  time; until then they keep the older colors.
 - **The widget reads only the app group `UserDefaults`.** Anything it needs to
   show has to be written by `WidgetDataStore` from the app side; the widget
   never touches SwiftData.

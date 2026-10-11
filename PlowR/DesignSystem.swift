@@ -56,3 +56,212 @@ nonisolated enum PlowRLayout {
     /// Between tiles in a row or grid.
     static let tileSpacing: CGFloat = 8
 }
+
+// MARK: - Evergreen & Copper (the 1.7 design)
+
+// Chosen by Joe on 2026-10-10 from mockups of four schemes: forest green for
+// the brand, copper for the one action that matters on each screen, warm
+// neutrals, and a deep forest green (not black) in dark mode. These are the
+// tokens screens move to one at a time; until a screen does, it keeps its
+// current colors, so adding them changes nothing on screen.
+nonisolated extension PlowRColor {
+    /// A color with a light and a dark appearance.
+    static func adaptive(_ light: UInt32, _ dark: UInt32) -> UIColor {
+        UIColor { $0.userInterfaceStyle == .dark ? rgb(dark) : rgb(light) }
+    }
+
+    static func rgb(_ hex: UInt32) -> UIColor {
+        UIColor(red: CGFloat((hex >> 16) & 0xFF) / 255, green: CGFloat((hex >> 8) & 0xFF) / 255,
+                blue: CGFloat(hex & 0xFF) / 255, alpha: 1)
+    }
+
+    // Surfaces, back to front.
+    static let groundUIColor = adaptive(0xF5F2EC, 0x0D1813)
+    static let surfaceUIColor = adaptive(0xFFFFFF, 0x15251D)
+    static let raisedUIColor = adaptive(0xEAE5DB, 0x1E3328)
+    static let lineUIColor = adaptive(0xDDD6CA, 0x284034)
+
+    // Text.
+    static let inkUIColor = adaptive(0x17201B, 0xEEF1EC)
+    static let inkSecondaryUIColor = adaptive(0x5B635D, 0xA3AEA6)
+
+    /// Forest green: the brand, navigation, the client avatar.
+    static let brandUIColor = adaptive(0x1F4D3A, 0x9CCFB3)
+    static let onBrandUIColor = adaptive(0xFFFFFF, 0x0D1813)
+
+    /// Copper: the one main action on a screen (Complete Stop, Resume Route,
+    /// Invoice). Brighter in dark mode, so it stays the brightest thing there.
+    static let actionUIColor = adaptive(0xA85A22, 0xE0954F)
+    static let onActionUIColor = adaptive(0xFFFFFF, 0x1C0E03)
+    /// A copper-tinted background, and the text that goes on it.
+    static let actionSoftUIColor = adaptive(0xF4E1D2, 0x3A2715)
+    static let actionTextUIColor = adaptive(0x7E4318, 0xF0B27A)
+
+    static let ground = Color(groundUIColor)
+    static let surface = Color(surfaceUIColor)
+    static let raised = Color(raisedUIColor)
+    static let line = Color(lineUIColor)
+    static let ink = Color(inkUIColor)
+    static let inkSecondary = Color(inkSecondaryUIColor)
+    static let brand = Color(brandUIColor)
+    static let onBrand = Color(onBrandUIColor)
+    static let action = Color(actionUIColor)
+    static let onAction = Color(onActionUIColor)
+    static let actionSoft = Color(actionSoftUIColor)
+    static let actionText = Color(actionTextUIColor)
+
+    /// What state a thing is in: one meaning per color, the same in every
+    /// scheme and on every screen. A chip always says its word too, so color
+    /// is never the only signal.
+    nonisolated enum Status: CaseIterable {
+        case done, scheduled, owed, overdue, lead, void
+
+        /// For dots, bars and map pins.
+        var fillUIColor: UIColor {
+            switch self {
+            case .done: adaptive(0x2F7D4F, 0x6CCB8E)
+            case .scheduled: adaptive(0x2B6CB0, 0x7FB2EA)
+            case .owed: adaptive(0xB7791F, 0xF2B94B)
+            case .overdue: adaptive(0xC53030, 0xF28B8B)
+            case .lead: adaptive(0x6B46C1, 0xB49AF0)
+            case .void: adaptive(0x6B7280, 0x9CA3AF)
+            }
+        }
+
+        /// A chip's background.
+        var softUIColor: UIColor {
+            switch self {
+            case .done: adaptive(0xE3F2E8, 0x16301F)
+            case .scheduled: adaptive(0xE1ECF8, 0x152B44)
+            case .owed: adaptive(0xFBF0DB, 0x3A2C12)
+            case .overdue: adaptive(0xFBE3E3, 0x3D1C1C)
+            case .lead: adaptive(0xECE5F8, 0x2A2140)
+            case .void: adaptive(0xEDEEF0, 0x262B33)
+            }
+        }
+
+        /// A chip's text, and an amount shown in this state.
+        var textUIColor: UIColor {
+            switch self {
+            case .done: adaptive(0x22603B, 0x8FDDA9)
+            case .scheduled: adaptive(0x24578F, 0xA5CAF2)
+            case .owed: adaptive(0x8A5A10, 0xF6CD7A)
+            case .overdue: adaptive(0xA62626, 0xF6AAAA)
+            case .lead: adaptive(0x5A3AA8, 0xC4B0F5)
+            case .void: adaptive(0x4B5260, 0xC3C8D0)
+            }
+        }
+
+        var fill: Color { Color(fillUIColor) }
+        var soft: Color { Color(softUIColor) }
+        var text: Color { Color(textUIColor) }
+    }
+
+    /// The kind of work: tags and map pins. White text on each.
+    nonisolated enum Service: CaseIterable {
+        case snow, lawn, landscaping
+
+        var fillUIColor: UIColor {
+            switch self {
+            case .snow: rgb(0x2F6F98)
+            case .lawn: rgb(0x3F7D23)
+            case .landscaping: rgb(0x8A5A2B)
+            }
+        }
+
+        var fill: Color { Color(fillUIColor) }
+    }
+}
+
+// MARK: - Type
+
+/// Text roles. Headings, numbers and buttons are Barlow (Joe, 2026-10-10:
+/// tall, clear, made for reading at a glance); body text stays the system
+/// font. Every role scales with the user's text size (`relativeTo`), and
+/// falls back to the system font, same weight, when Barlow isn't bundled.
+nonisolated enum PlowRFont {
+    enum Weight: String {
+        case medium = "Barlow-Medium", semibold = "Barlow-SemiBold", bold = "Barlow-Bold", extraBold = "Barlow-ExtraBold"
+
+        var system: Font.Weight {
+            switch self {
+            case .medium: .medium
+            case .semibold: .semibold
+            case .bold: .bold
+            case .extraBold: .heavy
+            }
+        }
+    }
+
+    /// Whether the Barlow files are in the app (registered in Info.plist).
+    static let isBarlowAvailable = UIFont(name: Weight.bold.rawValue, size: 12) != nil
+
+    /// Barlow at `size`, scaling with `style`; the system font if Barlow is missing.
+    static func barlow(_ weight: Weight, size: CGFloat, relativeTo style: Font.TextStyle) -> Font {
+        isBarlowAvailable
+            ? .custom(weight.rawValue, size: size, relativeTo: style)
+            : .system(style, weight: weight.system)
+    }
+
+    /// A screen's own title.
+    static let screenTitle = barlow(.bold, size: 32, relativeTo: .largeTitle)
+    /// A card or section title: a client's or a route's name.
+    static let title = barlow(.bold, size: 22, relativeTo: .title2)
+    /// The current stop's name on the route screen.
+    static let stopName = barlow(.extraBold, size: 26, relativeTo: .title)
+    /// A big figure at a glance: minutes to the next stop, a total owed.
+    static let bigNumber = barlow(.extraBold, size: 40, relativeTo: .largeTitle)
+    /// A figure in a row or tile: an amount, a count, a time.
+    static let number = barlow(.semibold, size: 17, relativeTo: .headline)
+    /// A button's label.
+    static let button = barlow(.bold, size: 17, relativeTo: .headline)
+    /// A small uppercase label over a section ("NEXT UP"); never smaller than footnote.
+    static let label = barlow(.semibold, size: 13, relativeTo: .footnote)
+}
+
+// MARK: - Spacing and touch
+
+nonisolated extension PlowRLayout {
+    /// The spacing scale: every gap and inset is one of these.
+    static let space1: CGFloat = 4
+    static let space2: CGFloat = 8
+    static let space3: CGFloat = 12
+    static let space4: CGFloat = 16
+    static let space6: CGFloat = 24
+
+    /// Apple's minimum tap target.
+    static let minTapTarget: CGFloat = 44
+    /// The main buttons on the route screen: big enough for gloves.
+    static let gloveTapTarget: CGFloat = 56
+}
+
+// MARK: - Icons
+
+/// One SF Symbol per idea, so the same thing looks the same everywhere (the
+/// audit found four symbols for "route" and six for "invoice"). Filled in tab
+/// bars, tiles and primary buttons; screens take `.fill` off for list rows.
+nonisolated enum PlowRSymbol {
+    static let home = "house.fill"
+    static let client = "person.2.fill"
+    static let addClient = "person.badge.plus"
+    static let route = "point.topleft.down.to.point.bottomright.curvepath"
+    static let document = "doc.text.fill"
+    static let invoice = "doc.text.fill"
+    static let proposal = "doc.richtext.fill"
+    static let contract = "signature"
+    static let payment = "dollarsign.circle.fill"
+    static let schedule = "calendar"
+    static let weather = "cloud.sun.fill"
+    static let snow = "snowflake"
+    static let navigate = "arrow.triangle.turn.up.right.circle.fill"
+    static let call = "phone.fill"
+    static let text = "message.fill"
+    static let email = "envelope.fill"
+    static let complete = "checkmark.circle.fill"
+    static let settings = "gearshape.fill"
+    static let pro = "star.circle.fill"
+    static let warning = "exclamationmark.triangle.fill"
+
+    static let all = [home, client, addClient, route, document, invoice, proposal, contract, payment, schedule,
+                      weather, snow, navigate, call, text, email, complete, settings, pro, warning]
+}
