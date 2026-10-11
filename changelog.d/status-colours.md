@@ -5,3 +5,5 @@
   pins, the Season Report's bars, a client's quick actions, the day
   pickers and message presets were still blue, orange, purple and teal,
   each meaning something different from screen to screen.
+  The Schedule's list of visits that slipped by is headed "Past Due"
+  rather than "Overdue": red "overdue" is for money that's late.

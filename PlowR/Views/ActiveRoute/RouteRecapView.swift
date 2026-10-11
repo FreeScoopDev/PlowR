@@ -158,7 +158,8 @@ struct RouteRecapView: View {
                 .shadow(color: .black.opacity(0.25), radius: 2, x: 0, y: 1)
             Image(systemName: isDone ? "checkmark" : "minus")
                 .font(.system(size: 8, weight: .bold))
-                .foregroundStyle(.white)
+                // Readable on each fill in both modes (white measured ~2:1).
+                .foregroundStyle(isDone ? PlowRColor.onBrand : PlowRColor.ink)
         }
     }
 

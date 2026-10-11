@@ -21,7 +21,6 @@ struct WeekdayPicker: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(Calendar(identifier: .gregorian).standaloneWeekdaySymbols[weekday - 1])
-                .accessibilityAddTraits(selected ? .isSelected : [])
                 if weekday < 7 { Spacer() }
             }
         }
