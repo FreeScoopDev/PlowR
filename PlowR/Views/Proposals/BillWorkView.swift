@@ -82,10 +82,9 @@ struct BillWorkView: View {
                         Text(chosen.isEmpty ? "Choose Clients to Bill"
                              : "Create \(chosen.count) Draft Invoice\(chosen.count == 1 ? "" : "s") · "
                                 + total.formatted(.currency(code: "USD")))
-                            .font(.headline)
                             .frame(maxWidth: .infinity)
                     }
-                    .primaryActionStyle(.blue)
+                    .buttonStyle(.plowRAction)
                     .disabled(chosen.isEmpty)
                     .padding()
                     .background(.bar)

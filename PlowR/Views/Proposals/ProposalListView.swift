@@ -186,14 +186,14 @@ struct ProposalListView: View {
                     StatTile(
                         value: outstandingTotal.formatted(.currency(code: "USD").precision(.fractionLength(0))),
                         label: "Outstanding",
-                        color: .orange
+                        status: .owed
                     )
                 }
                 if overdueCount > 0 {
-                    StatTile(value: "\(overdueCount)", label: "Overdue", color: .red)
+                    StatTile(value: "\(overdueCount)", label: "Overdue", status: overdueCount > 0 ? .overdue : nil)
                 }
                 if draftCount > 0 {
-                    StatTile(value: "\(draftCount)", label: "Drafts", color: .blue)
+                    StatTile(value: "\(draftCount)", label: "Drafts")
                 }
             }
             .listRowBackground(Color.clear)

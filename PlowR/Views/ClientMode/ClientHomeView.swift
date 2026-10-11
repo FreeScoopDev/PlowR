@@ -141,7 +141,7 @@ struct ClientHomeView: View {
                     .fontWeight(.semibold)
                     .lineLimit(1)
                 HStack(spacing: 6) {
-                    StatusChip(order.category, color: .blue)
+                    StatusChip(order.category, status: .scheduled)
                     Text(order.submittedAt.formatted(date: .abbreviated, time: .omitted))
                         .font(.caption)
                         .foregroundStyle(.secondary)

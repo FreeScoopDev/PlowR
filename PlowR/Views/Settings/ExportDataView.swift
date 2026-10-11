@@ -33,7 +33,7 @@ struct ExportDataView: View {
                 ForEach(files) { export in
                     ShareLink(item: export.url) {
                         HStack(spacing: 12) {
-                            IconBadge(systemImage: export.systemImage, color: .blue, size: 36)
+                            IconBadge(systemImage: export.systemImage, size: 36)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(export.title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
                                 Text(export.detail).font(.caption).foregroundStyle(.secondary)

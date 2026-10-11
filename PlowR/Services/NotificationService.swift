@@ -40,6 +40,9 @@ final class NotificationService {
     }
 
     func requestAuthorization() {
+        #if DEBUG
+        if DemoLaunch.isOn { return }     // no system alert over a screenshot
+        #endif
         UNUserNotificationCenter.current().requestAuthorization(
             options: [.alert, .badge, .sound]
         ) { _, _ in }

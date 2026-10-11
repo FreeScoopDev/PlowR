@@ -259,10 +259,9 @@ struct NotifyPromptView: View {
                     showingMessageComposer = true
                 } label: {
                     Label("Send Message", systemImage: "message.fill")
-                        .font(.headline)
                         .frame(maxWidth: .infinity)
                 }
-                .primaryActionStyle(.blue)
+                .buttonStyle(.plowRAction)
             } else {
                 Text("Texting isn't available on this device.")
                     .font(.subheadline)
@@ -274,10 +273,9 @@ struct NotifyPromptView: View {
                 dismiss()
             } label: {
                 Text("Skip")
-                    .font(.headline)
                     .frame(maxWidth: .infinity)
             }
-            .secondaryActionStyle()
+            .buttonStyle(.plowRSecondary)
         }
         .padding(.horizontal)
         .padding(.bottom, 16)

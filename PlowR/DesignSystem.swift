@@ -31,15 +31,13 @@ nonisolated enum PlowRColor {
     static let navyUIColor = UIColor(red: 0.118, green: 0.227, blue: 0.541, alpha: 1)
     static let navy = Color(navyUIColor)
 
-    /// The app's tint: navy in light mode, a brighter blue in dark mode so it
-    /// stays readable on dark backgrounds.
-    static let accentUIColor = UIColor { traits in
-        traits.userInterfaceStyle == .dark ? accentDarkUIColor : navyUIColor
-    }
-    static let accent = Color(accentUIColor)
-
-    /// The accent's dark-mode colour: a brighter blue, readable on dark backgrounds.
-    static let accentDarkUIColor = UIColor(red: 0.53, green: 0.70, blue: 1.00, alpha: 1)
+    /// The app's tint: links, toggles, the tab bar, navigation. Forest green,
+    /// the brand (`brandUIColor`), since 1.7 (Joe, 2026-10-11); it was navy,
+    /// with a brighter blue in dark mode. Navy stays the default colour of a
+    /// business's own documents (`navyHex`). The asset catalog's AccentColor
+    /// holds the same two colours, for `Color.accentColor`.
+    static var accentUIColor: UIColor { brandUIColor }
+    static var accent: Color { brand }
 }
 
 /// Shared sizes, so the same kind of element is drawn the same way on every
@@ -115,6 +113,8 @@ nonisolated extension PlowRColor {
     /// is never the only signal.
     nonisolated enum Status: CaseIterable {
         case done, scheduled, owed, overdue, lead, void
+        /// Nothing to flag: a draft, a zero, an inactive place.
+        case neutral
 
         /// For dots, bars and map pins.
         var fillUIColor: UIColor {
@@ -125,6 +125,7 @@ nonisolated extension PlowRColor {
             case .overdue: adaptive(0xC53030, 0xF28B8B)
             case .lead: adaptive(0x6B46C1, 0xB49AF0)
             case .void: adaptive(0x6B7280, 0x9CA3AF)
+            case .neutral: adaptive(0x7A817C, 0x8E9A92)
             }
         }
 
@@ -137,6 +138,7 @@ nonisolated extension PlowRColor {
             case .overdue: adaptive(0xFBE3E3, 0x3D1C1C)
             case .lead: adaptive(0xECE5F8, 0x2A2140)
             case .void: adaptive(0xEDEEF0, 0x262B33)
+            case .neutral: raisedUIColor
             }
         }
 
@@ -149,6 +151,7 @@ nonisolated extension PlowRColor {
             case .overdue: adaptive(0xA62626, 0xF6AAAA)
             case .lead: adaptive(0x5A3AA8, 0xC4B0F5)
             case .void: adaptive(0x4B5260, 0xC3C8D0)
+            case .neutral: inkSecondaryUIColor
             }
         }
 

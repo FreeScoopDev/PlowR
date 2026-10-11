@@ -95,19 +95,18 @@ struct ClientStatsView: View {
             StatTileRow {
                 StatTile(
                     value: "\(totalVisits)",
-                    label: "Visits",
-                    color: .blue
+                    label: "Visits"
                 )
                 StatTile(
                     value: totalRevenue == 0 ? "$0" : totalRevenue.formatted(.currency(code: "USD").precision(.fractionLength(0))),
                     label: "Revenue",
-                    color: .green
+                    status: .done
                 )
                 // Outstanding is orange everywhere (red is for overdue).
                 StatTile(
                     value: totalOutstanding == 0 ? "$0" : totalOutstanding.formatted(.currency(code: "USD").precision(.fractionLength(0))),
                     label: "Outstanding",
-                    color: totalOutstanding > 0 ? .orange : .secondary
+                    status: totalOutstanding > 0 ? .owed : nil
                 )
             }
             .listRowBackground(Color.clear)
@@ -233,7 +232,7 @@ struct ClientStatsView: View {
                     }
                 }
                 Spacer()
-                StatusChip("\(client.totalVisits) visit\(client.totalVisits == 1 ? "" : "s")", color: .blue)
+                StatusChip("\(client.totalVisits) visit\(client.totalVisits == 1 ? "" : "s")", status: .neutral)
             }
             HStack(spacing: 12) {
                 if let last = client.lastServiceDate {

@@ -156,13 +156,13 @@ struct ServiceRecordStatusChip: View {
     let status: ServiceLog.BillingStatus
 
     var body: some View {
-        let (text, colour): (String, Color) = switch status {
-        case .invoiced: ("Invoiced", .green)
-        case .notTracked: ("Billing Not Tracked", .gray)
-        case .noCharge: ("No Charge", .purple)
-        case .covered: ("Covered by Contract", .teal)
-        case .notBilled: ("Not Billed", .orange)
+        let (text, tone): (String, PlowRColor.Status) = switch status {
+        case .invoiced: ("Invoiced", .done)
+        case .notTracked: ("Billing Not Tracked", .neutral)
+        case .noCharge: ("No Charge", .neutral)
+        case .covered: ("Covered by Contract", .scheduled)
+        case .notBilled: ("Not Billed", .owed)
         }
-        StatusChip(text, color: colour)
+        StatusChip(text, status: tone)
     }
 }

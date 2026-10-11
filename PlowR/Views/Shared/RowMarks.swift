@@ -1,14 +1,15 @@
 import SwiftUI
 
 /// The coloured bar down the left of a list row (a client's, a document's, a
-/// visit's), saying its status at a glance. One size everywhere: the
-/// Schedule's used to be shorter than the others.
+/// visit's), saying its status at a glance, in the status's fill colour
+/// (`PlowRColor.Status`), or forest green with nothing to flag. One size
+/// everywhere: the Schedule's used to be shorter than the others.
 struct AccentBar: View {
-    let color: Color
+    let status: PlowRColor.Status?
 
     var body: some View {
         Capsule()
-            .fill(color)
+            .fill(status?.fill ?? PlowRColor.brand)
             .frame(width: 4, height: 48)
     }
 }

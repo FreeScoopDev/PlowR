@@ -9,7 +9,7 @@ struct ProposalRowView: View {
     var body: some View {
         HStack(spacing: 12) {
             // Left accent bar — mirrors the visit row pattern
-            AccentBar(color: status.chipColor)
+            AccentBar(status: status.chipStatus)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(proposal.clientName)
@@ -46,7 +46,7 @@ struct ProposalRowView: View {
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(.primary)
 
-                StatusChip(status.rawValue, systemImage: status.systemImage, color: status.chipColor)
+                StatusChip(status.rawValue, systemImage: status.systemImage, status: status.chipStatus)
 
                 // Paid in part: what's still owed.
                 BalanceDueCaption(document: proposal)
@@ -55,7 +55,7 @@ struct ProposalRowView: View {
                     let daysLeft = Calendar.current.dateComponents([.day], from: Calendar.current.startOfDay(for: Date()), to: expiry).day ?? Int.max
                     if daysLeft >= 0 && daysLeft <= 3 {
                         StatusChip(daysLeft == 0 ? "Expires today" : "Expires in \(daysLeft)d",
-                                   systemImage: "clock.badge.exclamationmark", color: .orange)
+                                   systemImage: "clock.badge.exclamationmark", status: .owed)
                     }
                 }
             }

@@ -8,11 +8,11 @@ struct AddressNotFoundLabel: View {
     var detail: String?
 
     static let symbol = "mappin.slash"
-    static let color = Color.orange
+    static let status = PlowRColor.Status.owed
     static let short = "Address not found on the map"
 
     var body: some View {
         Label(detail ?? Self.short, systemImage: Self.symbol)
-            .foregroundStyle(Self.color)
+            .foregroundStyle(Self.status.text)
     }
 }

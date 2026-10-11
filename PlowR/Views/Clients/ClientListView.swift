@@ -123,7 +123,7 @@ struct ClientListView: View {
                 NavigationLink { PipelineView() } label: {
                     let followUps = entries.filter(\.needsFollowUp).count
                     LabeledContent {
-                        if followUps > 0 { StatusChip("\(followUps) to follow up", color: .orange) }
+                        if followUps > 0 { StatusChip("\(followUps) to follow up", status: .owed) }
                     } label: {
                         Label("Pipeline", systemImage: "person.crop.circle.badge.plus")
                         let leads = entries.filter { $0.stage == .lead }.count
@@ -323,21 +323,20 @@ struct ClientListView: View {
             StatTileRow {
                 StatTile(
                     value: "\(myClients.filter { $0.isActive }.count)",
-                    label: "Active",
-                    color: .blue
+                    label: "Active"
                 )
                 if totalOutstanding > 0 {
                     StatTile(
                         value: totalOutstanding.formatted(.currency(code: "USD").precision(.fractionLength(0))),
                         label: "Outstanding",
-                        color: .orange
+                        status: .owed
                     )
                 }
                 if totalCollected > 0 {
                     StatTile(
                         value: totalCollected.formatted(.currency(code: "USD").precision(.fractionLength(0))),
                         label: "Collected",
-                        color: .green
+                        status: .done
                     )
                 }
             }
@@ -449,16 +448,18 @@ struct ClientRowView: View {
     var isOverdue: Bool = false
     var onVisitTap: (() -> Void)? = nil
 
-    private var accentColor: Color {
-        if isOverdue { return .red }
-        if outstandingBalance > 0 { return .orange }
-        if client.isComped { return .purple }
-        return PlowRColor.navy
+    /// Late money red, money owed amber, a comped client plain, otherwise
+    /// the brand (`PlowRColor.Status`).
+    private var accentStatus: PlowRColor.Status? {
+        if isOverdue { return .overdue }
+        if outstandingBalance > 0 { return .owed }
+        if client.isComped { return .neutral }
+        return nil
     }
 
     var body: some View {
         HStack(spacing: 12) {
-            AccentBar(color: accentColor)
+            AccentBar(status: accentStatus)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(client.name)
@@ -518,10 +519,10 @@ struct ClientRowView: View {
     private var badgeRow: some View {
         HStack(spacing: 4) {
             if client.isComped {
-                badge("COMP", color: .purple)
+                badge("COMP", status: .neutral)
             }
             if !client.preferredPayment.isEmpty {
-                badge(client.preferredPayment.capitalized, color: .blue)
+                badge(client.preferredPayment.capitalized, status: .neutral)
             }
             if client.skipNotificationPrompt {
                 Image(systemName: "bell.slash.fill")
@@ -529,15 +530,15 @@ struct ClientRowView: View {
                     .foregroundStyle(.secondary)
             }
             if isOverdue {
-                badge("Overdue", color: .red)
+                badge("Overdue", status: .overdue)
             } else if outstandingBalance > 0 {
-                badge(String(format: "$%.0f due", outstandingBalance), color: .orange)
+                badge(String(format: "$%.0f due", outstandingBalance), status: .owed)
             }
         }
     }
 
-    private func badge(_ label: String, color: Color) -> some View {
-        StatusChip(label, color: color)
+    private func badge(_ label: String, status: PlowRColor.Status) -> some View {
+        StatusChip(label, status: status)
     }
 }
 

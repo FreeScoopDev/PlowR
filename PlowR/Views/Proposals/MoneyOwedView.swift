@@ -26,7 +26,7 @@ struct MoneyOwedView: View {
                     ForEach(MoneyOwed.Age.allCases) { age in
                         LabeledContent(age.title) {
                             Text(summary.byAge[age] ?? 0, format: .currency(code: "USD"))
-                                .foregroundStyle((summary.byAge[age] ?? 0) > 0 ? color(age) : .secondary)
+                                .foregroundStyle((summary.byAge[age] ?? 0) > 0 ? status(age).text : PlowRColor.inkSecondary)
                         }
                     }
                 } footer: {
@@ -54,7 +54,7 @@ struct MoneyOwedView: View {
                                 VStack(alignment: .trailing, spacing: 2) {
                                     Text(client.owed, format: .currency(code: "USD")).fontWeight(.semibold)
                                     if client.oldest != .notDue {
-                                        StatusChip(client.oldest.title, color: color(client.oldest))
+                                        StatusChip(client.oldest.title, status: status(client.oldest))
                                     }
                                 }
                             }
@@ -68,7 +68,7 @@ struct MoneyOwedView: View {
     }
 
     // Outstanding is orange, overdue red (the status colours).
-    private func color(_ age: MoneyOwed.Age) -> Color {
-        age == .notDue ? .orange : .red
+    private func status(_ age: MoneyOwed.Age) -> PlowRColor.Status {
+        age == .notDue ? .owed : .overdue
     }
 }

@@ -89,7 +89,7 @@ struct PipelineView: View {
                 Text(total, format: .currency(code: "USD")).font(.subheadline)
             }
             if entry.needsFollowUp, let days = entry.waitingDays {
-                StatusChip("\(days)d", systemImage: "clock", color: .orange)
+                StatusChip("\(days)d", systemImage: "clock", status: .owed)
             }
         }
     }

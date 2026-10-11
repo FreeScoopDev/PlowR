@@ -48,7 +48,7 @@ struct ClientTimelineView: View {
     @ViewBuilder
     private func row(_ event: ClientTimeline.Event) -> some View {
         let content = HStack(spacing: 12) {
-            IconBadge(systemImage: symbol(event.kind), color: color(event.kind), size: 32)
+            IconBadge(systemImage: symbol(event.kind), status: status(event.kind), size: 32)
             VStack(alignment: .leading, spacing: 2) {
                 Text(event.title).font(.subheadline.weight(.semibold)).lineLimit(2)
                 Text(subtitle(event)).font(.caption).foregroundStyle(.secondary)
@@ -116,13 +116,14 @@ struct ClientTimelineView: View {
 
     // Status colours as elsewhere: green done or paid, orange outstanding or
     // missed, red cancelled.
-    private func color(_ kind: ClientTimelineKind) -> Color {
+    /// Done green, needing attention amber, cancelled grey; anything else
+    /// the brand (`PlowRColor.Status`).
+    private func status(_ kind: ClientTimelineKind) -> PlowRColor.Status? {
         switch kind {
-        case .job, .invoicePaid, .payment: .green
-        case .upcomingVisit, .quote, .invoiceMade, .text: .blue
-        case .missedVisit, .skippedVisit, .invoiceSent: .orange
-        case .cancelledVisit: .red
-        case .photos: .teal
+        case .job, .invoicePaid, .payment: .done
+        case .upcomingVisit, .quote, .invoiceMade, .text, .photos: nil
+        case .missedVisit, .skippedVisit, .invoiceSent: .owed
+        case .cancelledVisit: .void
         }
     }
 }

@@ -308,9 +308,9 @@ struct DashboardView: View {
         VStack(alignment: .leading, spacing: 8) {
             sectionHeader("Today", icon: "calendar",
                           badge: todayVisits.isEmpty ? nil : "\(todayVisits.count)",
-                          badgeColor: .blue)
+                          badgeStatus: .scheduled)
 
-            DashCard {
+            PlowRCard {
                 if todayVisits.isEmpty {
                     emptyRow("No visits scheduled today", icon: "calendar.badge.plus")
                 } else {
@@ -355,7 +355,7 @@ struct DashboardView: View {
         HStack(spacing: 12) {
             Image(systemName: "calendar.circle.fill")
                 .font(.title3)
-                .foregroundStyle(visit.status.chipColor)
+                .foregroundStyle(visit.status.chipStatus.fill)
                 .frame(width: 28)
             VStack(alignment: .leading, spacing: 1) {
                 Text(visit.clientName).font(.subheadline.weight(.medium)).lineLimit(1)
@@ -377,7 +377,7 @@ struct DashboardView: View {
         VStack(alignment: .leading, spacing: 8) {
             sectionHeader("Finances", icon: "dollarsign.circle",
                           badge: overdueCount > 0 ? "\(overdueCount) overdue" : nil,
-                          badgeColor: .red)
+                          badgeStatus: .overdue)
             StatTileRow {
                 // Outstanding opens what's owed by how late it is.
                 NavigationLink {
@@ -386,7 +386,7 @@ struct DashboardView: View {
                     StatTile(
                         value: outstandingBalance.formatted(.currency(code: "USD").precision(.fractionLength(0))),
                         label: "Outstanding",
-                        color: outstandingBalance > 0 ? .orange : .secondary
+                        status: outstandingBalance > 0 ? .owed : nil
                     )
                 }
                 .buttonStyle(.plain)
@@ -395,7 +395,7 @@ struct DashboardView: View {
                     ProposalListView(initialFilter: .overdue)
                 } label: {
                     StatTile(value: "\(overdueCount)", label: "Overdue",
-                             color: overdueCount > 0 ? .red : .secondary)
+                             status: overdueCount > 0 ? .overdue : nil)
                 }
                 .buttonStyle(.plain)
 
@@ -403,7 +403,7 @@ struct DashboardView: View {
                     ProposalListView(initialFilter: .draft)
                 } label: {
                     StatTile(value: "\(draftCount)", label: "Drafts",
-                             color: draftCount > 0 ? .blue : .secondary)
+                             status: nil)
                 }
                 .buttonStyle(.plain)
             }
@@ -423,7 +423,7 @@ struct DashboardView: View {
         let billedTwice = ContractInstallments.duplicates(myProposals, operatorID: authManager.userID)
         let overpaid = Payments.overpaid(myProposals)
         if !billedTwice.isEmpty || !overpaid.isEmpty {
-            DashCard {
+            PlowRCard {
                 if let first = billedTwice.first {
                     NavigationLink { ProposalDetailView(proposal: first) } label: {
                         needsALookRow(billedTwice.count == 1 ? "1 contract payment billed twice"
@@ -447,7 +447,7 @@ struct DashboardView: View {
 
     private func needsALookRow(_ title: String, detail: String) -> some View {
         HStack(spacing: 12) {
-            IconBadge(systemImage: "exclamationmark.triangle.fill", color: .orange)
+            IconBadge(systemImage: "exclamationmark.triangle.fill", status: .owed)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
@@ -472,10 +472,10 @@ struct DashboardView: View {
         if !due.isEmpty || !ready.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 sectionHeader("Contract Payments", icon: "doc.text")
-                DashCard {
+                PlowRCard {
                     if !due.isEmpty {
                         HStack(spacing: 12) {
-                            IconBadge(systemImage: "calendar.badge.clock", color: .orange)
+                            IconBadge(systemImage: "calendar.badge.clock", status: .owed)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(due.count == 1 ? "1 payment due" : "\(due.count) payments due")
                                     .font(.subheadline.weight(.semibold))
@@ -497,7 +497,7 @@ struct DashboardView: View {
                         if !due.isEmpty { Divider().padding(.leading, 14) }
                         NavigationLink { ProposalListView(initialFilter: .draft) } label: {
                             HStack(spacing: 12) {
-                                IconBadge(systemImage: "doc.text.fill", color: .blue)
+                                IconBadge(systemImage: "doc.text.fill")
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(ready.count == 1 ? "1 invoice ready to send" : "\(ready.count) invoices ready to send")
                                         .font(.subheadline.weight(.semibold))
@@ -534,21 +534,21 @@ struct DashboardView: View {
             let followUps = entries.filter(\.needsFollowUp).count
             VStack(alignment: .leading, spacing: 8) {
                 sectionHeader("Pipeline", icon: "person.crop.circle.badge.plus",
-                              badge: followUps > 0 ? "\(followUps) to follow up" : nil, badgeColor: .orange)
+                              badge: followUps > 0 ? "\(followUps) to follow up" : nil, badgeStatus: .owed)
                 let leads = entries.filter { $0.stage == .lead }.count
                 let quoted = entries.filter { $0.stage == .quoted }.count
                 // Each its own link to the Pipeline, and zero in grey, as the finance tiles.
                 StatTileRow {
                     NavigationLink { PipelineView() } label: {
-                        StatTile(value: "\(leads)", label: "Leads", color: leads > 0 ? .blue : .secondary)
+                        StatTile(value: "\(leads)", label: "Leads", status: leads > 0 ? .lead : nil)
                     }
                     .buttonStyle(.plain)
                     NavigationLink { PipelineView() } label: {
-                        StatTile(value: "\(quoted)", label: "Quoted", color: quoted > 0 ? .blue : .secondary)
+                        StatTile(value: "\(quoted)", label: "Quoted", status: quoted > 0 ? .scheduled : nil)
                     }
                     .buttonStyle(.plain)
                     NavigationLink { PipelineView() } label: {
-                        StatTile(value: "\(followUps)", label: "Follow Up", color: followUps > 0 ? .orange : .secondary)
+                        StatTile(value: "\(followUps)", label: "Follow Up", status: followUps > 0 ? .owed : nil)
                     }
                     .buttonStyle(.plain)
                 }
@@ -562,7 +562,7 @@ struct DashboardView: View {
         VStack(alignment: .leading, spacing: 8) {
             sectionHeader("Routes", icon: "map")
 
-            DashCard {
+            PlowRCard {
                 if recentRoutes.isEmpty {
                     emptyRow("No routes yet", icon: "point.topleft.down.to.point.bottomright.curvepath")
                 } else {
@@ -612,7 +612,7 @@ struct DashboardView: View {
     private var upcomingCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             sectionHeader("Coming Up", icon: "calendar.badge.clock")
-            DashCard {
+            PlowRCard {
                 ForEach(Array(upcomingVisits.enumerated()), id: \.element.id) { i, visit in
                     if i > 0 { Divider().padding(.leading, Self.dateRowTextInset) }
                     let client = allClients.first { $0.id.uuidString == visit.clientID }
@@ -716,12 +716,12 @@ struct DashboardView: View {
     // MARK: - Shared Helpers
 
     private func sectionHeader(_ title: String, icon: String,
-                                badge: String? = nil, badgeColor: Color = .orange) -> some View {
+                                badge: String? = nil, badgeStatus: PlowRColor.Status = .owed) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             Label(title, systemImage: icon)
                 .font(.subheadline.weight(.semibold))
             if let badge {
-                StatusChip(badge, color: badgeColor)
+                StatusChip(badge, status: badgeStatus)
             }
             Spacer()
         }
@@ -733,18 +733,6 @@ struct DashboardView: View {
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(14)
-    }
-}
-
-// MARK: - Card Container
-
-/// A Dashboard card's container; the storm card uses it too.
-struct DashCard<Content: View>: View {
-    @ViewBuilder let content: Content
-    var body: some View {
-        VStack(spacing: 0) { content }
-            .background(Color(.secondarySystemGroupedBackground))
-            .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
     }
 }
 

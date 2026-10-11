@@ -669,9 +669,9 @@ struct EditClientView: View {
                         }
                         Spacer()
                         if property.needsAddressFix {
-                            StatusChip("Address not found", systemImage: AddressNotFoundLabel.symbol, color: AddressNotFoundLabel.color)
+                            StatusChip("Address not found", systemImage: AddressNotFoundLabel.symbol, status: AddressNotFoundLabel.status)
                         }
-                        if !property.isActive { StatusChip("Inactive", color: .gray) }
+                        if !property.isActive { StatusChip("Inactive", status: .neutral) }
                     }
                 }
             }
@@ -811,7 +811,7 @@ struct EditClientView: View {
                 .buttonStyle(.bordered)
                 .controlSize(.small)
             } label: {
-                StatusChip(stage.title, color: stage == .lost ? .gray : .blue)
+                StatusChip(stage.title, status: stage == .lost ? .void : .lead)
             }
         }
     }
@@ -949,7 +949,7 @@ struct EditClientView: View {
                         Spacer()
                         Label(visit.status.rawValue, systemImage: visit.status.systemImage)
                             .font(.caption2)
-                            .foregroundStyle(visit.status.chipColor)
+                            .foregroundStyle(visit.status.chipStatus.fill)
                     }
                 }
             }
@@ -1008,9 +1008,9 @@ struct EditClientView: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 5) {
                     StatusChip(document.invoiceStatus.rawValue, systemImage: document.invoiceStatus.systemImage,
-                               color: document.invoiceStatus.chipColor)
+                               status: document.invoiceStatus.chipStatus)
                     if !document.revisionOf.isEmpty {
-                        StatusChip("Revision", color: .orange)
+                        StatusChip("Revision", status: .scheduled)
                     }
                 }
                 Text(document.isInvoice
