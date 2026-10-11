@@ -36,21 +36,22 @@ nonisolated enum InvoiceLines {
     /// `amount` in whole cents, rounded half away from zero. The one rounding
     /// rule for money here. Never traps: a non-finite or absurd amount is 0.
     ///
-    /// Floating-point noise below a millionth of a cent is dropped first, in
-    /// Decimal: a Double can't hold most cent amounts exactly, so a true half
-    /// cent arrived as just under one and rounded down. 5% tax on $2.90 is
-    /// 14.5 cents, but `2.90 * 5 / 100 * 100` is 14.499…, which billed 14;
-    /// $1.005 rounded to $1.00. Checked against exact arithmetic for every
-    /// amount up to $1,000 at twelve tax rates: 977 of 1.2 million were a
-    /// cent short, none now (pre-launch review, 2026-10-10).
+    /// A Double can't hold most cent amounts exactly, so a true half cent
+    /// can arrive as just under half: 5% tax on $2.90 is 14.5 cents, but
+    /// `2.90 * 5 / 100 * 100` is 14.499…, which billed 14, and $1.005 became
+    /// $1.00. So a fraction within floating-point noise of a half (a
+    /// millionth of a cent, or a few units in the last place for large
+    /// amounts) counts as a half. Checked against exact arithmetic for every
+    /// amount up to $1,000 at twelve tax rates (977 of 1.2 million were a
+    /// cent short, none now) and for exact halves up to the largest amount
+    /// (pre-launch review, 2026-10-10). Plain Double arithmetic: Decimal(Double)
+    /// is slower, inexact for large amounts, and NaN for tiny ones.
     static func cents(_ amount: Double) -> Int {
         guard amount.isFinite, abs(amount) < maxAmount else { return 0 }
-        var scaled = Decimal(amount) * 100
-        var snapped = Decimal()
-        NSDecimalRound(&snapped, &scaled, 6, .plain)
-        var whole = Decimal()
-        NSDecimalRound(&whole, &snapped, 0, .plain)
-        return NSDecimalNumber(decimal: whole).intValue
+        let scaled = abs(amount) * 100
+        let whole = scaled.rounded(.down)
+        let rounded = scaled - whole >= 0.5 - max(1e-6, 4 * scaled.ulp) ? whole + 1 : whole
+        return amount < 0 ? -Int(rounded) : Int(rounded)
     }
 
     static func roundedToCent(_ amount: Double) -> Double {

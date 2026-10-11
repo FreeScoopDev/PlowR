@@ -43,12 +43,30 @@ struct MoneyRoundingTests {
     }
 
     @Test func aLineTotalRoundsAHalfCentUp() {
-        // 3 × $1.115 = $3.345.
-        #expect(InvoiceLines.roundedToCent(3 * 1.115) == 3.35)
+        // $1.015 is held as 1.01499…; it rounded to $1.01.
+        #expect(InvoiceLines.roundedToCent(1.015) == 1.02)
     }
 
     @Test func largeAmountsKeepEveryCent() {
         #expect(InvoiceLines.cents(1_234_567.885) == 123_456_789)
         #expect(InvoiceLines.cents(999_999.99) == 99_999_999)
+        #expect(InvoiceLines.cents(123_456_789.125) == 12_345_678_913)
+        #expect(InvoiceLines.cents(99_999_999.995) == 10_000_000_000)
+    }
+
+    /// An exact half anywhere up to the largest amount rounds up.
+    @Test func exactHalvesRoundUpAcrossTheRange() {
+        var wrong: [Int] = []
+        for dollars in stride(from: 0, to: 999_000_000, by: 99_991) where InvoiceLines.cents(Double(dollars) + 0.125) != dollars * 100 + 13 {
+            wrong.append(dollars)
+        }
+        #expect(wrong.isEmpty, "first wrong: \(wrong.prefix(5))")
+    }
+
+    /// Typed as "1e-110" (a hardware keyboard can): nothing, not garbage.
+    @Test func tinyAmountsAreNothing() {
+        #expect(InvoiceLines.cents(1e-110) == 0)
+        #expect(InvoiceLines.cents(-1e-200) == 0)
+        #expect(InvoiceLines.cents(-0.004) == 0)
     }
 }

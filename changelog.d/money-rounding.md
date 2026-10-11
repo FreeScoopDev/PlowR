@@ -5,3 +5,5 @@
   instead of 15, and $1.005 became $1.00. About 1 tax amount in 1,200 was a
   cent short. Every total, tax, payment, report and export goes through the
   one rounding rule, so all of them are fixed.
+  An invoice made before this version whose tax or a line came to exactly
+  half a cent shows 1 cent more than before (only test builds have these).
