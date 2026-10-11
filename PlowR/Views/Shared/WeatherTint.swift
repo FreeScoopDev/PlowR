@@ -37,14 +37,16 @@ enum WeatherKind {
     /// An icon on the page's background: a forecast's symbol, the weather
     /// card's (1.7 tokens). Snow in the snow service's blue, rain in the
     /// scheduled blue, sun in amber, thunder in purple so a storm stands
-    /// out, fog and cloud in the quiet grey.
+    /// out, fog and cloud in grey.
     var iconColor: Color {
         switch self {
         case .snow: PlowRColor.Service.snow.fill
         case .rain: PlowRColor.Status.scheduled.fill
         case .clear, .other: PlowRColor.Status.owed.fill
         case .thunder: PlowRColor.Status.lead.fill
-        case .fog, .cloudy: PlowRColor.Status.neutral.fill
+        // Grey text's colour, not the neutral status's quieter fill, which
+        // is too faint for a glyph on its own (2:1).
+        case .fog, .cloudy: PlowRColor.inkSecondary
         }
     }
 }

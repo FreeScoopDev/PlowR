@@ -9,9 +9,20 @@ extension View {
     /// unreadable (1.75:1). For a button that isn't the screen's one main
     /// action; that one is `.plowRAction`.
     func plowRProminent() -> some View {
-        buttonStyle(.borderedProminent)
+        modifier(PlowRProminent())
+    }
+}
+
+/// `plowRProminent()`: the label takes `onBrand` only while the button is
+/// enabled, so a disabled one keeps the system's dimmed label.
+private struct PlowRProminent: ViewModifier {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func body(content: Content) -> some View {
+        content
+            .buttonStyle(.borderedProminent)
             .tint(PlowRColor.brand)
-            .foregroundStyle(PlowRColor.onBrand)
+            .foregroundStyle(isEnabled ? PlowRColor.onBrand : PlowRColor.inkSecondary)
     }
 }
 
