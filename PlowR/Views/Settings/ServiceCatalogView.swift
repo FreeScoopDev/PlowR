@@ -62,6 +62,7 @@ struct ServiceCatalogView: View {
                 }
                 .listRowBackground(PlowRColor.surface)
             }
+            .listRowBackground(PlowRColor.surface)
 
             // An empty catalog starts with the standard services on top. Where
             // is decided on appear, so the rows don't move under the finger

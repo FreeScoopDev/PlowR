@@ -35,7 +35,7 @@ struct ContactScannerView: View {
                     reviewForm
                 } else {
                     // Empty placeholder — camera sheet is shown on appear
-                    Color(.systemGroupedBackground).ignoresSafeArea()
+                    PlowRColor.ground.ignoresSafeArea()
                 }
             }
             .navigationTitle(result != nil ? "Review Contact" : "Scan Contact")
@@ -81,7 +81,7 @@ struct ContactScannerView: View {
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(.systemGroupedBackground))
+        .background(PlowRColor.ground)
     }
 
     // MARK: - Review Form

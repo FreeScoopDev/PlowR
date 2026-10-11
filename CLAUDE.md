@@ -320,7 +320,10 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   `.plowRAction` (copper), `.plowRSecondary`, and `.plowRProminent()` (the
   system's prominent button with a label readable on the brand; never
   `.white` on the accent, which is pale green in dark mode); cards are
-  `PlowRCard`. iOS 26 ignores UIKit's title
+  `PlowRCard`. Every List and Form takes `.plowRGrouped()` and every
+  Section (and ForEach straight in a List) `.listRowBackground(PlowRColor.surface)`:
+  the guard step "List rows check" (`scripts/check_list_rows.py --check`)
+  fails a PR that misses one, and the script without `--check` adds them. iOS 26 ignores UIKit's title
   fonts and crashes on a flexible view in the `.largeTitle` toolbar slot, so
   a Barlow screen heading goes in the content, as the route screen does.
   **1.7 design (Evergreen & Copper, Joe 2026-10-10):** the tokens screens move

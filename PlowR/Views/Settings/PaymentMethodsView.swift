@@ -56,6 +56,7 @@ struct PaymentMethodsView: View {
                     reordered.move(fromOffsets: indices, toOffset: destination)
                     for (i, m) in reordered.enumerated() { m.sortOrder = i }
                 }
+                .listRowBackground(PlowRColor.surface)
             }
         }
         .plowRGrouped()

@@ -127,6 +127,7 @@ struct ClientHomeView: View {
                         }
                     }
             }
+            .listRowBackground(PlowRColor.surface)
         }
         .plowRGrouped()
         .navigationTitle("All Requests")

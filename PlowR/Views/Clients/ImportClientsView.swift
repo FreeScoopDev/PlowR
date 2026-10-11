@@ -580,6 +580,7 @@ struct ImportPreviewList: View {
                 }
                 .listRowBackground(PlowRColor.surface)
             }
+            .listRowBackground(PlowRColor.surface)
         }
         .plowRGrouped()
         .navigationTitle(skippedOnly ? "What Was Skipped" : "Every Row")

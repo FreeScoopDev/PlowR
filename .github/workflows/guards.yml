@@ -76,6 +76,12 @@ jobs:
       - name: SF Symbols guard
         if: success() || failure()
         run: python3 scripts/check_symbols.py
+      # The 1.7 lists: page colour behind every List/Form, card colour on
+      # every Section's rows (CLAUDE.md). A missed one is only visible in
+      # dark mode, as a grey card among green ones.
+      - name: List rows check
+        if: success() || failure()
+        run: python3 scripts/check_list_rows.py --check $(find PlowR/Views -name '*.swift' | sort)
 
       # Opening the camera on a device without one (some iPads, a Mac running
       # PlowR) throws, so the camera is opened only in CameraPicker, which

@@ -545,6 +545,7 @@ struct EditClientView: View {
                     }
                 }
             }
+            .listRowBackground(PlowRColor.surface)
         }
         .plowRGrouped()
         .navigationTitle("Expected Services")

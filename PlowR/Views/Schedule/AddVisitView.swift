@@ -419,6 +419,7 @@ struct AddVisitView: View {
                     }
                 }
             }
+            .listRowBackground(PlowRColor.surface)
         }
         .plowRGrouped()
         .navigationTitle("Expected Services")

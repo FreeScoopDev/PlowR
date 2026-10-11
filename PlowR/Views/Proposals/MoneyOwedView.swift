@@ -40,6 +40,7 @@ struct MoneyOwedView: View {
                                 NavigationLink { ProposalDetailView(proposal: invoice) } label: {
                                     ProposalRowView(proposal: invoice)
                                 }
+                                .listRowBackground(PlowRColor.surface)
                             }
                             .plowRGrouped()
                             .navigationTitle(client.name)

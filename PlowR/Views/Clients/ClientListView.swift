@@ -175,6 +175,9 @@ struct ClientListView: View {
                 .plowRGrouped()
             }
         }
+        // The empty state too, so the page doesn't change colour with the
+        // first item.
+        .background(PlowRColor.ground)
         .navigationTitle("Clients")
         .searchable(text: $searchText, prompt: "Search clients")
         .toolbar {

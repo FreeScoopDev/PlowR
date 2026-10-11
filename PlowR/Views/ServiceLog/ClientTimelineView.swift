@@ -22,6 +22,7 @@ struct ClientTimelineView: View {
                         }
                         .listRowBackground(PlowRColor.surface)
                     }
+                    .listRowBackground(PlowRColor.surface)
                 }
             } else {
                 ProgressView().frame(maxWidth: .infinity).listRowBackground(Color.clear)

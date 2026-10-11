@@ -34,6 +34,7 @@ struct ServiceLinesSections: View {
         } footer: {
             if let footer { Text(footer) }
         }
+        .listRowBackground(PlowRColor.surface)
 
         if !keptLines.isEmpty {
             Section {
@@ -52,6 +53,7 @@ struct ServiceLinesSections: View {
             } footer: {
                 Text("No longer in your active services, so kept as recorded.")
             }
+            .listRowBackground(PlowRColor.surface)
             .disabled(locked)
         }
 
@@ -81,6 +83,7 @@ struct ServiceLinesSections: View {
                 Label("Add Custom Item", systemImage: "plus")
             }
         }
+        .listRowBackground(PlowRColor.surface)
         .disabled(locked)
     }
 
