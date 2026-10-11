@@ -317,9 +317,11 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   overdue, lead, void: fill, soft, text) and `PlowRColor.Service` (snow, lawn,
   landscaping); `PlowRFont` roles (Barlow headings, numbers and buttons,
   scaling with Dynamic Type; system font for body); `PlowRLayout` spacing
-  `space1`–`space6` and tap targets; `PlowRSymbol`, one SF Symbol per idea.
-  `DesignTokensTests` checks every text-on-background pair at 4.5:1 in light
-  and dark: a new color pair goes in that test. Screens move over one PR at a
+  `space1`, `2`, `3`, `4`, `6` (4–24 pt, no 20) and tap targets; `PlowRSymbol`,
+  one SF Symbol per idea (no snow symbol: snow-only icons stay with snow-only
+  features; `check_symbols.py` checks its cases). `DesignTokensTests` checks
+  every text token on every surface at 4.5:1 in light and dark: a new token
+  goes in its lists. Screens move over one PR at a
   time; until then they keep the older colors.
 - **The widget reads only the app group `UserDefaults`.** Anything it needs to
   show has to be written by `WidgetDataStore` from the app side; the widget

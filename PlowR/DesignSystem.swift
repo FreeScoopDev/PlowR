@@ -196,9 +196,11 @@ nonisolated enum PlowRFont {
     /// Whether the Barlow files are in the app (registered in Info.plist).
     static let isBarlowAvailable = UIFont(name: Weight.bold.rawValue, size: 12) != nil
 
-    /// Barlow at `size`, scaling with `style`; the system font if Barlow is missing.
-    static func barlow(_ weight: Weight, size: CGFloat, relativeTo style: Font.TextStyle) -> Font {
-        isBarlowAvailable
+    /// Barlow at `size`, scaling with `style`; the system font if Barlow is
+    /// missing (`available` is a parameter so both paths are tested).
+    static func barlow(_ weight: Weight, size: CGFloat, relativeTo style: Font.TextStyle,
+                       available: Bool = isBarlowAvailable) -> Font {
+        available
             ? .custom(weight.rawValue, size: size, relativeTo: style)
             : .system(style, weight: weight.system)
     }
@@ -240,28 +242,29 @@ nonisolated extension PlowRLayout {
 /// One SF Symbol per idea, so the same thing looks the same everywhere (the
 /// audit found four symbols for "route" and six for "invoice"). Filled in tab
 /// bars, tiles and primary buttons; screens take `.fill` off for list rows.
-nonisolated enum PlowRSymbol {
-    static let home = "house.fill"
-    static let client = "person.2.fill"
-    static let addClient = "person.badge.plus"
-    static let route = "point.topleft.down.to.point.bottomright.curvepath"
-    static let document = "doc.text.fill"
-    static let invoice = "doc.text.fill"
-    static let proposal = "doc.richtext.fill"
-    static let contract = "signature"
-    static let payment = "dollarsign.circle.fill"
-    static let schedule = "calendar"
-    static let weather = "cloud.sun.fill"
-    static let snow = "snowflake"
-    static let navigate = "arrow.triangle.turn.up.right.circle.fill"
-    static let call = "phone.fill"
-    static let text = "message.fill"
-    static let email = "envelope.fill"
-    static let complete = "checkmark.circle.fill"
-    static let settings = "gearshape.fill"
-    static let pro = "star.circle.fill"
-    static let warning = "exclamationmark.triangle.fill"
+/// No snow symbol here: this file is shared by every screen and the widget,
+/// and snow-only icons live with snow-only features (ServiceIcon).
+/// `scripts/check_symbols.py` checks each name exists on iOS 26.0.
+nonisolated enum PlowRSymbol: String, CaseIterable {
+    case home = "house.fill"
+    case client = "person.2.fill"
+    case addClient = "person.badge.plus"
+    case route = "point.topleft.down.to.point.bottomright.curvepath"
+    case document = "doc.text.fill"
+    case proposal = "doc.richtext.fill"
+    case contract = "signature"
+    case payment = "dollarsign.circle.fill"
+    case schedule = "calendar"
+    case weather = "cloud.sun.fill"
+    case navigate = "arrow.triangle.turn.up.right.circle.fill"
+    case call = "phone.fill"
+    case text = "message.fill"
+    case email = "envelope.fill"
+    case complete = "checkmark.circle.fill"
+    case settings = "gearshape.fill"
+    case pro = "star.circle.fill"
+    case warning = "exclamationmark.triangle.fill"
 
-    static let all = [home, client, addClient, route, document, invoice, proposal, contract, payment, schedule,
-                      weather, snow, navigate, call, text, email, complete, settings, pro, warning]
+    /// The name, for `Image(systemName:)` and `Label(_:systemImage:)`.
+    var name: String { rawValue }
 }

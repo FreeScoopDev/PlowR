@@ -18,11 +18,17 @@ struct DesignTokensTests {
         color.resolvedColor(with: UITraitCollection(userInterfaceStyle: dark ? .dark : .light))
     }
 
+    private func components(_ color: UIColor, dark: Bool) -> (r: CGFloat, g: CGFloat, b: CGFloat) {
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, alpha: CGFloat = 0
+        let converted = resolved(color, dark: dark).getRed(&r, green: &g, blue: &b, alpha: &alpha)
+        #expect(converted && alpha == 1, "every token is an opaque RGB color")
+        return (r, g, b)
+    }
+
     /// WCAG relative luminance contrast, 1 to 21.
     private func contrast(_ a: UIColor, _ b: UIColor, dark: Bool) -> Double {
         func luminance(_ c: UIColor) -> Double {
-            var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, al: CGFloat = 0
-            resolved(c, dark: dark).getRed(&r, green: &g, blue: &b, alpha: &al)
+            let (r, g, b) = components(c, dark: dark)
             func lin(_ v: CGFloat) -> Double {
                 let v = Double(v)
                 return v <= 0.03928 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4)
@@ -33,36 +39,54 @@ struct DesignTokensTests {
         return (max(l1, l2) + 0.05) / (min(l1, l2) + 0.05)
     }
 
+    typealias C = PlowRColor
+    private let surfaces: [(String, UIColor)] = [
+        ("ground", C.groundUIColor), ("surface", C.surfaceUIColor), ("raised", C.raisedUIColor)
+    ]
+    private var texts: [(String, UIColor)] {
+        [("ink", C.inkUIColor), ("secondary", C.inkSecondaryUIColor), ("brand", C.brandUIColor),
+         ("action text", C.actionTextUIColor)]
+            + C.Status.allCases.map { ("\($0) text", $0.textUIColor) }
+    }
+
+    // Every text token on every surface, light and dark.
     @Test(arguments: [false, true])
-    func textIsReadableOnItsBackground(dark: Bool) {
-        typealias C = PlowRColor
+    func textIsReadableOnEverySurface(dark: Bool) {
+        for (text, color) in texts {
+            for (surface, background) in surfaces {
+                #expect(contrast(color, background, dark: dark) >= 4.5, "\(text) on \(surface), dark \(dark)")
+            }
+        }
+    }
+
+    // Text drawn on a colored fill.
+    @Test(arguments: [false, true])
+    func textOnFillsIsReadable(dark: Bool) {
         let pairs: [(String, UIColor, UIColor)] = [
-            ("ink on ground", C.inkUIColor, C.groundUIColor),
-            ("ink on surface", C.inkUIColor, C.surfaceUIColor),
-            ("ink on raised", C.inkUIColor, C.raisedUIColor),
-            ("secondary on ground", C.inkSecondaryUIColor, C.groundUIColor),
-            ("secondary on surface", C.inkSecondaryUIColor, C.surfaceUIColor),
-            ("brand on ground", C.brandUIColor, C.groundUIColor),
             ("on-brand on brand", C.onBrandUIColor, C.brandUIColor),
             ("on-action on action", C.onActionUIColor, C.actionUIColor),
             ("action text on action soft", C.actionTextUIColor, C.actionSoftUIColor)
-        ]
+        ] + C.Status.allCases.map { ("\($0) chip", $0.textUIColor, $0.softUIColor) }
         for (name, text, background) in pairs {
             #expect(contrast(text, background, dark: dark) >= 4.5, "\(name), dark \(dark)")
         }
     }
 
-    @Test(arguments: [false, true])
-    func statusChipsAndAmountsAreReadable(dark: Bool) {
-        for status in PlowRColor.Status.allCases {
-            #expect(contrast(status.textUIColor, status.softUIColor, dark: dark) >= 4.5, "\(status) chip, dark \(dark)")
-            #expect(contrast(status.textUIColor, PlowRColor.surfaceUIColor, dark: dark) >= 4.5,
-                    "\(status) amount on a card, dark \(dark)")
+    // Dark mode is really dark: every adaptive token changes with the
+    // appearance (a broken provider would test the light pair twice).
+    @Test func everyAdaptiveTokenHasADarkVersion() {
+        let adaptive: [UIColor] = [C.groundUIColor, C.surfaceUIColor, C.raisedUIColor, C.lineUIColor, C.inkUIColor,
+                                   C.inkSecondaryUIColor, C.brandUIColor, C.onBrandUIColor, C.actionUIColor,
+                                   C.onActionUIColor, C.actionSoftUIColor, C.actionTextUIColor]
+            + C.Status.allCases.flatMap { [$0.fillUIColor, $0.softUIColor, $0.textUIColor] }
+        for color in adaptive {
+            let light = components(color, dark: false), dark = components(color, dark: true)
+            #expect(light != dark)
         }
     }
 
     @Test func serviceTagsCarryWhiteText() {
-        for service in PlowRColor.Service.allCases {
+        for service in C.Service.allCases {
             #expect(contrast(.white, service.fillUIColor, dark: false) >= 4.5, "\(service)")
         }
     }
@@ -70,22 +94,41 @@ struct DesignTokensTests {
     // Each status means one thing: no two share a fill.
     @Test(arguments: [false, true])
     func statusesLookDifferent(dark: Bool) {
-        let fills = PlowRColor.Status.allCases.map { resolved($0.fillUIColor, dark: dark) }
+        let fills = C.Status.allCases.map { resolved($0.fillUIColor, dark: dark) }
         #expect(Set(fills.map { $0.description }).count == fills.count)
     }
 
     @Test func everyIconExists() {
-        for name in PlowRSymbol.all {
-            #expect(UIImage(systemName: name) != nil, "\(name)")
+        for symbol in PlowRSymbol.allCases {
+            #expect(UIImage(systemName: symbol.name) != nil, "\(symbol)")
         }
     }
 
-    // Until the Barlow files are bundled, every role is the system font, so
-    // nothing breaks; the roles are still there for screens to use.
-    @Test func typeRolesWorkWithOrWithoutBarlow() {
-        let roles: [Font] = [PlowRFont.screenTitle, PlowRFont.title, PlowRFont.stopName, PlowRFont.bigNumber,
-                             PlowRFont.number, PlowRFont.button, PlowRFont.label]
-        #expect(roles.count == 7)
-        #expect(PlowRFont.isBarlowAvailable == (UIFont(name: "Barlow-Bold", size: 12) != nil))
+    // Without Barlow, each role is the system font at its text style and
+    // weight, so it still scales with the user's text size.
+    @Test func withoutBarlowEachRoleIsTheScalingSystemFont() {
+        typealias F = PlowRFont
+        let expected: [(Font.TextStyle, F.Weight, CGFloat)] = [
+            (.largeTitle, .bold, 32), (.title2, .bold, 22), (.title, .extraBold, 26), (.largeTitle, .extraBold, 40),
+            (.headline, .semibold, 17), (.headline, .bold, 17), (.footnote, .semibold, 13)
+        ]
+        for (style, weight, size) in expected {
+            #expect(F.barlow(weight, size: size, relativeTo: style, available: false)
+                    == .system(style, weight: weight.system))
+            #expect(F.barlow(weight, size: size, relativeTo: style, available: false) != .system(size: size))
+        }
+        if !F.isBarlowAvailable {
+            #expect(F.screenTitle == .system(.largeTitle, weight: .bold))
+            #expect(F.stopName == .system(.title, weight: .heavy))
+            #expect(F.label == .system(.footnote, weight: .semibold))
+        }
+    }
+
+    // With Barlow, a role is the named face at its size, scaling with its style.
+    @Test func withBarlowARoleScalesWithItsTextStyle() {
+        let font = PlowRFont.barlow(.bold, size: 32, relativeTo: .largeTitle, available: true)
+        #expect(font == .custom("Barlow-Bold", size: 32, relativeTo: .largeTitle))
+        #expect(font != .custom("Barlow-Bold", size: 32))
+        #expect(font != .custom("Barlow-Bold", size: 32, relativeTo: .footnote))
     }
 }
