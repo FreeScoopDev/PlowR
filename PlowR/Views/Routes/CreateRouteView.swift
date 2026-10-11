@@ -21,6 +21,7 @@ struct CreateRouteView: View {
                 Section("Route Name") {
                     TextField("e.g. Monday North Side", text: $routeName)
                 }
+                .listRowBackground(PlowRColor.surface)
 
                 Section {
                     ForEach(Array(selectedStops.enumerated()), id: \.element.id) { index, stop in
@@ -59,7 +60,9 @@ struct CreateRouteView: View {
                         Text("Drag to reorder stops.")
                     }
                 }
+                .listRowBackground(PlowRColor.surface)
             }
+            .plowRGrouped()
             .navigationTitle("New Route")
             .navigationBarTitleDisplayMode(.inline)
             .environment(\.editMode, .constant(.active))

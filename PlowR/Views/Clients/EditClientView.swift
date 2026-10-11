@@ -109,6 +109,7 @@ struct EditClientView: View {
                 } footer: {
                     Text("Inactive clients don't count toward the free tier's \(Access.freeClientLimit). They come off their routes.")
                 }
+                .listRowBackground(PlowRColor.surface)
             }
             otherPropertiesSection
             historySection
@@ -118,6 +119,7 @@ struct EditClientView: View {
             photosSection
             propertySection
         }
+        .plowRGrouped()
         // Nothing changes, and nothing opens over the alert, while the new
         // address is looked up; and the screen can't be left mid-lookup.
         .disabled(isSaving)
@@ -321,6 +323,7 @@ struct EditClientView: View {
             .scrollDisabled(true)
             .listRowInsets(EdgeInsets(top: 0, leading: 12, bottom: 0, trailing: 12))
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     private func actionTile(title: String, icon: String, color: Color, action: @escaping () -> Void) -> some View {
@@ -391,6 +394,7 @@ struct EditClientView: View {
                 }
             }
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     // MARK: - Tags Section
@@ -464,6 +468,7 @@ struct EditClientView: View {
             Text("Group clients for bulk messaging — e.g. Residential, Priority, Seasonal.")
                 .font(.caption)
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     private func addTag() {
@@ -485,6 +490,7 @@ struct EditClientView: View {
             Text("Private notes about this client — not shown on route or documents.")
                 .font(.caption)
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     // MARK: - Expected Services Section
@@ -517,6 +523,7 @@ struct EditClientView: View {
             Text("Services this client typically needs. Their route stops expect these, except a stop given its own services on its route (tap the stop on the route).")
                 .font(.caption)
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     private var expectedServicePickerView: some View {
@@ -539,6 +546,7 @@ struct EditClientView: View {
                 }
             }
         }
+        .plowRGrouped()
         .navigationTitle("Expected Services")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -583,6 +591,7 @@ struct EditClientView: View {
                 }
             }
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     // MARK: - Stop Notes Section
@@ -597,6 +606,7 @@ struct EditClientView: View {
             Text("Automatically copied to new route stops for this client.")
                 .font(.caption)
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     // MARK: - Service Address Section
@@ -644,6 +654,7 @@ struct EditClientView: View {
                 AddressNotFoundLabel(detail: "The map couldn't find this address, so this client has no pin and isn't on route maps. Correct the address, or set the pin with Set Pin on the Map, under Main Property.")
             }
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     // MARK: - Other Properties Section
@@ -686,6 +697,7 @@ struct EditClientView: View {
             Text("Other places you work for this client, like a rental or a second lot. Each can go on routes and the schedule by itself.")
                 .font(.caption)
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     // MARK: - Contracts Section
@@ -706,6 +718,7 @@ struct EditClientView: View {
             Text("An agreement for a period: a season price, a price per visit, or a monthly amount.")
                 .font(.caption)
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     // MARK: - History Section
@@ -794,6 +807,7 @@ struct EditClientView: View {
                 }
             }
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     /// Where they stand before they're a customer (Pipeline): Lead or
@@ -849,6 +863,7 @@ struct EditClientView: View {
                 .buttonStyle(.borderless)
             }
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     // MARK: - Property Section
@@ -915,6 +930,7 @@ struct EditClientView: View {
                 Button("Edit Zones") { showingPropertyScanner = true }
             }
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     // MARK: - Schedule Section
@@ -960,6 +976,7 @@ struct EditClientView: View {
                     .font(.subheadline)
             }
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     // MARK: - Photos Section
@@ -972,6 +989,7 @@ struct EditClientView: View {
                 Label("View Photo Gallery", systemImage: "photo.on.rectangle.angled")
             }
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     // MARK: - Data

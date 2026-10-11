@@ -128,6 +128,7 @@ struct ClientHomeView: View {
                     }
             }
         }
+        .plowRGrouped()
         .navigationTitle("All Requests")
         .navigationBarTitleDisplayMode(.inline)
     }

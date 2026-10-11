@@ -36,6 +36,7 @@ struct PipelineView: View {
                     footer: "Sent a proposal. Booking them (a visit or a route stop), a job or an invoice makes them a customer.")
             section("Lost", entries.filter { $0.stage == .lost }, footer: "Swipe to reopen one.")
         }
+        .plowRGrouped()
         .navigationTitle("Pipeline")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -75,6 +76,7 @@ struct PipelineView: View {
             } footer: {
                 Text(footer)
             }
+            .listRowBackground(PlowRColor.surface)
         }
     }
 

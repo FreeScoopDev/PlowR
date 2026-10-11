@@ -71,6 +71,7 @@ struct RouteListView: View {
                         }
                     }
                 }
+                .plowRGrouped()
             }
         }
         .navigationTitle("Routes")

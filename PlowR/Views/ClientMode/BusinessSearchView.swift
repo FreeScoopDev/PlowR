@@ -118,8 +118,10 @@ struct BusinessSearchView: View {
                             .tint(.primary)
                         }
                     }
+                    .listRowBackground(PlowRColor.surface)
                 }
             }
+            .plowRGrouped()
             .listStyle(.insetGrouped)
         }
     }

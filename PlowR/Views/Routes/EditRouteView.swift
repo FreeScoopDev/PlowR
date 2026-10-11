@@ -34,6 +34,7 @@ struct EditRouteView: View {
                 Section("Route Name") {
                     TextField("Route name", text: $routeName)
                 }
+                .listRowBackground(PlowRColor.surface)
 
                 Section {
                     ForEach(Array(stops.enumerated()), id: \.element.id) { index, stop in
@@ -68,7 +69,9 @@ struct EditRouteView: View {
                 } footer: {
                     if stops.count > 1 { Text("Drag to reorder stops.") }
                 }
+                .listRowBackground(PlowRColor.surface)
             }
+            .plowRGrouped()
             .navigationTitle("Edit Route")
             .navigationBarTitleDisplayMode(.inline)
             .environment(\.editMode, .constant(.active))

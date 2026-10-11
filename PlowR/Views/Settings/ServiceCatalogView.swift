@@ -40,6 +40,7 @@ struct ServiceCatalogView: View {
             } footer: {
                 Text("Common services with typical prices, to edit or delete as you like.")
             }
+            .listRowBackground(PlowRColor.surface)
         }
     }
 
@@ -59,6 +60,7 @@ struct ServiceCatalogView: View {
                         offsets.map { group.items[$0] }.forEach { modelContext.delete($0) }
                     }
                 }
+                .listRowBackground(PlowRColor.surface)
             }
 
             // An empty catalog starts with the standard services on top. Where
@@ -73,9 +75,11 @@ struct ServiceCatalogView: View {
                     Label("Add Custom Service", systemImage: "plus")
                 }
             }
+            .listRowBackground(PlowRColor.surface)
 
             if !standardServicesFirst { standardServicesSection }
         }
+        .plowRGrouped()
         .navigationTitle("Service Catalog")
         .onAppear { standardServicesFirst = myServices.isEmpty }
         .navigationBarTitleDisplayMode(.inline)
@@ -161,6 +165,7 @@ struct ServiceItemEditView: View {
                 Section("Service Name") {
                     TextField("e.g. Patio Clearing", text: $name)
                 }
+                .listRowBackground(PlowRColor.surface)
                 Section("Pricing") {
                     Picker("Unit Type", selection: $unitType) {
                         Text("Flat Rate").tag("flat")
@@ -184,7 +189,9 @@ struct ServiceItemEditView: View {
                             .foregroundStyle(.red)
                     }
                 }
+                .listRowBackground(PlowRColor.surface)
             }
+            .plowRGrouped()
             .navigationTitle(item == nil ? "New Service" : "Edit Service")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

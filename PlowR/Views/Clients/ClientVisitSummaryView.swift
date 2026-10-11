@@ -35,6 +35,7 @@ struct ClientVisitSummaryView: View {
                     invoiceSection
                 }
             }
+            .plowRGrouped()
             .navigationTitle(client.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -76,6 +77,7 @@ struct ClientVisitSummaryView: View {
                 }
             }
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     private var invoiceSection: some View {
@@ -95,5 +97,6 @@ struct ClientVisitSummaryView: View {
             }
             LabeledContent("Invoice Count", value: "\(clientInvoices.count)")
         }
+        .listRowBackground(PlowRColor.surface)
     }
 }

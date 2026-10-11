@@ -202,6 +202,7 @@ struct AddVisitView: View {
                 detailsSection
                 if editing == nil { recurrenceSection }
             }
+            .plowRGrouped()
             .navigationTitle(editing == nil ? "Add Visit" : "Edit Visit")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -313,6 +314,7 @@ struct AddVisitView: View {
                     .font(.subheadline)
             }
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     private var dateSection: some View {
@@ -335,6 +337,7 @@ struct AddVisitView: View {
             DatePicker("Date", selection: $scheduledDate, displayedComponents: [.date, .hourAndMinute])
                 .datePickerStyle(.compact)
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     private func timeButton(_ label: String, hour: Int) -> some View {
@@ -389,6 +392,7 @@ struct AddVisitView: View {
                 }
             }
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     private var servicePickerView: some View {
@@ -416,6 +420,7 @@ struct AddVisitView: View {
                 }
             }
         }
+        .plowRGrouped()
         .navigationTitle("Expected Services")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -451,6 +456,7 @@ struct AddVisitView: View {
             TextField("Notes (optional)", text: $notes, axis: .vertical)
                 .lineLimit(3)
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     private var recurrenceSection: some View {
@@ -478,6 +484,7 @@ struct AddVisitView: View {
                 }
             }
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     private var weekdayPicker: some View {

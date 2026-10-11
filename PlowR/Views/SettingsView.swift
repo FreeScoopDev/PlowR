@@ -86,6 +86,7 @@ struct SettingsView: View {
                     Label("Export Data", systemImage: "square.and.arrow.up.on.square")
                 }
             }
+            .listRowBackground(PlowRColor.surface)
 
             Section {
                 Toggle(isOn: Binding(get: { calendarSync.isEnabled || calendarSync.isAsking },
@@ -97,6 +98,7 @@ struct SettingsView: View {
             } footer: {
                 calendarFooter
             }
+            .listRowBackground(PlowRColor.surface)
 
             Section("Discover") {
                 Button {
@@ -105,6 +107,7 @@ struct SettingsView: View {
                     Label("Find Services Near Me", systemImage: "location.magnifyingglass")
                 }
             }
+            .listRowBackground(PlowRColor.surface)
 
             Section {
                 // It said "Backed Up" whatever iCloud's state (ICloudStatus).
@@ -145,6 +148,7 @@ struct SettingsView: View {
                 Text("Your data syncs through your private iCloud to every device signed in to your Apple ID. To take PlowR's data off one device and leave the others alone, use Delete Account & Data → Remove from This Device: that also turns sync off on that device until you turn it back on here. Export Data (under Business) keeps a copy as spreadsheets.")
                     .font(.caption)
             }
+            .listRowBackground(PlowRColor.surface)
 
             if OnMac.isMac {
                 Section {
@@ -154,6 +158,7 @@ struct SettingsView: View {
                 } header: {
                     Text("On a Mac")
                 }
+                .listRowBackground(PlowRColor.surface)
             }
 
             Section("Account") {
@@ -162,6 +167,7 @@ struct SettingsView: View {
                 }
                 LabeledContent("Account", value: "Apple ID")
             }
+            .listRowBackground(PlowRColor.surface)
 
             Section {
                 Button(role: .destructive) {
@@ -187,6 +193,7 @@ struct SettingsView: View {
                     .foregroundStyle(.red)
                 }
             }
+            .listRowBackground(PlowRColor.surface)
 
             Section("Legal") {
                 if let url = URL(string: "https://getplowr.app/privacy-policy.html") {
@@ -198,6 +205,7 @@ struct SettingsView: View {
                 // Barlow's licence (SIL Open Font License) travels with the font.
                 NavigationLink("Font Licenses") { FontLicenseView() }
             }
+            .listRowBackground(PlowRColor.surface)
 
             #if DEBUG
             Section {
@@ -221,8 +229,10 @@ struct SettingsView: View {
             } footer: {
                 Text("Populate adds sample Claremont, NH clients for testing. Set Up iCloud Schema puts every record type and field into iCloud's Development database, to deploy to Production before a release (CloudKitSchemaSetup).")
             }
+            .listRowBackground(PlowRColor.surface)
             #endif
         }
+        .plowRGrouped()
         .navigationTitle("Settings")
         .proGateSheet($gate)
         // PlowR Pro's sheets, here on the Form, never on its section.

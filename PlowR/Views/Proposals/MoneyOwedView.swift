@@ -32,6 +32,7 @@ struct MoneyOwedView: View {
                 } footer: {
                     Text("Late counts from each invoice's due date. Drafts, and invoices with no due date, aren't late.")
                 }
+                .listRowBackground(PlowRColor.surface)
                 Section("By Client") {
                     ForEach(summary.clients) { client in
                         NavigationLink {
@@ -40,6 +41,7 @@ struct MoneyOwedView: View {
                                     ProposalRowView(proposal: invoice)
                                 }
                             }
+                            .plowRGrouped()
                             .navigationTitle(client.name)
                             .navigationBarTitleDisplayMode(.inline)
                         } label: {
@@ -61,8 +63,10 @@ struct MoneyOwedView: View {
                         }
                     }
                 }
+                .listRowBackground(PlowRColor.surface)
             }
         }
+        .plowRGrouped()
         .navigationTitle("Money Owed")
         .navigationBarTitleDisplayMode(.inline)
     }

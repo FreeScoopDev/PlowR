@@ -92,6 +92,7 @@ struct BusinessProfileView: View {
                 }
                 .listRowBackground(Color.clear)
             }
+            .listRowBackground(PlowRColor.surface)
 
             Section("Business Info") {
                 TextField("Company Name", text: $companyName)
@@ -104,10 +105,12 @@ struct BusinessProfileView: View {
                     .autocapitalization(.none)
                 TextField("Tagline (optional)", text: $tagline)
             }
+            .listRowBackground(PlowRColor.surface)
 
             Section("Optional") {
                 TextField("License / Certification Number", text: $licenseNumber)
             }
+            .listRowBackground(PlowRColor.surface)
 
             Section {
                 Toggle("Color proposals & invoices", isOn: $colorPDFs)
@@ -120,6 +123,7 @@ struct BusinessProfileView: View {
             } footer: {
                 Text("Compact header uses a smaller document title — useful when a wide logo fills the header.")
             }
+            .listRowBackground(PlowRColor.surface)
 
             Section {
                 LabeledContent("Sales Tax Rate") {
@@ -140,12 +144,15 @@ struct BusinessProfileView: View {
             } footer: {
                 Text("Put on every new invoice and proposal, and you can change it on any one. Leave it at 0 if you don't charge sales tax. Whether your services are taxed, and at what rate, depends on your state: check with your state or an accountant.")
             }
+            .listRowBackground(PlowRColor.surface)
 
             Section("Default Proposal Disclaimer") {
                 TextEditor(text: $defaultDisclaimer)
                     .frame(minHeight: 80)
             }
+            .listRowBackground(PlowRColor.surface)
         }
+        .plowRGrouped()
         .navigationTitle("Business Profile")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

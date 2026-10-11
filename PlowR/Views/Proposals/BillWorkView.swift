@@ -43,6 +43,7 @@ struct BillWorkView: View {
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets())
                 }
+                .listRowBackground(PlowRColor.surface)
 
                 if self.works == nil {
                     ProgressView()
@@ -62,8 +63,10 @@ struct BillWorkView: View {
                     } footer: {
                         Text("One draft invoice per client ticked, a line per service done with its day. Check and send them from Documents.")
                     }
+                    .listRowBackground(PlowRColor.surface)
                 }
             }
+            .plowRGrouped()
             .navigationTitle(onlyClient.map { "Bill \($0.name)" } ?? "Bill Unbilled Work")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

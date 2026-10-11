@@ -46,6 +46,7 @@ struct RequestLinkView: View {
                 missingSection
             }
         }
+        .plowRGrouped()
         .navigationTitle("Request Link")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { welcome = profile?.requestWelcome ?? "" }
@@ -86,6 +87,7 @@ struct RequestLinkView: View {
         } footer: {
             Text("A link anyone can open to ask you for service, from any phone or computer, without the app.")
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     private func linkSection(_ link: URL, profile: BusinessProfile) -> some View {
@@ -127,6 +129,7 @@ struct RequestLinkView: View {
         } footer: {
             Text("Put it in a text, on social media or your website, or print the QR code on a flyer or your truck. Whoever opens it fills in a short form, and the request comes to \(profile.phone) as a text from their own phone\(RequestLink.validEmail(profile.email).isEmpty ? "" : " (or, from a computer, an email to \(RequestLink.validEmail(profile.email)))"), ending in Add to PlowR: tap that to add them as a lead. Nothing goes through a server, and no app is needed to send a request.")
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     private func servicesSection(_ profile: BusinessProfile) -> some View {
@@ -159,6 +162,7 @@ struct RequestLinkView: View {
                                    : " The form also offers Something else.")
                  + " Changes go into your link from now on; a link you've already given out keeps what it had.")
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     private func welcomeSection(_ profile: BusinessProfile) -> some View {
@@ -173,6 +177,7 @@ struct RequestLinkView: View {
         } footer: {
             Text("Shown at the top of the form, like \u{201C}Tell us about your property and we'll text you a quote.\u{201D} \(RequestLink.Limit.welcome - welcome.count) characters left.")
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     /// The form's services with `service` turned on or off, in catalog order.

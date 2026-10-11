@@ -70,12 +70,14 @@ struct MassMessageView: View {
                         Label("Texting isn't available on this device.", systemImage: "message.badge")
                             .foregroundStyle(.secondary)
                     }
+                    .listRowBackground(PlowRColor.surface)
                 }
                 presetsSection
                 messageSection
                 tagFilterSection
                 recipientsSection
             }
+            .plowRGrouped()
             .navigationTitle("Message Clients")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -169,6 +171,7 @@ struct MassMessageView: View {
         } header: {
             Text("Quick Presets").textCase(nil)
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     private var messageSection: some View {
@@ -180,6 +183,7 @@ struct MassMessageView: View {
         } footer: {
             Text("\(selectedStops.count) of \(stops.count) clients selected.")
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     private var recipientsSection: some View {
@@ -205,6 +209,7 @@ struct MassMessageView: View {
         } header: {
             Text("Recipients").textCase(nil)
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     // MARK: - Tag Filtering
@@ -260,6 +265,7 @@ struct MassMessageView: View {
                 Text("Tap a tag to select or deselect all clients with that tag.")
                     .font(.caption)
             }
+            .listRowBackground(PlowRColor.surface)
         }
     }
 

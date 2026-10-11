@@ -53,6 +53,7 @@ struct ClientPropertyScanView: View {
             } footer: {
                 Text("We'll show a satellite view so you can outline the areas needing service.")
             }
+            .listRowBackground(PlowRColor.surface)
 
             if let error = geocodeError {
                 Section {
@@ -60,6 +61,7 @@ struct ClientPropertyScanView: View {
                         .foregroundStyle(.red)
                         .font(.caption)
                 }
+                .listRowBackground(PlowRColor.surface)
             }
 
             Section {
@@ -78,7 +80,9 @@ struct ClientPropertyScanView: View {
                 }
                 .disabled(addressText.trimmingCharacters(in: .whitespaces).isEmpty || isGeocoding)
             }
+            .listRowBackground(PlowRColor.surface)
         }
+        .plowRGrouped()
         .navigationTitle("Your Property")
         .navigationBarTitleDisplayMode(.inline)
     }

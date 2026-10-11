@@ -66,6 +66,7 @@ struct ClientStatsView: View {
             activitySection
             if !inactiveClients.isEmpty { inactiveSection }
         }
+        .plowRGrouped()
         .navigationTitle("Reports")
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
@@ -125,6 +126,7 @@ struct ClientStatsView: View {
             Text("Stats are recorded automatically when route stops are completed.")
                 .font(.caption)
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     private var monthlyRevenueSection: some View {
@@ -176,6 +178,7 @@ struct ClientStatsView: View {
             }
             .font(.caption)
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     @ViewBuilder
@@ -186,12 +189,14 @@ struct ClientStatsView: View {
                     .foregroundStyle(.secondary)
                     .font(.subheadline)
             }
+            .listRowBackground(PlowRColor.surface)
         } else {
             Section("Clients by Activity") {
                 ForEach(activeClients) { client in
                     clientRow(client)
                 }
             }
+            .listRowBackground(PlowRColor.surface)
         }
     }
 
@@ -216,6 +221,7 @@ struct ClientStatsView: View {
                 .padding(.vertical, 2)
             }
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     private func clientRow(_ client: Client) -> some View {

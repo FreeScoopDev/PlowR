@@ -89,8 +89,10 @@ struct ProposalListView: View {
                                 proposalRow(proposal)
                             }
                         }
+                        .listRowBackground(PlowRColor.surface)
                     }
                 }
+                .plowRGrouped()
             }
         }
         .navigationTitle(filterStatus == .all ? "Documents" : filterStatus.rawValue)
@@ -199,6 +201,7 @@ struct ProposalListView: View {
             .listRowBackground(Color.clear)
             .listRowInsets(EdgeInsets())
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     // MARK: - Proposal Row
@@ -341,6 +344,7 @@ struct ClientPickerForProposalView: View {
                             .padding(.vertical, 2)
                         }
                     }
+                    .plowRGrouped()
                 }
             }
             .navigationTitle("Select Client")

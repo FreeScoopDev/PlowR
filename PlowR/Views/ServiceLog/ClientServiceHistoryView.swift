@@ -61,6 +61,7 @@ struct ClientServiceHistoryView: View {
                         Label("Service Report", systemImage: "checkmark.seal")
                     }
                 }
+                .listRowBackground(PlowRColor.surface)
                 // Looked up once for the list, not once a row.
                 let invoiceIDs = ServiceLog.invoiceIDs(in: modelContext)
                 let contracts = Contracts.all(in: modelContext)
@@ -78,8 +79,10 @@ struct ClientServiceHistoryView: View {
                         }
                     }
                 }
+                .listRowBackground(PlowRColor.surface)
             }
         }
+        .plowRGrouped()
         .navigationTitle("Service History")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

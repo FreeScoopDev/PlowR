@@ -20,12 +20,14 @@ struct ClientTimelineView: View {
                         Section(group.month.formatted(.dateTime.month(.wide).year())) {
                             ForEach(group.events) { row($0) }
                         }
+                        .listRowBackground(PlowRColor.surface)
                     }
                 }
             } else {
                 ProgressView().frame(maxWidth: .infinity).listRowBackground(Color.clear)
             }
         }
+        .plowRGrouped()
         .navigationTitle("Timeline")
         .navigationBarTitleDisplayMode(.inline)
         .task { events = ClientTimeline.events(for: client, in: modelContext) }

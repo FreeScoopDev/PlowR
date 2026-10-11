@@ -78,6 +78,7 @@ struct StopDetailView: View {
                     }
                     contactRow
                 }
+                .listRowBackground(PlowRColor.surface)
 
                 Section {
                     if services.isEmpty {
@@ -96,6 +97,7 @@ struct StopDetailView: View {
                 } footer: {
                     Text(servicesFooter)
                 }
+                .listRowBackground(PlowRColor.surface)
 
                 Section {
                     TextField("Shown at this stop during the route", text: $stopNotes, axis: .vertical)
@@ -103,6 +105,7 @@ struct StopDetailView: View {
                 } header: {
                     Label("Stop Notes", systemImage: "note.text")
                 }
+                .listRowBackground(PlowRColor.surface)
 
                 Section {
                     TextField("Equipment or tools to bring", text: $equipmentNotes, axis: .vertical)
@@ -110,6 +113,7 @@ struct StopDetailView: View {
                 } header: {
                     Label("Equipment", systemImage: "wrench.and.screwdriver")
                 }
+                .listRowBackground(PlowRColor.surface)
 
                 Section {
                     Stepper(value: $targetMinutes, in: 0...480, step: 5) {
@@ -122,7 +126,9 @@ struct StopDetailView: View {
                         Text("Usually about \(RouteFacts.duration(Int(client.averageServiceMinutes.rounded()))) here.")
                     }
                 }
+                .listRowBackground(PlowRColor.surface)
             }
+            .plowRGrouped()
             .navigationTitle("Stop")
             .navigationBarTitleDisplayMode(.inline)
             .scrollDismissesKeyboard(.interactively)

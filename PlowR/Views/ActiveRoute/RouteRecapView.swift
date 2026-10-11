@@ -59,6 +59,7 @@ struct RouteRecapView: View {
                             stopRow(stop, index: idx + 1, completed: true)
                         }
                     }
+                    .listRowBackground(PlowRColor.surface)
                 }
 
                 if !skippedStops.isEmpty {
@@ -67,6 +68,7 @@ struct RouteRecapView: View {
                             stopRow(stop, index: completedStops.count + idx + 1, completed: false)
                         }
                     }
+                    .listRowBackground(PlowRColor.surface)
                 }
 
                 Section {
@@ -81,7 +83,9 @@ struct RouteRecapView: View {
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
                 }
+                .listRowBackground(PlowRColor.surface)
             }
+            .plowRGrouped()
             .navigationTitle("Route Recap")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -120,6 +124,7 @@ struct RouteRecapView: View {
             .listRowBackground(Color.clear)
             .listRowInsets(EdgeInsets())
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     // MARK: - Map Section
@@ -142,6 +147,7 @@ struct RouteRecapView: View {
             .allowsHitTesting(false)
             .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     private func recapPin(isDone: Bool) -> some View {

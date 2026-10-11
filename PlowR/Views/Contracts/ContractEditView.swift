@@ -64,6 +64,7 @@ struct ContractEditView: View {
                          ? "Signed: what was agreed (where, what, the price) is locked. To change it, cancel it and make a new one."
                          : "Left blank, it's named for its dates.")
                 }
+                .listRowBackground(PlowRColor.surface)
                 if draft.isSigned {
                     Section("Agreed") {
                         LabeledContent("Applies To", value: places.filter { draft.placeIDs.contains($0.id) }
@@ -72,6 +73,7 @@ struct ContractEditView: View {
                             .map(\.name).joined(separator: ", "))
                         if let contract { LabeledContent("Price", value: Contracts.priceSummary(of: contract)) }
                     }
+                    .listRowBackground(PlowRColor.surface)
                 } else {
                     termsSections
                 }
@@ -81,7 +83,9 @@ struct ContractEditView: View {
                     TextField("Terms, what's included, anything agreed", text: $draft.notes, axis: .vertical)
                         .lineLimit(3...)
                 }
+                .listRowBackground(PlowRColor.surface)
             }
+            .plowRGrouped()
             .navigationTitle(contract == nil ? "New Contract" : "Edit Contract")
             .proGateSheet($gate)
             .navigationBarTitleDisplayMode(.inline)
@@ -113,6 +117,7 @@ struct ContractEditView: View {
                             }
                         }
                     }
+                    .listRowBackground(PlowRColor.surface)
                 }
                 Section {
                     ForEach(services) { service in
@@ -125,6 +130,7 @@ struct ContractEditView: View {
                 } footer: {
                     Text("Services it doesn't cover are billed as extras, as usual.")
                 }
+                .listRowBackground(PlowRColor.surface)
                 pricingSection
     }
 
@@ -148,6 +154,7 @@ struct ContractEditView: View {
         } footer: {
             Text(scheduleNote)
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     private var scheduleNote: String {
@@ -181,6 +188,7 @@ struct ContractEditView: View {
         } footer: {
             Text(draft.problem() ?? pricingNote)
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     private var pricingNote: String {

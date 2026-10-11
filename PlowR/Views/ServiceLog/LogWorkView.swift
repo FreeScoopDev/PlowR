@@ -60,6 +60,7 @@ struct LogWorkView: View {
                             .multilineTextAlignment(.trailing)
                     }
                 }
+                .listRowBackground(PlowRColor.surface)
 
                 ServiceLinesSections(
                     services: services, zones: zones, operatorID: client.operatorID,
@@ -70,7 +71,9 @@ struct LogWorkView: View {
                     TextField("Optional notes", text: $notes, axis: .vertical)
                         .lineLimit(3...)
                 }
+                .listRowBackground(PlowRColor.surface)
             }
+            .plowRGrouped()
             .navigationTitle("Log Work")
             .navigationBarTitleDisplayMode(.inline)
             .scrollDismissesKeyboard(.interactively)

@@ -45,6 +45,7 @@ struct InvoicePaymentsView: View {
                         Text("Its payments come to more than its total: one may have been recorded twice.")
                     }
                 }
+                .listRowBackground(PlowRColor.surface)
                 // Nothing left to pay but not marked paid (edited down, say).
                 if invoice.balanceDue <= 0, invoice.invoicePaidAt == nil, invoice.voidedAt == nil {
                     Section {
@@ -52,10 +53,12 @@ struct InvoicePaymentsView: View {
                     } footer: {
                         Text("Nothing is left to pay on this invoice.")
                     }
+                    .listRowBackground(PlowRColor.surface)
                 }
                 paymentsSection
                 if invoice.balanceDue > 0 { recordSection }
             }
+            .plowRGrouped()
             .navigationTitle("Payments")
             .navigationBarTitleDisplayMode(.inline)
             .scrollDismissesKeyboard(.interactively)
@@ -95,10 +98,12 @@ struct InvoicePaymentsView: View {
             } footer: {
                 Text("Swipe left to remove a payment recorded by mistake. What it paid is owed again.")
             }
+            .listRowBackground(PlowRColor.surface)
         } else if let paidAt = invoice.invoicePaidAt {
             Section("Received") {
                 LabeledContent("Marked paid", value: paidAt.formatted(.dateTime.month(.abbreviated).day().year()))
             }
+            .listRowBackground(PlowRColor.surface)
         }
     }
 
@@ -122,6 +127,7 @@ struct InvoicePaymentsView: View {
         } footer: {
             Text(recordFooter)
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     private var recordFooter: String {

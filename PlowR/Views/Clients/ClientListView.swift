@@ -132,6 +132,7 @@ struct ClientListView: View {
                     }
                 }
             }
+            .listRowBackground(PlowRColor.surface)
         }
     }
 
@@ -161,14 +162,17 @@ struct ClientListView: View {
                     ForEach(activeClients) { client in
                         clientRow(client)
                     }
+                    .listRowBackground(PlowRColor.surface)
                     if !inactiveClients.isEmpty {
                         Section("Inactive") {
                             ForEach(inactiveClients) { client in
                                 clientRow(client)
                             }
                         }
+                        .listRowBackground(PlowRColor.surface)
                     }
                 }
+                .plowRGrouped()
             }
         }
         .navigationTitle("Clients")
@@ -343,6 +347,7 @@ struct ClientListView: View {
             .listRowBackground(Color.clear)
             .listRowInsets(EdgeInsets())
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     // MARK: - Client Row
