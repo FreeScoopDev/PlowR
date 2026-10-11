@@ -146,6 +146,10 @@ struct ScheduleView: View {
             CalendarDotView(selectedDate: $selectedDate, visitDateStrings: visitDateStrings, onLongPress: {
                 showingAddVisit = true
             })
+            // The month grid lays out for a phone-width page. Given a whole iPad
+            // row it drew the neighbouring months beside it, overlapping.
+            .frame(maxWidth: 560)
+            .frame(maxWidth: .infinity)
             .listRowBackground(Color.clear)
             .listRowSeparator(.hidden)
             .listRowInsets(EdgeInsets())
@@ -433,6 +437,7 @@ private struct CalendarDotView: UIViewRepresentable {
         cal.locale = .current
         cal.fontDesign = .rounded
         cal.delegate = context.coordinator
+        cal.clipsToBounds = true
 
         let sel = UICalendarSelectionSingleDate(delegate: context.coordinator)
         cal.selectionBehavior = sel
