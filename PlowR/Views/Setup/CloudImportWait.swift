@@ -43,8 +43,10 @@ final class CloudImportWait {
     private(set) var isDone = false
     private let watch: CloudImportWatch
 
-    init(watch: CloudImportWatch = .shared) {
-        self.watch = watch
+    /// `watch` defaults to the app's (a default argument can't name the
+    /// main-actor `shared` without a Swift 6 warning).
+    init(watch: CloudImportWatch? = nil) {
+        self.watch = watch ?? .shared
     }
 
     /// Setup can show: the import finished, or waiting is over.
