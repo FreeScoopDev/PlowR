@@ -46,7 +46,9 @@ struct ContentView: View {
                             SetupFlowView { setupFinished = true }
                         } else {
                             LookingForBusinessView { importWait.finish() }
-                                .task(id: authManager.userID) { await importWait.start(syncOff: DeviceSync.isOff()) }
+                                .task(id: authManager.userID) {
+                                    await importWait.start(for: authManager.userID, syncOff: DeviceSync.isOff())
+                                }
                         }
                     } else {
                         MainTabView(selectedTab: $selectedTab)
@@ -78,7 +80,7 @@ struct ContentView: View {
             // Data): its own first run.
             setupFinished = false
             if tabsShownFor != userID { tabsShownFor = nil }
-            importWait.reset()
+            importWait.reset(for: userID)
         }
         .onOpenURL { url in open(url) }
         // A web link (getplowr.app/lead/…) can arrive as a browsing activity.

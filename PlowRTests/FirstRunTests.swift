@@ -204,13 +204,13 @@ struct CloudImportWaitTests {
 
     @Test func noICloudAccountMeansNoWait() async {
         let wait = CloudImportWait(watch: CloudImportWatch())
-        await wait.start(syncOff: false, underTests: false, accountAvailable: { false })
+        await wait.start(for: "op", syncOff: false, underTests: false, accountAvailable: { false })
         #expect(wait.isReady)
     }
 
     @Test func syncOffMeansNoWait() async {
         let wait = CloudImportWait(watch: CloudImportWatch())
-        await wait.start(syncOff: true, underTests: false, accountAvailable: { true })
+        await wait.start(for: "op", syncOff: true, underTests: false, accountAvailable: { true })
         #expect(wait.isReady)
     }
 
@@ -218,23 +218,41 @@ struct CloudImportWaitTests {
     @Test func theLimitCountsFromLaunch() async {
         let watch = CloudImportWatch()
         let wait = CloudImportWait(watch: watch)
-        await wait.start(syncOff: false, underTests: false, accountAvailable: { true },
-                         now: { watch.launchedAt.addingTimeInterval(CloudImportWait.limit + 1) })
+        var slept: TimeInterval?
+        await wait.start(for: "op", syncOff: false, underTests: false, accountAvailable: { true },
+                         now: { watch.launchedAt.addingTimeInterval(CloudImportWait.limit + 1) },
+                         sleep: { slept = $0 })
         #expect(wait.isReady)
+        #expect(slept == nil)          // past the limit: no waiting at all
+        // Ten seconds in, it waits out the rest, not the whole limit.
+        let early = CloudImportWait(watch: watch)
+        await early.start(for: "op", syncOff: false, underTests: false, accountAvailable: { true },
+                          now: { watch.launchedAt.addingTimeInterval(10) }, sleep: { slept = $0 })
+        #expect(slept == CloudImportWait.limit - 10)
     }
 
-    /// An event that isn't a finished import doesn't end the wait.
+    /// Only a finished import ends the wait: not one just started, not an
+    /// export or setup event.
     @Test func onlyAFinishedImportCounts() {
+        #expect(CloudImportWatch.endsImport(isImport: true, endDate: .now))
+        #expect(!CloudImportWatch.endsImport(isImport: true, endDate: nil))
+        #expect(!CloudImportWatch.endsImport(isImport: false, endDate: .now))
         let watch = CloudImportWatch()
         watch.record(importEnded: false)
         #expect(!CloudImportWait(watch: watch).isReady)
     }
 
-    @Test func aNewBusinessWaitsAfresh() {
+    /// A wait finished for one business doesn't count for the next, in
+    /// either order of reset and finish.
+    @Test func aNewBusinessWaitsAfresh() async {
         let wait = CloudImportWait(watch: CloudImportWatch())
-        wait.finish()
-        wait.reset()
+        await wait.start(for: "a", syncOff: true)
+        wait.reset(for: "b")
         #expect(!wait.isReady)
+        await wait.start(for: "b", syncOff: true)
+        #expect(wait.isReady)
+        wait.reset(for: "b")            // the same business again: still done
+        #expect(wait.isReady)
     }
 
     @Test func trialLengthsReadNaturally() {

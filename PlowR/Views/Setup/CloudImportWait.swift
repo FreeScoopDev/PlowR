@@ -21,9 +21,15 @@ final class CloudImportWatch {
                                       object: nil, queue: .main) { note in
             let event = note.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey]
                 as? NSPersistentCloudKitContainer.Event
-            let ended = event?.type == .import && event?.endDate != nil
+            let ended = Self.endsImport(isImport: event?.type == .import, endDate: event?.endDate)
             MainActor.assumeIsolated { self.record(importEnded: ended) }
         }
+    }
+
+    /// An event that finishes an import: an import, with an end date
+    /// (a started one has none yet).
+    nonisolated static func endsImport(isImport: Bool, endDate: Date?) -> Bool {
+        isImport && endDate != nil
     }
 
     func record(importEnded ended: Bool) {
@@ -40,7 +46,12 @@ final class CloudImportWatch {
 @MainActor @Observable
 final class CloudImportWait {
     static let limit: TimeInterval = 25
-    private(set) var isDone = false
+    /// Who the waiting ended for: a wait finished for one business (or
+    /// before the sign-in) doesn't count for the next, whichever order a
+    /// sign-in's updates run in.
+    private var doneFor: String?
+    private(set) var user = ""
+    var isDone: Bool { doneFor == user }
     private let watch: CloudImportWatch
 
     /// `watch` defaults to the app's (a default argument can't name the
@@ -53,24 +64,28 @@ final class CloudImportWait {
     var isReady: Bool { isDone || watch.importEnded }
 
     /// Run from the waiting screen's task (cancelled when it goes away).
-    func start(syncOff: Bool, underTests: Bool = PlowRApp.isRunningUnderTests,
+    func start(for user: String, syncOff: Bool, underTests: Bool = PlowRApp.isRunningUnderTests,
                accountAvailable: () async -> Bool = { (try? await ICloudStatus.accountStatus()) == .available },
-               now: () -> Date = Date.init) async {
+               now: () -> Date = Date.init,
+               sleep: (TimeInterval) async -> Void = { try? await Task.sleep(for: .seconds($0)) }) async {
+        self.user = user
         if syncOff || underTests { return finish() }
         guard await accountAvailable() else { return finish() }
         guard !Task.isCancelled else { return }
         let left = Self.limit - now().timeIntervalSince(watch.launchedAt)
-        if left > 0 { try? await Task.sleep(for: .seconds(left)) }
+        if left > 0 { await sleep(left) }
         guard !Task.isCancelled else { return }
         finish()
     }
 
-    /// Done waiting: the time ran out, there's nothing to wait for, or the
-    /// user chose to set up a new business.
-    func finish() { isDone = true }
+    /// Done waiting, for the business signed in: the time ran out, there's
+    /// nothing to wait for, or the user chose to set up a new business.
+    func finish() { doneFor = user }
 
     /// Another business signed in: wait afresh.
-    func reset() { isDone = false }
+    func reset(for user: String) {
+        self.user = user
+    }
 }
 
 /// While CloudImportWait waits: what's happening, and a way past it.

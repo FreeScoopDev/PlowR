@@ -262,7 +262,12 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   `SetupFlowView` instead of the tabs (`FirstRun.needsSetup`; done is a
   per-operator flag in standard defaults), then Home's Get Started card.
   The notification permission is only asked from setup or Get Started,
-  with a reason. Debug: `-PlowRDemoNew YES` signs in a fresh business;
+  with a reason. Every business-profile lookup goes through
+  `BusinessProfiles.current` (never `profiles.first { … }`): devices made
+  their own before syncing, and `mergeDuplicates` (launch, remote change)
+  folds extras into that one. `CloudImportWatch` starts in `PlowRApp.init`
+  before the store opens, and setup waits for the first iCloud import,
+  at most 25 s from launch (`CloudImportWait`). Debug: `-PlowRDemoNew YES` signs in a fresh business;
   `-PlowRDemo YES` a seeded one (`DemoLaunch`), for screenshots.
 - **Delete Account & Data** (Settings) is an App Review 5.1.1(v) requirement.
   It removes all SwiftData records, the encrypted work-orders file, the route
