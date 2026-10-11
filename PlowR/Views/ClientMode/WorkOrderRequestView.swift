@@ -29,6 +29,7 @@ struct WorkOrderRequestView: View {
                     .keyboardType(.emailAddress)
                     .autocapitalization(.none)
             }
+            .listRowBackground(PlowRColor.surface)
 
             Section("Property & Service") {
                 LabeledContent("Address", value: propertyAddress)
@@ -46,11 +47,13 @@ struct WorkOrderRequestView: View {
                 }
                 LabeledContent("Total Area", value: "\(Int(totalArea)) sq ft")
             }
+            .listRowBackground(PlowRColor.surface)
 
             Section("Notes") {
                 TextField("Special instructions, access codes, obstacles...", text: $notes, axis: .vertical)
                     .lineLimit(4...)
             }
+            .listRowBackground(PlowRColor.surface)
 
             Section {
                 Button {
@@ -78,7 +81,9 @@ struct WorkOrderRequestView: View {
                     Text("Add your name and phone number to send.")
                 }
             }
+            .listRowBackground(PlowRColor.surface)
         }
+        .plowRGrouped()
         .navigationTitle("Work Order Request")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showShareSheet) {

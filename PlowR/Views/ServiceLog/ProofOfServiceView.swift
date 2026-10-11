@@ -51,9 +51,12 @@ struct ProofOfServiceView: View {
         NavigationStack {
             Form {
                 if places.count > 1 {
-                    Picker("Property", selection: $placeID) {
-                        ForEach(places) { place in Text(place.label).tag(place.id) }
+                    Section {
+                        Picker("Property", selection: $placeID) {
+                            ForEach(places) { place in Text(place.label).tag(place.id) }
+                        }
                     }
+                    .listRowBackground(PlowRColor.surface)
                 }
                 Section {
                     Picker("Period", selection: Binding(get: { periodID ?? periods.first?.id }, set: { periodID = $0 })) {
@@ -74,6 +77,7 @@ struct ProofOfServiceView: View {
                 } footer: {
                     Text("What PlowR recorded (route stops' times, including travel to them, where each record came from, the services, notes and photos), and each visit day's estimated weather, looked up when it's made.")
                 }
+                .listRowBackground(PlowRColor.surface)
                 Section {
                     if let pdfURL {
                         ShareLink(item: pdfURL) {
@@ -94,7 +98,9 @@ struct ProofOfServiceView: View {
                 } footer: {
                     Text("Every visit at the property in the period: for an insurer, a lawyer, or a client who asks.")
                 }
+                .listRowBackground(PlowRColor.surface)
             }
+            .plowRGrouped()
             // Nothing changes under a report being made.
             .disabled(isMaking)
             .alert("Weather couldn't be looked up", isPresented: Binding(get: { failedSnapshot != nil },

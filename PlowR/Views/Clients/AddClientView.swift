@@ -34,6 +34,7 @@ struct AddClientView: View {
                         .keyboardType(.emailAddress)
                         .textInputAutocapitalization(.never)
                 }
+                .listRowBackground(PlowRColor.surface)
 
                 Section("Service Address") {
                     TextField("Street Address", text: $address)
@@ -65,7 +66,9 @@ struct AddClientView: View {
                         }
                     }
                 }
+                .listRowBackground(PlowRColor.surface)
             }
+            .plowRGrouped()
             .navigationTitle("New Client")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

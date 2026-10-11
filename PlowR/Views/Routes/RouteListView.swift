@@ -70,9 +70,14 @@ struct RouteListView: View {
                             }
                         }
                     }
+                    .listRowBackground(PlowRColor.surface)
                 }
+                .plowRGrouped()
             }
         }
+        // The empty state too, so the page doesn't change colour with the
+        // first item.
+        .background(PlowRColor.ground)
         .navigationTitle("Routes")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {

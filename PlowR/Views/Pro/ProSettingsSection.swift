@@ -52,6 +52,7 @@ struct ProSettingsSection: View {
         } header: {
             Text("PlowR Pro")
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     /// What Settings presents for this section, on its Form.

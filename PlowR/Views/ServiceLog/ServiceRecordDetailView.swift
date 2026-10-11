@@ -105,6 +105,7 @@ struct ServiceRecordDetailView: View {
                     Text("No charge: this work won't be billed.")
                 }
             }
+            .listRowBackground(PlowRColor.surface)
 
             ServiceLinesSections(
                 services: services, zones: zones, operatorID: operatorID,
@@ -116,6 +117,7 @@ struct ServiceRecordDetailView: View {
                 TextField("Optional notes", text: $notes, axis: .vertical)
                     .lineLimit(3...)
             }
+            .listRowBackground(PlowRColor.surface)
             }
             .disabled(!access.canEdit)
 
@@ -132,13 +134,16 @@ struct ServiceRecordDetailView: View {
                     }
                 }
             }
+            .listRowBackground(PlowRColor.surface)
 
             if invoice == nil {
                 Section {
                     Button("Delete This Job", role: .destructive) { showingDeleteConfirm = true }
                 }
+                .listRowBackground(PlowRColor.surface)
             }
         }
+        .plowRGrouped()
         .navigationTitle(record.performedAt.formatted(.dateTime.month(.abbreviated).day().year()))
         .navigationBarTitleDisplayMode(.inline)
         .scrollDismissesKeyboard(.interactively)
@@ -192,6 +197,7 @@ struct ServiceRecordDetailView: View {
                     }
                 }
             }
+            .listRowBackground(PlowRColor.surface)
         }
     }
 

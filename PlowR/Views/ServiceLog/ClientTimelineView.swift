@@ -15,17 +15,21 @@ struct ClientTimelineView: View {
                 if events.isEmpty {
                     ContentUnavailableView("Nothing Yet", systemImage: "clock",
                                            description: Text("Jobs, visits, invoices, texts and photos for \(client.name) will show here."))
+                    .listRowBackground(Color.clear)   // the empty state sits on the page
                 } else {
                     ForEach(months(of: events), id: \.month) { group in
                         Section(group.month.formatted(.dateTime.month(.wide).year())) {
                             ForEach(group.events) { row($0) }
                         }
+                        .listRowBackground(PlowRColor.surface)
                     }
+                    .listRowBackground(PlowRColor.surface)
                 }
             } else {
                 ProgressView().frame(maxWidth: .infinity).listRowBackground(Color.clear)
             }
         }
+        .plowRGrouped()
         .navigationTitle("Timeline")
         .navigationBarTitleDisplayMode(.inline)
         .task { events = ClientTimeline.events(for: client, in: modelContext) }

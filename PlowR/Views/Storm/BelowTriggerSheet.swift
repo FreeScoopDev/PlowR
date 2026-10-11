@@ -26,10 +26,12 @@ struct BelowTriggerSheet: View {
                 } footer: {
                     Text("Less fell here than the trigger. PlowR keeps this check (the time, and the GPS arrival if it caught one) for the Service Report, and moves on to the next stop. No visit is credited or billed.")
                 }
+                .listRowBackground(PlowRColor.surface)
                 Section("Note") {
                     TextField("How much fell, say", text: $note, axis: .vertical)
                         .lineLimit(2...5)
                 }
+                .listRowBackground(PlowRColor.surface)
                 Section {
                     if !photos.isEmpty {
                         ScrollView(.horizontal, showsIndicators: false) {
@@ -69,7 +71,9 @@ struct BelowTriggerSheet: View {
                 } footer: {
                     Text("A photo of what's on the ground shows the trigger wasn't reached.")
                 }
+                .listRowBackground(PlowRColor.surface)
             }
+            .plowRGrouped()
             .navigationTitle("Below Trigger")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

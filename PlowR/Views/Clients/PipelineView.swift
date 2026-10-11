@@ -28,6 +28,7 @@ struct PipelineView: View {
             if entries.isEmpty {
                 ContentUnavailableView("No Leads", systemImage: "person.crop.circle.badge.plus",
                                        description: Text("Clients with no work booked or done yet show here: new leads, and those you've sent a proposal."))
+                .listRowBackground(Color.clear)   // the empty state sits on the page
             }
             section("Follow Up", followUp,
                     footer: "Sent a proposal \(Pipeline.followUpDays) or more days ago with no reply yet.")
@@ -36,6 +37,7 @@ struct PipelineView: View {
                     footer: "Sent a proposal. Booking them (a visit or a route stop), a job or an invoice makes them a customer.")
             section("Lost", entries.filter { $0.stage == .lost }, footer: "Swipe to reopen one.")
         }
+        .plowRGrouped()
         .navigationTitle("Pipeline")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -75,6 +77,7 @@ struct PipelineView: View {
             } footer: {
                 Text(footer)
             }
+            .listRowBackground(PlowRColor.surface)
         }
     }
 

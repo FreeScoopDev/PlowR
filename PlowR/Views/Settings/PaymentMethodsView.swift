@@ -56,8 +56,10 @@ struct PaymentMethodsView: View {
                     reordered.move(fromOffsets: indices, toOffset: destination)
                     for (i, m) in reordered.enumerated() { m.sortOrder = i }
                 }
+                .listRowBackground(PlowRColor.surface)
             }
         }
+        .plowRGrouped()
         .navigationTitle("Payment Methods")
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
@@ -174,6 +176,7 @@ private struct AddPaymentMethodSheet: View {
                         value = p.urlPrefix
                     }
                 }
+                .listRowBackground(PlowRColor.surface)
 
                 Section("Details") {
                     TextField("Label", text: $label)
@@ -185,6 +188,7 @@ private struct AddPaymentMethodSheet: View {
                             .onAppear { if value.isEmpty { value = preset.urlPrefix } }
                     }
                 }
+                .listRowBackground(PlowRColor.surface)
 
                 if preset == .check {
                     Section {
@@ -192,14 +196,17 @@ private struct AddPaymentMethodSheet: View {
                     } footer: {
                         Text("The name clients should write on the check.")
                     }
+                    .listRowBackground(PlowRColor.surface)
                 } else if preset.methodType == "link" {
                     Section {
                         EmptyView()
                     } footer: {
                         Text("Paste the payment link from your provider. Appears as a tappable link and QR code on invoices.")
                     }
+                    .listRowBackground(PlowRColor.surface)
                 }
             }
+            .plowRGrouped()
             .navigationTitle("Add Payment Method")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

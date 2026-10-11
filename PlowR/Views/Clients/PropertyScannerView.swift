@@ -637,6 +637,7 @@ struct ZoneLabelSheet: View {
                 Section("Zone Label") {
                     TextField("e.g. Driveway", text: $pendingLabel)
                 }
+                .listRowBackground(PlowRColor.surface)
                 Section {
                     ForEach(["Driveway", "Walkway", "Patio", "Side Path", "Back Area", "Front Lawn"], id: \.self) { suggestion in
                         Button(suggestion) { pendingLabel = suggestion }
@@ -645,7 +646,9 @@ struct ZoneLabelSheet: View {
                 } header: {
                     Text("Suggestions")
                 }
+                .listRowBackground(PlowRColor.surface)
             }
+            .plowRGrouped()
             .navigationTitle("Name This Zone")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

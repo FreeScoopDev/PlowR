@@ -18,6 +18,7 @@ struct MoneyOwedView: View {
             if summary.clients.isEmpty {
                 ContentUnavailableView("Nothing Owed", systemImage: "checkmark.seal",
                                        description: Text("No invoice that went out has a balance. Drafts count once they're sent."))
+                .listRowBackground(Color.clear)   // the empty state sits on the page
             } else {
                 Section {
                     LabeledContent("Total Owed") {
@@ -32,6 +33,7 @@ struct MoneyOwedView: View {
                 } footer: {
                     Text("Late counts from each invoice's due date. Drafts, and invoices with no due date, aren't late.")
                 }
+                .listRowBackground(PlowRColor.surface)
                 Section("By Client") {
                     ForEach(summary.clients) { client in
                         NavigationLink {
@@ -39,7 +41,9 @@ struct MoneyOwedView: View {
                                 NavigationLink { ProposalDetailView(proposal: invoice) } label: {
                                     ProposalRowView(proposal: invoice)
                                 }
+                                .listRowBackground(PlowRColor.surface)
                             }
+                            .plowRGrouped()
                             .navigationTitle(client.name)
                             .navigationBarTitleDisplayMode(.inline)
                         } label: {
@@ -61,8 +65,10 @@ struct MoneyOwedView: View {
                         }
                     }
                 }
+                .listRowBackground(PlowRColor.surface)
             }
         }
+        .plowRGrouped()
         .navigationTitle("Money Owed")
         .navigationBarTitleDisplayMode(.inline)
     }

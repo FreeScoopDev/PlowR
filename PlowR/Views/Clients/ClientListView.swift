@@ -132,6 +132,7 @@ struct ClientListView: View {
                     }
                 }
             }
+            .listRowBackground(PlowRColor.surface)
         }
     }
 
@@ -161,16 +162,22 @@ struct ClientListView: View {
                     ForEach(activeClients) { client in
                         clientRow(client)
                     }
+                    .listRowBackground(PlowRColor.surface)
                     if !inactiveClients.isEmpty {
                         Section("Inactive") {
                             ForEach(inactiveClients) { client in
                                 clientRow(client)
                             }
                         }
+                        .listRowBackground(PlowRColor.surface)
                     }
                 }
+                .plowRGrouped()
             }
         }
+        // The empty state too, so the page doesn't change colour with the
+        // first item.
+        .background(PlowRColor.ground)
         .navigationTitle("Clients")
         .searchable(text: $searchText, prompt: "Search clients")
         .toolbar {
@@ -343,6 +350,7 @@ struct ClientListView: View {
             .listRowBackground(Color.clear)
             .listRowInsets(EdgeInsets())
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     // MARK: - Client Row

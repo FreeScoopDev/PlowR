@@ -75,6 +75,7 @@ struct ScheduleView: View {
                 daySection
                 if !upcomingVisits.isEmpty { upcomingSection }
             }
+            .plowRGrouped()
             .listStyle(.insetGrouped)
             .navigationTitle("Schedule")
             .navigationBarTitleDisplayMode(.large)
@@ -134,6 +135,7 @@ struct ScheduleView: View {
                         .listRowSeparator(.hidden)
                 }
             }
+            .listRowBackground(PlowRColor.surface)
         }
     }
 
@@ -148,6 +150,7 @@ struct ScheduleView: View {
             .listRowSeparator(.hidden)
             .listRowInsets(EdgeInsets())
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     // MARK: - Day Section
@@ -214,6 +217,7 @@ struct ScheduleView: View {
                 }
             }
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     // MARK: - Overdue Section
@@ -248,6 +252,7 @@ struct ScheduleView: View {
                     .foregroundStyle(.orange)
                     .textCase(nil)
             }
+            .listRowBackground(PlowRColor.surface)
         }
     }
 
@@ -264,6 +269,7 @@ struct ScheduleView: View {
                 .foregroundStyle(.primary)
                 .textCase(nil)
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     // MARK: - Row Views

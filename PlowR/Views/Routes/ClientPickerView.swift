@@ -37,6 +37,7 @@ struct ClientPickerView: View {
                 } footer: {
                     Text("For one-time customers or stops that aren't set up as clients.")
                 }
+                .listRowBackground(PlowRColor.surface)
 
                 if !clients.isEmpty {
                     Section("Your Clients") {
@@ -46,8 +47,10 @@ struct ClientPickerView: View {
                             }
                         }
                     }
+                    .listRowBackground(PlowRColor.surface)
                 }
             }
+            .plowRGrouped()
             .navigationTitle("Add Stops")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -118,12 +121,15 @@ struct CustomStopFormView: View {
                         .textContentType(.telephoneNumber)
                         .keyboardType(.phonePad)
                 }
+                .listRowBackground(PlowRColor.surface)
                 Section {
                     Text("Use this for gas stations, supply pickups, one-time customers, or any stop that isn't saved as a client.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+                .listRowBackground(PlowRColor.surface)
             }
+            .plowRGrouped()
             .navigationTitle("Custom Stop")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

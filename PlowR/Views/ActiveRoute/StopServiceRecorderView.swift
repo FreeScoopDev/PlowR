@@ -153,6 +153,7 @@ struct StopServiceRecorderView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
+                    .listRowBackground(PlowRColor.surface)
                 }
 
                 photoSection(isBefore: true)
@@ -171,6 +172,7 @@ struct StopServiceRecorderView: View {
                                   systemImage: "checklist")
                         }
                     }
+                    .listRowBackground(PlowRColor.surface)
                 }
 
                 ServiceLinesSections(
@@ -187,7 +189,9 @@ struct StopServiceRecorderView: View {
                     TextField("Optional notes for this stop…", text: $notes, axis: .vertical)
                         .lineLimit(3...)
                 }
+                .listRowBackground(PlowRColor.surface)
             }
+            .plowRGrouped()
             .navigationTitle("Record Services")
             .navigationBarTitleDisplayMode(.inline)
             .scrollDismissesKeyboard(.interactively)
@@ -322,6 +326,7 @@ struct StopServiceRecorderView: View {
                 .buttonStyle(.plain)
             }
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     // MARK: - Image Loading

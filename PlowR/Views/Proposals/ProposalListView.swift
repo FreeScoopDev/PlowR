@@ -83,16 +83,22 @@ struct ProposalListView: View {
                     ForEach(myProposals) { proposal in
                         proposalRow(proposal)
                     }
+                    .listRowBackground(PlowRColor.surface)
                     if !archivedProposals.isEmpty {
                         Section("Archived — Paid") {
                             ForEach(archivedProposals) { proposal in
                                 proposalRow(proposal)
                             }
                         }
+                        .listRowBackground(PlowRColor.surface)
                     }
                 }
+                .plowRGrouped()
             }
         }
+        // The empty state too, so the page doesn't change colour with the
+        // first item.
+        .background(PlowRColor.ground)
         .navigationTitle(filterStatus == .all ? "Documents" : filterStatus.rawValue)
         .proGateSheet($gate)
         .toolbar {
@@ -199,6 +205,7 @@ struct ProposalListView: View {
             .listRowBackground(Color.clear)
             .listRowInsets(EdgeInsets())
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     // MARK: - Proposal Row
@@ -340,9 +347,12 @@ struct ClientPickerForProposalView: View {
                             }
                             .padding(.vertical, 2)
                         }
+                        .listRowBackground(PlowRColor.surface)
                     }
+                    .plowRGrouped()
                 }
             }
+            .background(PlowRColor.ground)
             .navigationTitle("Select Client")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

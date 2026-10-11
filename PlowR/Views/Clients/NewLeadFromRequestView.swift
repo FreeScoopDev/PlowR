@@ -62,6 +62,7 @@ struct NewLeadFromRequestView: View {
                 } footer: {
                     Text("A returning client, or someone who asked before. Save Lead adds a new lead anyway.")
                 }
+                .listRowBackground(PlowRColor.surface)
             }
             Section("Contact") {
                 TextField("Name", text: $request.name).textContentType(.name)
@@ -70,15 +71,18 @@ struct NewLeadFromRequestView: View {
                     .textContentType(.emailAddress).keyboardType(.emailAddress).textInputAutocapitalization(.never)
                 TextField("Address", text: $request.address, axis: .vertical).textContentType(.fullStreetAddress)
             }
+            .listRowBackground(PlowRColor.surface)
             if !request.service.isEmpty || request.when != nil {
                 Section("Asked For") {
                     if !request.service.isEmpty { LabeledContent("Service", value: request.service) }
                     if let when = request.when { LabeledContent("How often", value: when.title) }
                 }
+                .listRowBackground(PlowRColor.surface)
             }
             Section("Their Notes") {
                 TextField("Notes", text: $request.notes, axis: .vertical).lineLimit(2...8)
             }
+            .listRowBackground(PlowRColor.surface)
             Section {
                 Button("Save Lead") { save() }
                     .disabled(cleaned == nil || isSaved)
@@ -86,7 +90,9 @@ struct NewLeadFromRequestView: View {
                 Text(problem ?? "Saved as a lead in your Pipeline, tagged with today's date, and put on the map from the address. Check the details first: the request came in a text, and anyone could have sent it.")
                     .foregroundStyle(problem == nil ? Color.secondary : Color.orange)
             }
+            .listRowBackground(PlowRColor.surface)
         }
+        .plowRGrouped()
         .navigationTitle("New Lead")
         .navigationBarTitleDisplayMode(.inline)
     }

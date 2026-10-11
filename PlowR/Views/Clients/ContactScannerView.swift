@@ -35,7 +35,7 @@ struct ContactScannerView: View {
                     reviewForm
                 } else {
                     // Empty placeholder — camera sheet is shown on appear
-                    Color(.systemGroupedBackground).ignoresSafeArea()
+                    PlowRColor.ground.ignoresSafeArea()
                 }
             }
             .navigationTitle(result != nil ? "Review Contact" : "Scan Contact")
@@ -81,7 +81,7 @@ struct ContactScannerView: View {
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(.systemGroupedBackground))
+        .background(PlowRColor.ground)
     }
 
     // MARK: - Review Form
@@ -112,12 +112,14 @@ struct ContactScannerView: View {
                     .keyboardType(.emailAddress)
                     .textInputAutocapitalization(.never)
             }
+            .listRowBackground(PlowRColor.surface)
 
             Section("Service Address") {
                 TextField("Street Address", text: $address, axis: .vertical)
                     .textContentType(.fullStreetAddress)
                     .lineLimit(2...3)
             }
+            .listRowBackground(PlowRColor.surface)
 
             if !notes.isEmpty {
                 Section {
@@ -129,6 +131,7 @@ struct ContactScannerView: View {
                     Text("Text that didn't match a contact field — saved as client notes.")
                         .font(.caption)
                 }
+                .listRowBackground(PlowRColor.surface)
             }
 
             Section {
@@ -149,7 +152,9 @@ struct ContactScannerView: View {
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
             }
+            .listRowBackground(PlowRColor.surface)
         }
+        .plowRGrouped()
     }
 
     // MARK: - Actions

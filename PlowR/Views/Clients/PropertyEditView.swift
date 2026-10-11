@@ -75,6 +75,7 @@ struct PropertyEditView: View {
                 } footer: {
                     Text("How it shows on routes and the schedule, after \(client.name)'s name.")
                 }
+                .listRowBackground(PlowRColor.surface)
                 addressSection
                 Section {
                     TextField("Notes shown at this stop (gate codes, where to start…)", text: $draft.stopNotes,
@@ -88,12 +89,14 @@ struct PropertyEditView: View {
                 } footer: {
                     Text("Copied to new route stops here, as a client's own are.")
                 }
+                .listRowBackground(PlowRColor.surface)
                 if !services.isEmpty { servicesSection }
                 Section {
                     Toggle("Active", isOn: $draft.isActive)
                 } footer: {
                     Text("An inactive property comes off its routes and isn't offered for new stops and visits. Visits already booked there stay.")
                 }
+                .listRowBackground(PlowRColor.surface)
                 }
                 .disabled(!access.canEdit)
                 if property != nil {
@@ -103,8 +106,10 @@ struct PropertyEditView: View {
                             removal = PropertyRemoval.footprint(of: property, in: modelContext)
                         }
                     }
+                    .listRowBackground(PlowRColor.surface)
                 }
             }
+            .plowRGrouped()
             // While the address is looked up: nothing changes under it, and
             // Cancel can't close a sheet whose save then lands anyway.
             .disabled(isSaving)
@@ -212,6 +217,7 @@ struct PropertyEditView: View {
                 AddressNotFoundLabel(detail: "The map couldn't find this address, so this property has no pin and isn't on route maps. Correct the address, or set the pin on the map.")
             }
         }
+        .listRowBackground(PlowRColor.surface)
 
     }
 
@@ -235,6 +241,7 @@ struct PropertyEditView: View {
         } footer: {
             Text("Services this property typically needs. Its route stops expect these, except a stop given its own services on its route.")
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     /// Asks first when Save marks it inactive and it's on a route.

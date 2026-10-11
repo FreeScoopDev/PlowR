@@ -91,6 +91,7 @@ struct ProposalBuilderView: View {
                 customItemsSection
                 optionsSection
             }
+            .plowRGrouped()
             .onAppear {
                 guard !seeded else { return }
                 seeded = true
@@ -161,6 +162,7 @@ struct ProposalBuilderView: View {
                 }
             }
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     private var servicesSection: some View {
@@ -248,6 +250,7 @@ struct ProposalBuilderView: View {
                 Text("Estimated total: \(estimatedTotalString)")
             }
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     @ViewBuilder
@@ -307,6 +310,7 @@ struct ProposalBuilderView: View {
         } header: {
             Text("Custom Line Items")
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     private var optionsSection: some View {
@@ -322,6 +326,7 @@ struct ProposalBuilderView: View {
                     }
                 }
             }
+            .listRowBackground(PlowRColor.surface)
             Section("Discount & Tax") {
                 HStack {
                     Text("Discount $")
@@ -335,15 +340,18 @@ struct ProposalBuilderView: View {
                     Text("%")
                 }
             }
+            .listRowBackground(PlowRColor.surface)
             Section("Disclaimer") {
                 TextEditor(text: $disclaimer)
                     .frame(minHeight: 60)
                     .foregroundStyle(disclaimer.isEmpty ? .secondary : .primary)
             }
+            .listRowBackground(PlowRColor.surface)
             Section("Notes") {
                 TextEditor(text: $notes)
                     .frame(minHeight: 80)
             }
+            .listRowBackground(PlowRColor.surface)
         }
     }
 

@@ -43,6 +43,7 @@ struct BillWorkView: View {
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets())
                 }
+                .listRowBackground(PlowRColor.surface)
 
                 if self.works == nil {
                     ProgressView()
@@ -54,6 +55,7 @@ struct BillWorkView: View {
                     } description: {
                         Text("No work in this period is waiting to be billed. Jobs come from completed stops and visits, and from Log Work.")
                     }
+                    .listRowBackground(Color.clear)   // the empty state sits on the page
                 } else {
                     Section {
                         ForEach(works) { work in
@@ -62,8 +64,10 @@ struct BillWorkView: View {
                     } footer: {
                         Text("One draft invoice per client ticked, a line per service done with its day. Check and send them from Documents.")
                     }
+                    .listRowBackground(PlowRColor.surface)
                 }
             }
+            .plowRGrouped()
             .navigationTitle(onlyClient.map { "Bill \($0.name)" } ?? "Bill Unbilled Work")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

@@ -49,17 +49,20 @@ struct ContractDetailView: View {
                     LabeledContent("Cancelled", value: cancelled.formatted(.dateTime.month(.abbreviated).day().year()))
                 }
             }
+            .listRowBackground(PlowRColor.surface)
             Section("Applies To") {
                 ForEach(places, id: \.id) { place in
                     LabeledContent(place.isMain ? "Main Address" : place.label, value: place.address)
                 }
             }
+            .listRowBackground(PlowRColor.surface)
             Section("Services Covered") {
                 if serviceNames.isEmpty {
                     Text("None chosen").foregroundStyle(.secondary)
                 }
                 ForEach(serviceNames, id: \.self) { Text($0) }
             }
+            .listRowBackground(PlowRColor.surface)
             visitsSection
             paymentsSection
             if contract.signedAt != nil,
@@ -67,12 +70,15 @@ struct ContractDetailView: View {
                 ContractTriggerChecksSection(contract: contract)
             } else if contract.triggerInches > 0 {
                 Section { ContractTriggerRow(inches: contract.triggerInches) }
+                .listRowBackground(PlowRColor.surface)
             }
             if !contract.notes.isEmpty {
                 Section("Notes") { Text(contract.notes) }
+                .listRowBackground(PlowRColor.surface)
             }
             actions
         }
+        .plowRGrouped()
         .navigationTitle(contract.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -154,6 +160,7 @@ struct ContractDetailView: View {
             } footer: {
                 Text("Mark it signed once the client has agreed. From then it counts: they're a customer, what was agreed is locked, and it can be cancelled but not deleted.")
             }
+            .listRowBackground(PlowRColor.surface)
         case .upcoming, .active:
             Section {
                 if Contracts.canRenew(contract, among: allContracts) {
@@ -161,11 +168,13 @@ struct ContractDetailView: View {
                 }
                 Button("Cancel Contract", role: .destructive) { $gate.unless(ProGate.edit(access)) { confirmingCancel = true } }
             }
+            .listRowBackground(PlowRColor.surface)
         case .ended, .cancelled:
             if Contracts.canRenew(contract, among: allContracts) {
                 Section {
                     Button("Renew") { $gate.unless(ProGate.edit(access)) { choosingRenewal = true } }
                 }
+                .listRowBackground(PlowRColor.surface)
             }
         }
     }
@@ -186,6 +195,7 @@ struct ContractDetailView: View {
             } footer: {
                 Text(visitsNote(ahead: ahead))
             }
+            .listRowBackground(PlowRColor.surface)
         }
     }
 
@@ -220,6 +230,7 @@ struct ContractDetailView: View {
             } footer: {
                 Text("On a payment's date, Make Invoice makes its draft, ready for you to send. Nothing is sent by itself.")
             }
+            .listRowBackground(PlowRColor.surface)
         }
     }
 

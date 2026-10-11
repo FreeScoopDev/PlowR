@@ -34,6 +34,7 @@ struct ProposalEditView: View {
                     markSentSection
                 }
             }
+            .plowRGrouped()
             .navigationTitle(proposal.invoiceNumber)
             .navigationBarTitleDisplayMode(.inline)
             // Line amounts save as they're typed; a swipe down must keep the
@@ -59,6 +60,7 @@ struct ProposalEditView: View {
                 LabeledContent("Address", value: proposal.clientAddress)
             }
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     private var lineItemsSection: some View {
@@ -98,6 +100,7 @@ struct ProposalEditView: View {
         } footer: {
             Text("Tap an amount to edit it.")
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     private var invoiceDetailsSection: some View {
@@ -125,6 +128,7 @@ struct ProposalEditView: View {
             TextField("Notes", text: $proposal.notes, axis: .vertical)
                 .lineLimit(3...)
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     private var markSentSection: some View {
@@ -145,5 +149,6 @@ struct ProposalEditView: View {
         } footer: {
             Text("Records the send date and starts the due date countdown.")
         }
+        .listRowBackground(PlowRColor.surface)
     }
 }

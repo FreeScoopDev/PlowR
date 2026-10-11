@@ -87,6 +87,7 @@ struct RouteDetailView: View {
                     systemImage: "mappin.slash",
                     description: Text("Tap Edit to add stops to this route.")
                 )
+                .listRowBackground(Color.clear)   // the empty state sits on the page
             } else {
                 Section("Stops") {
                     ForEach(Array(route.sortedStops.enumerated()), id: \.element.id) { index, stop in
@@ -127,8 +128,10 @@ struct RouteDetailView: View {
                         }
                     }
                 }
+                .listRowBackground(PlowRColor.surface)
             }
         }
+        .plowRGrouped()
         .navigationTitle(route.name)
         .proGateSheet($gate)
         .navigationBarTitleDisplayMode(.large)
@@ -219,6 +222,7 @@ struct RouteDetailView: View {
             .allowsHitTesting(false)
             .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 6, trailing: 16))
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     // MARK: - Load-Out
@@ -272,6 +276,7 @@ struct RouteDetailView: View {
                 Text("Tap a stop to set the services it needs.")
             }
         }
+        .listRowBackground(PlowRColor.surface)
     }
 
     // MARK: - Today's Run
