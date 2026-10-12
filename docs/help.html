@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PlowR Help — Tips &amp; Tricks</title>
+    <!-- MOCKUP: grey boxes are screenshot placeholders. Not linked from the home page yet. -->
+    <style>
+        :root { color-scheme: light dark; --text: #1c1c1e; --muted: #6e6e73; --link: #0071e3; --card: #f2f2f7; --bg: #ffffff; --shot: #e5e5ea; --shot2: #dedee3; --line: #c7c7cc; --warn: #b25000; }
+        @media (prefers-color-scheme: dark) {
+            :root { --text: #f2f2f7; --muted: #a1a1a6; --link: #4da3ff; --card: #1c1c1e; --bg: #000000; --shot: #2c2c2e; --shot2: #262628; --line: #48484a; --warn: #ff9f0a; }
+        }
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 760px; margin: 40px auto; padding: 0 20px; color: var(--text); background: var(--bg); line-height: 1.6; }
+        a { color: var(--link); }
+        h1 { font-size: 2.4em; margin-bottom: 0; }
+        p.lede { font-size: 1.2em; color: var(--muted); margin-top: 4px; }
+        .mockup-banner { margin: 20px 0; padding: 10px 14px; border: 1px dashed var(--warn); border-radius: 12px; color: var(--warn); font-size: 0.85em; text-align: center; }
+        nav.toc { display: flex; flex-wrap: wrap; gap: 8px; }
+        nav.toc a { background: var(--card); color: var(--text); padding: 6px 14px; border-radius: 999px; font-size: 0.9em; text-decoration: none; }
+        section { margin-top: 2.5em; }
+        section > h2 { margin-bottom: 4px; }
+        section > p.intro { color: var(--muted); margin-top: 0; }
+        .card { background: var(--card); border-radius: 12px; padding: 18px 20px; margin-top: 16px; }
+        .card h3 { margin: 0 0 4px; font-size: 1.15em; }
+        .shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin: 14px 0 16px; }
+        .shot { aspect-ratio: 9 / 19.5; background: repeating-linear-gradient(45deg, var(--shot), var(--shot) 10px, var(--shot2) 10px, var(--shot2) 20px); border: 1px dashed var(--line); border-radius: 18px; display: flex; align-items: center; justify-content: center; text-align: center; padding: 10px; color: var(--muted); font-size: 0.8em; }
+        ol.steps { padding-left: 0; list-style: none; counter-reset: step; margin: 0; }
+        ol.steps li { counter-increment: step; position: relative; padding: 0 0 10px 38px; }
+        ol.steps li::before { content: counter(step); position: absolute; left: 0; top: 1px; width: 26px; height: 26px; border-radius: 50%; background: var(--link); color: #fff; font-size: 0.8em; font-weight: 600; display: flex; align-items: center; justify-content: center; }
+        .ui { font-weight: 600; }
+        .pro { display: inline-block; font-size: 0.7em; font-weight: 700; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--muted); color: var(--muted); vertical-align: middle; margin-left: 4px; }
+        .note { margin-top: 8px; padding: 10px 14px; background: var(--bg); border-radius: 10px; font-size: 0.92em; color: var(--muted); }
+        .check { margin-top: 8px; padding: 10px 14px; border: 1px dashed var(--warn); border-radius: 10px; font-size: 0.85em; color: var(--warn); }
+        .tips { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 12px; }
+        .tip { background: var(--card); border-radius: 12px; padding: 14px 16px; }
+        .tip strong { display: block; }
+        .tip span { color: var(--muted); font-size: 0.92em; }
+        details { background: var(--card); border-radius: 12px; padding: 12px 16px; margin-top: 10px; }
+        details summary { cursor: pointer; font-weight: 600; }
+        details p { margin: 8px 0 0; }
+        .release ul { padding-left: 20px; margin: 8px 0 0; }
+        footer { margin-top: 3em; padding-top: 1em; border-top: 1px solid var(--card); color: var(--muted); font-size: 0.9em; }
+        footer a { margin-right: 1em; }
+    </style>
+</head>
+<body>
+
+<h1>PlowR Help</h1>
+<p class="lede">Tips and how-tos for running your routes, clients and day.</p>
+
+<div class="mockup-banner">Mockup: grey boxes are where screenshots will go. Orange dashed notes are for Joe to check.</div>
+
+<nav class="toc">
+    <a href="#start">Getting started</a>
+    <a href="#clients">Adding clients</a>
+    <a href="#routes">Building a route</a>
+    <a href="#run">Running a route</a>
+    <a href="#tips">Quick tips</a>
+    <a href="#faq">FAQ</a>
+    <a href="#new">What's new</a>
+</nav>
+
+<!-- ============ GETTING STARTED ============ -->
+<section id="start">
+    <h2>Getting started</h2>
+    <p class="intro">PlowR has five tabs: Home, Clients, Routes, Documents and Schedule. Settings is the gear at the top of Home.</p>
+
+    <div class="card">
+        <h3>Set up your business</h3>
+        <div class="shots">
+            <div class="shot">Screenshot: "How will you be using PlowR?"</div>
+            <div class="shot">Screenshot: "Welcome to PlowR" setup</div>
+            <div class="shot">Screenshot: "What do you do?"</div>
+            <div class="shot">Screenshot: Home, Get Started card</div>
+        </div>
+        <ol class="steps">
+            <li>Choose <span class="ui">I run a service business</span>, then sign in with Apple.</li>
+            <li>Enter your <span class="ui">Business name</span> and add your logo. It goes on your proposals and invoices.</li>
+            <li>Under <span class="ui">What do you do?</span>, pick Snow Removal, Lawn Care, Cleanup, or any mix. PlowR adds the usual services and prices, which you can change later.</li>
+            <li>Enter your <span class="ui">Default tax rate (%)</span>.</li>
+            <li>Turn on <span class="ui">Alerts</span> and <span class="ui">Your location</span> if you'd like them. Every step has <span class="ui">Skip</span>.</li>
+            <li>On Home, the <span class="ui">Get Started</span> card walks you through your first client, route and invoice.</li>
+        </ol>
+        <div class="note">PlowR is free for up to 10 active clients and one route, for as long as you like. PlowR Pro adds unlimited clients and routes, Service Reports, storm tools, client import and a Request Link. Items marked <span class="pro">PRO</span> below need it.</div>
+    </div>
+</section>
+
+<!-- ============ CLIENTS ============ -->
+<section id="clients">
+    <h2>Adding clients</h2>
+    <p class="intro">Add clients one at a time, bring in a whole list, or let new customers come to you.</p>
+
+    <div class="card">
+        <h3>Add a client</h3>
+        <div class="shots">
+            <div class="shot">Screenshot: Clients tab, + menu</div>
+            <div class="shot">Screenshot: "New Client" form</div>
+            <div class="shot">Screenshot: client page</div>
+        </div>
+        <ol class="steps">
+            <li>Open the <span class="ui">Clients</span> tab, tap <span class="ui">+</span>, and choose <span class="ui">Add Manually</span>.</li>
+            <li>Enter their <span class="ui">Full Name</span> and <span class="ui">Phone Number</span>, and an email if you have one. Or tap <span class="ui">Import Contact</span> to fill it in from your Contacts.</li>
+            <li>Type the <span class="ui">Street Address</span> and pick the match. PlowR pins it on the map.</li>
+            <li>Tap <span class="ui">Save</span>.</li>
+            <li>On the client's page, add the rest: tags, notes, <span class="ui">Expected Services</span>, billing preferences, <span class="ui">Tax Exempt</span>, route notes, and other properties.</li>
+        </ol>
+        <div class="note">Tip: set a client's <span class="ui">Expected Services</span> once and every route they're on starts with them.</div>
+    </div>
+
+    <div class="card">
+        <h3>Bring in your whole list <span class="pro">PRO</span></h3>
+        <div class="shots">
+            <div class="shot">Screenshot: "Import from Spreadsheet"</div>
+            <div class="shot">Screenshot: import preview</div>
+        </div>
+        <ol class="steps">
+            <li>Save your list as a CSV file. Numbers, Excel and Google Sheets can all do this.</li>
+            <li>In <span class="ui">Clients</span>, tap <span class="ui">+</span> → <span class="ui">Import from Spreadsheet</span>, then <span class="ui">Choose a CSV File</span>.</li>
+            <li>Check what PlowR will add, then save. An import can be undone.</li>
+        </ol>
+        <div class="note">On a device with a camera you can also use <span class="ui">Scan with Camera</span>.</div>
+    </div>
+
+    <div class="card">
+        <h3>Let new customers find you <span class="pro">PRO</span></h3>
+        <div class="shots">
+            <div class="shot">Screenshot: Request Link screen</div>
+            <div class="shot">Screenshot: "New Lead" from a request</div>
+        </div>
+        <ol class="steps">
+            <li>Go to <span class="ui">Settings → Business → Request Link</span>.</li>
+            <li>Share it however suits you: <span class="ui">Copy Link</span>, <span class="ui">Share Link</span>, a QR code for a flyer or truck, or <span class="ui">Text to a Client</span>.</li>
+            <li>When someone sends a request, you get a text. Tap <span class="ui">Add to PlowR</span>, check the details, and tap <span class="ui">Save Lead</span>.</li>
+        </ol>
+    </div>
+</section>
+
+<!-- ============ ROUTES ============ -->
+<section id="routes">
+    <h2>Building a route with expected services</h2>
+    <p class="intro">A route is your list of stops in order, with the services each stop needs.</p>
+
+    <div class="card">
+        <h3>Create a route</h3>
+        <div class="shots">
+            <div class="shot">Screenshot: "New Route" sheet</div>
+            <div class="shot">Screenshot: "Add Stops" client picker</div>
+            <div class="shot">Screenshot: route page</div>
+        </div>
+        <ol class="steps">
+            <li>Open the <span class="ui">Routes</span> tab and tap <span class="ui">+</span>.</li>
+            <li>Give it a <span class="ui">Route Name</span>, like "Monday North Side".</li>
+            <li>Tap <span class="ui">Add Stop</span>, choose clients from <span class="ui">Your Clients</span> (or <span class="ui">Enter Manually</span> for a one-time stop), then tap <span class="ui">Done</span>.</li>
+            <li>Drag stops into the order you want, and tap <span class="ui">Save</span>.</li>
+            <li>Or let PlowR order them: on the route page, tap <span class="ui">⋯</span> → <span class="ui">Optimize Order</span>.</li>
+        </ol>
+    </div>
+
+    <div class="card">
+        <h3>Set the services each stop needs</h3>
+        <div class="shots">
+            <div class="shot">Screenshot: Stop sheet, Expected Services</div>
+            <div class="shot">Screenshot: "Only on This Route" choice</div>
+        </div>
+        <ol class="steps">
+            <li>On the route page, tap a stop.</li>
+            <li>Under <span class="ui">Expected Services</span>, switch on what the stop needs. Add stop notes and equipment if useful.</li>
+            <li>Tap <span class="ui">Save</span>, then choose <span class="ui">Only on This Route</span> or <span class="ui">On All Routes From Now On</span>.</li>
+        </ol>
+        <div class="note">Your list of services and prices lives in <span class="ui">Settings → Service Catalog</span>. Skipping a stop just for today? Swipe it and tap <span class="ui">Skip Today</span>.</div>
+        <div class="check">Joe to check: routes have no days or repeat setting; repeating visits are set in Schedule → Add Visit → Repeat. Mention that here, or leave it for a Schedule page later?</div>
+    </div>
+</section>
+
+<!-- ============ RUN ============ -->
+<section id="run">
+    <h2>Running a route and texting clients</h2>
+    <p class="intro">Work through your stops one by one, record what you did, and keep clients in the loop.</p>
+
+    <div class="card">
+        <h3>Start and work your route</h3>
+        <div class="shots">
+            <div class="shot">Screenshot: "Start Route" on Home</div>
+            <div class="shot">Screenshot: route screen, current stop</div>
+            <div class="shot">Screenshot: "Record Services"</div>
+        </div>
+        <ol class="steps">
+            <li>Tap <span class="ui">Start Route</span> on the route page or on Home's Today card.</li>
+            <li>Tap <span class="ui">Navigate</span> to get directions in Apple Maps, Google Maps or Waze.</li>
+            <li>At the stop, tap <span class="ui">Record Services</span> to add before and after photos, the services done (<span class="ui">Add Expected</span> fills them in), and notes. Then <span class="ui">Save</span>.</li>
+            <li>Tap <span class="ui">Complete · Text Next Client</span> to finish the stop and move on.</li>
+            <li>After the last stop, tap <span class="ui">Review &amp; End Route</span> to see the <span class="ui">Route Recap</span>, then <span class="ui">End Route</span>.</li>
+        </ol>
+        <div class="note">Set Location to <span class="ui">Always</span> so PlowR records arrival and departure times even when the app is closed.</div>
+    </div>
+
+    <div class="card">
+        <h3>Let the next client know you're coming</h3>
+        <div class="shots">
+            <div class="shot">Screenshot: "Notify Next Client?"</div>
+            <div class="shot">Screenshot: Messages compose</div>
+        </div>
+        <ol class="steps">
+            <li>When you complete a stop, PlowR offers <span class="ui">Notify Next Client?</span> with a ready message: "I'm on my way and about N minutes out."</li>
+            <li>Add a quick note if you need one, like Running Late, Weather Delay or Gate / Access, or type your own.</li>
+            <li>Turn on <span class="ui">Include my location link</span> if you want them to see where you are.</li>
+            <li>Tap <span class="ui">Send Message</span>. It goes from your own Messages app. Or tap <span class="ui">Skip</span>.</li>
+        </ol>
+        <div class="note">Client doesn't want texts? Turn on <span class="ui">Skip arrival message prompt</span> on their page.</div>
+    </div>
+
+    <div class="card">
+        <h3>Message everyone on the route</h3>
+        <ol class="steps">
+            <li>Before you leave, open the route and tap <span class="ui">⋯</span> → <span class="ui">Message All Clients</span>. During a route, tap <span class="ui">Message All</span>.</li>
+            <li>Pick a preset (Coming Today, On My Way, Running Late, Weather Delay, Almost Done) or write your own.</li>
+            <li>Choose <span class="ui">Send Individually</span> (recommended) or a group text.</li>
+        </ol>
+    </div>
+</section>
+
+<!-- ============ TIPS ============ -->
+<section id="tips">
+    <h2>Quick tips</h2>
+    <div class="tips">
+        <div class="tip"><strong>🗣️ Hands-free with Siri</strong><span>"Complete current stop in PlowR" or "Notify next client in PlowR".</span></div>
+        <div class="tip"><strong>🎛️ Control Center</strong><span>Add Complete Current Stop to Control Center to finish a stop in one tap.</span></div>
+        <div class="tip"><strong>📱 Today's Route widget</strong><span>See your progress and next stop on your Home Screen.</span></div>
+        <div class="tip"><strong>🔒 Lock Screen</strong><span>Your route's progress shows on the Lock Screen while it runs.</span></div>
+        <div class="tip"><strong>❄️ Storm card <span class="pro">PRO</span></strong><span>When a storm's forecast reaches a contract's trigger, Home offers to text those clients.</span></div>
+        <div class="tip"><strong>📄 Service Report <span class="pro">PRO</span></strong><span>Arrival and departure times, timed photos and weather for each visit, as a PDF for a client or insurer.</span></div>
+        <div class="tip"><strong>📅 Your calendar</strong><span>Settings → Calendar → Add Visits to Calendar keeps a PlowR calendar in step.</span></div>
+        <div class="tip"><strong>💾 Export your data</strong><span>Settings → Business → Export Data makes spreadsheets of everything. Share All sends them together.</span></div>
+    </div>
+</section>
+
+<!-- ============ FAQ ============ -->
+<section id="faq">
+    <h2>FAQ &amp; troubleshooting</h2>
+    <details>
+        <summary>Why does PlowR ask for Always location?</summary>
+        <p>So it can record when you arrive at and leave each stop, and offer the next client's text, even with the app closed. With While Using, times are only recorded while PlowR is on screen.</p>
+    </details>
+    <details>
+        <summary>What happens if my Pro subscription ends?</summary>
+        <p>Nothing is deleted. With 10 or fewer active clients you're back on the free tier. With more, PlowR is read only: you can still view, export and record payments, and subscribing again unlocks everything.</p>
+    </details>
+    <details>
+        <summary>I hit the 10-client limit</summary>
+        <p>Clients you mark inactive don't count. Or try PlowR Pro for unlimited clients and routes.</p>
+    </details>
+    <details>
+        <summary>My data isn't on my other device</summary>
+        <p>Check both devices are signed in to the same Apple ID with iCloud on for PlowR. Settings → Data &amp; Backup shows whether iCloud is working.</p>
+    </details>
+    <details>
+        <summary>Can a client use PlowR too?</summary>
+        <p>Yes. Choosing "I'm looking for services" lets people find businesses near them and request work.</p>
+    </details>
+    <p>More answers on the <a href="support.html">Support</a> page, or write to <a href="mailto:support@getplowr.app">support@getplowr.app</a>.</p>
+</section>
+
+<!-- ============ WHAT'S NEW ============ -->
+<section id="new">
+    <h2>What's new</h2>
+    <div class="card release">
+        <h3>PlowR 1.7: first release</h3>
+        <ul>
+            <li>A one-minute setup: name, logo, services and prices, tax rate and alerts. Every step can be skipped.</li>
+            <li>A Get Started checklist on Home walks you to your first client, route and invoice.</li>
+            <li>A new Home that puts today first: today's route, what needs you, money owed and money in.</li>
+            <li>A route screen built for gloves and a glance, with a big Complete Stop button.</li>
+            <li>A fresh look, with a matching widget and Live Activity.</li>
+        </ul>
+    </div>
+</section>
+
+<footer>
+    <a href="index.html">Home</a>
+    <a href="support.html">Support</a>
+    <a href="privacy-policy.html">Privacy Policy</a>
+    <a href="terms-of-service.html">Terms of Service</a>
+</footer>
+
+</body>
+</html>
