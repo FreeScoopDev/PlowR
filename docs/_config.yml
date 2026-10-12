@@ -2,6 +2,7 @@
 # documentation for the repo, not a page for the website.
 exclude:
   - ci.md
+  - help/SCREENSHOTS.md
 # Jekyll skips folders that start with a dot; this one has the file that
 # lets getplowr.app/lead/ links open PlowR (Universal Links).
 include:
