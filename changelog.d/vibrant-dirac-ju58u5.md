@@ -1,0 +1,2 @@
+### Added
+- getplowr.app has a help guide (`help.html`, linked from the home and Support pages): setting up a business, adding clients, building a route with expected services, repeating visits, running a route and texting clients, quick tips, an FAQ and what's new. Every step names the buttons and screens as the app shows them, traced from the code, so a new business can get going without writing in. Screenshots go in `docs/help/` from the list in `docs/help/SCREENSHOTS.md`, which the site doesn't publish.

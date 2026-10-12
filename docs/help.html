@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="How to use PlowR: setting up your business, adding clients, building routes with expected services, running a route and texting clients, tips and common questions.">
     <title>PlowR Help — Tips &amp; Tricks</title>
-    <!-- MOCKUP: grey boxes are screenshot placeholders. Not linked from the home page yet. -->
     <style>
         :root { color-scheme: light dark; --text: #1c1c1e; --muted: #6e6e73; --link: #0071e3; --card: #f2f2f7; --bg: #ffffff; --shot: #e5e5ea; --shot2: #dedee3; --line: #c7c7cc; --warn: #b25000; }
         @media (prefers-color-scheme: dark) {
@@ -15,7 +15,6 @@
         a { color: var(--link); }
         h1 { font-size: 2.4em; margin-bottom: 0; }
         p.lede { font-size: 1.2em; color: var(--muted); margin-top: 4px; }
-        .mockup-banner { margin: 20px 0; padding: 10px 14px; border: 1px dashed var(--warn); border-radius: 12px; color: var(--warn); font-size: 0.85em; text-align: center; }
         nav.toc { display: flex; flex-wrap: wrap; gap: 8px; }
         nav.toc a { background: var(--card); color: var(--text); padding: 6px 14px; border-radius: 999px; font-size: 0.9em; text-decoration: none; }
         section { margin-top: 2.5em; }
@@ -25,6 +24,7 @@
         .card h3 { margin: 0 0 4px; font-size: 1.15em; }
         .shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin: 14px 0 16px; }
         .shot { aspect-ratio: 9 / 19.5; background: repeating-linear-gradient(45deg, var(--shot), var(--shot) 10px, var(--shot2) 10px, var(--shot2) 20px); border: 1px dashed var(--line); border-radius: 18px; display: flex; align-items: center; justify-content: center; text-align: center; padding: 10px; color: var(--muted); font-size: 0.8em; }
+        img.shot { display: block; width: 100%; height: auto; aspect-ratio: auto; padding: 0; border: 1px solid var(--line, #48484a); background: none; object-fit: cover; }
         ol.steps { padding-left: 0; list-style: none; counter-reset: step; margin: 0; }
         ol.steps li { counter-increment: step; position: relative; padding: 0 0 10px 38px; }
         ol.steps li::before { content: counter(step); position: absolute; left: 0; top: 1px; width: 26px; height: 26px; border-radius: 50%; background: var(--link); color: #fff; font-size: 0.8em; font-weight: 600; display: flex; align-items: center; justify-content: center; }
@@ -49,8 +49,6 @@
 <h1>PlowR Help</h1>
 <p class="lede">Tips and how-tos for running your routes, clients and day.</p>
 
-<div class="mockup-banner">Mockup: grey boxes are where screenshots will go. Orange dashed notes are for Joe to check.</div>
-
 <nav class="toc">
     <a href="#start">Getting started</a>
     <a href="#clients">Adding clients</a>
@@ -69,10 +67,10 @@
     <div class="card">
         <h3>Set up your business</h3>
         <div class="shots">
-            <div class="shot">Screenshot: "How will you be using PlowR?"</div>
-            <div class="shot">Screenshot: "Welcome to PlowR" setup</div>
-            <div class="shot">Screenshot: "What do you do?"</div>
-            <div class="shot">Screenshot: Home, Get Started card</div>
+            <div class="shot" data-shot="start-how-will-you-be-using" data-alt="How will you be using PlowR?">Screenshot: "How will you be using PlowR?"</div>
+            <div class="shot" data-shot="start-welcome-to-plowr-setup" data-alt="Welcome to PlowR setup">Screenshot: "Welcome to PlowR" setup</div>
+            <div class="shot" data-shot="start-what-do-you-do" data-alt="What do you do?">Screenshot: "What do you do?"</div>
+            <div class="shot" data-shot="start-home-get-started-card" data-alt="Home, Get Started card">Screenshot: Home, Get Started card</div>
         </div>
         <ol class="steps">
             <li>Choose <span class="ui">I run a service business</span>, then sign in with Apple.</li>
@@ -94,9 +92,9 @@
     <div class="card">
         <h3>Add a client</h3>
         <div class="shots">
-            <div class="shot">Screenshot: Clients tab, + menu</div>
-            <div class="shot">Screenshot: "New Client" form</div>
-            <div class="shot">Screenshot: client page</div>
+            <div class="shot" data-shot="clients-clients-tab-menu" data-alt="Clients tab, + menu">Screenshot: Clients tab, + menu</div>
+            <div class="shot" data-shot="clients-new-client-form" data-alt="New Client form">Screenshot: "New Client" form</div>
+            <div class="shot" data-shot="clients-client-page" data-alt="client page">Screenshot: client page</div>
         </div>
         <ol class="steps">
             <li>Open the <span class="ui">Clients</span> tab, tap <span class="ui">+</span>, and choose <span class="ui">Add Manually</span>.</li>
@@ -111,8 +109,8 @@
     <div class="card">
         <h3>Bring in your whole list <span class="pro">PRO</span></h3>
         <div class="shots">
-            <div class="shot">Screenshot: "Import from Spreadsheet"</div>
-            <div class="shot">Screenshot: import preview</div>
+            <div class="shot" data-shot="clients-import-from-spreadsheet" data-alt="Import from Spreadsheet">Screenshot: "Import from Spreadsheet"</div>
+            <div class="shot" data-shot="clients-import-preview" data-alt="import preview">Screenshot: import preview</div>
         </div>
         <ol class="steps">
             <li>Save your list as a CSV file. Numbers, Excel and Google Sheets can all do this.</li>
@@ -125,8 +123,8 @@
     <div class="card">
         <h3>Let new customers find you <span class="pro">PRO</span></h3>
         <div class="shots">
-            <div class="shot">Screenshot: Request Link screen</div>
-            <div class="shot">Screenshot: "New Lead" from a request</div>
+            <div class="shot" data-shot="clients-request-link-screen" data-alt="Request Link screen">Screenshot: Request Link screen</div>
+            <div class="shot" data-shot="clients-new-lead-from-a-request" data-alt="New Lead from a request">Screenshot: "New Lead" from a request</div>
         </div>
         <ol class="steps">
             <li>Go to <span class="ui">Settings → Business → Request Link</span>.</li>
@@ -144,9 +142,9 @@
     <div class="card">
         <h3>Create a route</h3>
         <div class="shots">
-            <div class="shot">Screenshot: "New Route" sheet</div>
-            <div class="shot">Screenshot: "Add Stops" client picker</div>
-            <div class="shot">Screenshot: route page</div>
+            <div class="shot" data-shot="routes-new-route-sheet" data-alt="New Route sheet">Screenshot: "New Route" sheet</div>
+            <div class="shot" data-shot="routes-add-stops-client-picker" data-alt="Add Stops client picker">Screenshot: "Add Stops" client picker</div>
+            <div class="shot" data-shot="routes-route-page" data-alt="route page">Screenshot: route page</div>
         </div>
         <ol class="steps">
             <li>Open the <span class="ui">Routes</span> tab and tap <span class="ui">+</span>.</li>
@@ -160,8 +158,8 @@
     <div class="card">
         <h3>Set the services each stop needs</h3>
         <div class="shots">
-            <div class="shot">Screenshot: Stop sheet, Expected Services</div>
-            <div class="shot">Screenshot: "Only on This Route" choice</div>
+            <div class="shot" data-shot="routes-stop-sheet-expected-services" data-alt="Stop sheet, Expected Services">Screenshot: Stop sheet, Expected Services</div>
+            <div class="shot" data-shot="routes-only-on-this-route-choice" data-alt="Only on This Route choice">Screenshot: "Only on This Route" choice</div>
         </div>
         <ol class="steps">
             <li>On the route page, tap a stop.</li>
@@ -175,8 +173,8 @@
         <h3>Optional: set up repeating visits</h3>
         <p style="margin:0 0 4px;color:var(--muted);">For clients you serve on a regular schedule, like a weekly mow. Routes don't repeat on their own; repeating visits live in Schedule.</p>
         <div class="shots">
-            <div class="shot">Screenshot: Schedule tab</div>
-            <div class="shot">Screenshot: "Add Visit", Recurrence</div>
+            <div class="shot" data-shot="routes-schedule-tab" data-alt="Schedule tab">Screenshot: Schedule tab</div>
+            <div class="shot" data-shot="routes-add-visit-recurrence" data-alt="Add Visit, Recurrence">Screenshot: "Add Visit", Recurrence</div>
         </div>
         <ol class="steps">
             <li>Open the <span class="ui">Schedule</span> tab and tap <span class="ui">+</span>.</li>
@@ -196,9 +194,9 @@
     <div class="card">
         <h3>Start and work your route</h3>
         <div class="shots">
-            <div class="shot">Screenshot: "Start Route" on Home</div>
-            <div class="shot">Screenshot: route screen, current stop</div>
-            <div class="shot">Screenshot: "Record Services"</div>
+            <div class="shot" data-shot="run-start-route-on-home" data-alt="Start Route on Home">Screenshot: "Start Route" on Home</div>
+            <div class="shot" data-shot="run-route-screen-current-stop" data-alt="route screen, current stop">Screenshot: route screen, current stop</div>
+            <div class="shot" data-shot="run-record-services" data-alt="Record Services">Screenshot: "Record Services"</div>
         </div>
         <ol class="steps">
             <li>Tap <span class="ui">Start Route</span> on the route page or on Home's Today card.</li>
@@ -213,8 +211,8 @@
     <div class="card">
         <h3>Let the next client know you're coming</h3>
         <div class="shots">
-            <div class="shot">Screenshot: "Notify Next Client?"</div>
-            <div class="shot">Screenshot: Messages compose</div>
+            <div class="shot" data-shot="run-notify-next-client" data-alt="Notify Next Client?">Screenshot: "Notify Next Client?"</div>
+            <div class="shot" data-shot="run-messages-compose" data-alt="Messages compose">Screenshot: Messages compose</div>
         </div>
         <ol class="steps">
             <li>When you complete a stop, PlowR offers <span class="ui">Notify Next Client?</span> with a ready message: "I'm on my way and about N minutes out."</li>
