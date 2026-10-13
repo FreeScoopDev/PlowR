@@ -306,9 +306,12 @@ struct AccountEraserTests {
         func delete() { userID = nil }
     }
 
-    // Delete Everything passes the real sign-out (SettingsView); the saved
-    // Apple ID must be gone after it, not just the screen signed out (App
-    // Review 5.1.1(v)). The test above only proves a closure ran.
+    // The sign-out Delete Everything is handed (SettingsView passes
+    // `authManager.signOut`) must remove the saved Apple ID, not just sign the
+    // screen out (App Review 5.1.1(v)). The test above only proves a closure
+    // ran. This proves AuthManager.signOut clears what signIn saved; it does
+    // not prove SettingsView passes it, and the real Keychain calls stay
+    // untested (an unsigned test build has no Keychain).
     @Test func deleteEverythingRemovesTheSavedSignIn() throws {
         let account = try Account()
         defer { account.removeFiles() }

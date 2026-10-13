@@ -24,9 +24,9 @@ struct WeatherKindTests {
         #expect(WeatherKind(description) == kind)
     }
 
-    // Thunder is purple wherever it shows; it was yellow on the Schedule.
-    // The icon is the design's purple (1.7 tokens).
-    @Test func thunderIsPurpleAsAnIcon() {
+    // Thunder has one colour wherever it shows; it was yellow on the
+    // Schedule. The icon is the lead token (the design's purple, 1.7).
+    @Test func thunderUsesTheLeadColourAsAnIcon() {
         // A Color made from a dynamic UIColor isn't equal to another made the
         // same way: compare what each draws, in light and dark.
         for style in [UIUserInterfaceStyle.light, .dark] {

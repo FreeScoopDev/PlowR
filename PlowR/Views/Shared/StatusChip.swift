@@ -41,14 +41,14 @@ struct StatusChip: View {
 /// `DesignTokensTests`), in a text style that grows with the user's text
 /// size. It was 9 pt white on orange or green (about 2.2:1), and those
 /// colours mean owed and done on invoices: Before is neutral now, After is
-/// done (the work is). Capped at the first accessibility size so the tag
-/// can't cover the photo it labels.
+/// done (the work is). It grows only to xLarge: past that, "Before" is wider
+/// than an 88 pt thumbnail and the next photo would cover it.
 struct PhotoTag: View {
     let photo: StopPhoto
 
     var body: some View {
         StatusChip(photo.kindLabel, systemImage: symbol, status: photo.tagStatus)
-            .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+            .dynamicTypeSize(...DynamicTypeSize.xLarge)
             .padding(PlowRLayout.space1)
     }
 

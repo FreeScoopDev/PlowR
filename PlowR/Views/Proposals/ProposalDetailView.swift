@@ -187,8 +187,9 @@ struct ProposalDetailView: View {
     /// One main action per status, in copper (`.plowRAction`), full width
     /// under the others: Convert a proposal (View Contract once it's one),
     /// Mark Sent a draft, take a Payment on one that's out. Paid and void have
-    /// nothing left to do, so every button there is secondary. Three buttons
-    /// in one row wrapped their labels mid-word ("Conver/t").
+    /// nothing left to do, so every button there is secondary, and a paid
+    /// invoice's Revise takes the full-width row. Three buttons in one row
+    /// wrapped their labels mid-word ("Conver/t").
     private var actionBar: some View {
         VStack(spacing: PlowRLayout.space2) {
             HStack(spacing: PlowRLayout.space2) {
@@ -237,7 +238,13 @@ struct ProposalDetailView: View {
             }
             .buttonStyle(.plowRAction)
 
-        case .paid, .void:
+        case .paid:
+            Button { $gate.unless(ProGate.edit(access)) { showingReviseDialog = true } } label: {
+                Label("Revise", systemImage: "doc.badge.plus")
+            }
+            .buttonStyle(.plowRSecondary)
+
+        case .void:
             EmptyView()
         }
     }
@@ -293,11 +300,6 @@ struct ProposalDetailView: View {
             }
             Button { showingPayments = true } label: {
                 Label("Payments", systemImage: "dollarsign.circle")
-            }
-            .buttonStyle(.plowRSecondary)
-
-            Button { $gate.unless(ProGate.edit(access)) { showingReviseDialog = true } } label: {
-                Label("Revise", systemImage: "doc.badge.plus")
             }
             .buttonStyle(.plowRSecondary)
 

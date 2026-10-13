@@ -261,7 +261,10 @@ struct StopServiceRecorderView: View {
         let images = isBefore ? beforeImages : afterImages
         let label = isBefore ? "Before Photos" : "After Photos"
         // The photo tags' colours (PhotoTag): Before neutral, After done.
+        // Before's label is ink, not the neutral grey, which is how a
+        // disabled button looks.
         let status: PlowRColor.Status = isBefore ? .neutral : .done
+        let labelColor = isBefore ? PlowRColor.ink : status.text
 
         Section(label) {
             if !images.isEmpty {
@@ -305,7 +308,7 @@ struct StopServiceRecorderView: View {
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 8)
                             .background(status.soft)
-                            .foregroundStyle(status.text)
+                            .foregroundStyle(labelColor)
                             .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerSmall, style: .continuous))
                     }
                     .buttonStyle(.plain)
@@ -321,7 +324,7 @@ struct StopServiceRecorderView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
                         .background(status.soft)
-                        .foregroundStyle(status.text)
+                        .foregroundStyle(labelColor)
                         .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerSmall, style: .continuous))
                 }
                 .buttonStyle(.plain)
