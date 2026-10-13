@@ -34,34 +34,39 @@ struct ProStatusBanner: View {
     }
 
     private func banner(icon: String, title: String, message: String, closable: Bool) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundStyle(PlowRColor.accent)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 6) {
-                Text(title).font(.headline)
-                Text(message).font(.subheadline).foregroundStyle(.secondary)
-                Button(closable ? "See PlowR Pro" : "Subscribe Again") { showingPaywall = true }
-                    .font(.subheadline.weight(.semibold))
-            }
-            Spacer(minLength: 0)
-            if closable {
-                Button {
-                    closed = true
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        // A small mark, a full-size target.
-                        .frame(minWidth: 44, minHeight: 44)
-                        .contentShape(Rectangle())
+        // The Dashboard's card (surface, hairline) and type, like the iCloud
+        // note above it: this was the system's grouped grey with larger text.
+        PlowRCard {
+            HStack(alignment: .top, spacing: PlowRLayout.space3) {
+                IconBadge(systemImage: icon, size: 36)
+                VStack(alignment: .leading, spacing: PlowRLayout.space1) {
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(PlowRColor.ink)
+                    Text(message)
+                        .font(.caption)
+                        .foregroundStyle(PlowRColor.inkSecondary)
+                    Button(closable ? "See PlowR Pro" : "Subscribe Again") { showingPaywall = true }
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(PlowRColor.brand)
+                        .padding(.top, PlowRLayout.space1)
                 }
-                .accessibilityLabel("Close")
+                Spacer(minLength: 0)
+                if closable {
+                    Button {
+                        closed = true
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(PlowRColor.inkSecondary)
+                            // A small mark, a full-size target.
+                            .frame(minWidth: PlowRLayout.minTapTarget, minHeight: PlowRLayout.minTapTarget)
+                            .contentShape(Rectangle())
+                    }
+                    .accessibilityLabel("Close")
+                }
             }
+            .padding(PlowRLayout.space3)
         }
-        .padding()
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
     }
 }

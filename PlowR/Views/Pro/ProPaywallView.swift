@@ -76,6 +76,8 @@ struct ProPitch: View {
                 } icon: {
                     Image(systemName: feature.icon)
                         .foregroundStyle(PlowRColor.accent)
+                        // One width, so the lines of text start at the same place.
+                        .frame(width: 28)
                 }
             }
             Text("Cancel any time. Your records stay, and you can always export them.")
