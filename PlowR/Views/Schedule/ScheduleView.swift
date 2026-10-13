@@ -614,7 +614,7 @@ private struct WeatherBannerRow: View {
                     .font(.caption2)
                     .foregroundStyle(PlowRColor.brand)
             } else {
-                // As tall as the snowfall line, at any text size.
+                // As tall as the precipitation line, at any text size.
                 Text(verbatim: "0.0\"").font(.caption2).hidden()
             }
             Text("\(Int(day.maxTempF))°")
