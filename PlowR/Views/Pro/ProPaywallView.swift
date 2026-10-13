@@ -57,6 +57,9 @@ private struct PolicyLinks: ViewModifier {
 
 /// What Pro adds, above Apple's purchase controls.
 struct ProPitch: View {
+    /// Wide enough for the widest icon at the user's text size, so the text
+    /// lines start at one place without an icon running into them.
+    @ScaledMetric(relativeTo: .body) private var iconWidth: CGFloat = 40
     static let features: [(icon: String, text: String)] = [
         ("person.3.fill", "Unlimited clients and routes"),
         ("checkmark.seal.fill", "Service Reports: arrival and departure times, timed photos and the weather for every visit"),
@@ -76,6 +79,7 @@ struct ProPitch: View {
                 } icon: {
                     Image(systemName: feature.icon)
                         .foregroundStyle(PlowRColor.accent)
+                        .frame(width: iconWidth)
                 }
             }
             Text("Cancel any time. Your records stay, and you can always export them.")
