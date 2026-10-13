@@ -294,7 +294,7 @@ struct ScheduleView: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(visit.clientName)
                     .font(.subheadline.weight(.semibold))
-                (stacked ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2)) : AnyLayout(HStackLayout(spacing: 6))) {
+                HStack(spacing: 6) {
                     Text(visit.scheduledDate, style: .time)
                         .font(.caption).foregroundStyle(.secondary)
                     if visit.estimatedMinutes > 0 {
@@ -614,7 +614,8 @@ private struct WeatherBannerRow: View {
                     .font(.caption2)
                     .foregroundStyle(PlowRColor.brand)
             } else {
-                Color.clear.frame(height: 14)
+                // As tall as the snowfall line, at any text size.
+                Text(verbatim: "0.0\"").font(.caption2).hidden()
             }
             Text("\(Int(day.maxTempF))°")
                 .font(.caption.weight(.semibold))
