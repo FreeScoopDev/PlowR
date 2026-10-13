@@ -182,16 +182,7 @@ struct ServiceRecordDetailView: View {
                                     .frame(width: 88, height: 88)
                                     .accessibilityLabel(photo.isBefore ? "Before photo" : "After photo")
                                     .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerSmall, style: .continuous))
-                                    .overlay(alignment: .bottomLeading) {
-                                        Text(photo.isBefore ? "Before" : "After")
-                                            .font(.system(size: 9, weight: .semibold))
-                                            .padding(.horizontal, 5).padding(.vertical, 2)
-                                            .background(photo.isBefore ? Color.orange.opacity(0.85)
-                                                                       : Color.green.opacity(0.85))
-                                            .foregroundStyle(.white)
-                                            .clipShape(Capsule())
-                                            .padding(4)
-                                    }
+                                    .overlay(alignment: .bottomLeading) { PhotoTag(photo: photo) }
                             }
                         }
                     }

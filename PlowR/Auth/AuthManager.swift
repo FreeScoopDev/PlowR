@@ -2,6 +2,46 @@ import Foundation
 import AuthenticationServices
 import Security
 
+/// Where the signed-in Apple user ID is kept between launches.
+protocol SavedSignIn {
+    func save(_ userID: String)
+    func load() -> String?
+    func delete()
+}
+
+/// The Keychain, on this device only. Save, load and delete share one query,
+/// so a delete always finds what a save wrote.
+struct KeychainSignIn: SavedSignIn {
+    private var item: [CFString: Any] {
+        [kSecClass: kSecClassGenericPassword,
+         kSecAttrAccount: "appleUserID",
+         kSecAttrService: "com.Scoops.PlowR"]
+    }
+
+    func save(_ userID: String) {
+        guard let data = userID.data(using: .utf8) else { return }
+        var query = item
+        query[kSecValueData] = data
+        query[kSecAttrAccessible] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+        SecItemDelete(item as CFDictionary)
+        SecItemAdd(query as CFDictionary, nil)
+    }
+
+    func load() -> String? {
+        var query = item
+        query[kSecReturnData] = true
+        query[kSecMatchLimit] = kSecMatchLimitOne
+        var result: AnyObject?
+        SecItemCopyMatching(query as CFDictionary, &result)
+        guard let data = result as? Data else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    func delete() {
+        SecItemDelete(item as CFDictionary)
+    }
+}
+
 @Observable
 final class AuthManager {
     var isSignedIn = false
@@ -14,19 +54,23 @@ final class AuthManager {
     /// Bumped by every sign-in and sign-out, so a slow check that answers
     /// afterwards can't undo what the user just did.
     @ObservationIgnored private var generation = 0
+    /// The Keychain in the app. Tests pass their own: a test build isn't
+    /// signed, so it has no Keychain access (errSecMissingEntitlement).
+    private let saved: any SavedSignIn
 
-    init() {
+    init(saved: any SavedSignIn = KeychainSignIn()) {
+        self.saved = saved
         checkExistingCredentials()
     }
 
     func checkExistingCredentials() {
         // One-time migration: move appleUserID from UserDefaults to Keychain
         if let legacy = UserDefaults.standard.string(forKey: "appleUserID") {
-            Self.keychainSave(legacy, key: "appleUserID")
+            saved.save(legacy)
             UserDefaults.standard.removeObject(forKey: "appleUserID")
         }
 
-        guard let savedUserID = Self.keychainLoad(key: "appleUserID") else { return }
+        guard let savedUserID = saved.load() else { return }
 
         isChecking = true
         let started = generation
@@ -44,7 +88,7 @@ final class AuthManager {
                     self.operatorName = UserDefaults.standard.string(forKey: "operatorName") ?? ""
                 } else {
                     self.isSignedIn = false
-                    Self.keychainDelete(key: "appleUserID")
+                    self.saved.delete()
                 }
             }
         }
@@ -73,7 +117,7 @@ final class AuthManager {
         generation += 1
         self.userID = userID
         self.isSignedIn = true
-        Self.keychainSave(userID, key: "appleUserID")
+        saved.save(userID)
 
         if let name = fullName, let given = name.givenName, !given.isEmpty {
             let formatter = PersonNameComponentsFormatter()
@@ -90,45 +134,7 @@ final class AuthManager {
         isSignedIn = false
         userID = ""
         operatorName = ""
-        Self.keychainDelete(key: "appleUserID")
+        saved.delete()
         UserDefaults.standard.removeObject(forKey: "operatorName")
-    }
-
-    // MARK: - Keychain helpers
-
-    private static func keychainSave(_ value: String, key: String) {
-        guard let data = value.data(using: .utf8) else { return }
-        let query: [CFString: Any] = [
-            kSecClass: kSecClassGenericPassword,
-            kSecAttrAccount: key,
-            kSecAttrService: "com.Scoops.PlowR",
-            kSecValueData: data,
-            kSecAttrAccessible: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-        ]
-        SecItemDelete(query as CFDictionary)
-        SecItemAdd(query as CFDictionary, nil)
-    }
-
-    private static func keychainLoad(key: String) -> String? {
-        let query: [CFString: Any] = [
-            kSecClass: kSecClassGenericPassword,
-            kSecAttrAccount: key,
-            kSecAttrService: "com.Scoops.PlowR",
-            kSecReturnData: true,
-            kSecMatchLimit: kSecMatchLimitOne
-        ]
-        var result: AnyObject?
-        SecItemCopyMatching(query as CFDictionary, &result)
-        guard let data = result as? Data else { return nil }
-        return String(data: data, encoding: .utf8)
-    }
-
-    private static func keychainDelete(key: String) {
-        let query: [CFString: Any] = [
-            kSecClass: kSecClassGenericPassword,
-            kSecAttrAccount: key,
-            kSecAttrService: "com.Scoops.PlowR"
-        ]
-        SecItemDelete(query as CFDictionary)
     }
 }

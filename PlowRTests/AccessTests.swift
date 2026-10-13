@@ -68,15 +68,6 @@ struct AccessTests {
         #expect(!access.canCreateRoute(routes: [], operatorID: "op"))
     }
 
-    // MARK: Never locked
-
-    @Test(arguments: [(Access.Plan.pro, 0), (.free, 0), (.free, 50), (.lapsed, 5), (.lapsed, 50)])
-    func paymentsAndExportAreNeverLocked(plan: Access.Plan, count: Int) {
-        let access = Access(plan: plan, clientCount: count)
-        #expect(access.canRecordPayment)
-        #expect(access.canExport)
-    }
-
     // MARK: Features
 
     @Test func proToolsAreProOnly() {

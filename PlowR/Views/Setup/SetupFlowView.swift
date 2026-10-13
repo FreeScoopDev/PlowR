@@ -162,7 +162,7 @@ struct SetupFlowView: View {
         VStack(alignment: .leading, spacing: PlowRLayout.space4) {
             heading("Stay a step ahead", "Two things PlowR can do for you. You can change either in the Settings app.")
             permissionRow(symbol: "bell.badge.fill", title: "Alerts",
-                          detail: "A heads-up the evening before snow or a storm, and a reminder when an invoice goes overdue.",
+                          detail: "A heads-up the evening before bad weather is forecast, and a reminder when an invoice goes overdue.",
                           state: permissions?.notifications ?? .undecided) {
                 Task { await permissions?.askForNotifications() }
             }

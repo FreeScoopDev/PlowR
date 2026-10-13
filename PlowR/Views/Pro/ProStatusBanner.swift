@@ -62,6 +62,6 @@ struct ProStatusBanner: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
     }
 }

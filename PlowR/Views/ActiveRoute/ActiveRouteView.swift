@@ -23,7 +23,6 @@ struct ActiveRouteView: View {
 
     @State private var locationManager = LocationManager()
     @State private var showingNotifyPrompt = false
-    @State private var showingEndConfirmation = false
     @State private var showingRouteRecap = false
     @State private var showingLocationDeniedAlert = false
 
@@ -78,10 +77,6 @@ struct ActiveRouteView: View {
     private var nextStopClient: Client? {
         guard let next = nextStop, !next.isCustomStop else { return nil }
         return allClients.first { $0.id == next.clientID }
-    }
-
-    private var currentStopClient: Client? {
-        currentStop.flatMap(client(for:))
     }
 
     /// A sheet, dialog or other alert is up on this screen. A new one must be

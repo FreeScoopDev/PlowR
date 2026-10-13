@@ -61,7 +61,7 @@ struct GetStartedCard: View {
                             alertsUndecided = false
                         }
                     } label: {
-                        row("Turn on alerts", detail: "The evening before snow or a storm, and when an invoice goes overdue.",
+                        row("Turn on alerts", detail: "The evening before bad weather is forecast, and when an invoice goes overdue.",
                             symbol: "bell.badge", done: false)
                     }
                     .buttonStyle(.plain)

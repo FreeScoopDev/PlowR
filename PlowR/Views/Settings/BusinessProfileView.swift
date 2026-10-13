@@ -72,9 +72,9 @@ struct BusinessProfileView: View {
                                 .resizable()
                                 .scaledToFill()
                                 .frame(width: 90, height: 90)
-                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                                .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
                         } else {
-                            RoundedRectangle(cornerRadius: 16)
+                            RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous)
                                 .fill(PlowRColor.raised)
                                 .frame(width: 90, height: 90)
                                 .overlay {

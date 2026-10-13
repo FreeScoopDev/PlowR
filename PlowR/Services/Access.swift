@@ -105,12 +105,6 @@ struct Access: Equatable {
     /// only, the invoices still shared carry it too.
     var showsMadeWithPlowR: Bool { tier != .pro }
 
-    /// Money owed for work already done is never locked away.
-    var canRecordPayment: Bool { true }
-
-    /// Their data is theirs, on every plan.
-    var canExport: Bool { true }
-
     /// The route the free tier runs: this business's oldest, ties broken by
     /// ID so every device picks the same one.
     static func freeRoute(in routes: [PlowRoute], operatorID: String) -> PlowRoute? {

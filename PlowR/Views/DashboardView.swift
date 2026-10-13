@@ -842,8 +842,4 @@ struct DashboardView: View {
 
 private extension String {
     var dashNilIfEmpty: String? { isEmpty ? nil : self }
-    var dashInitials: String {
-        split(separator: " ").prefix(2).compactMap(\.first).map(String.init).joined().uppercased()
-            .dashNilIfEmpty ?? "P"
-    }
 }

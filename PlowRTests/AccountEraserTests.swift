@@ -297,6 +297,33 @@ struct AccountEraserTests {
         #expect(signedOut)
     }
 
+    /// The saved sign-in, held here: a test build isn't signed, so the real
+    /// Keychain refuses it (errSecMissingEntitlement, -34018).
+    final class FakeSavedSignIn: SavedSignIn {
+        var userID: String?
+        func save(_ userID: String) { self.userID = userID }
+        func load() -> String? { userID }
+        func delete() { userID = nil }
+    }
+
+    // The sign-out Delete Everything is handed (SettingsView passes
+    // `authManager.signOut`) must remove the saved Apple ID, not just sign the
+    // screen out (App Review 5.1.1(v)). The test above only proves a closure
+    // ran. This proves AuthManager.signOut clears what signIn saved; it does
+    // not prove SettingsView passes it, and the real Keychain calls stay
+    // untested (an unsigned test build has no Keychain).
+    @Test func deleteEverythingRemovesTheSavedSignIn() throws {
+        let account = try Account()
+        defer { account.removeFiles() }
+        let saved = FakeSavedSignIn()
+        let auth = AuthManager(saved: saved)
+        auth.signIn(userID: "eraser-test", fullName: nil)
+        try #require(saved.userID == "eraser-test", "the sign-in wasn't saved, so this test checks nothing")
+        #expect(account.eraser().eraseAll(thenSignOut: auth.signOut).isEmpty)
+        #expect(saved.userID == nil)
+        #expect(!auth.isSignedIn)
+    }
+
     // On a signed build the database is in the app-group container, not in
     // Application Support, so its own folder is swept for archives too.
     @Test func archivesAreSweptBesideTheLiveDatabase() throws {
