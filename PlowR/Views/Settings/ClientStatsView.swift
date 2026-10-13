@@ -155,12 +155,12 @@ struct ClientStatsView: View {
                         let revRatio = CGFloat(bucket.revenue / maxTotal)
                         let outRatio = CGFloat(bucket.outstanding / maxTotal)
                         if revRatio > 0 {
-                            RoundedRectangle(cornerRadius: 3)
+                            Capsule()
                                 .fill(PlowRColor.Status.done.fill)
                                 .frame(width: max(revRatio * 200, 4), height: 6)
                         }
                         if outRatio > 0 {
-                            RoundedRectangle(cornerRadius: 3)
+                            Capsule()
                                 .fill(PlowRColor.Status.owed.fill.opacity(0.7))
                                 .frame(width: max(outRatio * 200, 4), height: 6)
                         }

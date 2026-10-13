@@ -59,10 +59,6 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
         manager.requestAlwaysAuthorization()
     }
 
-    var isAuthorized: Bool {
-        authorizationStatus == .authorizedAlways || authorizationStatus == .authorizedWhenInUse
-    }
-
     func calculateETA(to stop: RouteStop) async -> Int? {
         // A Mac isn't on the route: an estimate from where it is would mislead.
         guard !OnMac.isMac, let currentLocation,

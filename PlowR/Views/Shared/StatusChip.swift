@@ -35,3 +35,32 @@ struct StatusChip: View {
         .fixedSize()
     }
 }
+
+/// The tag on a visit photo's thumbnail: Before, After or Below Trigger, as a
+/// status chip (its text on its soft fill, 4.5:1 in light and dark,
+/// `DesignTokensTests`), in a text style that grows with the user's text
+/// size. It was 9 pt white on orange or green (about 2.2:1), and those
+/// colours mean owed and done on invoices: Before is neutral now, After is
+/// done (the work is). Capped at the first accessibility size so the tag
+/// can't cover the photo it labels.
+struct PhotoTag: View {
+    let photo: StopPhoto
+
+    var body: some View {
+        StatusChip(photo.kindLabel, systemImage: symbol, status: photo.tagStatus)
+            .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+            .padding(PlowRLayout.space1)
+    }
+
+    private var symbol: String {
+        photo.isCheckPhoto ? "arrow.down.circle" : photo.isBefore ? "clock" : "checkmark"
+    }
+}
+
+extension StopPhoto {
+    /// A photo's status colour: After is done; Before and Below Trigger say
+    /// nothing about money or state, so they're neutral.
+    var tagStatus: PlowRColor.Status {
+        !isCheckPhoto && !isBefore ? .done : .neutral
+    }
+}

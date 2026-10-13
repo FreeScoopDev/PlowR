@@ -184,123 +184,130 @@ struct ProposalDetailView: View {
 
     // MARK: - Action Bar
 
-    @ViewBuilder
+    /// One main action per status, in copper (`.plowRAction`), full width
+    /// under the others: Convert a proposal (View Contract once it's one),
+    /// Mark Sent a draft, take a Payment on one that's out. Paid and void have
+    /// nothing left to do, so every button there is secondary. Three buttons
+    /// in one row wrapped their labels mid-word ("Conver/t").
     private var actionBar: some View {
-        HStack(spacing: 12) {
-            switch status {
-            case .proposal:
-                Button { showingEditView = true } label: {
-                    Label("Edit", systemImage: "pencil")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-
-                // Agreed for a period, not a one-off: a contract. Once it is,
-                // the proposal is spoken for: no second contract, no invoice.
-                if let made = Contracts.madeFrom(proposal, among: allContracts) {
-                    NavigationLink { ContractDetailView(contract: made) } label: {
-                        Label("View Contract", systemImage: "signature")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .plowRProminent()
-                } else {
-                    if let client = proposalClient {
-                        Button {
-                            $gate.unless(ProGate.edit(access)) {
-                                contractDraft = Contracts.draft(from: proposal, client: client, catalog: allServiceItems)
-                            }
-                        } label: {
-                            Label("Contract", systemImage: "signature")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.bordered)
-                    }
-
-                    Button { $gate.unless(ProGate.edit(access)) { convertToInvoice() } } label: {
-                        Label("Convert", systemImage: "doc.badge.arrow.up")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.blue)
-                }
-
-            case .draft:
-                Button { showingEditView = true } label: {
-                    Label("Edit", systemImage: "pencil")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-
-                Button {
-                    // Sending an invoice still owed is how they get paid: open
-                    // read only, as sharing it is.
-                    $gate.unless(ProGate.shareDocument(access, proposal)) { markSent() }
-                } label: {
-                    Label("Mark Sent", systemImage: "paperplane.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.orange)
-
-            case .sent, .overdue:
-                Button { $gate.unless(ProGate.edit(access)) { showingReviseDialog = true } } label: {
-                    Label("Revise", systemImage: "doc.badge.plus")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-
-                if MFMessageComposeViewController.canSendText(),
-                   let phone = proposalClient?.phone, !phone.isEmpty {
-                    Button { showingReminder = true } label: {
-                        Label("Remind", systemImage: "message.fill")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(.orange)
-                }
-
-                // All that's owed, or part of it (Payments).
-                Button { showingPayments = true } label: {
-                    Label("Payment", systemImage: "dollarsign.circle.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.green)
-
-            case .paid:
-                // A revision of a paid invoice not yet sent: paid until its
-                // lines change, and still edited in place.
-                if InvoiceRecords.canEditInPlace(proposal) {
-                    Button { showingEditView = true } label: {
-                        Label("Edit", systemImage: "pencil")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                }
-                Button { showingPayments = true } label: {
-                    Label("Payments", systemImage: "dollarsign.circle")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-
-                Button { $gate.unless(ProGate.edit(access)) { showingReviseDialog = true } } label: {
-                    Label("Revise", systemImage: "doc.badge.plus")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .tint(.orange)
-
-            case .void:
-                // Kept on record: its payments (if any) can still be seen.
-                Button { showingPayments = true } label: {
-                    Label("Payments", systemImage: "dollarsign.circle")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
+        VStack(spacing: PlowRLayout.space2) {
+            HStack(spacing: PlowRLayout.space2) {
+                secondaryActions
             }
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            mainAction
         }
-        .padding(.horizontal)
-        .padding(.vertical, 12)
+        .padding(.horizontal, PlowRLayout.space4)
+        .padding(.vertical, PlowRLayout.space3)
+    }
+
+    @ViewBuilder
+    private var mainAction: some View {
+        switch status {
+        case .proposal:
+            // Agreed for a period, not a one-off: a contract. Once it is,
+            // the proposal is spoken for: no second contract, no invoice.
+            if let made = Contracts.madeFrom(proposal, among: allContracts) {
+                NavigationLink { ContractDetailView(contract: made) } label: {
+                    Label("View Contract", systemImage: PlowRSymbol.contract.name)
+                }
+                .buttonStyle(.plowRAction)
+            } else {
+                Button { $gate.unless(ProGate.edit(access)) { convertToInvoice() } } label: {
+                    Label("Convert", systemImage: "doc.badge.arrow.up")
+                }
+                .buttonStyle(.plowRAction)
+            }
+
+        case .draft:
+            Button {
+                // Sending an invoice still owed is how they get paid: open
+                // read only, as sharing it is.
+                $gate.unless(ProGate.shareDocument(access, proposal)) { markSent() }
+            } label: {
+                Label("Mark Sent", systemImage: "paperplane.fill")
+            }
+            .buttonStyle(.plowRAction)
+
+        case .sent, .overdue:
+            // All that's owed, or part of it (Payments).
+            Button { showingPayments = true } label: {
+                Label("Payment", systemImage: PlowRSymbol.payment.name)
+            }
+            .buttonStyle(.plowRAction)
+
+        case .paid, .void:
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private var secondaryActions: some View {
+        switch status {
+        case .proposal:
+            Button { showingEditView = true } label: {
+                Label("Edit", systemImage: "pencil")
+            }
+            .buttonStyle(.plowRSecondary)
+
+            if Contracts.madeFrom(proposal, among: allContracts) == nil, let client = proposalClient {
+                Button {
+                    $gate.unless(ProGate.edit(access)) {
+                        contractDraft = Contracts.draft(from: proposal, client: client, catalog: allServiceItems)
+                    }
+                } label: {
+                    Label("Contract", systemImage: PlowRSymbol.contract.name)
+                }
+                .buttonStyle(.plowRSecondary)
+            }
+
+        case .draft:
+            Button { showingEditView = true } label: {
+                Label("Edit", systemImage: "pencil")
+            }
+            .buttonStyle(.plowRSecondary)
+
+        case .sent, .overdue:
+            Button { $gate.unless(ProGate.edit(access)) { showingReviseDialog = true } } label: {
+                Label("Revise", systemImage: "doc.badge.plus")
+            }
+            .buttonStyle(.plowRSecondary)
+
+            if MFMessageComposeViewController.canSendText(),
+               let phone = proposalClient?.phone, !phone.isEmpty {
+                Button { showingReminder = true } label: {
+                    Label("Remind", systemImage: PlowRSymbol.text.name)
+                }
+                .buttonStyle(.plowRSecondary)
+            }
+
+        case .paid:
+            // A revision of a paid invoice not yet sent: paid until its
+            // lines change, and still edited in place.
+            if InvoiceRecords.canEditInPlace(proposal) {
+                Button { showingEditView = true } label: {
+                    Label("Edit", systemImage: "pencil")
+                }
+                .buttonStyle(.plowRSecondary)
+            }
+            Button { showingPayments = true } label: {
+                Label("Payments", systemImage: "dollarsign.circle")
+            }
+            .buttonStyle(.plowRSecondary)
+
+            Button { $gate.unless(ProGate.edit(access)) { showingReviseDialog = true } } label: {
+                Label("Revise", systemImage: "doc.badge.plus")
+            }
+            .buttonStyle(.plowRSecondary)
+
+        case .void:
+            // Kept on record: its payments (if any) can still be seen.
+            Button { showingPayments = true } label: {
+                Label("Payments", systemImage: "dollarsign.circle")
+            }
+            .buttonStyle(.plowRSecondary)
+        }
     }
 
     // MARK: - PDF

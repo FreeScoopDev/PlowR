@@ -154,7 +154,12 @@ final class EventKitVisitCalendarStore: VisitCalendarStore {
             guard let source = store.source(withIdentifier: sourceID) else { continue }
             let calendar = EKCalendar(for: .event, eventStore: store)
             calendar.title = Self.calendarTitle
-            calendar.cgColor = PlowRColor.navyUIColor.cgColor
+            // The brand forest green, its light value: a calendar has one
+            // colour, and a dynamic one would resolve to whichever appearance
+            // the phone happened to be in. Only a new calendar: one the user
+            // already has keeps the colour they see (or chose).
+            calendar.cgColor = PlowRColor.brandUIColor
+                .resolvedColor(with: UITraitCollection(userInterfaceStyle: .light)).cgColor
             calendar.source = source
             do {
                 try store.saveCalendar(calendar, commit: true)

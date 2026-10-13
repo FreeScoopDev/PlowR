@@ -130,15 +130,7 @@ struct ClientPhotoGalleryView: View {
                     .fill(PlowRColor.raised)
                     .frame(height: 110)
             }
-            Label(photo.kindLabel,
-                  systemImage: photo.isCheckPhoto ? "arrow.down.circle" : photo.isBefore ? "clock" : "checkmark")
-                .font(.system(size: 9, weight: .semibold))
-                .padding(.horizontal, 5).padding(.vertical, 2)
-                .background(photo.isCheckPhoto ? Color.gray.opacity(0.85)
-                            : photo.isBefore ? Color.orange.opacity(0.85) : Color.green.opacity(0.85))
-                .foregroundStyle(.white)
-                .clipShape(Capsule())
-                .padding(4)
+            PhotoTag(photo: photo)
         }
         .clipped()
         .contentShape(Rectangle())
