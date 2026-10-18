@@ -89,6 +89,9 @@ struct RouteListView: View {
                     Image(systemName: "plus")
                 }
             }
+            ToolbarItem(placement: .topBarTrailing) {
+                HelpToolbarButton(screen: .routes)
+            }
         }
         .sheet(isPresented: $showingCreateRoute) {
             CreateRouteView()

@@ -86,6 +86,9 @@ struct ScheduleView: View {
                         Image(systemName: "plus")
                     }
                 }
+                ToolbarItem(placement: .topBarTrailing) {
+                    HelpToolbarButton(screen: .schedule)
+                }
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Today") { selectedDate = Date() }
                         .font(.subheadline)
