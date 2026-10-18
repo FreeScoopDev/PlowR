@@ -567,7 +567,7 @@ struct SiteTimesTests {
         #expect(line(record) == nil)
         record.arrivedAt = at(4, 58)
         record.leftAt = at(5, 24)
-        #expect(line(record) == "Arrived 4:58 AM · Left 5:24 AM (GPS, within about 100 m)")
+        #expect(line(record) == "Arrived 4:58 AM · Left 5:24 AM · 26 min on site (GPS, within about 100 m)")
         record.arrivedAt = nil
         #expect(line(record) == "Arrival not caught · Left 5:24 AM (GPS, within about 100 m)")
         record.arrivedAt = at(4, 58)
