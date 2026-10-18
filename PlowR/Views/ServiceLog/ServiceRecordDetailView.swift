@@ -157,6 +157,7 @@ struct ServiceRecordDetailView: View {
         }
         .asksBeforeLeaving(hasChanges: hasChanges, isBusy: false, canSave: canSave,
                            message: "Your changes to this job aren't saved.",
+                           cantSaveMessage: DocumentDraft.unreadableMessage(recording.unreadableFields(locked: locked)),
                            save: save, discard: { dismiss() })
         .confirmationDialog("Delete this job?", isPresented: $showingDeleteConfirm, titleVisibility: .visible) {
             Button("Delete", role: .destructive) {

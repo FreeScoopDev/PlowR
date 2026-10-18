@@ -127,6 +127,8 @@ struct EditClientView: View {
         .navigationBarTitleDisplayMode(.inline)
         .asksBeforeLeaving(hasChanges: hasUnsavedChanges, isBusy: isSaving, canSave: draft.canSave,
                            message: draft.unsavedMessage(comparedWith: ClientDraft(client)),
+                           // Without a name and a phone number there's nothing to save.
+                           cantSaveMessage: "A client needs a name and a phone number to be saved.",
                            save: { $gate.unless(ProGate.edit(access)) { save() } }, discard: { dismiss() })
         // The client changed underneath (Schedule making them active again, an
         // edit synced from another device): fields not edited here follow.
