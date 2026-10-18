@@ -393,10 +393,9 @@ struct StopServiceRecorderView: View {
         }
 
         // Billed as its contract says: nothing for work it covers, its price per visit.
-        let lines = invoiceLines
-        if choice != .none, ServiceLog.invoice(of: record, in: modelContext) == nil, !lines.isEmpty {
-            let proposal = ServiceLog.invoice(record, lines: lines, client: client,
-                                              operatorID: operatorID, notes: notes, in: modelContext)
+        if choice != .none, ServiceLog.invoice(of: record, in: modelContext) == nil,
+           let proposal = ServiceLog.invoice(record, recording: recording, under: coveringContract(client),
+                                             client: client, operatorID: operatorID, notes: notes, in: modelContext) {
             if choice == .sent {
                 DocumentSent.markSent(proposal, in: modelContext)
             }

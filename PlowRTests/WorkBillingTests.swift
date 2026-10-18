@@ -224,7 +224,7 @@ struct WorkBillingTests {
         profile.defaultDisclaimer = "Net 30."
         h.context.insert(profile)
         let record = job(h, h.client, at: h.clock, [("Clear", 40)])
-        let invoice = ServiceLog.invoice(record, lines: [], client: h.client, operatorID: "op", notes: "",
+        let invoice = ServiceLog.invoice(record, lines: [], contractCharge: 0, client: h.client, operatorID: "op", notes: "",
                                          now: h.clock, in: h.context)
         #expect(invoice.disclaimer == "Net 30.")
         #expect(invoice.invoiceDueDate == h.clock.addingTimeInterval(ServiceLog.invoiceTerm))
