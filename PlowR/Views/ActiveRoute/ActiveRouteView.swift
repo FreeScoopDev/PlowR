@@ -85,6 +85,7 @@ struct ActiveRouteView: View {
         showingFirstStopPrompt || showingNotifyPrompt || textOnlyStop != nil || recorderStop != nil || showingMassMessage
             || belowTriggerStop != nil || showingBelowTriggerChangedAlert
             || showingRouteRecap || showingNavPicker || showingRouteChangedAlert || showingLocationDeniedAlert
+            || gate != nil
     }
 
     /// The names of the active services `stop` is expected to need.
@@ -314,18 +315,7 @@ struct ActiveRouteView: View {
         // Leaving the stop's area only offers the text, once the phone has
         // stayed out (ExitPrompt); it never completes the stop. A newer exit
         // restarts the wait.
-        .task(id: SiteMonitor.shared.lastExit) {
-            guard let exit = SiteMonitor.shared.lastExit else { return }
-            let wait = ExitPrompt.delay - Date().timeIntervalSince(exit.time)
-            if wait > 0 {
-                do { try await Task.sleep(for: .seconds(wait)) } catch { return }
-            }
-            guard ExitPrompt.shouldOffer(exitStopID: exit.stopID, exitedAt: exit.time,
-                                         currentStopID: currentStop?.id, site: store.site,
-                                         hasNextStop: nextStop != nil, canText: !shouldSkipNextNotify,
-                                         isPresentingSomething: isPresentingSomething, now: Date()) else { return }
-            openNotifyPrompt()
-        }
+        .task(id: SiteMonitor.shared.lastExit) { await offerTextAfterExit() }
         // Siri's "Notify next client", once nothing else is up.
         .onChange(of: RouteSessionManager.shared.textRequest) { _, _ in openRequestedText() }
         .onChange(of: isPresentingSomething) { _, _ in openRequestedText() }
@@ -962,6 +952,24 @@ struct ActiveRouteView: View {
                 showingFirstStopPrompt = true
             }
         }
+    }
+
+    /// After the phone left the current stop's area: the text to the next
+    /// client, offered once it has stayed out (ExitPrompt). Opens the prompt
+    /// and nothing else: leaving never completes a stop.
+    private func offerTextAfterExit() async {
+        guard let exit = SiteMonitor.shared.lastExit else { return }
+        let wait = ExitPrompt.delay - Date().timeIntervalSince(exit.time)
+        if wait > 0 {
+            do { try await Task.sleep(for: .seconds(wait)) } catch { return }
+        }
+        // A next stop with no number can't be texted, as the first stop's prompt says.
+        let canText = !shouldSkipNextNotify && !(nextStop?.clientPhone.isEmpty ?? true)
+        guard ExitPrompt.shouldOffer(exitStopID: exit.stopID, exitedAt: exit.time,
+                                     currentStopID: currentStop?.id, site: store.site,
+                                     hasNextStop: nextStop != nil, canText: canText,
+                                     isPresentingSomething: isPresentingSomething, now: Date()) else { return }
+        openNotifyPrompt()
     }
 
     /// The Complete button only: a tap. Leaving the stop's area goes to

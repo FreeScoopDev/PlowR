@@ -65,9 +65,12 @@ struct ExitPromptTests {
     /// else in it may complete, pass or skip a stop.
     @Test func theRouteScreenNeverCompletesOnAnExit() throws {
         let source = try String(contentsOfFile: Self.routeScreenPath, encoding: .utf8)
-        let start = try #require(source.range(of: ".task(id: SiteMonitor.shared.lastExit)"))
-        let end = try #require(source.range(of: "openNotifyPrompt()", range: start.upperBound..<source.endIndex))
-        let handler = source[start.lowerBound..<end.upperBound]
+        #expect(source.contains(".task(id: SiteMonitor.shared.lastExit) { await offerTextAfterExit() }"))
+        // The whole function: from its declaration to the next one.
+        let start = try #require(source.range(of: "private func offerTextAfterExit() async {"))
+        let end = try #require(source.range(of: "    private func ", range: start.upperBound..<source.endIndex))
+        let handler = source[start.lowerBound..<end.lowerBound]
+        #expect(handler.contains("openNotifyPrompt()"))
         for call in ["advance(", "triggerNotifyPrompt(", "completeCurrentStop", "passCurrentStop"] {
             #expect(!handler.contains(call), "exit handler calls \(call)")
         }
