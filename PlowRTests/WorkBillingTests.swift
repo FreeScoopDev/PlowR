@@ -89,7 +89,7 @@ struct WorkBillingTests {
         #expect(invoice.sortedLineItems[0].itemNotes == expectedDay + " · 9 Lot Rd")
         #expect(!invoice.sortedLineItems[2].itemNotes.contains("·"))
         #expect(invoice.disclaimer == "Payment due in 30 days.")
-        #expect(invoice.invoiceDueDate == h.clock.addingTimeInterval(30 * 86_400))
+        #expect(invoice.invoiceDueDate == InvoiceTerms.dueDate(from: h.clock))
         #expect(work.records.allSatisfy { $0.invoiceID == invoice.id.uuidString })
         #expect(WorkBilling.unbilledWork(in: nil, operatorID: "op", in: h.context).isEmpty)
 
@@ -227,7 +227,7 @@ struct WorkBillingTests {
         let invoice = ServiceLog.invoice(record, lines: [], client: h.client, operatorID: "op", notes: "",
                                          now: h.clock, in: h.context)
         #expect(invoice.disclaimer == "Net 30.")
-        #expect(invoice.invoiceDueDate == h.clock.addingTimeInterval(ServiceLog.invoiceTerm))
+        #expect(invoice.invoiceDueDate == InvoiceTerms.dueDate(from: h.clock))
     }
 
     // The office ticked the visit off with its usual services, the crew

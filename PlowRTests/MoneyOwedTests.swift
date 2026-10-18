@@ -35,7 +35,8 @@ struct MoneyOwedTests {
         #expect(age(-5) == .notDue)                                               // due in 5 days
         #expect(age(nil) == .notDue)                                              // no due date
         #expect(age(40, sent: false) == .notDue)                                  // a draft
-        #expect(age(0.1) == .upTo30)                                              // overdue since this morning
+        #expect(age(0) == .notDue)                                                // due today isn't late
+        #expect(age(1) == .upTo30)                                                // late from the next day
         #expect(age(30) == .upTo30)
         #expect(age(31) == .upTo60)
         #expect(age(60) == .upTo60)

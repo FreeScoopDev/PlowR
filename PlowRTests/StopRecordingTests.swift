@@ -150,7 +150,7 @@ struct StopRecordingTests {
         #expect(invoice.isInvoice)
         #expect(invoice.total == 45)
         #expect(invoice.notes == "n")
-        #expect(invoice.invoiceDueDate == h.clock.addingTimeInterval(30 * 86_400))
+        #expect(invoice.invoiceDueDate == InvoiceTerms.dueDate(from: h.clock))
 
         ServiceLog.delete(invoice, in: h.context)
         try h.context.save()

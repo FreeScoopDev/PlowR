@@ -19,7 +19,7 @@ enum DocumentSent {
     static func markSent(_ proposal: Proposal, in context: ModelContext, now: Date = .now) {
         proposal.invoiceSentAt = now
         if proposal.invoiceDueDate == nil {
-            proposal.invoiceDueDate = now.addingTimeInterval(30 * 86_400)
+            proposal.invoiceDueDate = InvoiceTerms.dueDate(from: now)
         }
         awaitResponse(clientID: proposal.clientID, in: context, now: now)
     }

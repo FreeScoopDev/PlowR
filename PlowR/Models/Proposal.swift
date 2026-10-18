@@ -127,7 +127,7 @@ final class Proposal {
         guard isInvoice else { return .proposal }
         if voidedAt != nil { return .void }
         if invoicePaidAt != nil { return .paid }
-        if let due = invoiceDueDate, due < Date(), invoiceSentAt != nil { return .overdue }
+        if let due = invoiceDueDate, InvoiceTerms.isPastDue(due, now: Date()), invoiceSentAt != nil { return .overdue }
         if invoiceSentAt != nil { return .sent }
         return .draft
     }
