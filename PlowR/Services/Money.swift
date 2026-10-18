@@ -54,7 +54,7 @@ nonisolated enum Money {
         factor.formatted(.number.precision(.fractionLength(0...2)).locale(locale)) + "×"
     }
 
-    private static func style(fraction: ClosedRange<Int>) -> FloatingPointFormatStyle<Double>.Currency {
+    static func style(fraction: ClosedRange<Int>) -> FloatingPointFormatStyle<Double>.Currency {
         .currency(code: currencyCode).locale(locale).precision(.fractionLength(fraction))
     }
 }

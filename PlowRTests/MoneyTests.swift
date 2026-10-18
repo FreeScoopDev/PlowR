@@ -84,6 +84,13 @@ struct MoneyTests {
         #expect(columns.labelX + columns.labelW + columns.valueW <= contentW)
     }
 
+    /// Written the US way whatever the phone's region: the simulator is
+    /// en_US, so the strings above can't show it.
+    @Test func theLocaleIsPinned() {
+        #expect(Money.style(fraction: 2...2).locale == Money.locale)
+        #expect(Money.locale.identifier == "en_US" && Money.currencyCode == "USD")
+    }
+
     /// `%.2g` showed 1.25× as "1.2×".
     @Test func aMultiplierShowsAsSet() {
         #expect(Money.multiplier(1.25) == "1.25×")
@@ -95,23 +102,26 @@ struct MoneyTests {
     /// Nothing in the app writes money another way. CSV export and price
     /// fields write plain numbers on purpose (no "$"), so they don't match.
     @Test func noOtherMoneyFormatInTheApp() throws {
-        let app = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .appendingPathComponent("PlowR")
-        let banned = [#""$%"#, #""−$%"#, ".currency(code:", #""%.2g""#, #""$" + "#, #""$\("#, #""−" + Money"#]
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+        let banned = [#""$%"#, #""−$%"#, ".currency(code:", ".currency)", "NumberFormatter", #""%.2g""#, #""$\("#,
+                      #""−" + Money"#]
+        let concatenated = try Regex(#""\$"\s*\+"#)
         var found: [String] = []
         var scanned = 0
-        let files = try #require(FileManager.default.enumerator(at: app, includingPropertiesForKeys: nil))
-        for case let file as URL in files where file.pathExtension == "swift" && file.lastPathComponent != "Money.swift" {
-            let source = try String(contentsOf: file, encoding: .utf8)
-            scanned += 1
-            for (number, line) in source.components(separatedBy: "\n").enumerated()
-            where banned.contains(where: { line.contains($0) }) {
-                found.append("\(file.lastPathComponent):\(number + 1): \(line.trimmingCharacters(in: .whitespaces))")
+        for folder in ["PlowR", "PlowRWidgets"] {
+            let files = try #require(FileManager.default.enumerator(at: root.appendingPathComponent(folder),
+                                                                    includingPropertiesForKeys: nil))
+            for case let file as URL in files where file.pathExtension == "swift" && file.lastPathComponent != "Money.swift" {
+                let source = try String(contentsOf: file, encoding: .utf8)
+                scanned += 1
+                for (number, line) in source.components(separatedBy: "\n").enumerated()
+                where banned.contains(where: { line.contains($0) }) || line.contains(concatenated) {
+                    found.append("\(file.lastPathComponent):\(number + 1): \(line.trimmingCharacters(in: .whitespaces))")
+                }
             }
         }
         // A path that went wrong would scan nothing and pass.
-        #expect(scanned > 100, "scanned \(scanned) files in \(app.path)")
+        #expect(scanned > 100, "scanned \(scanned) files under \(root.path)")
         #expect(found.isEmpty, "Use Money: \(found)")
     }
 }
