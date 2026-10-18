@@ -334,14 +334,14 @@ struct ClientListView: View {
                 )
                 if totalOutstanding > 0 {
                     StatTile(
-                        value: totalOutstanding.formatted(.currency(code: "USD").precision(.fractionLength(0))),
+                        value: Money.whole(totalOutstanding),
                         label: "Outstanding",
                         status: .owed
                     )
                 }
                 if totalCollected > 0 {
                     StatTile(
-                        value: totalCollected.formatted(.currency(code: "USD").precision(.fractionLength(0))),
+                        value: Money.whole(totalCollected),
                         label: "Collected",
                         status: .done
                     )
@@ -540,7 +540,7 @@ struct ClientRowView: View {
             if isOverdue {
                 badge("Overdue", status: .overdue)
             } else if outstandingBalance > 0 {
-                badge(String(format: "$%.0f due", outstandingBalance), status: .owed)
+                badge("\(Money.whole(outstandingBalance)) due", status: .owed)
             }
         }
     }

@@ -73,7 +73,7 @@ struct ContractTaxTests {
         let made = invoices(contract, h)
         #expect(made.count == 3 && made.allSatisfy { $0.taxRate == 8.875 })
         for (line, invoice) in zip(lines[1...3], made) {
-            #expect(line.hasSuffix("% tax = \(invoice.total.formatted(.currency(code: "USD")))"), "\(line)")
+            #expect(line.hasSuffix("% tax = \(Money.text(invoice.total))"), "\(line)")
         }
         #expect(made.map(\.total) == [36.29, 36.29, 36.30])
         #expect(ContractInstallments.amountDue(allDue(contract), defaultTaxRate: 8.875)

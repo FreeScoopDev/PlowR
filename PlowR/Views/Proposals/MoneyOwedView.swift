@@ -22,11 +22,11 @@ struct MoneyOwedView: View {
             } else {
                 Section {
                     LabeledContent("Total Owed") {
-                        Text(summary.total, format: .currency(code: "USD")).fontWeight(.semibold)
+                        Text(Money.text(summary.total)).fontWeight(.semibold)
                     }
                     ForEach(MoneyOwed.Age.allCases) { age in
                         LabeledContent(age.title) {
-                            Text(summary.byAge[age] ?? 0, format: .currency(code: "USD"))
+                            Text(Money.text(summary.byAge[age] ?? 0))
                                 .foregroundStyle((summary.byAge[age] ?? 0) > 0 ? status(age).text : PlowRColor.inkSecondary)
                         }
                     }
@@ -56,7 +56,7 @@ struct MoneyOwedView: View {
                                 }
                                 Spacer()
                                 VStack(alignment: .trailing, spacing: 2) {
-                                    Text(client.owed, format: .currency(code: "USD")).fontWeight(.semibold)
+                                    Text(Money.text(client.owed)).fontWeight(.semibold)
                                     if client.oldest != .notDue {
                                         StatusChip(client.oldest.title, status: status(client.oldest))
                                     }
