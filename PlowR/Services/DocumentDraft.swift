@@ -161,6 +161,31 @@ nonisolated struct DocumentDraft {
         return result
     }
 
+    /// The fields that can't be read as an amount or a rate (InvoiceLines.isUnreadable,
+    /// Proposal.readTaxRate), named as the screen names them. The document
+    /// can't be saved until they're fixed: nothing typed is replaced unseen.
+    var unreadableFields: [String] {
+        var fields: [String] = []
+        for key in selections.sorted() where InvoiceLines.isUnreadable(amounts[key], locale: locale) {
+            guard let (serviceID, zoneIndex) = Self.parse(key),
+                  let service = services.first(where: { $0.id == serviceID }) else { continue }
+            fields.append(zones.indices.contains(zoneIndex) ? "\(service.name), \(zones[zoneIndex].label)" : service.name)
+        }
+        for custom in customLines where InvoiceLines.isUnreadable(custom.amount, locale: locale) {
+            fields.append(custom.name.isEmpty ? "A custom item" : custom.name)
+        }
+        if InvoiceLines.isUnreadable(discount, locale: locale) { fields.append("Discount") }
+        if Proposal.readTaxRate(taxRate) == nil { fields.append("Tax") }
+        return fields
+    }
+
+    /// What the screen says about `fields`: "Can't read Discount, Tax: type a
+    /// number such as 1250.50 (a tax rate from 0 to 100)."
+    static func unreadableMessage(_ fields: [String]) -> String {
+        "Can't read \(fields.joined(separator: ", ")): type a number such as 1250.50"
+            + (fields.contains("Tax") ? " (a tax rate from 0 to 100)." : ".")
+    }
+
     /// The estimate: the total of the document these lines, discount and tax make.
     var total: Double {
         Proposal.totals(subtotal: lines().reduce(0) { $0 + $1.lineTotal },

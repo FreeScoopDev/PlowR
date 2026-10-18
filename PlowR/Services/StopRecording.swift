@@ -119,6 +119,15 @@ nonisolated struct StopRecording {
         return recording
     }
 
+    /// The price fields typed that can't be read (InvoiceLines.isUnreadable),
+    /// by name. Nothing is saved until they're fixed: an unreadable price
+    /// used to record the catalog's, and a custom item was left off.
+    var unreadableFields: [String] {
+        services.filter { selectedIDs.contains($0.id) && InvoiceLines.isUnreadable(typedPrices[$0.id]) }.map(\.name)
+            + customItems.filter { InvoiceLines.isUnreadable($0.price) }
+                .map { $0.name.trimmingCharacters(in: .whitespaces).isEmpty ? "A custom item" : $0.name }
+    }
+
     /// An amount as a price field shows it.
     static func money(_ amount: Double) -> String { String(format: "%.2f", InvoiceLines.roundedToCent(amount)) }
 

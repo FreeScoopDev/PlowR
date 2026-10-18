@@ -82,7 +82,7 @@ struct ProposalEditView: View {
                         Text("$").foregroundStyle(.secondary).font(.subheadline)
                         // Shown and kept to the cent it's billed and printed at.
                         TextField("0.00", value: Binding(get: { InvoiceLines.roundedToCent(item.lineTotal) },
-                                                         set: { item.lineTotal = InvoiceLines.roundedToCent($0) }),
+                                                         set: { item.lineTotal = InvoiceLines.roundedToCent(max(0, $0)) }),
                                   format: .number.precision(.fractionLength(2)))
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
@@ -104,7 +104,7 @@ struct ProposalEditView: View {
     }
 
     private var invoiceDetailsSection: some View {
-        Section("Invoice") {
+        Section {
             if proposal.isInvoice {
                 DatePicker("Due Date", selection: $edits.dueDate, displayedComponents: .date)
             }
@@ -127,6 +127,13 @@ struct ProposalEditView: View {
             }
             TextField("Notes", text: $proposal.notes, axis: .vertical)
                 .lineLimit(3...)
+        } header: {
+            Text("Invoice")
+        } footer: {
+            if !edits.unreadableFields.isEmpty {
+                Text(DocumentDraft.unreadableMessage(edits.unreadableFields) + " It won't be saved until it is.")
+                    .foregroundStyle(PlowRColor.Status.overdue.text)
+            }
         }
         .listRowBackground(PlowRColor.surface)
     }
