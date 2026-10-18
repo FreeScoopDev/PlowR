@@ -24,7 +24,7 @@ nonisolated struct DocumentEdits {
         openedDiscountText = discount > 0 ? String(format: "%.2f", discount) : ""
         openedTaxRateText = taxRate > 0 ? Proposal.percentText(taxRate) : ""
         // An invoice without a due date shows one 30 days out, and saving keeps it.
-        openedDueDate = dueDate ?? now.addingTimeInterval(30 * 86400)
+        openedDueDate = dueDate ?? InvoiceTerms.dueDate(from: now)
         discountText = openedDiscountText
         taxRateText = openedTaxRateText
         self.dueDate = openedDueDate

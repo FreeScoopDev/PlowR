@@ -28,7 +28,7 @@ struct ConvertToInvoiceTests {
         #expect(InvoiceRecords.convertToInvoice(proposal, now: h.clock, in: h.context))
         #expect(proposal.isInvoice)
         #expect(proposal.invoiceNumber == "INV-0001")
-        #expect(proposal.invoiceDueDate == h.clock.addingTimeInterval(30 * 86400))   // unchanged rule
+        #expect(proposal.invoiceDueDate == InvoiceTerms.dueDate(from: h.clock))   // the one due-date rule
     }
 
     // The next number in this business's own sequence: another business's
@@ -98,7 +98,7 @@ struct ConvertToInvoiceTests {
         #expect(!InvoiceRecords.canConvert(proposal, among: []))
         #expect(!InvoiceRecords.convertToInvoice(proposal, now: h.clock.addingTimeInterval(86400), in: h.context))
         #expect(proposal.invoiceNumber == number)
-        #expect(proposal.invoiceDueDate == h.clock.addingTimeInterval(30 * 86400))
+        #expect(proposal.invoiceDueDate == InvoiceTerms.dueDate(from: h.clock))
     }
 
     // Both screens go through the one function, behind the Pro gate, and
