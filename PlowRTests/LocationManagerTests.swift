@@ -74,6 +74,19 @@ struct LocationManagerTests {
         #expect(!RouteGPS.needsAlways(status: .authorizedWhenInUse, isMac: true))
     }
 
+    // With approximate location iOS watches no job-site areas at all: the
+    // route screen says Precise Location is needed, ahead of the Always note.
+    @Test func arrivalTimesNeedPreciseLocation() {
+        #expect(RouteGPS.needsPrecise(status: .authorizedAlways, accuracy: .reducedAccuracy, isMac: false))
+        #expect(RouteGPS.needsPrecise(status: .authorizedWhenInUse, accuracy: .reducedAccuracy, isMac: false))
+        #expect(!RouteGPS.needsPrecise(status: .authorizedAlways, accuracy: .fullAccuracy, isMac: false))
+        #expect(!RouteGPS.needsPrecise(status: .authorizedWhenInUse, accuracy: .fullAccuracy, isMac: false))
+        // Not allowed at all is a different problem (the denied alert).
+        #expect(!RouteGPS.needsPrecise(status: .denied, accuracy: .reducedAccuracy, isMac: false))
+        #expect(!RouteGPS.needsPrecise(status: .notDetermined, accuracy: .reducedAccuracy, isMac: false))
+        #expect(!RouteGPS.needsPrecise(status: .authorizedAlways, accuracy: .reducedAccuracy, isMac: true))
+    }
+
     // The first fix after GPS restarts can be minutes old (where the phone
     // was locked): an estimate or a text's location waits for a fresh one.
     @Test func anOldFixIsntUsed() {

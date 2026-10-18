@@ -204,7 +204,12 @@ struct ProofOfServiceTests {
         #expect(!text.contains("on site"))
         #expect(text.contains("About this report"))
         // Not certified evidence: the Terms say so, and so does the report.
-        #expect(text.contains("not a certified or independent one"))
+        // Wherever the lines of the note happen to break.
+        let flat = text.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.joined(separator: " ")
+        #expect(flat.contains("not a certified or independent one"))
+        #expect(flat.contains("not seen leaving before the next stop was reached"))
+        #expect(flat.contains("location off or approximate"))
+        #expect(flat.contains("next stop too close to tell the two apart"))
         #expect(text.contains("Before, taken"))                                   // a known capture time is shown
         let originals = visits.flatMap(\.photos).reduce(0) { $0 + $1.imageData.count }
         #expect(data.count < originals / 4)                                       // shrunk, not the originals
