@@ -1,0 +1,2 @@
+### Fixed
+- Leaving a job site no longer completes a stop by itself. When the next client had chosen not to be texted, or on an iPad or Mac that can't text, the phone going out of the stop's area completed the stop with no tap. A GPS wobble at the edge of the area, a big lot, or a walk to the truck mid-job could then record a visit and start the next stop's timer. Now leaving only offers the text to the next client, and only after the phone has stayed out for 45 seconds, so a brief wobble offers nothing. Completing a stop is always a tap (or Siri, or Control Center).
