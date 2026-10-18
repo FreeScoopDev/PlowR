@@ -204,6 +204,9 @@ struct ClientListView: View {
                     Image(systemName: "plus")
                 }
             }
+            ToolbarItem(placement: .topBarTrailing) {
+                HelpToolbarButton(screen: .clients)
+            }
             ToolbarItem(placement: .topBarLeading) {
                 Menu {
                     Section("Sort") {

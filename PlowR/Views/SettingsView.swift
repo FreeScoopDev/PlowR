@@ -136,6 +136,23 @@ struct SettingsView: View {
                     }
                 }
 
+            } header: {
+                Text("Data & Backup")
+            } footer: {
+                Text("Your data syncs through your private iCloud to every device signed in to your Apple ID. To take PlowR's data off one device and leave the others alone, use Delete Account & Data → Remove from This Device: that also turns sync off on that device until you turn it back on here. Export Data (under Business) keeps a copy as spreadsheets.")
+                    .font(.caption)
+            }
+            .listRowBackground(PlowRColor.surface)
+
+            // The guide is the bundled HelpGuide.json, the same file the
+            // website's help page is made from.
+            Section("Help") {
+                NavigationLink(destination: HelpGuideView()) {
+                    Label("Help Guide", systemImage: PlowRSymbol.help.name)
+                }
+                Link(destination: HelpGuide.shared.web) {
+                    Label("Help on the Web", systemImage: "safari")
+                }
                 Button {
                     if let url = URL(string: "mailto:support@getplowr.app?subject=PlowR%20Support") {
                         openURL(url)
@@ -143,11 +160,6 @@ struct SettingsView: View {
                 } label: {
                     Label("Contact Support", systemImage: "envelope")
                 }
-            } header: {
-                Text("Data & Backup")
-            } footer: {
-                Text("Your data syncs through your private iCloud to every device signed in to your Apple ID. To take PlowR's data off one device and leave the others alone, use Delete Account & Data → Remove from This Device: that also turns sync off on that device until you turn it back on here. Export Data (under Business) keeps a copy as spreadsheets.")
-                    .font(.caption)
             }
             .listRowBackground(PlowRColor.surface)
 

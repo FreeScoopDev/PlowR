@@ -353,6 +353,13 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   every text token on every surface at 4.5:1 in light and dark: a new token
   goes in its lists. Screens move over one PR at a
   time; until then they keep the older colors.
+- **Help copy has one source: `PlowR/Help/HelpGuide.json`** (since 1.8).
+  The app bundles it (`HelpGuide`: Settings → Help, each screen's Help
+  item via `HelpScreen`, and the tips), and `scripts/help_guide.py` makes
+  `docs/help.html` from it. Edit the JSON and run the script, never the
+  page: `HelpGuideTests` checks the hashes the page records, and holds
+  topics not marked `snowOnly` to the service-language rule (the guard
+  reads only Swift). Markup: `**UI label**`, `[text](https://…)`, `[PRO]`.
 - **The widget reads only the app group `UserDefaults`.** Anything it needs to
   show has to be written by `WidgetDataStore` from the app side; the widget
   never touches SwiftData.
