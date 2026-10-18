@@ -25,7 +25,7 @@ nonisolated enum Money {
     /// Rounded to the cent the one way the totals are (`InvoiceLines.cents`),
     /// so a half cent shows as the totals count it.
     static func text(_ amount: Double) -> String {
-        Double(InvoiceLines.cents(amount)).divided(by: 100).formatted(style(fraction: 2...2))
+        InvoiceLines.roundedToCent(amount).formatted(style(fraction: 2...2))
     }
 
     /// Whole dollars, for tiles and badges: "$12,500", "$149" for $148.50.
