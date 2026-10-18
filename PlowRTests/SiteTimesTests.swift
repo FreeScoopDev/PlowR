@@ -47,6 +47,12 @@ struct SiteTimesTests {
         arrived.entered(at: start + 60)
         arrived.insideWhenPlaced()
         #expect(arrived.arrivedAt == start + 60 && !arrived.arrivalUnseen)
+        // Already in after going out: hadn't left.
+        var back = SiteTimes()
+        back.entered(at: start + 60)
+        back.exited(at: start + 300)
+        back.insideWhenPlaced()
+        #expect(back.leftAt == nil && back.arrivedAt == start + 60)
     }
 
     @Test func leavingWithoutBeingSeenToArriveIsNoArrival() {

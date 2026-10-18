@@ -72,7 +72,15 @@ protocol SiteDiagnostics {
     var authorizationRequestInProgress: Bool { get }
 }
 
-extension CLMonitor.Event: SiteDiagnostics {}
+/// A monitor event as `SiteMonitor` reads it: a protocol so a test can make
+/// one (iOS makes the events).
+protocol SiteEvent: SiteDiagnostics {
+    var identifier: String { get }
+    var state: CLMonitor.Event.State { get }
+    var date: Date { get }
+}
+
+extension CLMonitor.Event: SiteEvent {}
 
 /// The rules for turning iOS's area events into arrivals and departures, kept
 /// apart from CoreLocation's monitor so they can be tested.

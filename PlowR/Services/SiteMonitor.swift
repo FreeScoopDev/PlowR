@@ -273,7 +273,7 @@ final class SiteMonitor: NSObject, CLLocationManagerDelegate, SiteWatching, Site
 
     // MARK: - Events
 
-    private func handle(_ event: CLMonitor.Event) {
+    func handle(_ event: some SiteEvent) {
         switch SiteEvents.reading(state: event.state, diagnostics: event) {
         case .limited(let limits): noteLimits(limits, id: event.identifier)
         case .presence(let presence): receive(event.identifier, presence: presence, at: event.date)
@@ -347,7 +347,12 @@ final class SiteMonitor: NSObject, CLLocationManagerDelegate, SiteWatching, Site
             }
             SiteEvents.save(placed, to: defaults)
         }
-        defaults.set([Int(status.rawValue), newAccuracy.rawValue], forKey: SiteEvents.accessKey)
+        // Only when changed: a launch before the first unlock after a restart
+        // can't read preferences, and needn't write them.
+        let access = [Int(status.rawValue), newAccuracy.rawValue]
+        if defaults.array(forKey: SiteEvents.accessKey) as? [Int] != access {
+            defaults.set(access, forKey: SiteEvents.accessKey)
+        }
         authorization = status
         if accuracy == .reducedAccuracy, newAccuracy == .fullAccuracy { replaceAll = true }
         if newAccuracy == .fullAccuracy { accuracyLimited = false }

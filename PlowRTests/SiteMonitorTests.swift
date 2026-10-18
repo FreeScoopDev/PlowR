@@ -39,6 +39,22 @@ struct FakeDiagnostics: SiteDiagnostics {
     var authorizationRequestInProgress = false
 }
 
+struct FakeEvent: SiteEvent {
+    var identifier: String
+    var state: CLMonitor.Event.State
+    var date: Date
+    var accuracyLimited = false
+    var conditionLimitExceeded = false
+    var conditionUnsupported = false
+    var authorizationDenied = false
+    var authorizationDeniedGlobally = false
+    var authorizationRestricted = false
+    var persistenceUnavailable = false
+    var serviceSessionRequired = false
+    var insufficientlyInUse = false
+    var authorizationRequestInProgress = false
+}
+
 final class FakeErasing: SiteErasing {
     var erased = 0
     func eraseAll() { erased += 1 }
@@ -281,6 +297,8 @@ struct SiteMonitorTests {
         #expect(rig.store.site == SiteTimes())
     }
 
+    // That Precise again places PlowR's own areas afresh (not just strays):
+    // locationChangedWhilePlowRWasntRunningIsSeenAtLaunch.
     @Test func approximateLocationPlacesNothingAndPreciseAgainPlacesAllAfresh() async throws {
         let rig = try Rig(accuracy: .reducedAccuracy)
         rig.conditions.held[rig.id(0)] = rig.area(0)       // from before it was turned off
@@ -503,6 +521,59 @@ struct SiteMonitorTests {
         await monitor.settled()
         #expect(rig.conditions.held.isEmpty)
         #expect(rig.h.defaults.data(forKey: SiteEvents.placedKey) == nil)
+    }
+
+    @Test func anEventsOwnDateIsTheCrossingTime() async throws {
+        let rig = try Rig()
+        rig.store.start(rig.h.route)
+        let monitor = rig.monitor()
+        monitor.watch([rig.area(0)])
+        await monitor.settled()
+        let began = rig.h.clock
+        monitor.handle(FakeEvent(identifier: rig.id(0), state: .unsatisfied, date: began + 3))
+        rig.h.clock = began + 1200          // handed over late
+        monitor.handle(FakeEvent(identifier: rig.id(0), state: .satisfied, date: began + 400))
+        #expect(rig.store.site.arrivedAt == began + 400)
+        // A diagnostic with a state is no crossing.
+        monitor.handle(FakeEvent(identifier: rig.id(0), state: .unsatisfied, date: began + 1300,
+                                 accuracyLimited: true))
+        #expect(rig.store.site.leftAt == nil && monitor.accuracyLimited)
+    }
+
+    @Test func aCompletedStopsExitIsNoTextOffer() async throws {
+        let rig = try Rig()
+        rig.store.start(rig.h.route)
+        let monitor = rig.monitor()
+        monitor.watch([rig.area(0)])
+        await monitor.settled()
+        monitor.receive(rig.id(0), presence: .outside, at: rig.h.clock + 3)
+        monitor.receive(rig.id(0), presence: .inside, at: rig.h.clock + 300)
+        rig.h.clock += 900
+        rig.store.completeShownStop()
+        #expect(rig.store.departures.map(\.stopID.uuidString) == [rig.id(0)])
+        monitor.receive(rig.id(0), presence: .outside, at: rig.h.clock + 60)
+        #expect(monitor.lastExit == nil)
+    }
+
+    @Test func eraseClearsTheNoteAndTheExit() async throws {
+        let rig = try Rig()
+        rig.store.start(rig.h.route)
+        let monitor = rig.monitor()
+        monitor.watch([rig.area(0)])
+        await monitor.settled()
+        monitor.receive(rig.id(0), presence: .outside, at: rig.h.clock + 3)
+        monitor.receive(rig.id(0), presence: .inside, at: rig.h.clock + 300)
+        monitor.receive(rig.id(0), presence: .outside, at: rig.h.clock + 600)
+        monitor.noteLimits([.accuracyLimited], id: rig.id(0))
+        #expect(monitor.lastExit != nil && monitor.accuracyLimited)
+        monitor.eraseAll()
+        #expect(monitor.lastExit == nil)
+        #expect(!monitor.accuracyLimited)
+    }
+
+    @Test func noPreciseNoteOnAMacEvenWhenIOSSaysSo() {
+        #expect(!RouteGPS.needsPrecise(status: .authorizedAlways, accuracy: .fullAccuracy, areasLimited: true,
+                                       isMac: true))
     }
 
     // MARK: - Delivered late
