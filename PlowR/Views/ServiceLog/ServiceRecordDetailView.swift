@@ -258,10 +258,8 @@ struct ServiceRecordDetailView: View {
     private var canSave: Bool { recording.unreadableFields(locked: locked).isEmpty && minutesReadable }
 
     private var cantSaveMessage: String {
-        let fields = recording.unreadableFields(locked: locked)
-        return [fields.isEmpty ? nil : DocumentDraft.unreadableMessage(fields),
-                minutesReadable ? nil : ServiceLog.unreadableMinutesMessage]
-            .compactMap { $0 }.joined(separator: " ")
+        ServiceLog.cantSaveMessage(unreadableFields: recording.unreadableFields(locked: locked),
+                                   minutesReadable: minutesReadable)
     }
 
     private func save() {

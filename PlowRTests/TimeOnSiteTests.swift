@@ -106,9 +106,15 @@ struct TimeOnSiteTests {
                 == ["4:58 AM", "5:24 AM", "26 min"])
     }
 
-    @Test func theGPSWordingFollowsTheAreasRadius() {
-        #expect(ProofOfService.gpsNote == "GPS, within about \(Int(SiteMonitor.radius)) m")
-        #expect(ProofOfService.siteFooter.contains("about \(Int(SiteMonitor.radius)) m"))
+    @Test func theGPSWordingFollowsTheAreasRadius() throws {
+        #expect(ProofOfService.gpsNote(radius: 150) == "GPS, within about 150 m")
+        #expect(ProofOfService.siteFooter(radius: 150).contains("an area about 150 m around the pin"))
+        #expect(ProofOfService.gpsNote == ProofOfService.gpsNote(radius: SiteMonitor.radius))
+        #expect(ProofOfService.siteFooter == ProofOfService.siteFooter(radius: SiteMonitor.radius))
+        // No size written in by hand anywhere in the report.
+        let report = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .deletingLastPathComponent().appendingPathComponent("PlowR/Services/ProofOfService.swift"), encoding: .utf8)
+        #expect(report.range(of: #"about \d+ m"#, options: .regularExpression) == nil)
         #expect(ProofOfService.onSiteListText(26 * 60) == "26 min on site (GPS)")
     }
 
@@ -173,6 +179,16 @@ struct TimeOnSiteTests {
         #expect(ServiceLog.minutesToSave(typed: "45 min", locale: us) == nil)
     }
 
+    @Test func leavingSaysWhatCantBeRead() {
+        #expect(ServiceLog.cantSaveMessage(unreadableFields: [], minutesReadable: true).isEmpty)
+        #expect(ServiceLog.cantSaveMessage(unreadableFields: [], minutesReadable: false)
+                == ServiceLog.unreadableMinutesMessage)
+        let both = ServiceLog.cantSaveMessage(unreadableFields: ["Plowing"], minutesReadable: false)
+        #expect(both == DocumentDraft.unreadableMessage(["Plowing"]) + " " + ServiceLog.unreadableMinutesMessage)
+        #expect(ServiceLog.cantSaveMessage(unreadableFields: ["Plowing"], minutesReadable: true)
+                == DocumentDraft.unreadableMessage(["Plowing"]))
+    }
+
     @Test func aDecimalCommaIsReadWhereTheRegionWritesOne() {
         #expect(ServiceLog.readMinutes("12,5", locale: Locale(identifier: "fr_FR")) == 12.5)
         // Elsewhere a comma separates thousands: not guessed at.
@@ -188,9 +204,13 @@ struct TimeOnSiteTests {
             #expect(text.contains("guard canSave, let minutes ="), "\(file)")
             #expect(!text.contains("Double(minutes") && !text.contains("readMinutes(minutes)"),
                     "\(file) reads minutes on its own")
+            // Save is off while the minutes can't be read, and the field says why.
+            #expect(matches(text, #"private var canSave: Bool \{[^}]*&& minutesReadable \}?"#), "\(file)")
+            #expect(matches(text, #"if !minutesReadable \{\s*Label\(ServiceLog\.unreadableMinutesMessage"#), "\(file)")
         }
         let detail = try source("ServiceLog/ServiceRecordDetailView.swift")
         #expect(detail.contains("cantSaveMessage: cantSaveMessage"))
+        #expect(matches(detail, #"ServiceLog\.cantSaveMessage\(unreadableFields: recording\.unreadableFields\(locked: locked\),\s*minutesReadable: minutesReadable\)"#))
         // An untouched field keeps the exact recorded minutes.
         #expect(detail.contains("asLoaded: minutesAsLoaded, recorded: record.minutes"))
         // GPS's times are shown, never written here.
@@ -206,12 +226,31 @@ struct TimeOnSiteTests {
     }
 
     @Test func bothWaysInGoThroughTheGate() throws {
-        for file in ["Clients/EditClientView.swift", "ServiceLog/ClientServiceHistoryView.swift"] {
+        let opens = ["Clients/EditClientView.swift": "showingServiceReport = true",
+                     "ServiceLog/ClientServiceHistoryView.swift": "showingProof = true"]
+        for (file, open) in opens {
             let text = try source(file)
-            #expect(text.contains("$gate.unless(ProGate.serviceReport(access))"), "\(file)")
+            // The report opens in one place, and that's inside the gate.
+            #expect(text.components(separatedBy: open).count == 2, "\(file)")
+            #expect(text.contains("$gate.unless(ProGate.serviceReport(access)) { \(open) }"), "\(file)")
             #expect(text.contains("ProofOfServiceView(client: client)"), "\(file)")
             #expect(text.contains(".proGateSheet($gate)"), "\(file)")
         }
+    }
+
+    @Test func theHistoryAndTheRecapShowTheTimeOnSite() throws {
+        let history = try source("ServiceLog/ClientServiceHistoryView.swift")
+        #expect(history.contains("if let onSite = ProofOfService.timeOnSite(of: record) {"))
+        #expect(history.contains("ProofOfService.onSiteListText(onSite)"))
+        let recap = try source("ActiveRoute/RouteRecapView.swift")
+        #expect(recap.contains("ServiceLog.timesOnSite(runRecords)"))
+        #expect(recap.contains("if completed, let onSite = onSite[stop.id] {"))
+        #expect(recap.contains("ProofOfService.onSiteListText(onSite)"))
+        #expect(recap.contains("#Predicate<ServiceRecord> { $0.runID == id }"))
+    }
+
+    private func matches(_ text: String, _ pattern: String) -> Bool {
+        text.range(of: pattern, options: .regularExpression) != nil
     }
 
     private func source(_ path: String) throws -> String {

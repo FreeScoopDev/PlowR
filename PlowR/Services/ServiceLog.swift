@@ -591,6 +591,14 @@ enum ServiceLog {
     /// current stop to when it was done, as the Service Report says.
     static let routeMinutesNote = "For a route stop, from when it became the current stop to when it was done, so it includes travel."
 
+    /// What leaving a job's page says when it can't be saved: the prices
+    /// that can't be read, then the minutes; empty when it can be.
+    static func cantSaveMessage(unreadableFields fields: [String], minutesReadable: Bool) -> String {
+        [fields.isEmpty ? nil : DocumentDraft.unreadableMessage(fields),
+         minutesReadable ? nil : unreadableMinutesMessage]
+            .compactMap { $0 }.joined(separator: " ")
+    }
+
     static let unreadableMinutesMessage = "Can't read Minutes on Site: type a number of minutes, such as 45."
 
     /// Work done off a route or a visit, logged from the client's Service

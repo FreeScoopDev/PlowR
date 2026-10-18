@@ -190,10 +190,17 @@ enum ProofOfService {
     }
 
     /// What GPS's times are said with, wherever they show.
-    static let gpsNote = "GPS, within about \(Int(SiteMonitor.radius)) m"
+    static var gpsNote: String { gpsNote(radius: SiteMonitor.radius) }
+    static func gpsNote(radius: Double) -> String { "GPS, within \(about(radius))" }
     /// Under the job page's GPS rows.
-    static let siteFooter = "When the phone came into and went out of an area about \(Int(SiteMonitor.radius)) m "
-        + "around the pin, as iOS reported it. Kept as recorded: they can't be edited."
+    static var siteFooter: String { siteFooter(radius: SiteMonitor.radius) }
+    static func siteFooter(radius: Double) -> String {
+        "When the phone came into and went out of an area \(about(radius)) around the pin, as iOS reported it. "
+            + "Kept as recorded: they can't be edited."
+    }
+
+    /// The job-site area's size as PlowR says it: "about 100 m".
+    static func about(_ radius: Double) -> String { "about \(Int(radius.rounded())) m" }
     static let arrivalNotCaught = "Arrival not caught"
     static let departureNotCaught = "Departure not caught"
 
@@ -327,7 +334,7 @@ enum ProofOfService {
         return "About this report: it lists what was recorded in PlowR. A route stop's start is when it became the "
             + "current stop (the route started, or the previous stop was completed), so it includes travel; its "
             + "completion is when it was marked done. \"Arrived\" and \"Left\" are when the phone came into and "
-            + "went out of an area about 100 m around the property's pin, as iOS reported it, which can be a few "
+            + "went out of an area \(about(SiteMonitor.radius)) around the property's pin, as iOS reported it, which can be a few "
             + "minutes late; \"not caught\" means it wasn't seen (location off or approximate, already inside when the "
             + "stop began, not seen leaving before the next stop was reached, or the next stop too close to tell "
             + "the two apart). Visits completed from the Schedule or logged by hand have no "
