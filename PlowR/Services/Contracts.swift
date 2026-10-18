@@ -92,6 +92,34 @@ enum Contracts {
         }
     }
 
+    /// The sales tax its billing charges: its own rate (from the proposal it
+    /// was made from), else the business's `defaultRate`; none for a
+    /// tax-exempt client. A per-visit contract's charges go on the visit's
+    /// invoice (Record Services, Bill Unbilled Work), at the business's rate.
+    /// The contract page, its PDF, the Dashboard and Make Invoice all ask
+    /// here, so at any moment they agree. With no rate of its own it follows
+    /// the business's rate of the day: a PDF signed before that rate
+    /// changed shows the old one.
+    static func taxRate(of contract: Contract, defaultRate: Double?) -> Double {
+        let own = pricing(of: contract) == .perVisit ? nil : contract.taxRate
+        return DocumentDraft.startingTaxRate(rate: own ?? defaultRate, taxExempt: contract.client?.taxExempt ?? false)
+    }
+
+    /// What an `amount` of its price is billed at `taxRate`, to the cent:
+    /// Proposal.totals, the invoice's own formula (no discount: a
+    /// contract's price is the one it agreed).
+    static func billed(_ amount: Double, taxRate: Double) -> Double {
+        Proposal.totals(subtotal: amount, discount: 0, taxRate: taxRate).total
+    }
+
+    /// The contract page's Payments footer: the amounts not invoiced yet
+    /// are before tax, and the tax each invoice adds, as its PDF says.
+    static func paymentsNote(of contract: Contract, defaultRate: Double?) -> String {
+        let rate = taxRate(of: contract, defaultRate: defaultRate)
+        let tax = rate > 0 ? " Amounts not invoiced yet are before tax: each invoice adds \(Proposal.percentText(rate))% tax." : ""
+        return "On a payment's date, Make Invoice makes its draft, ready for you to send. Nothing is sent by itself.\(tax)"
+    }
+
     /// A client's contracts, the ones in force first, then the newest.
     static func sorted(_ contracts: [Contract], now: Date = .now) -> [Contract] {
         contracts.sorted {
@@ -134,6 +162,8 @@ enum Contracts {
         var pricing: Pricing = .season
         var priceText = ""
         var installments = 1
+        /// Contract.taxRate: set from a proposal, kept by edits and renewals.
+        var taxRate: Double?
         var triggerInches: Double = 0
         var notes = ""
         /// Visits it books (ContractSchedule): weekdays, 1 = Sunday … 7 =
@@ -171,6 +201,7 @@ enum Contracts {
             pricing = Contracts.pricing(of: contract)
             priceText = contract.price > 0 ? StopRecording.money(contract.price) : ""
             installments = max(1, contract.installments)
+            taxRate = contract.taxRate
             triggerInches = contract.triggerInches
             notes = contract.notes
             scheduleWeekdays = Set(contract.scheduleWeekdays)
@@ -248,6 +279,7 @@ enum Contracts {
         if contract == nil {
             target.sourceProposalID = draft.sourceProposalID
             target.renewedFromID = draft.renewedFromID
+            target.taxRate = draft.taxRate
         }
         let catalog = (try? context.fetch(FetchDescriptor<ServiceItem>())) ?? []
         target.triggerInches = coversSnow(Set(target.serviceIDs), catalog: catalog) ? max(0, draft.triggerInches) : 0
@@ -282,9 +314,9 @@ enum Contracts {
 
     /// A new contract from a proposal: the services on it that are in the
     /// catalog (matched by name; none matched, none chosen, so they're
-    /// picked by hand), its total before tax as the season price (a
-    /// contract's payments carry no tax of their own), at their own address.
-    /// It stays a draft to check and sign.
+    /// picked by hand), its total before tax as the season price, and its
+    /// tax rate for the payments (the rate the client was quoted, not the
+    /// business's), at their own address. It stays a draft to check and sign.
     static func draft(from proposal: Proposal, client: Client, catalog: [ServiceItem],
                       now: Date = .now) -> Draft {
         var draft = Draft(for: client, now: now)
@@ -294,6 +326,7 @@ enum Contracts {
         draft.pricing = .season
         draft.priceText = proposal.discountedTotal > 0 ? StopRecording.money(proposal.discountedTotal) : ""
         draft.notes = proposal.notes
+        draft.taxRate = proposal.taxRate
         draft.sourceProposalID = proposal.id.uuidString
         return draft
     }
