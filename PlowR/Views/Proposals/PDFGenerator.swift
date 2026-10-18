@@ -574,15 +574,24 @@ struct PDFGenerator {
 
     // MARK: - Totals
 
+    /// The totals block's columns, from the left of the content: the value
+    /// column fits "$999,999.99" in the bold total, the label column
+    /// "PAID · BALANCE DUE". (At 17%, a total from $10,000 up wrapped once
+    /// amounts had thousands separators.)
+    static func totalsColumns(contentW: CGFloat) -> (labelX: CGFloat, labelW: CGFloat, valueW: CGFloat) {
+        (contentW * 0.50, contentW * 0.28, contentW * 0.22)
+    }
+
     @discardableResult
     private static func drawTotals(
         proposal: Proposal, isInvoice: Bool,
         contentW: CGFloat, margin: CGFloat, y: CGFloat, accent: UIColor
     ) -> CGFloat {
         var curY = y + 10
-        let lX = margin + contentW * 0.54
-        let lW = contentW * 0.29
-        let vW = contentW * 0.17
+        let columns = totalsColumns(contentW: contentW)
+        let lX = margin + columns.labelX
+        let lW = columns.labelW
+        let vW = columns.valueW
         let vX = margin + contentW - vW
 
         if proposal.discountAmount > 0 || proposal.taxRate > 0 {
@@ -661,7 +670,7 @@ struct PDFGenerator {
     ) {
         drawText(label, x: lX, y: y, width: lW, font: bodyFont(11), color: inkMid, alignment: .right)
         let valStr = negate
-            ? "−" + Money.text(abs(value))
+            ? Money.deducted(value)
             : Money.text(value)
         drawText(valStr, x: vX, y: y, width: vW, font: bodyFont(11), color: inkDark, alignment: .right)
     }

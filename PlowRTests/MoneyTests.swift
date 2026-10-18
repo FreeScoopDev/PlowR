@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import UIKit
 @testable import PlowR
 
 /// Money is written one way everywhere (`Money`): to the cent with thousands
@@ -62,6 +63,27 @@ struct MoneyTests {
         #expect(Money.rate(1_250) == "$1,250.00")
     }
 
+    @Test func aDeductionHasAMinusSign() {
+        #expect(Money.deducted(1_250) == "−$1,250.00")
+        #expect(Money.deducted(-5.25) == "−$5.25")
+    }
+
+    /// The largest total a PDF prints fits its column on one line: with
+    /// thousands separators, "$12,500.00" wrapped in the old one.
+    @MainActor @Test func theLargestTotalFitsThePDFsColumn() throws {
+        let contentW: CGFloat = 612 - 54 * 2
+        let columns = PDFGenerator.totalsColumns(contentW: contentW)
+        let bold = try #require(UIFont(name: "Verdana-Bold", size: 14))
+        for amount in [12_500, 99_999.99, 999_999.99] {
+            let width = NSAttributedString(string: Money.text(amount), attributes: [.font: bold]).size().width
+            #expect(width < columns.valueW, "\(Money.text(amount)): \(width) in \(columns.valueW)")
+        }
+        let label = try #require(UIFont(name: "GillSans-SemiBold", size: 10))
+        let paid = NSAttributedString(string: "PAID · BALANCE DUE", attributes: [.font: label, .kern: 1.5])
+        #expect(paid.size().width < columns.labelW)
+        #expect(columns.labelX + columns.labelW + columns.valueW <= contentW)
+    }
+
     /// `%.2g` showed 1.25× as "1.2×".
     @Test func aMultiplierShowsAsSet() {
         #expect(Money.multiplier(1.25) == "1.25×")
@@ -76,16 +98,20 @@ struct MoneyTests {
         let app = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent()
             .appendingPathComponent("PlowR")
-        let banned = [#""$%"#, #""−$%"#, ".currency(code:", #""%.2g""#, #""$" + "#]
+        let banned = [#""$%"#, #""−$%"#, ".currency(code:", #""%.2g""#, #""$" + "#, #""$\("#, #""−" + Money"#]
         var found: [String] = []
+        var scanned = 0
         let files = try #require(FileManager.default.enumerator(at: app, includingPropertiesForKeys: nil))
         for case let file as URL in files where file.pathExtension == "swift" && file.lastPathComponent != "Money.swift" {
             let source = try String(contentsOf: file, encoding: .utf8)
+            scanned += 1
             for (number, line) in source.components(separatedBy: "\n").enumerated()
             where banned.contains(where: { line.contains($0) }) {
                 found.append("\(file.lastPathComponent):\(number + 1): \(line.trimmingCharacters(in: .whitespaces))")
             }
         }
+        // A path that went wrong would scan nothing and pass.
+        #expect(scanned > 100, "scanned \(scanned) files in \(app.path)")
         #expect(found.isEmpty, "Use Money: \(found)")
     }
 }

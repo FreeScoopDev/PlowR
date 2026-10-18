@@ -28,6 +28,12 @@ nonisolated enum Money {
         InvoiceLines.roundedToCent(amount).formatted(style(fraction: 2...2))
     }
 
+    /// An amount taken off a total on a document (a discount, a payment), with
+    /// a true minus sign: "−$5.25".
+    static func deducted(_ amount: Double) -> String {
+        "−" + text(abs(amount))
+    }
+
     /// Whole dollars, for tiles and badges: "$12,500", "$149" for $148.50.
     /// An amount that isn't zero never shows as "$0": under half a dollar it
     /// shows to the cent ("$0.40"), so a small balance still reads as owed.
