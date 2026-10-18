@@ -242,7 +242,9 @@ struct ContractDetailView: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
-            Text(installment.amount, format: .currency(code: "USD"))
+            // Once invoiced, the bill (with its tax); before, the price
+            // (the footer says the tax each invoice adds).
+            Text(invoice?.total ?? installment.amount, format: .currency(code: "USD"))
             if let invoice {
                 StatusChip(invoice.invoiceStatus.rawValue, status: invoice.invoiceStatus.chipStatus)
             }
@@ -253,9 +255,7 @@ struct ContractDetailView: View {
     /// invoice adds (Contracts.taxRate), as its PDF says.
     private var paymentsNote: String {
         let profile = BusinessProfiles.current(allProfiles, operatorID: contract.operatorID)
-        let rate = Contracts.taxRate(of: contract, defaultRate: profile?.defaultTaxRate)
-        let tax = rate > 0 ? " Amounts are before tax: each invoice adds \(Proposal.percentText(rate))% tax." : ""
-        return "On a payment's date, Make Invoice makes its draft, ready for you to send. Nothing is sent by itself.\(tax)"
+        return Contracts.paymentsNote(of: contract, defaultRate: profile?.defaultTaxRate)
     }
 
     /// A payment with no invoice: still to come, or never made (the

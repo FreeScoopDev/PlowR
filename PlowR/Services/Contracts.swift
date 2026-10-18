@@ -97,7 +97,9 @@ enum Contracts {
     /// tax-exempt client. A per-visit contract's charges go on the visit's
     /// invoice (Record Services, Bill Unbilled Work), at the business's rate.
     /// The contract page, its PDF, the Dashboard and Make Invoice all ask
-    /// here, so what the client signed is what they're billed.
+    /// here, so at any moment they agree. With no rate of its own it follows
+    /// the business's rate of the day: a PDF signed before that rate
+    /// changed shows the old one.
     static func taxRate(of contract: Contract, defaultRate: Double?) -> Double {
         let own = pricing(of: contract) == .perVisit ? nil : contract.taxRate
         return DocumentDraft.startingTaxRate(rate: own ?? defaultRate, taxExempt: contract.client?.taxExempt ?? false)
@@ -108,6 +110,14 @@ enum Contracts {
     /// contract's price is the one it agreed).
     static func billed(_ amount: Double, taxRate: Double) -> Double {
         Proposal.totals(subtotal: amount, discount: 0, taxRate: taxRate).total
+    }
+
+    /// The contract page's Payments footer: the amounts not invoiced yet
+    /// are before tax, and the tax each invoice adds, as its PDF says.
+    static func paymentsNote(of contract: Contract, defaultRate: Double?) -> String {
+        let rate = taxRate(of: contract, defaultRate: defaultRate)
+        let tax = rate > 0 ? " Amounts not invoiced yet are before tax: each invoice adds \(Proposal.percentText(rate))% tax." : ""
+        return "On a payment's date, Make Invoice makes its draft, ready for you to send. Nothing is sent by itself.\(tax)"
     }
 
     /// A client's contracts, the ones in force first, then the newest.

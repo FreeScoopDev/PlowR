@@ -161,6 +161,19 @@ struct ContractTaxTests {
         #expect(invoices(contract, h).first?.total == 900)
     }
 
+    // The contract page's Payments footer says the rate each invoice adds, or nothing.
+    @Test func thePaymentsFooterSaysTheTax() throws {
+        let h = try Harness(stopCount: 0)
+        let contract = signed(h, price: "900", installments: 3, taxRate: 6)
+        let plain = "On a payment's date, Make Invoice makes its draft, ready for you to send. Nothing is sent by itself."
+        #expect(Contracts.paymentsNote(of: contract, defaultRate: 8)
+                == plain + " Amounts not invoiced yet are before tax: each invoice adds 6% tax.")
+        let untaxed = signed(h, price: "900", installments: 3)
+        #expect(Contracts.paymentsNote(of: untaxed, defaultRate: 0) == plain)
+        h.client.taxExempt = true
+        #expect(Contracts.paymentsNote(of: contract, defaultRate: 8) == plain)
+    }
+
     // Every other contract (and every one made before) follows the business's rate.
     @Test func otherContractsUseTheBusinessesRate() throws {
         let h = try Harness(stopCount: 0)
