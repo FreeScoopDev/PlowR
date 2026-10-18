@@ -9,6 +9,7 @@ struct ProposalListView: View {
     @Environment(AuthManager.self) private var authManager
     @Query private var allClients: [Client]
     @Query(sort: \Proposal.createdAt, order: .reverse) private var allProposals: [Proposal]
+    @Query private var allContracts: [Contract]
 
     @State private var showingClientPicker = false
     @State private var showingBillWork = false
@@ -257,10 +258,13 @@ struct ProposalListView: View {
     @ViewBuilder
     private func proposalContextActions(for proposal: Proposal) -> some View {
         if !proposal.isInvoice {
-            Button {
-                $gate.unless(ProGate.edit(access)) { convertToInvoice(proposal) }
-            } label: {
-                Label("Convert to Invoice", systemImage: "doc.badge.arrow.up")
+            // Not for one made into a contract: its payments bill it.
+            if InvoiceRecords.canConvert(proposal, among: allContracts) {
+                Button {
+                    $gate.unless(ProGate.edit(access)) { InvoiceRecords.convertToInvoice(proposal, in: modelContext) }
+                } label: {
+                    Label("Convert to Invoice", systemImage: "doc.badge.arrow.up")
+                }
             }
         } else if proposal.invoiceStatus == .draft {
             Button {
@@ -289,11 +293,6 @@ struct ProposalListView: View {
     }
 
     // MARK: - Actions
-
-    private func convertToInvoice(_ proposal: Proposal) {
-        proposal.invoiceNumber = InvoiceNumbering.next(operatorID: proposal.operatorID, in: modelContext)
-        proposal.invoiceDueDate = Date().addingTimeInterval(30 * 86400)
-    }
 
     private func reminderMessage(for proposal: Proposal) -> String { proposal.reminderMessage() }
 
