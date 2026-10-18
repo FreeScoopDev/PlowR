@@ -521,18 +521,28 @@ enum ServiceLog {
     }
 
     /// Deletes `document`. The work billed on it, and a visit linked to it,
-    /// go back to the original if it's a revision whose original still
-    /// exists; otherwise the work is unbilled again and the visit can be
+    /// go to the other revision if it was revised on two devices
+    /// (`InvoiceRevisions`), or back to the original if it's a revision whose
+    /// original still exists; otherwise the work is unbilled again and the visit can be
     /// invoiced again from the Schedule.
     static func delete(_ document: Proposal, in context: ModelContext) {
-        let original = document.revisionOf.isEmpty ? nil : (try? context.fetch(FetchDescriptor<Proposal>()))?
-            .first { $0.invoiceNumber == document.revisionOf && $0.operatorID == document.operatorID
+        // Revised on two devices: the other revision replaces the original,
+        // so it takes the work, and the original stays void.
+        let otherRevision = InvoiceRevisions.otherRevision(of: document, in: context)
+            .flatMap { InvoiceRevisions.canHandOver(document, to: $0) ? $0 : nil }
+        // Two invoices can share the number (sent from two devices): the one
+        // whose void names this revision is its original.
+        let originals = document.revisionOf.isEmpty || otherRevision != nil ? []
+            : ((try? context.fetch(FetchDescriptor<Proposal>())) ?? [])
+            .filter { $0.invoiceNumber == document.revisionOf && $0.operatorID == document.operatorID
                 && $0.id != document.id }
-        let replacement = original?.id.uuidString ?? ""
+        let original = originals.first { $0.voidNote == InvoiceRecords.revisedNote(document.invoiceNumber) }
+            ?? originals.first { $0.clientID == document.clientID } ?? originals.first
+        let replacement = (otherRevision ?? original)?.id.uuidString ?? ""
         for record in billed(on: document, in: context) { record.invoiceID = replacement }
         for visit in linkedVisits(to: document, in: context) { visit.proposalID = replacement }
         // A revision taken back before it went out: its original is owed again.
-        InvoiceRecords.restoreOriginal(of: document, in: context)
+        if otherRevision == nil { InvoiceRecords.restoreOriginal(of: document, in: context) }
         context.delete(document)
     }
 

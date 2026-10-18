@@ -111,6 +111,7 @@ struct DashboardView: View {
     private struct Waiting {
         var items: [DashboardAttention]
         var firstBilledTwice: Proposal?
+        var firstRevisedTwice: Proposal?
         var firstOverpaid: Proposal?
     }
 
@@ -119,6 +120,7 @@ struct DashboardView: View {
         let due = ContractInstallments.allDue(allContracts, operatorID: authManager.userID)
         let drafts = myProposals.filter { $0.isInvoice && $0.invoiceStatus == .draft }
         let billedTwice = ContractInstallments.duplicates(myProposals, operatorID: authManager.userID)
+        let revisedTwice = InvoiceRevisions.revisedTwice(myProposals, operatorID: authManager.userID)
         let overpaid = Payments.overpaid(myProposals)
         let items = DashboardToday.attention(
             overdue: (overdue.count, Payments.balance(of: overdue)),
@@ -126,8 +128,10 @@ struct DashboardView: View {
             readyToSend: (drafts.count, Payments.balance(of: drafts)),
             followUps: pipeline.filter(\.needsFollowUp).count,
             billedTwice: billedTwice.count,
+            revisedTwice: revisedTwice.count,
             overpaid: overpaid.count)
-        return Waiting(items: items, firstBilledTwice: billedTwice.first, firstOverpaid: overpaid.first)
+        return Waiting(items: items, firstBilledTwice: billedTwice.first, firstRevisedTwice: revisedTwice.first,
+                       firstOverpaid: overpaid.first)
     }
 
     // MARK: - Body
@@ -595,6 +599,14 @@ struct DashboardView: View {
                 NavigationLink { ProposalDetailView(proposal: first) } label: {
                     attentionContent(item, symbol: PlowRSymbol.warning.name, status: .owed,
                                      detail: "\(first.clientName) \(first.invoiceNumber): delete or void one of its invoices.")
+                }
+                .buttonStyle(.plain)
+            }
+        case .revisedTwice:
+            if let first = waiting.firstRevisedTwice {
+                NavigationLink { ProposalDetailView(proposal: first) } label: {
+                    attentionContent(item, symbol: PlowRSymbol.warning.name, status: .owed,
+                                     detail: InvoiceRevisions.dashboardDetail(for: first, among: myProposals))
                 }
                 .buttonStyle(.plain)
             }
