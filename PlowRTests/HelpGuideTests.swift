@@ -126,7 +126,8 @@ struct HelpGuideTests {
 
     @Test func everyScreenshotIsInDocs() throws {
         let shots = Self.topics(of: try rawGuide()).flatMap { $0["shots"] as? [[String: Any]] ?? [] }
-        #expect(shots.count == 23)
+        // At least the 23 the page had when it moved to the JSON; more is fine.
+        #expect(shots.count >= 23)
         for shot in shots {
             let file = try #require(shot["file"] as? String)
             #expect(!(shot["alt"] as? String ?? "").isEmpty, "\(file) has no alt text")
@@ -136,6 +137,7 @@ struct HelpGuideTests {
     }
 
     /// Tips (from 1.8): a title of five words at most, one short sentence.
+    /// Empty until the 1.8 tips land; `theTipRuleRejectsLongCopy` tests the rule.
     @Test func tipsAreShort() throws {
         for tip in try repoGuide().topics.flatMap(\.tips) {
             #expect(HelpTip.isShort(title: tip.title, message: tip.message), "\(tip.id): \(tip.title) / \(tip.message)")
@@ -151,6 +153,8 @@ struct HelpGuideTests {
         ("Asks", "Done?", false),
         ("No stop", "No full stop at the end", false),
         ("", "No title.", false),
+        ("At the limit", String(repeating: "a", count: 119) + ".", true),
+        ("Over the limit", String(repeating: "a", count: 120) + ".", false),
     ])
     func theTipRuleRejectsLongCopy(_ title: String, _ message: String, _ short: Bool) {
         #expect(HelpTip.isShort(title: title, message: message) == short)
@@ -181,26 +185,32 @@ struct HelpGuideTests {
         #expect(Self.snowCopy(in: try rawGuide()) == [])
     }
 
-    /// The check above can fail: the storm card, made shared, is caught.
+    /// The check above can fail: the storm card, made shared, is caught (by
+    /// its snowflake), and so is snow wording put into a shared topic.
     @Test func aSnowTopicMadeSharedIsCaught() throws {
         var guide = try rawGuide()
         var sections = try #require(guide["sections"] as? [[String: Any]])
         for (s, section) in sections.enumerated() {
             var topics = section["topics"] as? [[String: Any]] ?? []
-            for (t, topic) in topics.enumerated() where topic["id"] as? String == "storm-card" {
-                topics[t]["snowOnly"] = false
+            for (t, topic) in topics.enumerated() {
+                if topic["id"] as? String == "storm-card" { topics[t]["snowOnly"] = false }
+                if topic["id"] as? String == "create-route" { topics[t]["title"] = "Snow Route" }
             }
             sections[s]["topics"] = topics
         }
         guide["sections"] = sections
-        #expect(!Self.snowCopy(in: guide).isEmpty)
+        let caught = Self.snowCopy(in: guide)
+        #expect(caught.contains("Snow Route"))
+        #expect(caught.contains { $0.unicodeScalars.contains("\u{2744}") })
     }
 
     /// Only the markup both the app and the script read the same way:
     /// **bold**, [PRO], and links to https: or mailto:. The app's Markdown
     /// would also read *x*, _x_ and `x`, which the website shows as typed.
     @Test func onlySharedMarkup() throws {
-        for text in Self.strings(in: try rawGuide()) {
+        // Only what's shown as text: ids, file names and the like aren't.
+        let notText: Set<String> = ["id", "file", "screens", "style", "web"]
+        for text in Self.strings(in: try rawGuide(), skipping: notText) {
             let links = text.matches(of: /\[([^\]]+)\]\(([^)]*)\)/)
             for link in links {
                 let url = String(link.2)
@@ -218,6 +228,8 @@ struct HelpGuideTests {
         #expect(String(text.characters) == "Tap Save, then Support. Pro")
         let save = text.runs.first { String(text[$0.range].characters) == "Save" }
         #expect(save?.inlinePresentationIntent == .stronglyEmphasized)
+        let pro = text.runs.first { String(text[$0.range].characters) == "Pro" }
+        #expect(pro?.inlinePresentationIntent == .stronglyEmphasized)
         let link = text.runs.first { $0.link != nil }
         #expect(link?.link?.absoluteString == "https://getplowr.app/support.html")
     }
