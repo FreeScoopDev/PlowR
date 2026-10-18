@@ -114,6 +114,16 @@ nonisolated struct HelpTip: Decodable, Hashable, Sendable {
     let id: String
     let title: String
     let message: String
+
+    /// The rule every tip's copy keeps (HelpGuideTests): a title of at most
+    /// five words, and a message of one sentence ending in a full stop.
+    static func isShort(title: String, message: String) -> Bool {
+        let words = title.split(separator: " ")
+        let body = message.dropLast()
+        return !words.isEmpty && words.count <= 5
+            && message.hasSuffix(".") && message.count <= 120
+            && !body.contains(where: { ".!?".contains($0) })
+    }
 }
 
 /// The screens with a Help item, named in the JSON's `screens`. A name the
@@ -125,7 +135,7 @@ nonisolated enum HelpScreen: String, Decodable, CaseIterable, Sendable {
 /// The guide's markup as text the app can show.
 nonisolated enum HelpText {
     static func attributed(_ text: String) -> AttributedString {
-        let marked = text.replacingOccurrences(of: "[PRO]", with: "**PRO**")
+        let marked = text.replacingOccurrences(of: "[PRO]", with: "**Pro**")
         let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
         return (try? AttributedString(markdown: marked, options: options)) ?? AttributedString(text)
     }

@@ -7,12 +7,14 @@ never the page, then run this.
   python3 scripts/help_guide.py           # writes docs/help.html
   python3 scripts/help_guide.py --check   # exits 1 if the page is out of date
 
-The page records the JSON's SHA-256 and its own (with that field blank), and
-a unit test (HelpGuideTests) recomputes both, so the required test check
-fails a PR that edits one without the other.
+The page records the SHA-256 of the JSON, of this script and of itself (with
+that field blank), and a unit test (HelpGuideTests) recomputes all three, so
+the required test check fails a PR that edits one without remaking the page.
 
 Markup in the JSON, the same in the app: **UI label**, [text](https://...),
-and [PRO] for the Pro badge. Standard library only."""
+and [PRO] for the Pro badge; links are https: or mailto:. HelpGuideTests
+fails any other markup, which the app and this script would show differently.
+Standard library only."""
 
 import hashlib, html, json, re, sys
 from pathlib import Path
@@ -22,6 +24,7 @@ SOURCE = ROOT / "PlowR/Help/HelpGuide.json"
 PAGE = ROOT / "docs/help.html"
 PAGE_HASH = "plowr-help-page"
 SOURCE_HASH = "plowr-help-source"
+SCRIPT_HASH = "plowr-help-script"
 
 CSS = """\
         :root { color-scheme: light dark; --text: #1c1c1e; --muted: #6e6e73; --link: #0071e3; --card: #f2f2f7; --bg: #ffffff; --shot: #e5e5ea; --shot2: #dedee3; --line: #c7c7cc; --warn: #b25000; }
@@ -152,6 +155,7 @@ def render(source_bytes):
         '    <meta name="viewport" content="width=device-width, initial-scale=1.0">',
         f'    <meta name="description" content="{attr(guide["description"])}">',
         f'    <meta name="{SOURCE_HASH}" content="{hashlib.sha256(source_bytes).hexdigest()}">',
+        f'    <meta name="{SCRIPT_HASH}" content="{hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}">',
         f'    <meta name="{PAGE_HASH}" content="">',
         "    <title>PlowR Help — Tips &amp; Tricks</title>",
         "    <style>",

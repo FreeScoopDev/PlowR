@@ -26,8 +26,9 @@ struct HelpGuideView: View {
                 } header: {
                     Text(section.title)
                 } footer: {
-                    if let outro = section.outro {
-                        Text(HelpText.attributed(outro))
+                    let footer = [section.intro, section.outro].compactMap { $0 }
+                    if !footer.isEmpty {
+                        Text(HelpText.attributed(footer.joined(separator: " ")))
                     }
                 }
                 .listRowBackground(PlowRColor.surface)
@@ -101,7 +102,7 @@ struct HelpTopicView: View {
                             Text(HelpText.attributed(step))
                         }
                         .accessibilityElement(children: .combine)
-                        .accessibilityLabel(Text("Step \(index + 1): ") + Text(HelpText.attributed(step)))
+                        .accessibilityLabel(Text("Step \(index + 1): \(HelpText.attributed(step))"))
                     }
                 }
                 .listRowBackground(PlowRColor.surface)
@@ -109,7 +110,7 @@ struct HelpTopicView: View {
 
             if !topic.bullets.isEmpty {
                 Section {
-                    ForEach(topic.bullets, id: \.self) { bullet in
+                    ForEach(Array(topic.bullets.enumerated()), id: \.offset) { _, bullet in
                         Text(HelpText.attributed(bullet))
                     }
                 }
