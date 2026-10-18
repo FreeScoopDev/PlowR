@@ -31,6 +31,20 @@ struct ConvertToInvoiceTests {
         #expect(proposal.invoiceDueDate == h.clock.addingTimeInterval(30 * 86400))   // unchanged rule
     }
 
+    // The next number in this business's own sequence: another business's
+    // invoices don't count.
+    @Test func convertingTakesTheBusinesssNextNumber() throws {
+        let h = try Harness(stopCount: 0)
+        let earlier = proposal(h)
+        earlier.invoiceNumber = "INV-0001"
+        let theirs = Proposal(operatorID: "other", client: h.client)
+        theirs.invoiceNumber = "INV-0007"
+        h.context.insert(theirs)
+        let proposal = proposal(h)
+        #expect(InvoiceRecords.convertToInvoice(proposal, now: h.clock, in: h.context))
+        #expect(proposal.invoiceNumber == "INV-0002")
+    }
+
     // A proposal made for a scheduled visit bills the visit's job: Bill
     // Unbilled Work doesn't offer it again.
     @Test func convertingAVisitsProposalBillsTheVisitsJob() throws {
@@ -87,18 +101,37 @@ struct ConvertToInvoiceTests {
         #expect(proposal.invoiceDueDate == h.clock.addingTimeInterval(30 * 86400))
     }
 
-    // Both screens go through the one function; neither numbers a proposal
-    // itself. Read from the source, as a screen's buttons can't be tapped
-    // from a unit test.
-    @Test(arguments: ["ProposalDetailView.swift", "ProposalListView.swift"])
-    func bothScreensUseTheSharedConvert(_ file: String) throws {
+    // Both screens go through the one function, behind the Pro gate, and
+    // neither numbers a proposal itself. Read from the source, as a screen's
+    // buttons can't be tapped from a unit test.
+    private func source(_ file: String) throws -> String {
         let url = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent()
             .appendingPathComponent("PlowR/Views/Proposals/\(file)")
-        let source = try String(contentsOf: url, encoding: .utf8)
+        return try String(contentsOf: url, encoding: .utf8)
+    }
+
+    @Test(arguments: ["ProposalDetailView.swift", "ProposalListView.swift"])
+    func neitherScreenConvertsOnItsOwn(_ file: String) throws {
+        let source = try source(file)
         #expect(source.contains("InvoiceRecords.convertToInvoice(proposal, in: modelContext)"))
-        #expect(source.contains("InvoiceRecords.canConvert(proposal") || source.contains("Contracts.madeFrom(proposal"))
         #expect(!source.contains("invoiceNumber = InvoiceNumbering.next"))
         #expect(!source.contains("markVisitInvoiced"))
+    }
+
+    @Test func theDocumentsListOffersConvertOnlyWithoutAContractBehindTheGate() throws {
+        let source = try source("ProposalListView.swift")
+        let check = try #require(source.range(of: "if InvoiceRecords.canConvert(proposal, among: allContracts) {"))
+        let gated = try #require(source.range(
+            of: "$gate.unless(ProGate.edit(access)) { InvoiceRecords.convertToInvoice(proposal, in: modelContext) }"))
+        #expect(check.upperBound < gated.lowerBound)
+    }
+
+    @Test func theDocumentPageOffersConvertOnlyWithoutAContractBehindTheGate() throws {
+        let source = try source("ProposalDetailView.swift")
+        let check = try #require(source.range(of: "if let made = Contracts.madeFrom(proposal, among: allContracts) {"))
+        let gated = try #require(source.range(of: "$gate.unless(ProGate.edit(access)) { convertToInvoice() }"))
+        #expect(check.upperBound < gated.lowerBound)
+        #expect(source.contains("guard InvoiceRecords.convertToInvoice(proposal, in: modelContext) else { return }"))
     }
 }
