@@ -205,7 +205,7 @@ struct TimeOnSiteTests {
             #expect(!text.contains("Double(minutes") && !text.contains("readMinutes(minutes)"),
                     "\(file) reads minutes on its own")
             // Save is off while the minutes can't be read, and the field says why.
-            #expect(matches(text, #"private var canSave: Bool \{[^}]*&& minutesReadable \}?"#), "\(file)")
+            #expect(matches(text, #"private var canSave: Bool \{[^}]*&& minutesReadable\b"#), "\(file)")
             #expect(matches(text, #"if !minutesReadable \{\s*Label\(ServiceLog\.unreadableMinutesMessage"#), "\(file)")
         }
         let detail = try source("ServiceLog/ServiceRecordDetailView.swift")

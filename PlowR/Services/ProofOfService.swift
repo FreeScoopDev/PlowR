@@ -199,7 +199,7 @@ enum ProofOfService {
             + "Kept as recorded: they can't be edited."
     }
 
-    /// The job-site area's size as PlowR says it: "about 100 m".
+    /// The job-site area's size as PlowR says it, from its radius in metres.
     static func about(_ radius: Double) -> String { "about \(Int(radius.rounded())) m" }
     static let arrivalNotCaught = "Arrival not caught"
     static let departureNotCaught = "Departure not caught"
