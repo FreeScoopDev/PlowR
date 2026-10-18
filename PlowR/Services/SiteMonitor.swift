@@ -1,21 +1,29 @@
 import CoreLocation
 import Foundation
 import os
+import UIKit
 
 /// The app's one keeper of job-site areas: the current stop's, for arrival
 /// and departure, and completed stops' still waiting on a departure.
 ///
-/// Made at launch (`PlowRApp.init`), not by a screen: iOS relaunches PlowR in
-/// the background when the phone crosses an area, and hands the crossing to
-/// whatever location manager exists then. `ActiveRouteStore` decides what is
-/// watched and what a crossing means; this only places the areas and passes
-/// crossings on.
+/// Made at launch (`PlowRApp.init` calls `start()`), not by a screen: iOS
+/// relaunches PlowR in the background when the phone crosses an area, and
+/// holds the crossing until a monitor of the same name is open to take it.
+/// `ActiveRouteStore` decides what is watched and what a crossing means; this
+/// only places the areas and passes crossings on.
+///
+/// The areas are CoreLocation's `CLMonitor` conditions (legacy region
+/// monitoring is deprecated). iOS keeps them, and its events, across
+/// launches; each event carries its own time and whether the phone is in the
+/// area, and iOS 18 adds why an area isn't being watched (`SiteLimit`).
 @Observable
-final class SiteMonitor: NSObject, CLLocationManagerDelegate, SiteWatching {
+final class SiteMonitor: NSObject, CLLocationManagerDelegate, SiteWatching, SiteErasing {
     static let shared = SiteMonitor()
 
     /// About a property's size; also iOS's practical minimum.
     static let radius: CLLocationDistance = 100
+    /// Only one monitor of a name can be open at a time.
+    static let monitorName = "PlowRSites"
 
     /// The phone went out of the current stop's area: for the route screen's
     /// offer to text the next client (`ExitPrompt`). Each exit is a new
@@ -28,19 +36,43 @@ final class SiteMonitor: NSObject, CLLocationManagerDelegate, SiteWatching {
     }
     var lastExit: Exit?
 
-    private let manager = CLLocationManager()
-    /// What the route wants watched, placed again once location is allowed.
-    /// nil until the route has said: iOS keeps areas across launches, and
-    /// they mustn't be cleared before the route is restored.
+    /// iOS said it can't watch the areas with approximate location (an
+    /// event's `accuracyLimited`): the route screen says to turn Precise
+    /// Location on, as when the location manager reports reduced accuracy.
+    private(set) var accuracyLimited = false
+
+    private let defaults: UserDefaults
+    private let now: () -> Date
+    private let route: () -> ActiveRouteStore
+    private let makeSession: (CLServiceSession.AuthorizationRequirement) -> SiteSession
+    /// iOS's monitor, once open (`open()`); a fake in tests.
+    private var conditions: SiteConditions?
+    /// Areas left from legacy region monitoring (PlowR 1.7 and before),
+    /// stopped once the route says what it wants. The location manager, in
+    /// the app.
+    private var legacy: (any RegionMonitoring)?
+    private var manager: CLLocationManager?
+    private var opening = false
+    private var protectedDataObserver: NSObjectProtocol?
+    /// The last change asked of the monitor, each waiting for the one before.
+    private var applying: Task<Void, Never>?
+
+    /// What the route wants watched. nil until the route has said: iOS keeps
+    /// areas across launches, and they mustn't be cleared before the route
+    /// is restored.
     private var wanted: [SiteArea]?
-    /// What's placed, kept here rather than read back from iOS (whose copy
-    /// may lag, or round a centre). At launch, the areas iOS kept from before,
-    /// if they're this version's kind; any other is stopped on the first watch.
-    private var placed: [SiteArea] = []
-    private var stale: [CLRegion] = []
-    /// When each area was placed, this launch. An entry soon after isn't an
-    /// arrival (`SiteTimes.settleTime`).
-    private var placedAt: [String: Date] = [:]
+    /// What's placed, and where the phone was last heard to be in each, kept
+    /// in preferences: iOS keeps the areas across launches, so the first
+    /// answer after placing one has to be known as that after a relaunch too.
+    private var placed: [PlacedSite]
+    /// Every area to be removed from the monitor (Delete Account & Data).
+    private var eraseOwed = false
+    /// Every area to be placed afresh: Precise Location is back, and what iOS
+    /// held from before isn't to be trusted.
+    private var replaceAll = false
+
+    private var session: SiteSession?
+    private var sessionNeed: CLServiceSession.AuthorizationRequirement?
     /// The status last seen. iOS calls the authorization callback when the
     /// manager is made too, with nothing changed.
     private var authorization: CLAuthorizationStatus
@@ -54,51 +86,212 @@ final class SiteMonitor: NSObject, CLLocationManagerDelegate, SiteWatching {
         return allowed(new) && !allowed(old)
     }
 
-    override private init() {
+    /// Makes no CoreLocation object: `start()` does, in the app. Tests pass
+    /// their own conditions, store and status.
+    init(defaults: UserDefaults = .standard,
+         now: @escaping () -> Date = Date.init,
+         route: @escaping () -> ActiveRouteStore = { .shared },
+         makeSession: @escaping (CLServiceSession.AuthorizationRequirement) -> SiteSession = {
+             CLServiceSession(authorization: $0)
+         },
+         conditions: SiteConditions? = nil,
+         legacy: (any RegionMonitoring)? = nil,
+         authorization: CLAuthorizationStatus = .notDetermined,
+         accuracy: CLAccuracyAuthorization = .fullAccuracy) {
+        self.defaults = defaults
+        self.now = now
+        self.route = route
+        self.makeSession = makeSession
+        self.conditions = conditions
+        self.legacy = legacy
+        self.authorization = authorization
+        self.accuracy = accuracy
+        placed = SiteEvents.load(from: defaults)
+        super.init()
+    }
+
+    /// At launch, in the app only. Takes the service session at once if areas
+    /// were placed before (iOS wants it retaken promptly after a background
+    /// relaunch), then opens the monitor once protected data is available:
+    /// iOS keeps a crossing until then.
+    func start() {
+        guard manager == nil else { return }
+        let manager = CLLocationManager()
+        self.manager = manager
+        legacy = manager
         authorization = manager.authorizationStatus
         accuracy = manager.accuracyAuthorization
-        super.init()
         manager.delegate = self
-        for region in manager.monitoredRegions {
-            if let circle = region as? CLCircularRegion, circle.radius == Self.radius,
-               circle.notifyOnEntry, circle.notifyOnExit {
-                placed.append(SiteArea(id: circle.identifier, latitude: circle.center.latitude,
-                                       longitude: circle.center.longitude))
-            } else {
-                stale.append(region)
+        updateSession()
+        // After launch, once UIKit's application exists.
+        Task { openWhenProtectedDataAvailable() }
+    }
+
+    private func openWhenProtectedDataAvailable() {
+        if UIApplication.shared.isProtectedDataAvailable {
+            open()
+            return
+        }
+        protectedDataObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.protectedDataDidBecomeAvailableNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.open() }
+        }
+    }
+
+    private func open() {
+        if let protectedDataObserver {
+            NotificationCenter.default.removeObserver(protectedDataObserver)
+            self.protectedDataObserver = nil
+        }
+        guard conditions == nil, !opening else { return }
+        opening = true
+        Task {
+            let monitor = await CLMonitor(Self.monitorName)
+            listen(to: monitor)
+            conditions = MonitorConditions(monitor: monitor)
+            opening = false
+            apply()
+        }
+    }
+
+    private func listen(to monitor: CLMonitor) {
+        Task { [weak self] in
+            do {
+                for try await event in await monitor.events { self?.handle(event) }
+            } catch {
+                Self.log.error("Area events ended: \(error.localizedDescription, privacy: .public)")
             }
         }
     }
 
+    // MARK: - SiteWatching
+
     func watch(_ areas: [SiteArea]) {
         wanted = areas
-        guard CLLocationManager.isMonitoringAvailable(for: CLCircularRegion.self),
-              accuracy == .fullAccuracy else { return }
-        for region in stale { manager.stopMonitoring(for: region) }
-        stale = []
-        // A kept area whose centre came back from iOS a hair off is the same area.
-        placed = placed.map { area in
-            areas.first { $0.id == area.id && abs($0.latitude - area.latitude) < 1e-7
-                && abs($0.longitude - area.longitude) < 1e-7 } ?? area
+        updateSession()
+        apply()
+    }
+
+    /// Waits until every change asked so far is made (for tests).
+    func settled() async {
+        await applying?.value
+    }
+
+    private func apply() {
+        let previous = applying
+        applying = Task {
+            await previous?.value
+            await reconcile()
         }
-        let plan = SiteArea.plan(placed: placed, wanted: areas)
-        // By identifier, which is how iOS matches a stop: its own list of
-        // what's watched may not show an area placed moments ago.
-        for area in placed where plan.stop.contains(area.id) {
-            manager.stopMonitoring(for: CLCircularRegion(
-                center: CLLocationCoordinate2D(latitude: area.latitude, longitude: area.longitude),
-                radius: Self.radius, identifier: area.id))
+    }
+
+    private func reconcile() async {
+        guard let conditions else { return }
+        if eraseOwed {
+            eraseOwed = false
+            for id in await conditions.identifiers() { await conditions.remove(id) }
         }
+        guard let wanted else { return }
+        // Left from PlowR 1.7: the wanted areas are placed here instead.
+        if let legacy {
+            for region in legacy.monitoredRegions { legacy.stopMonitoring(for: region) }
+        }
+        guard accuracy == .fullAccuracy else { return }
+        var held = Set(await conditions.identifiers())
+        if replaceAll {
+            replaceAll = false
+            for id in held { await conditions.remove(id) }
+            held = []
+            placed = []
+        }
+        // Lost by iOS (it couldn't keep its file, say): placed afresh below.
+        placed.removeAll { !held.contains($0.id) }
+        let plan = SiteArea.plan(placed: placed.map(\.area), wanted: wanted)
+        // By identifier, which is how iOS knows an area. Any that isn't
+        // PlowR's record of what it placed goes too.
+        for id in held.subtracting(placed.map(\.id)).union(plan.stop) { await conditions.remove(id) }
+        placed.removeAll { plan.stop.contains($0.id) }
         for area in plan.place {
-            let region = CLCircularRegion(center: CLLocationCoordinate2D(latitude: area.latitude,
-                                                                         longitude: area.longitude),
-                                          radius: Self.radius, identifier: area.id)
-            region.notifyOnEntry = true        // a completed stop's entry drops its departure
-            region.notifyOnExit = true
-            manager.startMonitoring(for: region)
-            placedAt[area.id] = Date()
+            placed.append(PlacedSite(area, placedAt: now()))
+            // Before iOS can answer, so its first answer is known as that.
+            SiteEvents.save(placed, to: defaults)
+            await conditions.add(area)
         }
-        placed = areas
+        SiteEvents.save(placed, to: defaults)
+        updateSession()
+    }
+
+    /// Holds a service session while any area is placed or wanted, and none
+    /// otherwise: without one, iOS doesn't hand a backgrounded app with
+    /// Always its area events.
+    func updateSession() {
+        let need = SiteEvents.sessionNeed(status: authorization,
+                                          hasAreas: !placed.isEmpty || !(wanted ?? []).isEmpty)
+        guard need != sessionNeed else { return }
+        session?.invalidate()
+        session = need.map { makeSession($0) }
+        sessionNeed = need
+    }
+
+    // MARK: - SiteErasing
+
+    /// Delete Account & Data: every area out of iOS's monitor (now, or once
+    /// it opens), PlowR's record of them, and the session.
+    func eraseAll() {
+        wanted = []
+        placed = []
+        SiteEvents.save([], to: defaults)
+        eraseOwed = true
+        accuracyLimited = false
+        lastExit = nil
+        updateSession()
+        apply()
+    }
+
+    // MARK: - Events
+
+    private func handle(_ event: CLMonitor.Event) {
+        let limits = SiteEvents.limits(of: event)
+        guard limits.isEmpty else {
+            noteLimits(limits, id: event.identifier)
+            return
+        }
+        guard let presence = SiteEvents.presence(of: event.state) else { return }
+        receive(event.identifier, presence: presence, at: event.date)
+    }
+
+    /// An event saying why an area isn't watched: not a crossing, and where
+    /// the phone was last heard to be is kept. Logged, for a stop whose times
+    /// weren't caught. The ID is a stop's UUID; nothing about the client.
+    func noteLimits(_ limits: [SiteLimit], id: String) {
+        for limit in limits {
+            Self.log.error("Area \(id, privacy: .public) not watched: \(limit.rawValue, privacy: .public)")
+        }
+        if limits.contains(.accuracyLimited) { accuracyLimited = true }
+    }
+
+    /// iOS says the phone is `presence` for the area `id`, as of `date`.
+    func receive(_ id: String, presence: SitePresence, at date: Date) {
+        accuracyLimited = false
+        guard let index = placed.firstIndex(where: { $0.id == id }) else { return }
+        let crossing = SiteEvents.crossing(previous: placed[index].presence, placedAt: placed[index].placedAt,
+                                           presence: presence, at: date)
+        placed[index].presence = presence
+        SiteEvents.save(placed, to: defaults)
+        let store = route()
+        switch crossing {
+        case .entered(let time):
+            store.siteEntered(id, at: time)
+        case .exited(let time):
+            let isCurrentStop = store.currentStopID?.uuidString == id
+            store.siteExited(id, at: time)
+            if isCurrentStop { lastExit = Exit(stopID: id, time: time) }
+        case .insideWhenPlaced(let time):
+            store.siteInsideWhenPlaced(id, at: time)
+        case .none:
+            break
+        }
     }
 
     // MARK: - CLLocationManagerDelegate
@@ -107,67 +300,73 @@ final class SiteMonitor: NSObject, CLLocationManagerDelegate, SiteWatching {
         let status = manager.authorizationStatus
         let newAccuracy = manager.accuracyAuthorization
         DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            // Allowed only now: iOS starts working out where the phone is
-            // only now, so an entry it reports next may not be an arrival.
-            // Not on every launch: a relaunch for an arrival would lose it.
-            if Self.isNewlyAllowed(from: authorization, to: status) {
-                for area in placed { placedAt[area.id] = Date() }
+            self?.authorizationChanged(to: status, accuracy: newAccuracy)
+        }
+    }
+
+    func authorizationChanged(to status: CLAuthorizationStatus, accuracy newAccuracy: CLAccuracyAuthorization) {
+        // Allowed only now: iOS starts working out where the phone is only
+        // now, so its next answer for each area is a first answer. Not on
+        // every launch: a relaunch for an arrival would lose it.
+        if Self.isNewlyAllowed(from: authorization, to: status) {
+            for index in placed.indices {
+                placed[index].presence = .unknown
+                placed[index].placedAt = now()
             }
-            authorization = status
-            if accuracy == .reducedAccuracy, newAccuracy == .fullAccuracy {
-                // Whatever iOS kept from before isn't to be trusted: place all again.
-                for area in placed {
-                    self.manager.stopMonitoring(for: CLCircularRegion(
-                        center: CLLocationCoordinate2D(latitude: area.latitude, longitude: area.longitude),
-                        radius: Self.radius, identifier: area.id))
-                }
-                placed = []
-            }
-            accuracy = newAccuracy
-            if let wanted { watch(wanted) }
+            SiteEvents.save(placed, to: defaults)
         }
-    }
-
-    func locationManager(_ manager: CLLocationManager, didEnterRegion region: CLRegion) {
-        let time = Date()
-        DispatchQueue.main.async { [weak self] in
-            let placedAt = self?.placedAt[region.identifier]
-            ActiveRouteStore.shared.siteEntered(region.identifier, at: time, placedAt: placedAt)
-        }
-    }
-
-    func locationManager(_ manager: CLLocationManager, didExitRegion region: CLRegion) {
-        let time = Date()
-        DispatchQueue.main.async { [weak self] in
-            let store = ActiveRouteStore.shared
-            let isCurrentStop = store.currentStopID?.uuidString == region.identifier
-            store.siteExited(region.identifier, at: time)
-            if isCurrentStop { self?.lastExit = Exit(stopID: region.identifier, time: time) }
-        }
-    }
-
-    func locationManager(_ manager: CLLocationManager, monitoringDidFailFor region: CLRegion?, withError error: Error) {
-        // Not fatal: the stop is completed by hand, and its times are the route's.
-        // Logged, for a stop whose times weren't caught. The ID is a stop's
-        // UUID; nothing about the client.
-        Self.log.error("Area \(region?.identifier ?? "unknown", privacy: .public) not watched: \(error.localizedDescription, privacy: .public)")
-        // Not watched, so not placed: the next watch places it again. Only
-        // if it's still where it failed: one placed again since (its pin
-        // moved) is a different placement.
-        guard let circle = region as? CLCircularRegion else { return }
-        let failed = SiteArea(id: circle.identifier, latitude: circle.center.latitude,
-                              longitude: circle.center.longitude)
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            let before = placed.count
-            placed.removeAll { $0.id == failed.id && abs($0.latitude - failed.latitude) < 1e-7
-                && abs($0.longitude - failed.longitude) < 1e-7 }
-            if placed.count != before { placedAt[failed.id] = nil }
-        }
+        authorization = status
+        if accuracy == .reducedAccuracy, newAccuracy == .fullAccuracy { replaceAll = true }
+        if newAccuracy == .fullAccuracy { accuracyLimited = false }
+        accuracy = newAccuracy
+        updateSession()
+        if wanted != nil { apply() }
     }
 
     private static let log = Logger(subsystem: "Scoops.PlowR", category: "SiteMonitor")
+}
+
+/// The areas iOS watches for PlowR: its `CLMonitor` in the app, a fake in tests.
+protocol SiteConditions: AnyObject {
+    func identifiers() async -> [String]
+    /// Placed with its state unknown, never assumed (`SiteEvents.crossing`).
+    func add(_ area: SiteArea) async
+    func remove(_ id: String) async
+}
+
+final class MonitorConditions: SiteConditions {
+    private let monitor: CLMonitor
+
+    init(monitor: CLMonitor) {
+        self.monitor = monitor
+    }
+
+    func identifiers() async -> [String] {
+        await monitor.identifiers
+    }
+
+    func add(_ area: SiteArea) async {
+        let condition = CLMonitor.CircularGeographicCondition(
+            center: CLLocationCoordinate2D(latitude: area.latitude, longitude: area.longitude),
+            radius: SiteMonitor.radius)
+        await monitor.add(condition, identifier: area.id)
+    }
+
+    func remove(_ id: String) async {
+        await monitor.remove(id)
+    }
+}
+
+/// A service session, held while areas are watched.
+protocol SiteSession: AnyObject {
+    func invalidate()
+}
+
+extension CLServiceSession: SiteSession {}
+
+/// What Delete Account & Data clears of the job-site areas.
+protocol SiteErasing {
+    func eraseAll()
 }
 
 /// `SiteMonitor`, except under tests: the test host is the app, and mustn't

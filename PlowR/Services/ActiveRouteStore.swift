@@ -265,11 +265,12 @@ final class ActiveRouteStore {
     /// The phone came into the area around the stop with this ID
     /// (`SiteMonitor`): the current stop's arrival, or, for a completed stop
     /// still awaiting its departure, a sign the crew wasn't there when it was
-    /// completed, so a later exit isn't leaving it. `placedAt`: when the
-    /// area was placed this launch, if it was.
-    func siteEntered(_ id: String, at time: Date, placedAt: Date? = nil) {
+    /// completed, so a later exit isn't leaving it. Not one dated before the
+    /// stop was completed, delivered late (iOS holds events until PlowR can
+    /// take them): the crew was there then, and their departure still counts.
+    func siteEntered(_ id: String, at time: Date) {
         if let currentStopID, id == currentStopID.uuidString, let stopStartedAt, time >= stopStartedAt {
-            site.entered(at: time, settleFrom: max(stopStartedAt, placedAt ?? stopStartedAt))
+            site.entered(at: time)
             saveCheckpoint()
             // At the current stop: an earlier stop's exit seen from now on
             // isn't when they left it. iOS reports an exit only some way past
@@ -280,11 +281,19 @@ final class ActiveRouteStore {
                 updateSites()
             }
         }
-        if departures.contains(where: { $0.stopID.uuidString == id }) {
+        if departures.contains(where: { $0.stopID.uuidString == id && time >= $0.completedAt }) {
             departures.removeAll { $0.stopID.uuidString == id }
             SiteDepartures.save(departures, to: defaults)
             updateSites()
         }
+    }
+
+    /// iOS's first answer after the area with this ID was placed: the phone
+    /// was already in it. For the current stop, no arrival can be given.
+    func siteInsideWhenPlaced(_ id: String, at time: Date) {
+        guard let currentStopID, id == currentStopID.uuidString, let stopStartedAt, time >= stopStartedAt else { return }
+        site.insideWhenPlaced()
+        saveCheckpoint()
     }
 
     /// The phone went out of the area around the stop with this ID: for the
@@ -295,11 +304,13 @@ final class ActiveRouteStore {
             site.exited(at: time)
             saveCheckpoint()
         }
-        guard let index = departures.firstIndex(where: { $0.stopID.uuidString == id }) else { return }
+        // One dated before the stop was completed, delivered late, isn't its
+        // departure: they may have come back in since.
+        guard let index = departures.firstIndex(where: { $0.stopID.uuidString == id && time >= $0.completedAt })
+        else { return }
         let pending = departures.remove(at: index)
         SiteDepartures.save(departures, to: defaults)
-        let elapsed = time.timeIntervalSince(pending.completedAt)
-        if elapsed >= 0, elapsed <= SiteDepartures.window, let context,
+        if time.timeIntervalSince(pending.completedAt) <= SiteDepartures.window, let context,
            let record = ServiceLog.runRecord(run: pending.runID, stop: pending.stopID, in: context) {
             record.leftAt = time
             // Saved now: iOS woke the app in the background for this.

@@ -245,7 +245,8 @@ struct ActiveRouteView: View {
                             .padding(.vertical, 8)
                     }
                     if RouteGPS.needsPrecise(status: locationManager.authorizationStatus,
-                                             accuracy: locationManager.accuracyAuthorization, isMac: OnMac.isMac) {
+                                             accuracy: locationManager.accuracyAuthorization,
+                                             areasLimited: SiteMonitor.shared.accuracyLimited, isMac: OnMac.isMac) {
                         preciseLocationNote
                     } else if RouteGPS.needsAlways(status: locationManager.authorizationStatus, isMac: OnMac.isMac) {
                         alwaysLocationNote

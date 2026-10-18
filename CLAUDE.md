@@ -156,22 +156,53 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   request in `RouteSessionManager.textRequest`, and the route screen opens
   it once nothing else is up, if `NotifyNextAction.stopToOpen` says it's
   still for the current stop and under two minutes old.
-- **Job-site areas (geofences) belong to `SiteMonitor`, made at launch**,
-  not to a screen: iOS relaunches the app for a crossing and hands it to the
-  location manager that exists then. That needs Location set to Always: on
-  While Using a crossing reaches PlowR only while it's on screen, so the route
-  screen asks for Always once and says so (`RouteGPS.needsAlways`). There is
-  no background location mode (removed 2026-10-10); the route screen's own
-  GPS runs only in the foreground. `ActiveRouteStore` decides what's watched
-  (the current stop, and completed stops awaiting a departure,
-  `SiteDepartures`, for two hours and past End Route) and what a crossing
-  means (`SiteTimes`: arrival and departure, put on the stop's
-  `ServiceRecord` as `arrivedAt` and `leftAt`). Only what GPS saw is kept: an
-  entry within a minute of the stop beginning or of its area being placed
-  (the pin moved, location allowed only then), or an exit with no entry, is
-  "arrival not caught", never a made-up time. `LocationManager` must not place
-  or clear areas: replacing an area makes iOS work out afresh whether the
-  phone is inside it, and a crossing then is missed.
+- **Job-site areas (geofences) belong to `SiteMonitor`, started at launch**
+  (`PlowRApp.init` calls `start()`), not to a screen: iOS relaunches the app
+  for a crossing and holds it until a monitor of the same name is open.
+  They are `CLMonitor` conditions (since 1.8; legacy region monitoring is
+  deprecated) in one monitor, `PlowRSites`, opened once and only after
+  protected data is available. iOS keeps the conditions across launches in
+  its own file; PlowR keeps its record of what it placed, when, and where
+  the phone was last heard to be (`SiteEvents.placedKey`, preferences).
+  Placing is diffed (`SiteArea.plan`); areas iOS holds that PlowR's record
+  doesn't are removed, and none are touched before the route says what it
+  wants (it must be restored first). Legacy `CLCircularRegion`s left from 1.7
+  are stopped at the first watch. Events carry iOS's own `date`: that is the
+  arrival or departure time. An area is added with its state unknown
+  (deliberately not `assuming:`), so iOS's first answer is known as one
+  (`SiteEvents.crossing`): first "inside" within a minute of placing is
+  already there ("arrival not caught"), first "outside" makes the next
+  "inside" an arrival however soon; a first "inside" later than a minute is
+  taken as the arrival (iOS may answer only when the phone crosses).
+  Location allowed only now makes the next answer a first answer again.
+  An event with iOS 18 diagnostics is never a crossing: `accuracyLimited`
+  shows the route screen's Precise Location note
+  (`SiteMonitor.accuracyLimited`), the rest are logged. A `CLServiceSession`
+  is held only while areas are placed or wanted, at the level already
+  allowed (`SiteEvents.sessionNeed`: never one that asks), retaken in
+  `start()` from the record: iOS gives a backgrounded app with Always no
+  events without one. Approximate location places nothing; Precise again
+  places every area afresh. Delete Account & Data removes every condition
+  (`SiteErasing`, both paths; an erase before the monitor opens leaves no
+  record, so the next open removes them as strays). Under tests nothing
+  CoreLocation is made: `SiteMonitor`'s init makes no monitor, session or
+  manager, and tests pass fakes (`SiteConditions`, `SiteSession`). Areas
+  need Location set to Always: on While Using a crossing reaches PlowR only
+  while it's on screen, so the route screen asks for Always once and says so
+  (`RouteGPS.needsAlways`). There is no background location mode (removed
+  2026-10-10); the route screen's own GPS runs only in the foreground.
+  `ActiveRouteStore` decides what's watched (the current stop, and completed
+  stops awaiting a departure, `SiteDepartures`, for two hours and past End
+  Route) and what a crossing means (`SiteTimes`: arrival and departure, put
+  on the stop's `ServiceRecord` as `arrivedAt` and `leftAt`). Only what GPS
+  saw is kept: already inside when placed, or an exit with no entry, is
+  "arrival not caught", never a made-up time; a crossing dated before a
+  stop was completed, handed over late, isn't its departure and doesn't
+  cancel it. `LocationManager` must not place or clear areas: replacing an
+  area makes iOS work out afresh whether the phone is inside it, and a
+  crossing then is missed. Unverified until Joe's 1.8 drive test: that iOS
+  reports the first state promptly after placing, and how late event dates
+  are on a real drive.
 - **Below a contract's snow trigger** (`TriggerCheck`, `TriggerChecks`): a
   day a client's place got less snow than their trigger, though the forecast
   (the storm card, `StormWatch`) said a storm. Marked by hand (storm card,
@@ -271,8 +302,8 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   `-PlowRDemo YES` a seeded one (`DemoLaunch`), for screenshots.
 - **Delete Account & Data** (Settings) is an App Review 5.1.1(v) requirement.
   It removes all SwiftData records, the encrypted work-orders file, the route
-  checkpoint and Live Activities (`ActiveRouteStore.eraseAll()`), the widget's
-  saved route, the "PlowR" calendar (`CalendarSync.eraseAll()`), and Keychain
+  checkpoint and Live Activities (`ActiveRouteStore.eraseAll()`), the job-site
+  areas in iOS's monitor (`SiteMonitor.eraseAll()`), the widget's saved route, the "PlowR" calendar (`CalendarSync.eraseAll()`), and Keychain
   credentials. Any new persistent store must be added to that path or
   the deletion is incomplete and review can fail on it.
 - **Delete Account & Data has two paths.** *Delete Everything*

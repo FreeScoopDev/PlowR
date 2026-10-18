@@ -38,7 +38,7 @@ struct AccountEraserTests {
         static let keys = ["clientName", "clientPhone", "clientEmail", "userRole", "completedRoutesCount",
                            "notifyIncludeLocation", "operatorName", ActiveRouteStore.checkpointKey,
                            CalendarSync.enabledKey, CalendarSync.seenKey, CalendarSync.removalOwedKey,
-                           EventKitVisitCalendarStore.calendarIDKey]
+                           EventKitVisitCalendarStore.calendarIDKey, SiteEvents.placedKey]
 
         let container: ModelContainer
         let context: ModelContext
@@ -52,6 +52,7 @@ struct AccountEraserTests {
         let surfaces = FakeRouteSurfaces()
         let notifications = FakeNotifications()
         let regions = FakeRegions()
+        let sites = FakeErasing()
         var widgetCleared = false
         var importPinsStopped = false
         var calendarErased = false
@@ -143,7 +144,7 @@ struct AccountEraserTests {
         func eraser() -> AccountEraser {
             AccountEraser(context: context, defaults: defaults, defaultsDomain: suite, workOrdersFile: workOrders,
                           temporaryDirectory: tmp, urlCache: cache, archiveFolders: [storeFolder], notifications: notifications,
-                          regions: regions, routeStore: routeStore, clearWidget: { [unowned self] in widgetCleared = true },
+                          regions: regions, sites: sites, routeStore: routeStore, clearWidget: { [unowned self] in widgetCleared = true },
                           stopImportPins: { [unowned self] in importPinsStopped = true },
                           eraseCalendar: { [unowned self] in calendarErased = true })
         }
