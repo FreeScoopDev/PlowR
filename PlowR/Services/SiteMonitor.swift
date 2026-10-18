@@ -17,11 +17,12 @@ final class SiteMonitor: NSObject, CLLocationManagerDelegate, SiteWatching {
     static let radius: CLLocationDistance = 100
 
     /// The phone went out of the current stop's area: for the route screen's
-    /// offer to text the next client. Each exit is a new value, so one left
-    /// over from an exit the screen wasn't up for can't hide the next from
-    /// `onChange`.
+    /// offer to text the next client (`ExitPrompt`). Each exit is a new
+    /// value, so one left over from an exit the screen wasn't up for can't
+    /// hide the next from the screen. `time`: as given to the route store.
     struct Exit: Equatable {
         var stopID: String
+        var time: Date
         var token = UUID()
     }
     var lastExit: Exit?
@@ -125,7 +126,7 @@ final class SiteMonitor: NSObject, CLLocationManagerDelegate, SiteWatching {
             let store = ActiveRouteStore.shared
             let isCurrentStop = store.currentStopID?.uuidString == region.identifier
             store.siteExited(region.identifier, at: time)
-            if isCurrentStop { self?.lastExit = Exit(stopID: region.identifier) }
+            if isCurrentStop { self?.lastExit = Exit(stopID: region.identifier, time: time) }
         }
     }
 
