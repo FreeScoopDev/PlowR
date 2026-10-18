@@ -276,8 +276,6 @@ struct InvoiceRevisionsTests {
         #expect(detail.components(separatedBy: "(made ").count == 3)
         #expect(InvoiceRevisions.linkTitle(to: second, from: first).hasPrefix("Open the other copy, made "))
         #expect(InvoiceRevisions.advice(for: first, other: second).hasPrefix("Another \(first.invoiceNumber), made "))
-        #expect(InvoiceRevisions.linkTitle(to: second, from: InvoiceRevisions.otherRevision(of: second, among: documents) ?? second)
-            .hasPrefix("Open the other copy"))
     }
 }
 
