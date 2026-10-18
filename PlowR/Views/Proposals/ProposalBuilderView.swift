@@ -32,7 +32,7 @@ struct ProposalBuilderView: View {
     @State private var customItems: [CustomLineItem] = []
     @State private var validUntilEnabled = false
     @State private var validUntil = Date().addingTimeInterval(14 * 86400)
-    @State private var invoiceDueDate = Date().addingTimeInterval(30 * 86400)
+    @State private var invoiceDueDate = InvoiceTerms.dueDate(from: Date())
     @State private var showingPreview = false
     @State private var generatedPDFData: Data?
     @State private var pendingProposal: Proposal?

@@ -66,7 +66,7 @@ enum InvoiceRecords {
             predicate: #Predicate { $0.sourceProposalID == source }))) ?? []
         guard canConvert(proposal, among: contracts) else { return false }
         proposal.invoiceNumber = InvoiceNumbering.next(operatorID: proposal.operatorID, in: context)
-        proposal.invoiceDueDate = now.addingTimeInterval(ServiceLog.invoiceTerm)
+        proposal.invoiceDueDate = InvoiceTerms.dueDate(from: now)
         if !proposal.visitID.isEmpty {
             ServiceLog.markVisitInvoiced(visitID: proposal.visitID, invoice: proposal, in: context)
         }

@@ -42,7 +42,7 @@ struct DocumentSentTests {
         context.insert(invoice)
         DocumentSent.markSent(invoice, in: context, now: now)
         #expect(invoice.invoiceSentAt == now)
-        #expect(invoice.invoiceDueDate == now.addingTimeInterval(30 * 86_400))
+        #expect(invoice.invoiceDueDate == InvoiceTerms.dueDate(from: now))
         #expect(pat.lastMessageSentAt == now)
         #expect(pat.clientRespondedAt == nil)
         #expect(sam.lastMessageSentAt == nil)
@@ -73,7 +73,7 @@ struct DocumentSentTests {
         context.insert(invoice)
         DocumentSent.shared(invoice, toClient: true, in: context, now: now)
         #expect(invoice.invoiceSentAt == now)
-        #expect(invoice.invoiceDueDate == now.addingTimeInterval(30 * 86_400))
+        #expect(invoice.invoiceDueDate == InvoiceTerms.dueDate(from: now))
         #expect(pat.lastMessageSentAt == now)
     }
 

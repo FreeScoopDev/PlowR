@@ -37,6 +37,7 @@ struct InvoiceRecordsTests {
         Payments.record(500, method: "Check", receivedAt: h.clock, on: original, in: h.context, now: h.clock)
         let revision = ServiceLog.revise(original, client: h.client, now: h.clock, in: h.context)
 
+        #expect(revision.invoiceDueDate == InvoiceTerms.dueDate(from: h.clock))   // new terms from today
         #expect(revision.balanceDue == 0)                                         // the $500 moved with it
         #expect(revision.paymentsTotal == 500)
         #expect(original.voidedAt != nil && original.voidNote == "Revised as \(revision.invoiceNumber)")

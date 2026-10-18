@@ -400,9 +400,6 @@ enum ServiceLog {
         return proposal
     }
 
-    /// How long a new invoice gives to pay.
-    static let invoiceTerm: TimeInterval = 30 * 86_400
-
     /// A new document with `proposal`'s lines and terms (Duplicate). A new
     /// document, not a revision: a tax-exempt client's starts at 0%, as any
     /// new one does, though the source was taxed.
@@ -422,7 +419,7 @@ enum ServiceLog {
     }
 
     /// A new draft invoice for `client` with `items`: the next number, due in
-    /// `invoiceTerm`, the business's default terms. Record Services and Bill
+    /// `InvoiceTerms.days`, the business's default terms. Record Services and Bill
     /// Unbilled Work both make invoices through here, so they can't differ.
     /// The client's Default Discount comes off, as on any new document, but
     /// only off `discountableSubtotal` (nil: every item): a contract's own
@@ -432,7 +429,7 @@ enum ServiceLog {
                                 now: Date, in context: ModelContext) -> Proposal {
         let proposal = Proposal(operatorID: operatorID, client: client)
         proposal.invoiceNumber = InvoiceNumbering.next(operatorID: operatorID, in: context)
-        proposal.invoiceDueDate = now.addingTimeInterval(invoiceTerm)
+        proposal.invoiceDueDate = InvoiceTerms.dueDate(from: now)
         let profile = BusinessProfiles.current((try? context.fetch(FetchDescriptor<BusinessProfile>())) ?? [], operatorID: operatorID)
         proposal.disclaimer = profile?.defaultDisclaimer ?? ""
         // The business's sales tax, as on every new document, unless the
@@ -477,7 +474,7 @@ enum ServiceLog {
         revision.taxRate = original.taxRate
         revision.disclaimer = original.disclaimer
         revision.notes = original.notes
-        revision.invoiceDueDate = now.addingTimeInterval(invoiceTerm)
+        revision.invoiceDueDate = InvoiceTerms.dueDate(from: now)
         let copies = original.makeLineItemCopies()
         copies.forEach { context.insert($0) }
         revision.lineItems = copies
