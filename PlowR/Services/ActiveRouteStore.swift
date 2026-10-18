@@ -255,6 +255,8 @@ final class ActiveRouteStore {
     /// Finishes the route: clears the checkpoint and ends the Live Activity.
     func end() {
         guard isActive else { return }
+        // The next route isn't the first: the route screen's tip is done.
+        PlowRTips.donate(RecordServicesTip.routeEnded)
         surfaces.end(progress)
         clearState()
         updateSites()

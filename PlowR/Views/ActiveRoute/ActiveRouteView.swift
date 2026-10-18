@@ -1,4 +1,5 @@
 import SwiftUI
+import TipKit
 import SwiftData
 import MapKit
 import CoreLocation
@@ -9,6 +10,8 @@ import MessageUI
 /// owns the route: this view can appear, disappear or be torn down with the app
 /// without starting, ending or losing the route.
 struct ActiveRouteView: View {
+    /// The route screen's one tip, on the first route (RouteTips).
+    private let recordServicesTip = RecordServicesTip()
     let route: PlowRoute
     @Environment(ActiveRouteStore.self) private var store
     @Environment(\.access) private var access
@@ -734,6 +737,12 @@ struct ActiveRouteView: View {
                     .accessibilityLabel("Record Services")
                     .accessibilityValue(recorded == 0 ? "" : "\(recorded) recorded")
                 }
+            }
+
+            // The first route only, inline under the button it's about:
+            // never over Complete Stop (RouteTips).
+            if !stop.isCustomStop {
+                TipView(recordServicesTip)
             }
 
             // A contract with a snow trigger in force today: less may have

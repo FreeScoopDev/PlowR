@@ -1,4 +1,5 @@
 import SwiftUI
+import TipKit
 import SwiftData
 import MapKit
 import CoreLocation
@@ -16,6 +17,12 @@ struct RouteDetailView: View {
 
     @State private var showingEditRoute = false
     @State private var showingHelp = false
+    /// The page's tips, one at a time (RouteTips).
+    @State private var tips = TipGroup(.ordered) {
+        StopServicesTip()
+        SkipTodayTip()
+        OptimizeOrderTip()
+    }
     @State private var showingOptimizeConfirm = false
     @State private var isOptimizing = false
     @State private var editingStop: RouteStop?
@@ -90,6 +97,13 @@ struct RouteDetailView: View {
                 )
                 .listRowBackground(Color.clear)   // the empty state sits on the page
             } else {
+                // Optimize Order needs two pinned stops; its tip waits for them.
+                if let tip = tips.currentTip, !(tip is OptimizeOrderTip) || canOptimize {
+                    Section {
+                        TipView(tip)
+                    }
+                    .listRowBackground(PlowRColor.surface)
+                }
                 Section("Stops") {
                     ForEach(Array(route.sortedStops.enumerated()), id: \.element.id) { index, stop in
                         let isSkipped = !todaysRun.isIncluded(stop.id)
@@ -145,7 +159,7 @@ struct RouteDetailView: View {
                     Button { $gate.unless(ProGate.edit(access)) { showingOptimizeConfirm = true } } label: {
                         Label("Optimize Order", systemImage: "arrow.triangle.swap")
                     }
-                    .disabled(route.sortedStops.filter { $0.latitude != 0 }.count < 2 || isOptimizing)
+                    .disabled(!canOptimize || isOptimizing)
                     Button { showingMessageAll = true } label: {
                         Label("Message All Clients", systemImage: "bubble.left.and.bubble.right")
                     }
@@ -160,9 +174,13 @@ struct RouteDetailView: View {
         }
         .confirmationDialog("Optimize Stop Order?", isPresented: $showingOptimizeConfirm, titleVisibility: .visible) {
             Button("Optimize (Driving Distances)") {
+                PlowRTips.done(OptimizeOrderTip(), OptimizeOrderTip.routeOptimized)
                 Task { await optimizeWithDrivingDistances() }
             }
-            Button("Quick Optimize (Straight-Line)") { optimizeRoute() }
+            Button("Quick Optimize (Straight-Line)") {
+                PlowRTips.done(OptimizeOrderTip(), OptimizeOrderTip.routeOptimized)
+                optimizeRoute()
+            }
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("Reorders stops for the shortest route. 'Driving Distances' uses live map data for accuracy but takes a moment.")
@@ -288,7 +306,13 @@ struct RouteDetailView: View {
 
     // MARK: - Today's Run
 
+    /// Optimize Order works on two or more pinned stops.
+    private var canOptimize: Bool {
+        route.sortedStops.filter { $0.latitude != 0 }.count >= 2
+    }
+
     private func toggleSkip(_ stop: RouteStop) {
+        if todaysRun.isIncluded(stop.id) { PlowRTips.done(SkipTodayTip(), SkipTodayTip.stopSkipped) }
         var run = todaysRun
         run.toggle(stop.id)
         skippedToday = run.skippedByHand

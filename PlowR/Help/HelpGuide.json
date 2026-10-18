@@ -107,6 +107,9 @@
           "title": "Create a route",
           "summary": "Name it, add stops, and put them in order.",
           "screens": ["routes", "routeDetail"],
+          "tips": [
+            { "id": "tip-optimize-order", "title": "Let PlowR order your stops", "message": "Tap **⋯** and **Optimize Order** for the shortest drive between stops." }
+          ],
           "shots": [
             { "file": "routes-new-route-sheet.jpg", "alt": "New Route sheet" },
             { "file": "routes-add-stops-client-picker.jpg", "alt": "Add Stops client picker" },
@@ -125,6 +128,10 @@
           "title": "Set the services each stop needs",
           "summary": "Expected services, stop notes and equipment, on one route or all.",
           "screens": ["routeDetail"],
+          "tips": [
+            { "id": "tip-stop-services", "title": "Set what each stop needs", "message": "Tap a stop to switch on the services it needs." },
+            { "id": "tip-skip-today", "title": "Skipping a stop today?", "message": "Swipe a stop right and tap **Skip Today** to leave it out of this run." }
+          ],
           "shots": [
             { "file": "routes-stop-sheet-expected-services.jpg", "alt": "Stop sheet, Expected Services" },
             { "file": "routes-only-on-this-route-choice.jpg", "alt": "Only on This Route choice" }
@@ -168,6 +175,9 @@
           "title": "Start and work your route",
           "summary": "Navigate, record services, complete each stop, and end with a recap.",
           "screens": ["routeDetail", "home"],
+          "tips": [
+            { "id": "tip-record-services", "title": "Record what you did", "message": "Tap **Record Services** to add photos, services and notes for this stop." }
+          ],
           "shots": [
             { "file": "run-start-route-on-home.jpg", "alt": "Start Route on Home" },
             { "file": "run-route-screen-current-stop.jpg", "alt": "route screen, current stop" },
@@ -223,7 +233,10 @@
           "title": "Hands-free with Siri",
           "emoji": "🗣️",
           "summary": "\"Complete current stop in PlowR\" or \"Notify next client in PlowR\".",
-          "screens": ["routeDetail"]
+          "screens": ["routeDetail"],
+          "tips": [
+            { "id": "tip-siri", "title": "Finish stops hands-free", "message": "Ask Siri to complete the current stop in PlowR, or add **Complete Stop** to Control Center." }
+          ]
         },
         {
           "id": "control-center",
@@ -237,7 +250,10 @@
           "title": "Today's Route widget",
           "emoji": "📱",
           "summary": "See your progress and next stop on your Home Screen.",
-          "screens": ["routes", "home"]
+          "screens": ["routes", "home"],
+          "tips": [
+            { "id": "tip-widget", "title": "Your route on the Home Screen", "message": "Add the **Today's Route** widget to see your next stop at a glance." }
+          ]
         },
         {
           "id": "lock-screen",

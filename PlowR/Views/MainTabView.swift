@@ -45,6 +45,8 @@ struct MainTabView: View {
                 ActiveRouteView(route: route)
             }
         }
+        // What access says, for the tips' rules; inside providesAccess.
+        .feedsTips()
         // PlowR Pro: what this business may do, for every screen below.
         .providesAccess()
     }

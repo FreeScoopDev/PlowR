@@ -360,6 +360,16 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   page: `HelpGuideTests` checks the hashes the page records, and holds
   topics not marked `snowOnly` to the service-language rule (the guard
   reads only Swift). Markup: `**UI label**`, `[text](https://…)`, `[PRO]`.
+- **Tips (TipKit, since 1.8) live in `Services/Tips`**: `PlowRTips` sets
+  TipKit up in `PlowRApp.init` (never under tests; `.applicationDefault`
+  store; demo launches hide tips, Debug `-PlowRShowTips YES` shows all) and
+  holds the rule parameters (`gettingStarted` from the Dashboard, `canEdit`
+  and `isPro` from `.feedsTips()`, `onMac`). A tip is a `nonisolated
+  struct` conforming to `PlowRTip`, whose `helpID` names its copy in
+  `HelpGuide.json`; add the id to the type's list for `TipsTests`. One
+  `TipGroup(.ordered)` per screen, a `TipView` in its own Section on a list.
+  The action calls `PlowRTips.done(tip, event)`. Delete Account & Data
+  leaves `resetTipsAtLaunch`: TipKit's store resets only before configure.
 - **The widget reads only the app group `UserDefaults`.** Anything it needs to
   show has to be written by `WidgetDataStore` from the app side; the widget
   never touches SwiftData.

@@ -14,6 +14,8 @@ struct SettingsView: View {
     @State private var showingPaywall = false
     @State private var showingManage = false
     @State private var restoreFailed = false
+    /// Show Tips Again was tapped: they come back at the next launch.
+    @State private var tipsComeBack = PlowRTips.isResetPending()
 
     @State private var showingFindService = false
     /// The request screen at the end of Find Services requires this store.
@@ -146,7 +148,7 @@ struct SettingsView: View {
 
             // The guide is the bundled HelpGuide.json, the same file the
             // website's help page is made from.
-            Section("Help") {
+            Section {
                 NavigationLink(destination: HelpGuideView()) {
                     Label("Help Guide", systemImage: PlowRSymbol.help.name)
                 }
@@ -159,6 +161,19 @@ struct SettingsView: View {
                     }
                 } label: {
                     Label("Contact Support", systemImage: "envelope")
+                }
+                Button {
+                    PlowRTips.scheduleReset()
+                    tipsComeBack = true
+                } label: {
+                    Label("Show Tips Again", systemImage: "lightbulb")
+                }
+                .disabled(tipsComeBack)
+            } header: {
+                Text("Help")
+            } footer: {
+                if tipsComeBack {
+                    Text("Tips come back the next time you open PlowR.")
                 }
             }
             .listRowBackground(PlowRColor.surface)

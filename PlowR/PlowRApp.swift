@@ -67,6 +67,8 @@ struct PlowRApp: App {
         ActiveRouteStore.shared.configure(context: container.mainContext)
         // PlowR Pro: the plan kept from last time until StoreKit answers.
         Subscription.shared.start()
+        // Tips (after a reset Delete Account & Data asked for), before any view.
+        PlowRTips.configure()
         // Not under tests: the test host is the app, with the app's
         // preferences, and must leave the simulator's calendar alone.
         if !Self.isRunningUnderTests {

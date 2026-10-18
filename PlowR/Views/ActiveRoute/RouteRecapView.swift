@@ -1,4 +1,5 @@
 import SwiftUI
+import TipKit
 import SwiftData
 import MapKit
 
@@ -10,6 +11,11 @@ struct RouteRecapView: View {
     /// The run being recapped (ActiveRouteStore.runID), so editing a stop's
     /// services updates that run's Service Log record.
     var runID: UUID?
+    /// Siri and Control Center, then the widget: one at a time (RouteTips).
+    @State private var tips = TipGroup(.ordered) {
+        SiriTip()
+        WidgetTip()
+    }
     /// When the run started: which day's visit a stop never completed is.
     var runStartedAt: Date?
 
@@ -48,6 +54,13 @@ struct RouteRecapView: View {
         NavigationStack {
             List {
                 summarySection
+
+                if let tip = tips.currentTip {
+                    Section {
+                        TipView(tip)
+                    }
+                    .listRowBackground(PlowRColor.surface)
+                }
 
                 if !geocodedStops.isEmpty {
                     mapSection

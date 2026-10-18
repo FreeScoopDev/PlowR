@@ -202,6 +202,8 @@ struct DashboardView: View {
         }
         // Payments open as a sheet, as from an invoice's page.
         .sheet(item: $overpaidInvoice) { InvoicePaymentsView(invoice: $0) }
+        // No tips while Get Started has steps left: it's the one thing to do.
+        .onChange(of: showsGetStarted, initial: true) { _, shows in PlowRTips.gettingStarted = shows }
         .task {
             iCloud.watch()
             // Notifications are asked for in setup and from Get Started,
@@ -274,15 +276,22 @@ struct DashboardView: View {
 
     // MARK: - Get Started
 
+    private var checklist: FirstRun.Checklist {
+        FirstRun.checklist(profile: profile, clients: myClients.count, routes: myRoutes.count,
+                           documents: myProposals, alertsUndecided: alertsUndecided)
+    }
+
+    /// Read here, not after the page appears: a hidden card flashed up.
+    private var showsGetStarted: Bool {
+        let id = authManager.userID
+        return FirstRun.showsChecklist(completedSetup: UserDefaults.standard.bool(forKey: FirstRun.completedKey(id)),
+                                       hidden: checklistHidden || UserDefaults.standard.bool(forKey: FirstRun.checklistHiddenKey(id)),
+                                       checklist: checklist)
+    }
+
     @ViewBuilder
     private var getStarted: some View {
-        let checklist = FirstRun.checklist(profile: profile, clients: myClients.count, routes: myRoutes.count,
-                                           documents: myProposals, alertsUndecided: alertsUndecided)
-        let id = authManager.userID
-        // Read here, not after the page appears: a hidden card flashed up.
-        if FirstRun.showsChecklist(completedSetup: UserDefaults.standard.bool(forKey: FirstRun.completedKey(id)),
-                                   hidden: checklistHidden || UserDefaults.standard.bool(forKey: FirstRun.checklistHiddenKey(id)),
-                                   checklist: checklist) {
+        if showsGetStarted {
             GetStartedCard(checklist: checklist,
                            addClient: { $gate.unless(ProGate.addClient(access)) { showingAddClient = true } },
                            newRoute: {

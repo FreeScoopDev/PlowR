@@ -97,6 +97,9 @@ struct AccountEraser {
         attempt(Self.calendarStep) { try eraseCalendar() }
         if failures.isEmpty, let defaultsDomain {
             defaults.removePersistentDomain(forName: defaultsDomain)
+            // After the preferences go: the tips store can be erased only at
+            // the next launch, before TipKit opens it.
+            PlowRTips.scheduleReset(defaults: defaults)
         }
         return failures
     }
@@ -119,6 +122,7 @@ struct AccountEraser {
             if let defaultsDomain { defaults.removePersistentDomain(forName: defaultsDomain) }
             // After the preferences go: these are about the device, not the account.
             DeviceSync.scheduleRemoval(defaults: defaults)
+            PlowRTips.scheduleReset(defaults: defaults)
         }
         return failures
     }
