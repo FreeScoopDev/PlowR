@@ -277,5 +277,46 @@ struct InvoiceRevisionsTests {
         #expect(InvoiceRevisions.linkTitle(to: second, from: first).hasPrefix("Open the other copy, made "))
         #expect(InvoiceRevisions.advice(for: first, other: second).hasPrefix("Another \(first.invoiceNumber), made "))
     }
-}
 
+    /// Renumbered when they synced, so no void note names the revision: its
+    /// own client's original still takes its work back, never another's.
+    @Test func aRenumberedRevisionGoesBackToItsOwnClientsOriginal() throws {
+        let h = try Harness(stopCount: 1)
+        let other = Client(name: "Other Client", phone: "", address: "9 Elm St", operatorID: "op")
+        h.context.insert(other)
+        // Theirs first, so it's what an unordered look finds first.
+        let theirs = invoice(h, total: 120, number: "INV-0042")
+        theirs.clientID = other.id.uuidString
+        let mine = invoice(h, total: 300, number: "INV-0042")
+        let myRevision = ServiceLog.revise(mine, client: h.client, now: h.clock, in: h.context)
+        myRevision.invoiceNumber = "INV-0042-R7"
+        let visit = ScheduledVisit(operatorID: "op", clientID: h.client.id.uuidString, clientName: h.client.name,
+                                   clientAddress: h.client.address, scheduledDate: h.clock)
+        h.context.insert(visit)
+        let record = try #require(ServiceLog.complete(visit, among: [visit], in: h.context, now: h.clock))
+        record.invoiceID = myRevision.id.uuidString
+        ServiceLog.delete(myRevision, in: h.context)
+        #expect(record.invoiceID == mine.id.uuidString)
+    }
+
+    /// Two copies of different contract payments are never handed each
+    /// other's work: voiding one releases it as a plain void would.
+    @Test func noHandOverBetweenDifferentContractPayments() throws {
+        let h = try Harness(stopCount: 1)
+        let (_, first, second) = try revisedOnTwoDevices(h)
+        let contract = UUID().uuidString
+        first.contractID = contract
+        first.installmentIndex = 1
+        second.contractID = contract
+        second.installmentIndex = 2
+        #expect(!InvoiceRevisions.canHandOver(second, to: first))
+        let visit = ScheduledVisit(operatorID: "op", clientID: h.client.id.uuidString, clientName: h.client.name,
+                                   clientAddress: h.client.address, scheduledDate: h.clock)
+        h.context.insert(visit)
+        let record = try #require(ServiceLog.complete(visit, among: [visit], in: h.context, now: h.clock))
+        record.invoiceID = second.id.uuidString
+        InvoiceRecords.void(second, note: "Wrong payment", now: h.clock, in: h.context)
+        #expect(record.invoiceID.isEmpty)
+        #expect(first.installmentIndex == 1)
+    }
+}

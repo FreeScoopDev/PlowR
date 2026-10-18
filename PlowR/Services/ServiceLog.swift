@@ -537,7 +537,7 @@ enum ServiceLog {
             .filter { $0.invoiceNumber == document.revisionOf && $0.operatorID == document.operatorID
                 && $0.id != document.id }
         let original = originals.first { $0.voidNote == InvoiceRecords.revisedNote(document.invoiceNumber) }
-            ?? originals.first
+            ?? originals.first { $0.clientID == document.clientID } ?? originals.first
         let replacement = (otherRevision ?? original)?.id.uuidString ?? ""
         for record in billed(on: document, in: context) { record.invoiceID = replacement }
         for visit in linkedVisits(to: document, in: context) { visit.proposalID = replacement }
