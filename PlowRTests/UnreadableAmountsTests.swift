@@ -51,27 +51,54 @@ struct UnreadableAmountsTests {
         zoned.amounts["mow|0"] = "eighty"
         #expect(zoned.unreadableFields == ["Mowing, Front"])
         #expect(draft(amount: "x", discount: "y", tax: "z").unreadableFields == ["Edging", "Discount", "Tax"])
+        // A service that isn't ticked isn't billed, whatever its field says.
+        var unticked = draft(amount: "1,250")
+        unticked.selections = ["mow|0"]
+        #expect(unticked.unreadableFields.isEmpty)
+        #expect(draft(tax: "105").taxUnreadable && !draft(tax: "8.25").taxUnreadable)
     }
 
     @Test func theMessageSaysWhatToType() {
         #expect(DocumentDraft.unreadableMessage(["Edging"]) == "Can't read Edging: type a number such as 1250.50.")
-        #expect(DocumentDraft.unreadableMessage(["Discount", "Tax"])
+        #expect(DocumentDraft.unreadableMessage(["Discount", "Tax"], taxUnreadable: true)
                 == "Can't read Discount, Tax: type a number such as 1250.50 (a tax rate from 0 to 100).")
+        #expect(DocumentDraft.unreadableMessage(["Tax"], taxUnreadable: true)
+                == "Can't read Tax: type a rate from 0 to 100, such as 8.25.")
+        // A custom line named Tax is an amount, not a rate.
+        #expect(DocumentDraft.unreadableMessage(["Tax"]) == "Can't read Tax: type a number such as 1250.50.")
     }
 
     @Test func recordServicesNamesWhatItCantRead() {
         var recording = StopRecording(services: [StopRecording.Service(id: "plow", name: "Clearing", unitType: "flat",
                                                                        pricePerUnit: 60)], zones: [])
         recording.selectedIDs = ["plow"]
-        #expect(recording.unreadableFields.isEmpty)
+        #expect(recording.unreadableFields().isEmpty)
         recording.typedPrices["plow"] = "1,250"
-        #expect(recording.unreadableFields == ["Clearing"])
+        #expect(recording.unreadableFields() == ["Clearing"])
         recording.selectedIDs = []                                                // not ticked: not billed
-        #expect(recording.unreadableFields.isEmpty)
+        #expect(recording.unreadableFields().isEmpty)
         recording.customItems = [.init(name: "Salt", price: "2O")]
-        #expect(recording.unreadableFields == ["Salt"])
+        #expect(recording.unreadableFields() == ["Salt"])
         recording.customItems = [.init(name: " ", price: "x")]
-        #expect(recording.unreadableFields == ["A custom item"])
+        #expect(recording.unreadableFields() == ["A custom item"])
+        // On an invoice nothing here can change or is saved: no check.
+        #expect(recording.unreadableFields(locked: true).isEmpty)
+    }
+
+    // A record from before could hold a negative price; reopened on an
+    // invoice, it mustn't stop the stop's photos and notes from saving.
+    @Test func aLockedOlderRecordWithANegativePriceCanStillSave() {
+        let services = [StopRecording.Service(id: "s", name: "Clearing", unitType: "flat", pricePerUnit: 60)]
+        let recording = StopRecording.loading([.init(serviceID: "s", name: "Clearing", unitType: "flat", price: -60)],
+                                              services: services, zones: [])
+        #expect(recording.unreadableFields() == ["Clearing"])                    // unlocked: fix it first
+        #expect(recording.unreadableFields(locked: true).isEmpty)
+    }
+
+    @Test func aLineAmountNeverGoesBelowZero() {
+        #expect(InvoiceLines.lineAmount(-5) == 0)
+        #expect(InvoiceLines.lineAmount(12.345) == 12.35)
+        #expect(InvoiceLines.lineAmount(0) == 0)
     }
 
     // The Edit screen: a field it can't read isn't saved, and the stored value stays.
@@ -92,6 +119,7 @@ struct UnreadableAmountsTests {
         edits.discountText = "1,2,3"
         edits.taxRateText = "105"
         #expect(edits.unreadableFields == ["Discount", "Tax"])
+        #expect(edits.discountUnreadable && edits.taxUnreadable)
         #expect(edits.typedDiscount == nil && edits.typedTaxRate == nil)
         edits.apply(to: doc)
         #expect(doc.discountAmount == 10 && doc.taxRate == 6)

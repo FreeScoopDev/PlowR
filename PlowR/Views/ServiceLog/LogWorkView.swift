@@ -34,7 +34,9 @@ struct LogWorkView: View {
     private var zones: [InvoiceLines.Zone] { Place.of(client, propertyID: placeID)?.zones ?? [] }
 
     private var hasNotes: Bool { !notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-    private var canSave: Bool { !recording.recordLines.isEmpty || hasNotes }
+    private var canSave: Bool {
+        (!recording.recordLines.isEmpty || hasNotes) && recording.unreadableFields().isEmpty
+    }
     private var hasChanges: Bool { !selectedIDs.isEmpty || !customItems.isEmpty || hasNotes || !minutes.isEmpty }
 
     // PlowR Pro: read only, this editor shows why instead (EditsNeedPro).

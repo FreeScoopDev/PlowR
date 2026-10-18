@@ -98,10 +98,11 @@ nonisolated enum InvoiceLines {
     /// discount became $0 and a custom line was dropped.
     static func isUnreadable(_ typed: String?, locale: Locale = .current) -> Bool {
         let text = (typed ?? "").trimmingCharacters(in: .whitespaces)
-        guard !text.isEmpty else { return false }
-        guard let value = DecimalText.number(text, locale: locale) else { return true }
-        return value < 0 || value >= maxAmount
+        return !text.isEmpty && ServiceCatalog.price(typed: text, locale: locale) == nil
     }
+
+    /// A line amount as the Edit screen keeps it: to the cent, never below $0.
+    static func lineAmount(_ amount: Double) -> Double { roundedToCent(max(0, amount)) }
 
     /// The invoice lines for a service as recorded at a stop, from what's in
     /// its price field (nil if the field was never shown).

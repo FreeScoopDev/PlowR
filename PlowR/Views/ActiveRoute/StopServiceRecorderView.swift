@@ -139,13 +139,6 @@ struct StopServiceRecorderView: View {
     var body: some View {
         NavigationStack {
             Form {
-                if case let fields = recording.unreadableFields, !fields.isEmpty {
-                    Section {
-                        Label(DocumentDraft.unreadableMessage(fields), systemImage: "exclamationmark.triangle.fill")
-                            .foregroundStyle(PlowRColor.Status.overdue.text)
-                    }
-                    .listRowBackground(PlowRColor.surface)
-                }
                 if let client {
                     Section {
                         LabeledContent("Client", value: client.name)
@@ -232,7 +225,7 @@ struct StopServiceRecorderView: View {
                             .disabled(invoiceLines.isEmpty)
                         }
                     }
-                    .disabled(client == nil || !hasAnythingToSave || !recording.unreadableFields.isEmpty)
+                    .disabled(client == nil || !hasAnythingToSave || !recording.unreadableFields(locked: servicesLocked).isEmpty)
                 }
             }
             .sheet(isPresented: $showingCamera) {

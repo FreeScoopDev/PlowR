@@ -151,10 +151,11 @@ struct ServiceRecordDetailView: View {
             if hasChanges {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save", action: save)
+                        .disabled(!canSave)
                 }
             }
         }
-        .asksBeforeLeaving(hasChanges: hasChanges, isBusy: false, canSave: true,
+        .asksBeforeLeaving(hasChanges: hasChanges, isBusy: false, canSave: canSave,
                            message: "Your changes to this job aren't saved.",
                            save: save, discard: { dismiss() })
         .confirmationDialog("Delete this job?", isPresented: $showingDeleteConfirm, titleVisibility: .visible) {
@@ -214,6 +215,9 @@ struct ServiceRecordDetailView: View {
         keptLines = form.keptLines
         loaded = snapshot
     }
+
+    /// No price here that can't be read (ServiceLinesSections says which).
+    private var canSave: Bool { recording.unreadableFields(locked: locked).isEmpty }
 
     private func save() {
         ServiceLog.update(record, lines: recording.recordLines, notes: notes, performedAt: performedAt,

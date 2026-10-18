@@ -92,7 +92,8 @@ struct ProposalBuilderView: View {
             Form {
                 if case let fields = draft.unreadableFields, !fields.isEmpty {
                     Section {
-                        Label(DocumentDraft.unreadableMessage(fields), systemImage: "exclamationmark.triangle.fill")
+                        Label(DocumentDraft.unreadableMessage(fields, taxUnreadable: draft.taxUnreadable),
+                              systemImage: "exclamationmark.triangle.fill")
                             .foregroundStyle(PlowRColor.Status.overdue.text)
                     }
                     .listRowBackground(PlowRColor.surface)

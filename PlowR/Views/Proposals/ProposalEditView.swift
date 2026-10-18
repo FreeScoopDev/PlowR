@@ -46,6 +46,7 @@ struct ProposalEditView: View {
                         applyEdits()
                         dismiss()
                     }
+                    .disabled(!edits.unreadableFields.isEmpty)
                 }
             }
         }
@@ -82,7 +83,7 @@ struct ProposalEditView: View {
                         Text("$").foregroundStyle(.secondary).font(.subheadline)
                         // Shown and kept to the cent it's billed and printed at.
                         TextField("0.00", value: Binding(get: { InvoiceLines.roundedToCent(item.lineTotal) },
-                                                         set: { item.lineTotal = InvoiceLines.roundedToCent(max(0, $0)) }),
+                                                         set: { item.lineTotal = InvoiceLines.lineAmount($0) }),
                                   format: .number.precision(.fractionLength(2)))
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
@@ -131,7 +132,8 @@ struct ProposalEditView: View {
             Text("Invoice")
         } footer: {
             if !edits.unreadableFields.isEmpty {
-                Text(DocumentDraft.unreadableMessage(edits.unreadableFields) + " It won't be saved until it is.")
+                Text(DocumentDraft.unreadableMessage(edits.unreadableFields, taxUnreadable: edits.taxUnreadable)
+                     + " Until then, what was saved stays.")
                     .foregroundStyle(PlowRColor.Status.overdue.text)
             }
         }
@@ -153,6 +155,7 @@ struct ProposalEditView: View {
                 Label("Mark as Sent", systemImage: "paperplane.fill")
                     .foregroundStyle(PlowRColor.Status.owed.text)
             }
+            .disabled(!edits.unreadableFields.isEmpty)
         } footer: {
             Text("Records the send date and starts the due date countdown.")
         }

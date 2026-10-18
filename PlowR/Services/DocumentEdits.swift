@@ -33,9 +33,14 @@ nonisolated struct DocumentEdits {
     /// The discount typed, or nil if the field is as it opened or can't be
     /// read (the stored discount stays; the screen says so).
     var typedDiscount: Double? {
-        guard discountText != openedDiscountText, !InvoiceLines.isUnreadable(discountText) else { return nil }
+        guard discountText != openedDiscountText, !discountUnreadable else { return nil }
         return max(0, InvoiceLines.price(typed: discountText, default: 0))
     }
+
+    /// The discount typed can't be read.
+    var discountUnreadable: Bool { discountText != openedDiscountText && InvoiceLines.isUnreadable(discountText) }
+    /// The tax rate typed isn't a rate from 0 to 100.
+    var taxUnreadable: Bool { taxRateText != openedTaxRateText && Proposal.readTaxRate(taxRateText) == nil }
 
     /// The tax rate typed, in percent, or nil if the field is as it opened or
     /// isn't a rate from 0 to 100 (the stored rate stays; the screen says so).
@@ -45,10 +50,7 @@ nonisolated struct DocumentEdits {
 
     /// The fields typed that can't be read, as the screen names them. They aren't saved.
     var unreadableFields: [String] {
-        var fields: [String] = []
-        if discountText != openedDiscountText, InvoiceLines.isUnreadable(discountText) { fields.append("Discount") }
-        if taxRateText != openedTaxRateText, Proposal.readTaxRate(taxRateText) == nil { fields.append("Tax") }
-        return fields
+        (discountUnreadable ? ["Discount"] : []) + (taxUnreadable ? ["Tax"] : [])
     }
 }
 

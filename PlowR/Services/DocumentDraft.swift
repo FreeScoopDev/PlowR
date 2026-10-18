@@ -175,15 +175,20 @@ nonisolated struct DocumentDraft {
             fields.append(custom.name.isEmpty ? "A custom item" : custom.name)
         }
         if InvoiceLines.isUnreadable(discount, locale: locale) { fields.append("Discount") }
-        if Proposal.readTaxRate(taxRate) == nil { fields.append("Tax") }
+        if taxUnreadable { fields.append("Tax") }
         return fields
     }
 
+    /// The Tax field isn't a rate from 0 to 100.
+    var taxUnreadable: Bool { Proposal.readTaxRate(taxRate) == nil }
+
     /// What the screen says about `fields`: "Can't read Discount, Tax: type a
-    /// number such as 1250.50 (a tax rate from 0 to 100)."
-    static func unreadableMessage(_ fields: [String]) -> String {
-        "Can't read \(fields.joined(separator: ", ")): type a number such as 1250.50"
-            + (fields.contains("Tax") ? " (a tax rate from 0 to 100)." : ".")
+    /// number such as 1250.50 (a tax rate from 0 to 100)." `taxUnreadable`:
+    /// the Tax field is among them (not a line that happens to be named Tax).
+    static func unreadableMessage(_ fields: [String], taxUnreadable: Bool = false) -> String {
+        let list = fields.joined(separator: ", ")
+        if taxUnreadable, fields.count == 1 { return "Can't read \(list): type a rate from 0 to 100, such as 8.25." }
+        return "Can't read \(list): type a number such as 1250.50" + (taxUnreadable ? " (a tax rate from 0 to 100)." : ".")
     }
 
     /// The estimate: the total of the document these lines, discount and tax make.

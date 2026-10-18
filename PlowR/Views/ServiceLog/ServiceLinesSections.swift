@@ -18,7 +18,20 @@ struct ServiceLinesSections: View {
     var locked = false
     var footer: String?
 
+    /// The prices here that can't be read: the screen won't save until they're fixed.
+    private var unreadable: [String] {
+        StopRecording(services: services, zones: zones, selectedIDs: selectedIDs, typedPrices: typedPrices,
+                      customItems: customItems, keptLines: keptLines).unreadableFields(locked: locked)
+    }
+
     var body: some View {
+        if case let fields = unreadable, !fields.isEmpty {
+            Section {
+                Label(DocumentDraft.unreadableMessage(fields), systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(PlowRColor.Status.overdue.text)
+            }
+            .listRowBackground(PlowRColor.surface)
+        }
         Section {
             if services.isEmpty {
                 // A business that went straight to a route had none, and had
