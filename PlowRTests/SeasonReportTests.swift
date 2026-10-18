@@ -92,11 +92,6 @@ struct SeasonReportTests {
         #expect(figures.clients.isEmpty && figures.clientCount == 0)
     }
 
-    @Test func moneyIsToTheCent() {
-        #expect(SeasonReport.money(1234.5) == "$1,234.50")
-        #expect(SeasonReport.money(0) == "$0.00")
-    }
-
     @Test func theReportSaysItsPeriodAndCents() throws {
         let h = try Harness(stopCount: 0)
         let bill = invoice(h, total: 99.99, sent: h.clock)

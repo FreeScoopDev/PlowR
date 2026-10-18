@@ -232,10 +232,10 @@ extension Proposal {
         let statusWord = invoiceStatus == .overdue ? "overdue" : "outstanding"
         var message: String
         if isPartlyPaid {
-            let balance = balanceDue.formatted(.currency(code: "USD").locale(locale))
+            let balance = Money.text(balanceDue)
             message = "Hi \(clientName), just a friendly reminder that the balance of \(balance) on invoice \(invoiceNumber) is \(statusWord)."
         } else {
-            let amount = total.formatted(.currency(code: "USD").locale(locale))
+            let amount = Money.text(total)
             message = "Hi \(clientName), just a friendly reminder that invoice \(invoiceNumber) for \(amount) is \(statusWord)."
         }
         if let due = invoiceDueDate {
