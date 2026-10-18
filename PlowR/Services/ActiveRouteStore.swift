@@ -256,7 +256,7 @@ final class ActiveRouteStore {
     func end() {
         guard isActive else { return }
         // The next route isn't the first: the route screen's tip is done.
-        PlowRTips.donate(RecordServicesTip.routeEnded)
+        PlowRTips.routeRan()
         surfaces.end(progress)
         clearState()
         updateSites()

@@ -54,12 +54,58 @@ struct TipsTests {
         #expect(PlowRTips.isResetPending(defaults))
     }
 
-    /// Launch configures TipKit, after the reset, before any view.
+    private static let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+
+    private func source(_ path: String) throws -> String {
+        try String(contentsOf: Self.root.appendingPathComponent(path), encoding: .utf8)
+    }
+
+    /// Launch configures TipKit (a live line, not a comment) in
+    /// `PlowRApp.init`, before any view.
     @Test func launchConfiguresTips() throws {
-        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-            .appendingPathComponent("PlowR/PlowRApp.swift")
-        let source = try String(contentsOf: url, encoding: .utf8)
-        #expect(source.contains("PlowRTips.configure()"))
+        let app = try source("PlowR/PlowRApp.swift")
+        let configure = try #require(app.firstRange(of: /\n[ \t]*PlowRTips\.configure\(/))
+        let initStart = try #require(app.range(of: "    init() {"))
+        let initEnd = try #require(app.range(of: "\n    }\n", range: initStart.upperBound..<app.endIndex))
+        #expect(initStart.upperBound < configure.lowerBound && configure.lowerBound < initEnd.lowerBound)
+    }
+
+    /// Every tip type in Services/Tips is in the list the copy test reads.
+    @Test func everyTipTypeIsListed() throws {
+        let folder = Self.root.appendingPathComponent("PlowR/Services/Tips")
+        let files = try FileManager.default.contentsOfDirectory(atPath: folder.path).filter { $0.hasSuffix(".swift") }
+        var ids: [String] = []
+        for file in files {
+            let text = try source("PlowR/Services/Tips/\(file)")
+            ids += text.matches(of: /static let helpID = "([^"]+)"/).map { String($0.1) }
+        }
+        #expect(!ids.isEmpty)
+        #expect(Set(ids) == Set(PlowRTips.routeTipIDs))
+    }
+
+    @Test func aBusinessThatHasRunARouteIsNotOnItsFirst() {
+        #expect(!PlowRTips.hasRunRoute(completedRoutes: 0, serviceRecords: 0))
+        #expect(PlowRTips.hasRunRoute(completedRoutes: 1, serviceRecords: 0))
+        #expect(PlowRTips.hasRunRoute(completedRoutes: 0, serviceRecords: 3))
+    }
+
+    /// A stop completed from Siri or Control Center finishes the Siri tip;
+    /// one that wasn't completed doesn't.
+    @Test func siriAndControlCenterFinishTheSiriTip() throws {
+        var done: [String] = []
+        PlowRTips.onDone = { done.append($0) }
+        defer { PlowRTips.onDone = nil }
+        let h = try ActiveRouteStoreTests.Harness()
+        let store = h.makeStore()
+        store.start(h.route)
+        let first = try #require(store.currentStopID)
+        _ = CompleteStopAction.siri(in: store, role: UserRole.business)
+        #expect(done == [SiriTip.helpID])
+        _ = CompleteStopAction.controlCenter(stopID: first, in: store, role: UserRole.business)
+        #expect(done == [SiriTip.helpID], "an already-done stop completes nothing")
+        let second = try #require(store.currentStopID)
+        _ = CompleteStopAction.controlCenter(stopID: second, in: store, role: UserRole.business)
+        #expect(done == [SiriTip.helpID, SiriTip.helpID])
     }
 
     @Test func deleteEverythingErasesTheTipsAtNextLaunch() throws {

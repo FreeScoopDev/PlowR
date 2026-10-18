@@ -32,8 +32,8 @@ nonisolated struct SkipTodayTip: PlowRTip {
     var options: [any TipOption] { [MaxDisplayCount(2)] }
 }
 
-/// Route page: PlowR can put the stops in order. The page shows it only with
-/// two or more pinned stops, the least Optimize Order works on.
+/// Route page: PlowR can put the stops in order, with two or more pinned
+/// stops, the least Optimize Order works on (the page says).
 nonisolated struct OptimizeOrderTip: PlowRTip {
     static let helpID = "tip-optimize-order"
     static let routeOptimized = Tips.Event(id: "routeOptimized")
@@ -42,6 +42,7 @@ nonisolated struct OptimizeOrderTip: PlowRTip {
         #Rule(PlowRTips.$gettingStarted) { $0 == false }
         #Rule(PlowRTips.$canEdit) { $0 == true }
         #Rule(Self.routeOptimized) { $0.donations.count == 0 }
+        #Rule(PlowRTips.$pinnedStopsReady) { $0 == true }
     }
 
     var options: [any TipOption] { [MaxDisplayCount(1)] }
@@ -49,41 +50,44 @@ nonisolated struct OptimizeOrderTip: PlowRTip {
 
 /// Route screen, inline, on the first route only: the one tip shown while a
 /// route runs. Not held back by Get Started, which a first route nearly
-/// always has steps left on.
+/// always has steps left on, nor by the day's tip: there's one first route.
 nonisolated struct RecordServicesTip: PlowRTip {
     static let helpID = "tip-record-services"
     static let servicesRecorded = Tips.Event(id: "servicesRecorded")
-    /// A route ended: the next one isn't the first.
-    static let routeEnded = Tips.Event(id: "routeEnded")
 
     var rules: [Rule] {
-        #Rule(Self.routeEnded) { $0.donations.count == 0 }
+        #Rule(PlowRTips.$hasRunRoute) { $0 == false }
         #Rule(Self.servicesRecorded) { $0.donations.count == 0 }
     }
 
-    var options: [any TipOption] { [MaxDisplayCount(1)] }
+    var options: [any TipOption] { [MaxDisplayCount(1), IgnoresDisplayFrequency(true)] }
 }
 
 /// Route Recap: Siri and Control Center finish a stop without the app.
 /// Not on a Mac (no Control Center for an iPhone app there).
 nonisolated struct SiriTip: PlowRTip {
     static let helpID = "tip-siri"
+    /// A stop completed from Siri or Control Center (CompleteStopAction).
+    static let completedFromOutside = Tips.Event(id: "stopCompletedFromOutside")
 
     var rules: [Rule] {
         #Rule(PlowRTips.$gettingStarted) { $0 == false }
         #Rule(PlowRTips.$onMac) { $0 == false }
+        #Rule(Self.completedFromOutside) { $0.donations.count == 0 }
     }
 
     var options: [any TipOption] { [MaxDisplayCount(1)] }
 }
 
-/// Route Recap, after Siri: the widget. Not on a Mac.
+/// Route Recap, after Siri: the widget, unless it's on a Home Screen
+/// already (the Recap looks). Not on a Mac.
 nonisolated struct WidgetTip: PlowRTip {
     static let helpID = "tip-widget"
 
     var rules: [Rule] {
         #Rule(PlowRTips.$gettingStarted) { $0 == false }
         #Rule(PlowRTips.$onMac) { $0 == false }
+        #Rule(PlowRTips.$hasRouteWidget) { $0 == false }
     }
 
     var options: [any TipOption] { [MaxDisplayCount(1)] }

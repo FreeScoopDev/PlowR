@@ -99,6 +99,8 @@ struct RouteRecapView: View {
                 .listRowBackground(PlowRColor.surface)
             }
             .plowRGrouped()
+            // The widget's tip is for someone without the widget.
+            .task { await PlowRTips.checkRouteWidget() }
             .navigationTitle("Route Recap")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

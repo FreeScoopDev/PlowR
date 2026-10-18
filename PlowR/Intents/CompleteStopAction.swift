@@ -22,7 +22,10 @@ enum CompleteStopAction {
     /// brings in meanwhile is caught.
     static func siri(in store: ActiveRouteStore, role: String?) -> Reply {
         guard role == UserRole.business else { return noRoute }
-        return run(in: store, expecting: store.currentStopID)
+        let reply = run(in: store, expecting: store.currentStopID)
+        // Done from outside the app: its tip isn't needed.
+        if reply.completed { PlowRTips.done(SiriTip(), SiriTip.completedFromOutside) }
+        return reply
     }
 
     /// Control Center's Complete Stop (CompleteStopControlIntent, run in the
@@ -37,6 +40,7 @@ enum CompleteStopAction {
     static func controlCenter(stopID: UUID, in store: ActiveRouteStore, role: String?) -> String? {
         guard role == UserRole.business else { return nil }
         let reply = run(in: store, expecting: stopID)
+        if reply.completed { PlowRTips.done(SiriTip(), SiriTip.completedFromOutside) }
         return reply.completed || !store.isActive ? nil : reply.text
     }
 

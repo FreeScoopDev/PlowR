@@ -203,7 +203,7 @@ struct DashboardView: View {
         // Payments open as a sheet, as from an invoice's page.
         .sheet(item: $overpaidInvoice) { InvoicePaymentsView(invoice: $0) }
         // No tips while Get Started has steps left: it's the one thing to do.
-        .onChange(of: showsGetStarted, initial: true) { _, shows in PlowRTips.gettingStarted = shows }
+        .onChange(of: showsGetStarted, initial: true) { _, shows in PlowRTips.update { PlowRTips.gettingStarted = shows } }
         .task {
             iCloud.watch()
             // Notifications are asked for in setup and from Get Started,

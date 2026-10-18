@@ -2,6 +2,7 @@ import Foundation
 import os
 import SwiftUI
 import TipKit
+import WidgetKit
 
 /// PlowR's tips (TipKit, since 1.8): a feature taught once, when it's
 /// useful. Their copy is in the one help source, `HelpGuide.json` (a topic's
@@ -31,6 +32,18 @@ nonisolated enum PlowRTips {
     @Parameter static var isPro: Bool = false
     /// Running on a Mac (`OnMac`): no GPS, texting, widgets or Control Center tips.
     @Parameter static var onMac: Bool = false
+    /// A route has been run (this device's count, or any visit in the Service
+    /// Log, so an upgrading business isn't taught its first route).
+    @Parameter static var hasRunRoute: Bool = false
+    /// The Today's Route widget is on a Home Screen.
+    @Parameter static var hasRouteWidget: Bool = false
+    /// The route page on screen has two pinned stops, the least Optimize
+    /// Order works on.
+    @Parameter static var pinnedStopsReady: Bool = false
+
+    /// Called with a tip's id when `done` runs, configured or not: lets
+    /// tests see an action finish its tip.
+    nonisolated(unsafe) static var onDone: ((String) -> Void)?
 
     /// Set once, on the main actor, at launch; read anywhere after.
     nonisolated(unsafe) private(set) static var isConfigured = false
@@ -39,7 +52,7 @@ nonisolated enum PlowRTips {
     /// From `PlowRApp.init`, before any view. Not under tests (their host is
     /// the app, and a test must not leave tips in its store).
     @MainActor
-    static func configure(defaults: UserDefaults = .standard) {
+    static func configure(defaults: UserDefaults = .standard, hasRunRoute ranRoute: Bool = false) {
         guard !PlowRApp.isRunningUnderTests, !isConfigured else { return }
         if takeReset(defaults) {
             do { try Tips.resetDatastore() } catch {
@@ -61,9 +74,37 @@ nonisolated enum PlowRTips {
             try Tips.configure([.displayFrequency(.daily), .datastoreLocation(.applicationDefault)])
             isConfigured = true
             onMac = OnMac.isMac
+            if ranRoute { hasRunRoute = true }
         } catch {
             log.error("Tips couldn't be configured: \(error.localizedDescription, privacy: .public)")
         }
+    }
+
+    /// Whether this business has run a route before: what launch tells
+    /// `configure`.
+    static func hasRunRoute(completedRoutes: Int, serviceRecords: Int) -> Bool {
+        completedRoutes > 0 || serviceRecords > 0
+    }
+
+    /// Changes rule parameters, only once TipKit is configured (never under
+    /// tests, where views and the route store still run).
+    static func update(_ change: () -> Void) {
+        guard isConfigured else { return }
+        change()
+    }
+
+    /// A route ended: the next isn't the first.
+    static func routeRan() {
+        update { hasRunRoute = true }
+    }
+
+    /// Looks for the Today's Route widget on a Home Screen.
+    @MainActor
+    static func checkRouteWidget() async {
+        guard isConfigured,
+              let widgets = try? await WidgetCenter.shared.currentConfigurations() else { return }
+        let has = widgets.contains { $0.kind == WidgetDataStore.widgetKind }
+        update { hasRouteWidget = has }
     }
 
     /// Tips come back (and the store is erased) at the next launch.
@@ -91,7 +132,8 @@ nonisolated enum PlowRTips {
 
     /// The user did what `tip` teaches: it never shows again, nor do tips
     /// whose rules wait on `event`.
-    static func done(_ tip: some Tip, _ event: Tips.Event<Tips.EmptyDonation>) {
+    static func done<T: PlowRTip>(_ tip: T, _ event: Tips.Event<Tips.EmptyDonation>) {
+        onDone?(T.helpID)
         guard isConfigured else { return }
         donate(event)
         tip.invalidate(reason: .actionPerformed)
@@ -128,8 +170,8 @@ struct TipsAccessFeed: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .onChange(of: access.canEdit, initial: true) { _, canEdit in PlowRTips.canEdit = canEdit }
-            .onChange(of: access.tier == .pro, initial: true) { _, isPro in PlowRTips.isPro = isPro }
+            .onChange(of: access.canEdit, initial: true) { _, canEdit in PlowRTips.update { PlowRTips.canEdit = canEdit } }
+            .onChange(of: access.tier == .pro, initial: true) { _, isPro in PlowRTips.update { PlowRTips.isPro = isPro } }
     }
 }
 

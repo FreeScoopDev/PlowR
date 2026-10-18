@@ -235,7 +235,7 @@
           "summary": "\"Complete current stop in PlowR\" or \"Notify next client in PlowR\".",
           "screens": ["routeDetail"],
           "tips": [
-            { "id": "tip-siri", "title": "Finish stops hands-free", "message": "Ask Siri to complete the current stop in PlowR, or add **Complete Stop** to Control Center." }
+            { "id": "tip-siri", "title": "Finish stops hands-free", "message": "Ask Siri to complete the current stop in PlowR, or add **Complete Current Stop** to Control Center." }
           ]
         },
         {

@@ -97,8 +97,7 @@ struct RouteDetailView: View {
                 )
                 .listRowBackground(Color.clear)   // the empty state sits on the page
             } else {
-                // Optimize Order needs two pinned stops; its tip waits for them.
-                if let tip = tips.currentTip, !(tip is OptimizeOrderTip) || canOptimize {
+                if let tip = tips.currentTip {
                     Section {
                         TipView(tip)
                     }
@@ -215,6 +214,10 @@ struct RouteDetailView: View {
         }
         .sheet(isPresented: $showingEditRoute) {
             EditRouteView(route: route)
+        }
+        // Optimize Order needs two pinned stops; its tip waits for them.
+        .onChange(of: canOptimize, initial: true) { _, ready in
+            PlowRTips.update { PlowRTips.pinnedStopsReady = ready }
         }
         .sheet(isPresented: $showingHelp) {
             HelpTopicsSheet(screen: .routeDetail)
