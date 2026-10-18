@@ -191,6 +191,8 @@ struct TimeOnSiteTests {
         }
         let detail = try source("ServiceLog/ServiceRecordDetailView.swift")
         #expect(detail.contains("cantSaveMessage: cantSaveMessage"))
+        // An untouched field keeps the exact recorded minutes.
+        #expect(detail.contains("asLoaded: minutesAsLoaded, recorded: record.minutes"))
         // GPS's times are shown, never written here.
         #expect(!detail.contains("arrivedAt =") && !detail.contains("leftAt ="))
     }

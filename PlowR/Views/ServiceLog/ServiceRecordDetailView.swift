@@ -101,15 +101,17 @@ struct ServiceRecordDetailView: View {
                         .disabled(invoice != nil)
                 }
             } footer: {
-                if let invoice {
-                    Text("On invoice \(invoice.invoiceNumber).")
-                } else if record.source == .beforeLog {
-                    Text("Completed before PlowR kept a Service History, or on an older version of PlowR, so whether it was billed wasn't tracked. It's never counted as owed.")
-                } else if !isBillable {
-                    Text("No charge: this work won't be billed.")
-                }
-                if record.source == .route {
-                    Text(ServiceLog.routeMinutesNote)
+                VStack(alignment: .leading, spacing: PlowRLayout.space1) {
+                    if let invoice {
+                        Text("On invoice \(invoice.invoiceNumber).")
+                    } else if record.source == .beforeLog {
+                        Text("Completed before PlowR kept a Service History, or on an older version of PlowR, so whether it was billed wasn't tracked. It's never counted as owed.")
+                    } else if !isBillable {
+                        Text("No charge: this work won't be billed.")
+                    }
+                    if record.source == .route {
+                        Text(ServiceLog.routeMinutesNote)
+                    }
                 }
             }
             .listRowBackground(PlowRColor.surface)
