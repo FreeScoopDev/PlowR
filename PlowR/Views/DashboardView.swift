@@ -643,7 +643,7 @@ struct DashboardView: View {
                 if let detail {
                     Text(detail).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
                 } else if let amount = item.amount, amount > 0 {
-                    Text(amount, format: .currency(code: "USD"))
+                    Text(Money.text(amount))
                         .font(.caption)
                         .foregroundStyle(status?.text ?? PlowRColor.inkSecondary)
                 }
@@ -664,12 +664,12 @@ struct DashboardView: View {
             StatTileRow {
                 // Outstanding opens what's owed by how late it is.
                 NavigationLink { MoneyOwedView() } label: {
-                    StatTile(value: outstandingBalance.formatted(.currency(code: "USD").precision(.fractionLength(0))),
+                    StatTile(value: Money.whole(outstandingBalance),
                              label: "Owed", status: outstandingBalance > 0 ? .owed : nil)
                 }
                 .buttonStyle(.plain)
                 NavigationLink { ClientStatsView() } label: {
-                    StatTile(value: received.formatted(.currency(code: "USD").precision(.fractionLength(0))),
+                    StatTile(value: Money.whole(received),
                              label: "In this month", status: received > 0 ? .done : nil)
                 }
                 .buttonStyle(.plain)

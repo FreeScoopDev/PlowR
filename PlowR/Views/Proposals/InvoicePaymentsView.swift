@@ -131,7 +131,7 @@ struct InvoicePaymentsView: View {
     }
 
     private var recordFooter: String {
-        let owed = invoice.balanceDue.formatted(.currency(code: "USD"))
+        let owed = Money.text(invoice.balanceDue)
         if InvoiceLines.price(typed: amount, default: 0) > invoice.balanceDue + Payments.tolerance {
             return "That's more than the \(owed) owed."
         }
@@ -139,7 +139,7 @@ struct InvoicePaymentsView: View {
     }
 
     private func money(_ value: Double) -> Text {
-        Text(value, format: .currency(code: "USD"))
+        Text(Money.text(value))
     }
 
     private func record() {

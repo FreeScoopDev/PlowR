@@ -89,7 +89,7 @@ struct PipelineView: View {
             }
             Spacer()
             if let total = entry.quoteTotal {
-                Text(total, format: .currency(code: "USD")).font(.subheadline)
+                Text(Money.text(total)).font(.subheadline)
             }
             if entry.needsFollowUp, let days = entry.waitingDays {
                 StatusChip("\(days)d", systemImage: "clock", status: .owed)

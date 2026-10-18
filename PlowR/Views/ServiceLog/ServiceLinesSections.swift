@@ -52,7 +52,7 @@ struct ServiceLinesSections: View {
         if !keptLines.isEmpty {
             Section {
                 ForEach(keptLines, id: \.serviceID) { line in
-                    LabeledContent(line.name, value: "$" + StopRecording.money(line.price))
+                    LabeledContent(line.name, value: Money.text(line.price))
                         .swipeActions(edge: .trailing) {
                             Button(role: .destructive) {
                                 keptLines.removeAll { $0.serviceID == line.serviceID }
