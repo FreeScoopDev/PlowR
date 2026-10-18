@@ -6,6 +6,7 @@
 import Foundation
 import SwiftData
 import Testing
+import PDFKit
 @testable import PlowR
 
 /// A contract's prices are before tax, and say so (money review, decision
@@ -172,6 +173,39 @@ struct ContractTaxTests {
         #expect(Contracts.paymentsNote(of: untaxed, defaultRate: 0) == plain)
         h.client.taxExempt = true
         #expect(Contracts.paymentsNote(of: contract, defaultRate: 8) == plain)
+    }
+
+    // What the client is sent: the page itself, not only its text model.
+    @Test func theRenderedPDFSaysPlusTax() throws {
+        let h = try Harness(stopCount: 0)
+        let profile = BusinessProfile(operatorID: "op")
+        profile.defaultTaxRate = 8
+        h.context.insert(profile)
+        let contract = signed(h, price: "900")
+        let data = ContractPDF.generate(contract, client: h.client, profile: profile, catalog: [], madeWithPlowR: true)
+        let document = try #require(PDFDocument(data: data))
+        let text = (0..<document.pageCount).compactMap { document.page(at: $0)?.string }.joined(separator: "\n")
+        #expect(text.contains("plus tax") && text.contains("$972.00"), "\(text)")
+    }
+
+    // A proposal's contract switched to monthly keeps the quoted rate.
+    @Test func aMonthlyContractKeepsItsOwnRate() throws {
+        let h = try Harness(stopCount: 0)
+        business(h, rate: 8)
+        let monthly = signed(h, price: "100", pricing: .monthly, taxRate: 6)
+        #expect(Contracts.taxRate(of: monthly, defaultRate: 8) == 6)
+        #expect(priceLines(monthly, h, defaultTaxRate: 8).dropFirst().first?.hasSuffix(": $100.00 + 6% tax = $106.00") == true)
+        #expect(invoices(monthly, h).first?.total == 106)
+    }
+
+    // The rate is set when the contract is made; saving an edit never rewrites it.
+    @Test func editingNeverRewritesTheRate() throws {
+        let h = try Harness(stopCount: 0)
+        let contract = signed(h, price: "900", taxRate: 6)
+        var edit = Contracts.Draft(contract)
+        edit.taxRate = nil
+        Contracts.save(edit, to: contract, of: h.client, in: h.context)
+        #expect(contract.taxRate == 6)
     }
 
     // Every other contract (and every one made before) follows the business's rate.
