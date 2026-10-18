@@ -101,17 +101,47 @@ struct DefaultDiscountTests {
         let h = try Harness(stopCount: 0)
         h.client.defaultDiscountPercent = 10
         let contract = signed(h, .perVisit, price: "55", services: ["plow"])
+        let services = [StopRecording.Service(id: "plow", name: "Plow", unitType: "flat", pricePerUnit: 60),
+                        StopRecording.Service(id: "salt", name: "Salt", unitType: "flat", pricePerUnit: 25)]
+        var recording = StopRecording(services: services, zones: [])
+        recording.selectedIDs = ["plow", "salt"]
+        // The lines and the contract's price both from the recording, as the screen does.
+        let lines = recording.invoiceLines(under: contract)
+        #expect(lines.map(\.lineTotal) == [55, 25])
+        #expect(recording.contractCharge(under: contract) == 55)
         let record = job(h, [("plow", 60), ("salt", 25)])
-        let lines = [
-            InvoiceLines.Line(serviceName: "\(contract.name): visit", zoneLabel: "", quantity: 1, unitType: "flat",
-                              unitPrice: 55, lineTotal: 55),
-            InvoiceLines.Line(serviceName: "Salt", zoneLabel: "", quantity: 1, unitType: "flat",
-                              unitPrice: 25, lineTotal: 25),
-        ]
-        let invoice = ServiceLog.invoice(record, lines: lines, client: h.client, operatorID: "op", notes: "",
-                                         now: h.clock, in: h.context)
+        let invoice = ServiceLog.invoice(record, lines: lines, contractCharge: recording.contractCharge(under: contract),
+                                         client: h.client, operatorID: "op", notes: "", now: h.clock, in: h.context)
         #expect(invoice.discountAmount == 2.5)
         #expect(invoice.total == 77.5)
+    }
+
+    @Test func aContractChargeIsOnlyAPerVisitContractsVisit() throws {
+        let h = try Harness(stopCount: 0)
+        let services = [StopRecording.Service(id: "plow", name: "Plow", unitType: "flat", pricePerUnit: 60),
+                        StopRecording.Service(id: "salt", name: "Salt", unitType: "flat", pricePerUnit: 25)]
+        var recording = StopRecording(services: services, zones: [])
+        recording.selectedIDs = ["salt"]
+        let perVisit = signed(h, .perVisit, price: "55", services: ["plow"])
+        #expect(recording.contractCharge(under: perVisit) == 0)                   // nothing it covers was done
+        #expect(recording.invoiceLines(under: perVisit).map(\.lineTotal) == [25])
+        recording.selectedIDs = ["plow"]
+        #expect(recording.contractCharge(under: signed(h, .season, price: "900", services: ["plow"])) == 0)
+        #expect(recording.contractCharge(under: nil) == 0)
+    }
+
+    // The list shows what each invoice will come to before tax.
+    @Test func billUnbilledWorkShowsTheDiscountedTotal() throws {
+        let h = try Harness(stopCount: 0)
+        h.client.defaultDiscountPercent = 10
+        _ = signed(h, .perVisit, price: "55", services: ["plow"])
+        _ = job(h, [("plow", 60), ("salt", 25)])
+        _ = job(h, [("mow", 100)])
+        let work = try #require(WorkBilling.unbilledWork(in: nil, operatorID: "op", in: h.context).first)
+        #expect(work.subtotal == 180)
+        #expect(work.total == 167.5)                                              // 10% of 125, not of 55
+        let invoice = try #require(WorkBilling.invoice(work, operatorID: "op", now: h.clock, in: h.context))
+        #expect(invoice.discountedTotal == work.total)
     }
 
     @Test func aContractPaymentIsNotDiscounted() throws {
@@ -165,6 +195,9 @@ struct DefaultDiscountTests {
         #expect(DocumentDraft.clientDiscountPercent(onScreen: 15, saved: 5, comped: false) == 15)
         #expect(DocumentDraft.clientDiscountPercent(onScreen: nil, saved: 5, comped: false) == 5)
         #expect(DocumentDraft.clientDiscountPercent(onScreen: 15, saved: 5, comped: true) == 0)
+        // The client page just turned Comped off, unsaved: the builder passes the page's switch.
+        let page = DocumentDraft.clientDiscountPercent(onScreen: 10, saved: 0, comped: false)
+        #expect(page == 10)
         #expect(DocumentDraft.clientDiscountPercent(onScreen: 150, saved: 0, comped: false) == 100)
         #expect(DocumentDraft.clientDiscountPercent(onScreen: -5, saved: 0, comped: false) == 0)
         #expect(DocumentDraft.clientDiscount(subtotal: -20, percent: 10) == 0)

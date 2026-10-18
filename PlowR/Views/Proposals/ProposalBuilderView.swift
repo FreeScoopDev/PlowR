@@ -9,8 +9,10 @@ struct ProposalBuilderView: View {
     /// The client page's Tax Exempt switch, saved or not: started from that
     /// page right after turning it on, the saved client still says no.
     var taxExempt: Bool?
-    /// The client page's Default Discount, saved or not, as with `taxExempt`.
+    /// The client page's Default Discount and Comped switch, saved or not,
+    /// as with `taxExempt`.
     var discountPercent: Double?
+    var comped: Bool?
     @Environment(\.modelContext) private var modelContext
     @Environment(\.access) private var access
     @Environment(\.dismiss) private var dismiss
@@ -407,7 +409,7 @@ struct ProposalBuilderView: View {
     /// The client's Default Discount, the starting discount (DocumentDraft).
     private var clientDiscountPercent: Double {
         DocumentDraft.clientDiscountPercent(onScreen: discountPercent, saved: client.defaultDiscountPercent,
-                                            comped: client.isComped)
+                                            comped: comped ?? client.isComped)
     }
 
     /// The estimate is the total of the document Save would make.
