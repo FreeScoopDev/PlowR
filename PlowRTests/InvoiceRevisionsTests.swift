@@ -1,0 +1,192 @@
+import Foundation
+import SwiftData
+import Testing
+@testable import PlowR
+
+/// One invoice revised on two devices before they synced: both revisions are
+/// live and what's owed counts twice. PlowR points to them (Dashboard, each
+/// revision's page) and never takes one back by itself; taking one back hands
+/// its work to the other.
+@MainActor
+struct InvoiceRevisionsTests {
+    typealias Harness = ActiveRouteStoreTests.Harness
+
+    private func invoice(_ h: Harness, total: Double, number: String) -> Proposal {
+        let invoice = Proposal(operatorID: "op", client: h.client)
+        invoice.invoiceNumber = number
+        invoice.invoiceSentAt = h.clock.addingTimeInterval(-86_400)
+        let item = ProposalLineItem(serviceName: "Clear", zoneLabel: "", quantity: 1, unitType: "flat", unitPrice: total)
+        h.context.insert(item)
+        h.context.insert(invoice)
+        invoice.lineItems = [item]
+        return invoice
+    }
+
+    /// What two devices leave after syncing: each revised the original (the
+    /// second `revise` stands in for the other device's), and the second
+    /// revision was renumbered (`resolveDuplicateNumbers`).
+    private func revisedOnTwoDevices(_ h: Harness, total: Double = 300)
+        throws -> (original: Proposal, first: Proposal, second: Proposal) {
+        let original = invoice(h, total: total, number: "INV-0042")
+        let first = ServiceLog.revise(original, client: h.client, now: h.clock, in: h.context)
+        let second = ServiceLog.revise(original, client: h.client, now: h.clock.addingTimeInterval(60), in: h.context)
+        second.createdAt = first.createdAt.addingTimeInterval(60)
+        try h.context.save()
+        return (original, first, second)
+    }
+
+    private func all(_ h: Harness) throws -> [Proposal] { try h.context.fetch(FetchDescriptor<Proposal>()) }
+
+    // MARK: Finding them
+
+    @Test func twoLiveRevisionsOfOneInvoiceAreFound() throws {
+        let h = try Harness(stopCount: 0)
+        let (original, first, second) = try revisedOnTwoDevices(h)
+        #expect(first.revisionOf == "INV-0042" && second.revisionOf == "INV-0042")
+        #expect(first.invoiceNumber != second.invoiceNumber)
+        let documents = try all(h)
+        // Owed twice: the reason for the warning.
+        #expect(Payments.owed(documents) == 600)
+        #expect(InvoiceRevisions.revisedTwice(documents, operatorID: "op").map(\.id) == [first.id])
+        #expect(InvoiceRevisions.otherRevision(of: first, among: documents)?.id == second.id)
+        #expect(InvoiceRevisions.otherRevision(of: second, among: documents)?.id == first.id)
+        #expect(InvoiceRevisions.hasOtherRevision(first, among: documents))
+        #expect(InvoiceRevisions.otherRevision(of: original, among: documents) == nil)   // void, not a revision
+        #expect(InvoiceRevisions.revisedTwice(documents, operatorID: "someone else").isEmpty)
+    }
+
+    /// Revising a revision makes a chain, one live at a time: not a double.
+    @Test func aChainOfRevisionsIsNotRevisedTwice() throws {
+        let h = try Harness(stopCount: 0)
+        let original = invoice(h, total: 300, number: "INV-0050")
+        let first = ServiceLog.revise(original, client: h.client, now: h.clock, in: h.context)
+        let second = ServiceLog.revise(first, client: h.client, now: h.clock, in: h.context)
+        let documents = try all(h)
+        #expect(second.revisionOf == first.invoiceNumber)
+        #expect(InvoiceRevisions.revisedTwice(documents, operatorID: "op").isEmpty)
+        #expect(!InvoiceRevisions.hasOtherRevision(second, among: documents))
+        #expect(Payments.owed(documents) == 300)
+    }
+
+    @Test func oneOfEachOriginalOldestFirst() throws {
+        let h = try Harness(stopCount: 0)
+        let (_, first, second) = try revisedOnTwoDevices(h)
+        let other = invoice(h, total: 80, number: "INV-0060")
+        let a = ServiceLog.revise(other, client: h.client, now: h.clock, in: h.context)
+        let b = ServiceLog.revise(other, client: h.client, now: h.clock, in: h.context)
+        a.createdAt = first.createdAt.addingTimeInterval(-3_600)
+        b.createdAt = second.createdAt.addingTimeInterval(3_600)
+        let found = InvoiceRevisions.revisedTwice(try all(h), operatorID: "op")
+        #expect(found.map(\.id) == [a.id, first.id])
+    }
+
+    /// Billed twice already reports a contract payment's two invoices.
+    @Test func aContractPaymentIsLeftToBilledTwice() throws {
+        let h = try Harness(stopCount: 0)
+        let (_, first, second) = try revisedOnTwoDevices(h)
+        for revision in [first, second] {
+            revision.contractID = UUID().uuidString
+            revision.installmentIndex = 1
+        }
+        second.contractID = first.contractID
+        let documents = try all(h)
+        #expect(InvoiceRevisions.revisedTwice(documents, operatorID: "op").isEmpty)
+        #expect(!InvoiceRevisions.hasOtherRevision(first, among: documents))
+        #expect(ContractInstallments.duplicates(documents, operatorID: "op").map(\.id) == [first.id])
+    }
+
+    // MARK: What it says
+
+    @Test func theDashboardNamesBothRevisions() throws {
+        let h = try Harness(stopCount: 0)
+        let (_, first, second) = try revisedOnTwoDevices(h)
+        let detail = InvoiceRevisions.dashboardDetail(for: first, among: try all(h))
+        #expect(detail == "\(h.client.name) INV-0042: revised on two devices as \(first.invoiceNumber) and \(second.invoiceNumber). Void one.")
+    }
+
+    @Test func theBannerSaysWhichToTakeBack() throws {
+        let h = try Harness(stopCount: 0)
+        let (_, first, second) = try revisedOnTwoDevices(h)
+        #expect(InvoiceRevisions.advice(for: first, other: second).hasSuffix("Delete one that wasn't sent (swipe it in Documents), or void one."))
+        #expect(InvoiceRevisions.advice(for: first, other: second).hasPrefix("\(second.invoiceNumber) is also a revision of INV-0042"))
+        Payments.record(100, method: "Check", receivedAt: h.clock, on: second, in: h.context, now: h.clock)
+        #expect(InvoiceRevisions.advice(for: first, other: second).hasSuffix("The other one has a payment: void this one."))
+        #expect(InvoiceRevisions.advice(for: second, other: first).hasSuffix("This one has a payment: void the other one."))
+    }
+
+    // MARK: Taking one back
+
+    /// Voiding one: the warning goes, what's owed counts once, and its work
+    /// goes to the other revision instead of back to billable.
+    @Test func voidingOneHandsItsWorkToTheOther() throws {
+        let h = try Harness(stopCount: 1)
+        let (_, first, second) = try revisedOnTwoDevices(h)
+        let visit = ScheduledVisit(operatorID: "op", clientID: h.client.id.uuidString, clientName: h.client.name,
+                                   clientAddress: h.client.address, scheduledDate: h.clock)
+        h.context.insert(visit)
+        let record = try #require(ServiceLog.complete(visit, among: [visit], in: h.context, now: h.clock))
+        // The second device's move won when they synced.
+        record.invoiceID = second.id.uuidString
+        visit.proposalID = second.id.uuidString
+
+        InvoiceRecords.void(second, note: "Revised twice", now: h.clock, in: h.context)
+        try h.context.save()
+        let documents = try all(h)
+        #expect(record.invoiceID == first.id.uuidString)
+        #expect(visit.proposalID == first.id.uuidString)
+        #expect(InvoiceRevisions.revisedTwice(documents, operatorID: "op").isEmpty)
+        #expect(!InvoiceRevisions.hasOtherRevision(first, among: documents))
+        #expect(Payments.owed(documents) == 300)
+    }
+
+    /// A plain void of the only live revision still frees its work.
+    @Test func voidingTheLastRevisionStillReleasesItsWork() throws {
+        let h = try Harness(stopCount: 1)
+        let (_, first, second) = try revisedOnTwoDevices(h)
+        let visit = ScheduledVisit(operatorID: "op", clientID: h.client.id.uuidString, clientName: h.client.name,
+                                   clientAddress: h.client.address, scheduledDate: h.clock)
+        h.context.insert(visit)
+        let record = try #require(ServiceLog.complete(visit, among: [visit], in: h.context, now: h.clock))
+        record.invoiceID = first.id.uuidString
+        InvoiceRecords.void(second, note: "Revised twice", now: h.clock, in: h.context)
+        InvoiceRecords.void(first, note: "Wrong client", now: h.clock, in: h.context)
+        #expect(record.invoiceID.isEmpty)
+    }
+
+    /// Deleting the unsent one whose number the original's void note names:
+    /// the original stays void (it used to come back, owed beside the other
+    /// revision), and the work goes to the other revision.
+    @Test func deletingOneKeepsTheOriginalVoid() throws {
+        let h = try Harness(stopCount: 1)
+        let (original, first, second) = try revisedOnTwoDevices(h)
+        // After syncing, the original's note names the first device's revision.
+        original.voidNote = InvoiceRecords.revisedNote(first.invoiceNumber)
+        let visit = ScheduledVisit(operatorID: "op", clientID: h.client.id.uuidString, clientName: h.client.name,
+                                   clientAddress: h.client.address, scheduledDate: h.clock)
+        h.context.insert(visit)
+        let record = try #require(ServiceLog.complete(visit, among: [visit], in: h.context, now: h.clock))
+        record.invoiceID = first.id.uuidString
+        visit.proposalID = first.id.uuidString
+        #expect(InvoiceRecords.canDelete(first))
+
+        ServiceLog.delete(first, in: h.context)
+        try h.context.save()
+        let documents = try all(h)
+        #expect(original.voidedAt != nil)
+        #expect(record.invoiceID == second.id.uuidString)
+        #expect(visit.proposalID == second.id.uuidString)
+        #expect(InvoiceRevisions.revisedTwice(documents, operatorID: "op").isEmpty)
+        #expect(Payments.owed(documents) == 300)
+    }
+
+    /// Deleting a lone revision still gives the original back, as before.
+    @Test func deletingALoneRevisionStillRestoresTheOriginal() throws {
+        let h = try Harness(stopCount: 0)
+        let original = invoice(h, total: 300, number: "INV-0070")
+        let revision = ServiceLog.revise(original, client: h.client, now: h.clock, in: h.context)
+        ServiceLog.delete(revision, in: h.context)
+        try h.context.save()
+        #expect(original.voidedAt == nil)
+        #expect(Payments.owed(try all(h)) == 300)
+    }
+}

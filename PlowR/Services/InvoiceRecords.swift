@@ -89,11 +89,19 @@ enum InvoiceRecords {
         // A revision's original: its payments, implied ones too, already went
         // to the revision (ServiceLog.movePayments).
         if releasesWork { recordImpliedPayment(of: invoice, onto: invoice, in: context) }
+        // Revised on two devices: the other revision still bills this work.
+        let otherRevision = releasesWork ? InvoiceRevisions.otherRevision(of: invoice, in: context) : nil
         invoice.voidedAt = now
         invoice.voidNote = note.trimmingCharacters(in: .whitespacesAndNewlines)
         // Money came in on it: its work stays billed to it, or billing it
         // again would charge for it twice (Revise moves both together).
         guard releasesWork, invoice.paymentsTotal <= Payments.tolerance else { return }
+        // Its work goes to the other revision, not back to billable, and a
+        // contract payment it billed stays made.
+        if let otherRevision {
+            ServiceLog.moveBilling(from: invoice, to: otherRevision, in: context)
+            return
+        }
         ServiceLog.releaseBilling(of: invoice, in: context)
         // The payment is free to invoice again, unless another copy still
         // bills it (made on two devices: ContractInstallments.hasDuplicate).
