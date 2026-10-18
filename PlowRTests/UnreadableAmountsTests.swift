@@ -56,6 +56,10 @@ struct UnreadableAmountsTests {
         unticked.selections = ["mow|0"]
         #expect(unticked.unreadableFields.isEmpty)
         #expect(draft(tax: "105").taxUnreadable && !draft(tax: "8.25").taxUnreadable)
+        // The draft's own region: a decimal comma is a price where one is written.
+        var german = draft(amount: "12,50", custom: "3,75", discount: "1,5")
+        german.locale = germany
+        #expect(german.unreadableFields.isEmpty)
     }
 
     @Test func theMessageSaysWhatToType() {
@@ -73,7 +77,7 @@ struct UnreadableAmountsTests {
                                                                        pricePerUnit: 60)], zones: [])
         recording.selectedIDs = ["plow"]
         #expect(recording.unreadableFields().isEmpty)
-        recording.typedPrices["plow"] = "1,250"
+        recording.typedPrices["plow"] = "1,2,3"                                     // unreadable in any region
         #expect(recording.unreadableFields() == ["Clearing"])
         recording.selectedIDs = []                                                // not ticked: not billed
         #expect(recording.unreadableFields().isEmpty)
@@ -128,6 +132,9 @@ struct UnreadableAmountsTests {
         #expect(edits.unreadableFields.isEmpty)
         edits.apply(to: doc)
         #expect(doc.discountAmount == 15 && doc.taxRate == 0)
+        // A stored rate this wouldn't read (from an older version), left alone, isn't flagged.
+        let untouched = DocumentEdits(discount: 0, taxRate: 150, dueDate: nil)
+        #expect(untouched.unreadableFields.isEmpty && !untouched.taxUnreadable && untouched.typedTaxRate == nil)
         _ = container
     }
 }
