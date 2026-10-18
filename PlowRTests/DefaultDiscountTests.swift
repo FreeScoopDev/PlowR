@@ -105,13 +105,12 @@ struct DefaultDiscountTests {
                         StopRecording.Service(id: "salt", name: "Salt", unitType: "flat", pricePerUnit: 25)]
         var recording = StopRecording(services: services, zones: [])
         recording.selectedIDs = ["plow", "salt"]
-        // The lines and the contract's price both from the recording, as the screen does.
-        let lines = recording.invoiceLines(under: contract)
-        #expect(lines.map(\.lineTotal) == [55, 25])
+        #expect(recording.invoiceLines(under: contract).map(\.lineTotal) == [55, 25])
         #expect(recording.contractCharge(under: contract) == 55)
         let record = job(h, [("plow", 60), ("salt", 25)])
-        let invoice = ServiceLog.invoice(record, lines: lines, contractCharge: recording.contractCharge(under: contract),
-                                         client: h.client, operatorID: "op", notes: "", now: h.clock, in: h.context)
+        // The screen's own call.
+        let invoice = try #require(ServiceLog.invoice(record, recording: recording, under: contract, client: h.client,
+                                                      operatorID: "op", notes: "", now: h.clock, in: h.context))
         #expect(invoice.discountAmount == 2.5)
         #expect(invoice.total == 77.5)
     }

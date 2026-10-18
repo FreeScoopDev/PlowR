@@ -359,6 +359,19 @@ enum ServiceLog {
         return record
     }
 
+    /// Record Services' invoice for `record`: `recording`'s lines under
+    /// `contract` (the one covering the stop), with that contract's own
+    /// price kept out of the client's discount. The screen calls only this,
+    /// so the lines and the price kept out can't disagree. nil: nothing to bill.
+    @discardableResult
+    static func invoice(_ record: ServiceRecord, recording: StopRecording, under contract: Contract?, client: Client,
+                        operatorID: String, notes: String, now: Date = .now, in context: ModelContext) -> Proposal? {
+        let lines = recording.invoiceLines(under: contract)
+        guard !lines.isEmpty else { return nil }
+        return invoice(record, lines: lines, contractCharge: recording.contractCharge(under: contract), client: client,
+                       operatorID: operatorID, notes: notes, now: now, in: context)
+    }
+
     /// A draft invoice for `record`'s work, from Record Services' lines, and
     /// the record marked as billed on it. The record's visit, if it has one,
     /// is linked to the invoice too, as Schedule → Invoice links them, so the
