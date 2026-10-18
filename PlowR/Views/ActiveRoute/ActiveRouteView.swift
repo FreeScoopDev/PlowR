@@ -311,11 +311,20 @@ struct ActiveRouteView: View {
         // No GPS to fetch weather for (a Mac, location off): the stops' own.
         // Keyed by stop only to retry a fetch that failed.
         .task(id: currentStop?.id) { await fetchWeatherWithoutGPS() }
-        .onChange(of: SiteMonitor.shared.lastExit) { _, exit in
-            guard let exit,
-                  let stop = currentStop,
-                  stop.id.uuidString == exit.stopID else { return }
-            triggerNotifyPrompt()
+        // Leaving the stop's area only offers the text, once the phone has
+        // stayed out (ExitPrompt); it never completes the stop. A newer exit
+        // restarts the wait.
+        .task(id: SiteMonitor.shared.lastExit) {
+            guard let exit = SiteMonitor.shared.lastExit else { return }
+            let wait = ExitPrompt.delay - Date().timeIntervalSince(exit.time)
+            if wait > 0 {
+                do { try await Task.sleep(for: .seconds(wait)) } catch { return }
+            }
+            guard ExitPrompt.shouldOffer(exitStopID: exit.stopID, exitedAt: exit.time,
+                                         currentStopID: currentStop?.id, site: store.site,
+                                         hasNextStop: nextStop != nil, canText: !shouldSkipNextNotify,
+                                         isPresentingSomething: isPresentingSomething, now: Date()) else { return }
+            openNotifyPrompt()
         }
         // Siri's "Notify next client", once nothing else is up.
         .onChange(of: RouteSessionManager.shared.textRequest) { _, _ in openRequestedText() }
@@ -955,6 +964,8 @@ struct ActiveRouteView: View {
         }
     }
 
+    /// The Complete button only: a tap. Leaving the stop's area goes to
+    /// `openNotifyPrompt` instead, and never completes a stop.
     private func triggerNotifyPrompt() {
         // Nothing to notify on the last stop or once every stop is done (it
         // used to open an empty sheet then).
