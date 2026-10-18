@@ -46,6 +46,33 @@ enum InvoiceRecords {
     /// Can be voided: an invoice not already void.
     static func canVoid(_ document: Proposal) -> Bool { document.isInvoice && document.voidedAt == nil }
 
+    /// Convert to Invoice is offered: a proposal no contract was made from.
+    /// Made into a contract, it's billed by the contract's payments.
+    static func canConvert(_ proposal: Proposal, among contracts: [Contract]) -> Bool {
+        !proposal.isInvoice && Contracts.madeFrom(proposal, among: contracts) == nil
+    }
+
+    /// Converts a proposal to an invoice: the next number, due in 30 days,
+    /// and a visit's proposal bills the visit's job. False, changing nothing,
+    /// for an invoice already or a proposal a contract was made from (it
+    /// looks the contracts up itself, so no caller skips that). The one place
+    /// for it: the Documents list had its own copy that only numbered it, so
+    /// a contract's proposal could be billed twice and a visit's job stayed
+    /// Not Billed, offered again by Bill Unbilled Work.
+    @discardableResult
+    static func convertToInvoice(_ proposal: Proposal, now: Date = .now, in context: ModelContext) -> Bool {
+        let source = proposal.id.uuidString
+        let contracts = (try? context.fetch(FetchDescriptor<Contract>(
+            predicate: #Predicate { $0.sourceProposalID == source }))) ?? []
+        guard canConvert(proposal, among: contracts) else { return false }
+        proposal.invoiceNumber = InvoiceNumbering.next(operatorID: proposal.operatorID, in: context)
+        proposal.invoiceDueDate = now.addingTimeInterval(30 * 86400)
+        if !proposal.visitID.isEmpty {
+            ServiceLog.markVisitInvoiced(visitID: proposal.visitID, invoice: proposal, in: context)
+        }
+        return true
+    }
+
     /// The note a revision leaves on the invoice it replaces.
     static func revisedNote(_ revisionNumber: String) -> String { "Revised as \(revisionNumber)" }
 
