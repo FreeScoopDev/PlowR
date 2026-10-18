@@ -162,7 +162,7 @@ struct HelpGuideTests {
     /// guide's and sections' own copy included. Listing snow removal among
     /// the trades is fine. The words follow the guard's COPY and ICON patterns
     /// in .github/workflows/guards.yml: a word added there belongs here too.
-    private static let snow = /(Start|Begin|End|Finish|Next|Resume|Complete) (Plow|Snow)|Plow(ing|ed)? (Route|Stop|Job|Complete|History|Day|Done)|Snow (Route|Stop|Job|Day|Done)|\b(Plowed|Plowing|Plow)\b|Snow Plowing|Salting|Shoveling|Roof Snow|snowflake|\.snow\b|❄/
+    private static let snow = /(Start|Begin|End|Finish|Next|Resume|Complete) (Plow|Snow)|Plow(ing|ed)? (Route|Stop|Job|Complete|History|Day|Done)|Snow (Route|Stop|Job|Day|Done)|\b(Plowed|Plowing|Plow)\b|Snow Plowing|Salting|Shoveling|Roof Snow|snowflake|\.snow\b/
 
     private static func snowCopy(in guide: [String: Any]) -> [String] {
         var copy = strings(in: guide, skipping: ["sections"])
@@ -172,7 +172,9 @@ struct HelpGuideTests {
                 copy += strings(in: topic)
             }
         }
-        return copy.filter { $0.firstMatch(of: snow) != nil }
+        // The snowflake by its scalar: "❄️" is one character with its
+        // variation selector, so a regex for "❄" never matches it.
+        return copy.filter { $0.firstMatch(of: snow) != nil || $0.unicodeScalars.contains("\u{2744}") }
     }
 
     @Test func sharedCopyAvoidsSnowWording() throws {
