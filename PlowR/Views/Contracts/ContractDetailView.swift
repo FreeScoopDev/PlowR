@@ -228,7 +228,7 @@ struct ContractDetailView: View {
             } header: {
                 Text("Payments")
             } footer: {
-                Text("On a payment's date, Make Invoice makes its draft, ready for you to send. Nothing is sent by itself.")
+                Text(paymentsNote)
             }
             .listRowBackground(PlowRColor.surface)
         }
@@ -247,6 +247,15 @@ struct ContractDetailView: View {
                 StatusChip(invoice.invoiceStatus.rawValue, status: invoice.invoiceStatus.chipStatus)
             }
         }
+    }
+
+    /// The Payments footer: amounts are before tax, and the tax each
+    /// invoice adds (Contracts.taxRate), as its PDF says.
+    private var paymentsNote: String {
+        let profile = BusinessProfiles.current(allProfiles, operatorID: contract.operatorID)
+        let rate = Contracts.taxRate(of: contract, defaultRate: profile?.defaultTaxRate)
+        let tax = rate > 0 ? " Amounts are before tax: each invoice adds \(Proposal.percentText(rate))% tax." : ""
+        return "On a payment's date, Make Invoice makes its draft, ready for you to send. Nothing is sent by itself.\(tax)"
     }
 
     /// A payment with no invoice: still to come, or never made (the

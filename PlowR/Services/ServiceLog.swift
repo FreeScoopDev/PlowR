@@ -424,8 +424,10 @@ enum ServiceLog {
     /// The client's Default Discount comes off, as on any new document, but
     /// only off `discountableSubtotal` (nil: every item): a contract's own
     /// price (an installment, a per-visit charge) is the one it agreed.
+    /// `taxRate` (a contract's payment, Contracts.taxRate) replaces the
+    /// business's rate and the client's exemption, already applied.
     static func newDraftInvoice(for client: Client, items: [ProposalLineItem], operatorID: String,
-                                notes: String = "", discountableSubtotal: Double? = nil,
+                                notes: String = "", discountableSubtotal: Double? = nil, taxRate: Double? = nil,
                                 now: Date, in context: ModelContext) -> Proposal {
         let proposal = Proposal(operatorID: operatorID, client: client)
         proposal.invoiceNumber = InvoiceNumbering.next(operatorID: operatorID, in: context)
@@ -434,7 +436,7 @@ enum ServiceLog {
         proposal.disclaimer = profile?.defaultDisclaimer ?? ""
         // The business's sales tax, as on every new document, unless the
         // client is tax exempt.
-        proposal.taxRate = DocumentDraft.startingTaxRate(rate: profile?.defaultTaxRate, taxExempt: client.taxExempt)
+        proposal.taxRate = taxRate ?? DocumentDraft.startingTaxRate(rate: profile?.defaultTaxRate, taxExempt: client.taxExempt)
         proposal.discountAmount = clientDiscount(
             for: client, discountable: discountableSubtotal ?? items.reduce(0) { $0 + $1.lineTotal })
         if !notes.isEmpty { proposal.notes = notes }

@@ -44,7 +44,7 @@ struct ContractRenewalTests {
         let draft = Contracts.draft(from: proposal, client: h.client, catalog: services, now: h.clock)
         #expect(draft.serviceIDs == [services[0].id.uuidString])                  // by name, this business's
         #expect(draft.pricing == .season && draft.price == 900)
-        proposal.taxRate = 8                                                      // before tax: payments carry none
+        proposal.taxRate = 8                                                      // the price is before tax
         #expect(Contracts.draft(from: proposal, client: h.client, catalog: services, now: h.clock).price == 900)
         h.client.expectedServiceIDs = ["usual"]
         let unmatched = Proposal(operatorID: "op", client: h.client)
@@ -181,7 +181,7 @@ struct ContractRenewalTests {
         draft.triggerInches = 2
         draft.notes = "Driveway and front walk."
         let season = signed(h, draft)
-        let sections = ContractPDF.sections(of: season, client: h.client, catalog: services)
+        let sections = ContractPDF.sections(of: season, client: h.client, catalog: services, defaultTaxRate: nil)
         let byHeading = Dictionary(uniqueKeysWithValues: sections.map { ($0.heading, $0.lines) })
         #expect(byHeading["Client"]?.first == h.client.name)
         #expect(byHeading["Services Covered"] == ["Plowing"])

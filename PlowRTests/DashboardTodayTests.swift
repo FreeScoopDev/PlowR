@@ -116,6 +116,6 @@ struct DashboardLeadStateTests {
         let due = (0..<3).map {
             (contract: contract, installment: ContractInstallments.Installment(index: $0 + 1, date: now, amount: 0.1))
         }
-        #expect(ContractInstallments.amountDue(due) == 0.3)
+        #expect(ContractInstallments.amountDue(due, defaultTaxRate: nil) == 0.3)
     }
 }
