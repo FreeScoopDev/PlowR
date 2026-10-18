@@ -90,6 +90,14 @@ struct ProposalBuilderView: View {
     @ViewBuilder private var editor: some View {
         NavigationStack {
             Form {
+                if case let fields = draft.unreadableFields, !fields.isEmpty {
+                    Section {
+                        Label(DocumentDraft.unreadableMessage(fields, taxUnreadable: draft.taxUnreadable),
+                              systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(PlowRColor.Status.overdue.text)
+                    }
+                    .listRowBackground(PlowRColor.surface)
+                }
                 clientSection
                 servicesSection
                 customItemsSection
@@ -122,7 +130,7 @@ struct ProposalBuilderView: View {
                         Text(isInvoiceMode ? "Save Invoice" : "Save")
                             .fontWeight(.semibold)
                     }
-                    .disabled(!hasContent)
+                    .disabled(!hasContent || !draft.unreadableFields.isEmpty)
                 }
             }
             .sheet(isPresented: $showingPreview) {

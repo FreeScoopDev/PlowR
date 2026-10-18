@@ -225,7 +225,7 @@ struct StopServiceRecorderView: View {
                             .disabled(invoiceLines.isEmpty)
                         }
                     }
-                    .disabled(client == nil || !hasAnythingToSave)
+                    .disabled(client == nil || !hasAnythingToSave || !recording.unreadableFields(locked: servicesLocked).isEmpty)
                 }
             }
             .sheet(isPresented: $showingCamera) {
