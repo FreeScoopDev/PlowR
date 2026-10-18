@@ -1,6 +1,6 @@
 # Help page screenshots (PlowR)
 
-`docs/help.html` has 23 screenshot slots. Each is a `<div class="shot" data-shot="ID" data-alt="…">` placeholder. This file lists them so a session on a Mac can take them in one pass. It is excluded from the website (`docs/_config.yml`).
+`docs/help.html` is made from `PlowR/Help/HelpGuide.json` by `scripts/help_guide.py`: each topic's `shots` list names its screenshots (`file` in `docs/help/`, `alt`). This file lists them so a session on a Mac can take them in one pass. It is excluded from the website (`docs/_config.yml`).
 
 ## How to take them
 
@@ -9,8 +9,8 @@
 - **Status bar:** `xcrun simctl status_bar booted override --time 9:41 --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3`
 - **Capture:** `xcrun simctl io booted screenshot raw-ID.png`
 - **Shrink** (keeps the page light): `sips -Z 1300 -s format jpeg -s formatOptions 80 raw-ID.png --out docs/help/ID.jpg`
-- **Place it:** replace the slot `<div class="shot" data-shot="ID" data-alt="ALT">…</div>` with `<img class="shot" src="help/ID.jpg" alt="ALT" loading="lazy">`, using the slot's own `data-alt` text as `alt`.
-- **Done when** `grep -c 'data-shot=' docs/help.html` prints 0 and every image loads. Check the page at phone width before opening the pull request.
+- **Place it:** add `{ "file": "ID.jpg", "alt": "ALT" }` to the topic's `shots` in `PlowR/Help/HelpGuide.json`, then run `python3 scripts/help_guide.py`. Never edit `docs/help.html` itself: `HelpGuideTests` fails a page that isn't what the JSON makes.
+- **Done when** every image loads and `python3 scripts/help_guide.py --check` passes. Check the page at phone width before opening the pull request.
 - Show no real names, phone numbers or addresses: demo data only.
 
 ## The list

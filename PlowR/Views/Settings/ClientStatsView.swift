@@ -99,13 +99,13 @@ struct ClientStatsView: View {
                     label: "Visits"
                 )
                 StatTile(
-                    value: totalRevenue == 0 ? "$0" : totalRevenue.formatted(.currency(code: "USD").precision(.fractionLength(0))),
+                    value: Money.whole(totalRevenue),
                     label: "Revenue",
                     status: .done
                 )
                 // Outstanding is amber (owed) everywhere; red is for overdue.
                 StatTile(
-                    value: totalOutstanding == 0 ? "$0" : totalOutstanding.formatted(.currency(code: "USD").precision(.fractionLength(0))),
+                    value: Money.whole(totalOutstanding),
                     label: "Outstanding",
                     status: totalOutstanding > 0 ? .owed : nil
                 )
@@ -140,12 +140,12 @@ struct ClientStatsView: View {
                         Spacer()
                         VStack(alignment: .trailing, spacing: 1) {
                             if bucket.revenue > 0 {
-                                Text(bucket.revenue, format: .currency(code: "USD").precision(.fractionLength(0)))
+                                Text(Money.whole(bucket.revenue))
                                     .font(.caption.weight(.semibold))
                                     .foregroundStyle(PlowRColor.Status.done.text)
                             }
                             if bucket.outstanding > 0 {
-                                Text(bucket.outstanding, format: .currency(code: "USD").precision(.fractionLength(0)))
+                                Text(Money.whole(bucket.outstanding))
                                     .font(.caption)
                                     .foregroundStyle(PlowRColor.Status.owed.text)
                             }
@@ -254,7 +254,7 @@ struct ClientStatsView: View {
             }
             if balance > 0 {
                 Label(
-                    balance.formatted(.currency(code: "USD")),
+                    Money.text(balance),
                     systemImage: "exclamationmark.circle.fill"
                 )
                 .font(.caption.weight(.medium))

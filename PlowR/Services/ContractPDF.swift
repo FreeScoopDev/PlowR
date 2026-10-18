@@ -38,9 +38,9 @@ enum ContractPDF {
         sections.append(Section(heading: "Services Covered", lines: services.isEmpty ? ["As agreed"] : services))
         let rate = Contracts.taxRate(of: contract, defaultRate: defaultTaxRate)
         func amount(_ value: Double) -> String {
-            let pretax = value.formatted(.currency(code: "USD"))
+            let pretax = Money.text(value)
             guard rate > 0 else { return pretax }
-            let billed = Contracts.billed(value, taxRate: rate).formatted(.currency(code: "USD"))
+            let billed = Money.text(Contracts.billed(value, taxRate: rate))
             return "\(pretax) + \(Proposal.percentText(rate))% tax = \(billed)"
         }
         var price = [Contracts.priceSummary(of: contract) + (rate > 0 ? ", plus tax" : "")]

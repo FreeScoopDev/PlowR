@@ -281,6 +281,7 @@ nonisolated enum PlowRSymbol: String, CaseIterable {
     case pro = "star.circle.fill"
     case warning = "exclamationmark.triangle.fill"
     case serviceReport = "checkmark.seal"
+    case help = "questionmark.circle"
 
     /// The name, for `Image(systemName:)` and `Label(_:systemImage:)`.
     var name: String { rawValue }

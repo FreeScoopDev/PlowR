@@ -101,9 +101,4 @@ enum SeasonReport {
                            .map { Month(start: $0.start, received: $0.amount) },
                        clients: rows)
     }
-
-    /// Money as the report prints it: to the cent, with thousands separators.
-    static func money(_ amount: Double, locale: Locale = Locale(identifier: "en_US")) -> String {
-        amount.formatted(.currency(code: "USD").locale(locale))
-    }
 }

@@ -15,6 +15,7 @@ struct RouteDetailView: View {
     @Query private var allChecks: [TriggerCheck]
 
     @State private var showingEditRoute = false
+    @State private var showingHelp = false
     @State private var showingOptimizeConfirm = false
     @State private var isOptimizing = false
     @State private var editingStop: RouteStop?
@@ -149,6 +150,9 @@ struct RouteDetailView: View {
                         Label("Message All Clients", systemImage: "bubble.left.and.bubble.right")
                     }
                     .disabled(!canMessage)
+                    Button { showingHelp = true } label: {
+                        Label("Help", systemImage: PlowRSymbol.help.name)
+                    }
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
@@ -193,6 +197,9 @@ struct RouteDetailView: View {
         }
         .sheet(isPresented: $showingEditRoute) {
             EditRouteView(route: route)
+        }
+        .sheet(isPresented: $showingHelp) {
+            HelpTopicsSheet(screen: .routeDetail)
         }
         .sheet(isPresented: $showingMessageAll) {
             // Today's clients: a skipped one mustn't be told "we'll be there today".

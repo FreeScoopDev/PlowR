@@ -6,7 +6,7 @@ struct BalanceDueCaption: View {
 
     var body: some View {
         if document.isPartlyPaid {
-            Text("\(document.balanceDue.formatted(.currency(code: "USD"))) due")
+            Text("\(Money.text(document.balanceDue)) due")
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(PlowRColor.Status.owed.text)
         }

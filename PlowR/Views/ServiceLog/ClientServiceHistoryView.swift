@@ -46,7 +46,7 @@ struct ClientServiceHistoryView: View {
                 Section {
                     LabeledContent("Jobs", value: "\(records.count)")
                     LabeledContent("Not Billed Yet") {
-                        Text(unbilled, format: .currency(code: "USD"))
+                        Text(Money.text(unbilled))
                             .foregroundStyle(unbilled > 0 ? PlowRColor.Status.owed.text : PlowRColor.inkSecondary)
                     }
                     if unbilled > 0 {
@@ -123,7 +123,7 @@ struct ServiceRecordRow: View {
                 Text(record.performedAt, format: .dateTime.month(.abbreviated).day().year())
                     .font(.subheadline.weight(.semibold))
                 Spacer()
-                Text(status == .covered ? ServiceLog.total(of: record) : charged, format: .currency(code: "USD"))
+                Text(Money.text(status == .covered ? ServiceLog.total(of: record) : charged))
                     .font(.subheadline)
                     .foregroundStyle(record.isBillable && status != .covered ? .primary : .secondary)
             }

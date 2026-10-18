@@ -244,7 +244,7 @@ struct ContractDetailView: View {
             Spacer()
             // Once invoiced, the bill (with its tax); before, the price
             // (the footer says the tax each invoice adds).
-            Text(invoice?.total ?? installment.amount, format: .currency(code: "USD"))
+            Text(Money.text(invoice?.total ?? installment.amount))
             if let invoice {
                 StatusChip(invoice.invoiceStatus.rawValue, status: invoice.invoiceStatus.chipStatus)
             }

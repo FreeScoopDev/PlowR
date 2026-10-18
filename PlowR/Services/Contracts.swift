@@ -83,7 +83,7 @@ enum Contracts {
     /// Its price in a line: "$900 season, 3 payments", "$55 per visit",
     /// "$160 a month".
     static func priceSummary(of contract: Contract) -> String {
-        let price = contract.price.formatted(.currency(code: "USD"))
+        let price = Money.text(contract.price)
         switch pricing(of: contract) {
         case .season:
             return contract.installments > 1 ? "\(price) season, \(contract.installments) payments" : "\(price) season"
