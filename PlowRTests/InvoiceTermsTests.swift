@@ -32,7 +32,8 @@ struct InvoiceTermsTests {
         // Noon, so the day still reads the same a few time zones away.
         #expect(calendar.component(.hour, from: afternoon) == 12)
         // Across the spring clock change too.
-        #expect(day(InvoiceTerms.dueDate(from: date(2027, 2, 20, 9), calendar: calendar))
+        // (+720 hours from 23:30 would be 00:30 on Mar 23.)
+        #expect(day(InvoiceTerms.dueDate(from: date(2027, 2, 20, 23, 30), calendar: calendar))
                 == DateComponents(year: 2027, month: 3, day: 22))
     }
 

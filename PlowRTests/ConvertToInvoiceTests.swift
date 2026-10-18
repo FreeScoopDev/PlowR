@@ -28,7 +28,7 @@ struct ConvertToInvoiceTests {
         #expect(InvoiceRecords.convertToInvoice(proposal, now: h.clock, in: h.context))
         #expect(proposal.isInvoice)
         #expect(proposal.invoiceNumber == "INV-0001")
-        #expect(proposal.invoiceDueDate == InvoiceTerms.dueDate(from: h.clock))   // unchanged rule
+        #expect(proposal.invoiceDueDate == InvoiceTerms.dueDate(from: h.clock))   // the one due-date rule
     }
 
     // The next number in this business's own sequence: another business's

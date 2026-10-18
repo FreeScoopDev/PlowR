@@ -123,11 +123,15 @@ final class Proposal {
         }
     }
 
-    var invoiceStatus: InvoiceStatus {
+    var invoiceStatus: InvoiceStatus { invoiceStatus(now: Date()) }
+
+    /// The status on `now`'s day: overdue from the day after the due date (InvoiceTerms).
+    func invoiceStatus(now: Date, calendar: Calendar = .current) -> InvoiceStatus {
         guard isInvoice else { return .proposal }
         if voidedAt != nil { return .void }
         if invoicePaidAt != nil { return .paid }
-        if let due = invoiceDueDate, InvoiceTerms.isPastDue(due, now: Date()), invoiceSentAt != nil { return .overdue }
+        if let due = invoiceDueDate, InvoiceTerms.isPastDue(due, now: now, calendar: calendar),
+           invoiceSentAt != nil { return .overdue }
         if invoiceSentAt != nil { return .sent }
         return .draft
     }

@@ -27,6 +27,30 @@ struct MoneyOwedTests {
         return invoice
     }
 
+    // Late by calendar day: due earlier today isn't late, due late last night is.
+    @Test func dueEarlierTodayIsNotLate() throws {
+        let h = try Harness(stopCount: 0)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "America/New_York") ?? .current
+        func on(_ d: Int, _ hour: Int, _ minute: Int = 0) -> Date {
+            calendar.date(from: DateComponents(year: 2027, month: 1, day: d, hour: hour, minute: minute)) ?? .distantPast
+        }
+        let now = on(15, 15)
+        let today = invoice(h, total: 10, dueDaysAgo: nil)
+        today.invoiceDueDate = on(15, 0, 5)
+        #expect(MoneyOwed.age(of: today, now: now, calendar: calendar) == .notDue)
+        #expect(today.invoiceStatus(now: now, calendar: calendar) == .sent)
+        let yesterday = invoice(h, total: 10, dueDaysAgo: nil)
+        yesterday.invoiceDueDate = on(14, 23, 59)
+        #expect(MoneyOwed.age(of: yesterday, now: now, calendar: calendar) == .upTo30)
+        #expect(yesterday.invoiceStatus(now: now, calendar: calendar) == .overdue)
+        // The reminder text says so too (the property reads today's date).
+        today.invoiceDueDate = Calendar.current.startOfDay(for: .now)
+        #expect(today.invoiceStatus == .sent && today.reminderMessage().contains("outstanding"))
+        today.invoiceDueDate = Calendar.current.startOfDay(for: .now).addingTimeInterval(-1)
+        #expect(today.invoiceStatus == .overdue && today.reminderMessage().contains("overdue"))
+    }
+
     @Test func lateCountsFromTheDueDate() throws {
         let h = try Harness(stopCount: 0)
         func age(_ days: Double?, sent: Bool = true) -> MoneyOwed.Age {
