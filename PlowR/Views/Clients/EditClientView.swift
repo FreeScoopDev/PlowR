@@ -770,14 +770,14 @@ struct EditClientView: View {
                 }
                 if totalRevenuePaid > 0 {
                     LabeledContent("Revenue Collected") {
-                        Text(totalRevenuePaid, format: .currency(code: "USD"))
+                        Text(Money.text(totalRevenuePaid))
                             .foregroundStyle(PlowRColor.Status.done.text)
                     }
                 }
             }
             if outstandingBalance > 0 {
                 LabeledContent("Outstanding Balance") {
-                    Text(outstandingBalance, format: .currency(code: "USD"))
+                    Text(Money.text(outstandingBalance))
                         .foregroundStyle(PlowRColor.Status.owed.text)        // outstanding, as everywhere
                         .fontWeight(.semibold)
                 }
@@ -1049,7 +1049,7 @@ struct EditClientView: View {
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 6) {
-                Text(String(format: "$%.2f", document.total))
+                Text(Money.text(document.total))
                     .font(.subheadline)
                     .fontWeight(.semibold)
                 BalanceDueCaption(document: document)

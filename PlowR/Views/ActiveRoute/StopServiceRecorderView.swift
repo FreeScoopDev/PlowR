@@ -128,7 +128,7 @@ struct StopServiceRecorderView: View {
         case .season, .monthly:
             "The services it covers aren't billed by the visit, and aren't put on an invoice from here. Others are billed as extras."
         case .perVisit:
-            "The services it covers are billed at \(contract.price.formatted(.currency(code: "USD"))) a visit, here and in Bill Unbilled Work."
+            "The services it covers are billed at \(Money.text(contract.price)) a visit, here and in Bill Unbilled Work."
         }
     }
 

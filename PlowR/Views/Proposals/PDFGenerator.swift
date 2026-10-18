@@ -28,7 +28,7 @@ struct PDFGenerator {
         UIFont(name: "GillSans", size: size)
             ?? .systemFont(ofSize: size, weight: .regular)
     }
-    private static func labelFont(_ size: CGFloat) -> UIFont {
+    static func labelFont(_ size: CGFloat) -> UIFont {
         UIFont(name: "GillSans-SemiBold", size: size)
             ?? UIFont(name: "GillSans-Bold", size: size)
             ?? .systemFont(ofSize: size, weight: .semibold)
@@ -37,7 +37,7 @@ struct PDFGenerator {
         UIFont(name: "Verdana", size: size)
             ?? .systemFont(ofSize: size)
     }
-    private static func bodyBoldFont(_ size: CGFloat) -> UIFont {
+    static func bodyBoldFont(_ size: CGFloat) -> UIFont {
         UIFont(name: "Verdana-Bold", size: size)
             ?? .systemFont(ofSize: size, weight: .semibold)
     }
@@ -544,7 +544,7 @@ struct PDFGenerator {
             }
             drawText(qtyStr, x: margin + c1 + c2, y: rY, width: c3,
                      font: dataFont, color: inkMid, alignment: .right)
-            drawText(String(format: "$%.2f", InvoiceLines.roundedToCent(item.lineTotal)),
+            drawText(Money.text(item.lineTotal),
                      x: margin + c1 + c2 + c3, y: rY, width: c4 - 4,
                      font: nameFont, color: ink, alignment: .right)
             curY += rowH
@@ -574,15 +574,24 @@ struct PDFGenerator {
 
     // MARK: - Totals
 
+    /// The totals block's columns, from the left of the content: the value
+    /// column fits "$999,999.99" in the bold total, the label column
+    /// "PAID · BALANCE DUE". (At 17%, a total from $10,000 up wrapped once
+    /// amounts had thousands separators.)
+    static func totalsColumns(contentW: CGFloat) -> (labelX: CGFloat, labelW: CGFloat, valueW: CGFloat) {
+        (contentW * 0.50, contentW * 0.28, contentW * 0.22)
+    }
+
     @discardableResult
     private static func drawTotals(
         proposal: Proposal, isInvoice: Bool,
         contentW: CGFloat, margin: CGFloat, y: CGFloat, accent: UIColor
     ) -> CGFloat {
         var curY = y + 10
-        let lX = margin + contentW * 0.54
-        let lW = contentW * 0.29
-        let vW = contentW * 0.17
+        let columns = totalsColumns(contentW: contentW)
+        let lX = margin + columns.labelX
+        let lW = columns.labelW
+        let vW = columns.valueW
         let vX = margin + contentW - vW
 
         if proposal.discountAmount > 0 || proposal.taxRate > 0 {
@@ -628,7 +637,7 @@ struct PDFGenerator {
             curY += 20
             drawText("PAID · BALANCE DUE", x: lX, y: curY, width: lW,
                      font: labelFont(10), color: accent, kern: 1.5, alignment: .right)
-            drawText(String(format: "$%.2f", proposal.balanceDue), x: vX, y: curY, width: vW,
+            drawText(Money.text(proposal.balanceDue), x: vX, y: curY, width: vW,
                      font: bodyBoldFont(14), color: ink, alignment: .right)
             return curY + 24
         }
@@ -641,7 +650,7 @@ struct PDFGenerator {
             curY += 20
             drawText("BALANCE DUE", x: lX, y: curY, width: lW,
                      font: labelFont(10), color: accent, kern: 1.5, alignment: .right)
-            drawText(String(format: "$%.2f", proposal.balanceDue), x: vX, y: curY, width: vW,
+            drawText(Money.text(proposal.balanceDue), x: vX, y: curY, width: vW,
                      font: bodyBoldFont(14), color: ink, alignment: .right)
             return curY + 24
         }
@@ -649,7 +658,7 @@ struct PDFGenerator {
         let totalLabel = isInvoice ? "TOTAL DUE" : "TOTAL"
         drawText(totalLabel, x: lX, y: curY, width: lW,
                  font: labelFont(10), color: accent, kern: 1.5, alignment: .right)
-        drawText(String(format: "$%.2f", proposal.total), x: vX, y: curY, width: vW,
+        drawText(Money.text(proposal.total), x: vX, y: curY, width: vW,
                  font: bodyBoldFont(14), color: ink, alignment: .right)
         return curY + 24
     }
@@ -661,8 +670,8 @@ struct PDFGenerator {
     ) {
         drawText(label, x: lX, y: y, width: lW, font: bodyFont(11), color: inkMid, alignment: .right)
         let valStr = negate
-            ? String(format: "−$%.2f", abs(value))
-            : String(format: "$%.2f", value)
+            ? Money.deducted(value)
+            : Money.text(value)
         drawText(valStr, x: vX, y: y, width: vW, font: bodyFont(11), color: inkDark, alignment: .right)
     }
 
@@ -908,9 +917,9 @@ struct PDFGenerator {
         let metrics: [(String, String, UIColor)] = [
             ("CLIENTS",   "\(figures.clientCount)", accent),
             ("VISITS",    "\(figures.visits)",      accent),
-            ("COLLECTED", SeasonReport.money(figures.collected), UIColor.systemGreen),
+            ("COLLECTED", Money.text(figures.collected), UIColor.systemGreen),
             // Owed today, whatever the period: it isn't a figure of the past.
-            ("OWED NOW",  SeasonReport.money(figures.owedNow), figures.owedNow > 0 ? UIColor.systemRed : inkMid),
+            ("OWED NOW",  Money.text(figures.owedNow), figures.owedNow > 0 ? UIColor.systemRed : inkMid),
         ]
         for (i, (label, value, color)) in metrics.enumerated() {
             let x = margin + CGFloat(i) * colW
@@ -965,7 +974,7 @@ struct PDFGenerator {
             }
             drawText(month.start.formatted(.dateTime.month(.abbreviated).year()),
                      x: margin, y: curY, width: c1, font: bodyFont(10.5), color: ink)
-            drawText(SeasonReport.money(month.received), x: margin + c1, y: curY, width: c2, font: bodyFont(10.5),
+            drawText(Money.text(month.received), x: margin + c1, y: curY, width: c2, font: bodyFont(10.5),
                      color: UIColor.systemGreen, alignment: .right)
             curY += 17
             drawHRule(x: margin, y: curY, width: contentW, weight: 0.4, color: ruleLight)
@@ -1018,7 +1027,7 @@ struct PDFGenerator {
                 curY = margin
             }
             let lastStr = row.lastService.map { dateFmt.string(from: $0) } ?? "—"
-            let collStr = row.collected > 0 ? SeasonReport.money(row.collected) : "—"
+            let collStr = row.collected > 0 ? Money.text(row.collected) : "—"
             drawText(row.name, x: margin, y: curY, width: c1,
                      font: bodyFont(10.5), color: ink, singleLine: true)
             drawText("\(row.visits)", x: margin + c1, y: curY, width: c2,

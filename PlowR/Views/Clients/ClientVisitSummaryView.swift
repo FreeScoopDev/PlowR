@@ -84,14 +84,14 @@ struct ClientVisitSummaryView: View {
         Section("Invoices") {
             if outstanding > 0 {
                 LabeledContent("Outstanding") {
-                    Text(outstanding, format: .currency(code: "USD"))
+                    Text(Money.text(outstanding))
                         .foregroundStyle(PlowRColor.Status.owed.text)        // outstanding, as everywhere
                         .fontWeight(.semibold)
                 }
             }
             if paid > 0 {
                 LabeledContent("Total Paid") {
-                    Text(paid, format: .currency(code: "USD"))
+                    Text(Money.text(paid))
                         .foregroundStyle(PlowRColor.Status.done.text)
                 }
             }

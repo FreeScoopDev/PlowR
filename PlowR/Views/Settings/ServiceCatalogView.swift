@@ -122,11 +122,11 @@ struct ServiceRowView: View {
 
     private var priceLabel: String {
         switch item.unitType {
-        case "flat":    return String(format: "$%.2f flat", item.pricePerUnit)
-        case "perSqFt": return String(format: "$%.3f / sq ft", item.pricePerUnit)
+        case "flat":    return Money.text(item.pricePerUnit) + " flat"
+        case "perSqFt": return Money.rate(item.pricePerUnit) + " / sq ft"
         default:
             let label = item.unitLabel.isEmpty ? "unit" : item.unitLabel
-            return String(format: "$%.2f / %@", item.pricePerUnit, label)
+            return "\(Money.text(item.pricePerUnit)) / \(label)"
         }
     }
 }

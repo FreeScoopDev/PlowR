@@ -191,7 +191,7 @@ struct ProposalListView: View {
             StatTileRow {
                 if outstandingTotal > 0 {
                     StatTile(
-                        value: outstandingTotal.formatted(.currency(code: "USD").precision(.fractionLength(0))),
+                        value: Money.whole(outstandingTotal),
                         label: "Outstanding",
                         status: .owed
                     )

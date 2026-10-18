@@ -93,7 +93,7 @@ struct ProposalEditView: View {
                 }
             }
             LabeledContent("Total") {
-                Text(String(format: "$%.2f", edits.total(of: proposal)))
+                Text(Money.text(edits.total(of: proposal)))
                     .fontWeight(.bold)
             }
         } header: {
