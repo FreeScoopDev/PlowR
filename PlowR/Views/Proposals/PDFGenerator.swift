@@ -28,7 +28,7 @@ struct PDFGenerator {
         UIFont(name: "GillSans", size: size)
             ?? .systemFont(ofSize: size, weight: .regular)
     }
-    private static func labelFont(_ size: CGFloat) -> UIFont {
+    static func labelFont(_ size: CGFloat) -> UIFont {
         UIFont(name: "GillSans-SemiBold", size: size)
             ?? UIFont(name: "GillSans-Bold", size: size)
             ?? .systemFont(ofSize: size, weight: .semibold)
@@ -37,7 +37,7 @@ struct PDFGenerator {
         UIFont(name: "Verdana", size: size)
             ?? .systemFont(ofSize: size)
     }
-    private static func bodyBoldFont(_ size: CGFloat) -> UIFont {
+    static func bodyBoldFont(_ size: CGFloat) -> UIFont {
         UIFont(name: "Verdana-Bold", size: size)
             ?? .systemFont(ofSize: size, weight: .semibold)
     }

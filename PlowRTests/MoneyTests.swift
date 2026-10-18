@@ -70,15 +70,15 @@ struct MoneyTests {
 
     /// The largest total a PDF prints fits its column on one line: with
     /// thousands separators, "$12,500.00" wrapped in the old one.
-    @MainActor @Test func theLargestTotalFitsThePDFsColumn() throws {
+    @MainActor @Test func theLargestTotalFitsThePDFsColumn() {
         let contentW: CGFloat = 612 - 54 * 2
         let columns = PDFGenerator.totalsColumns(contentW: contentW)
-        let bold = try #require(UIFont(name: "Verdana-Bold", size: 14))
+        let bold = PDFGenerator.bodyBoldFont(14)
         for amount in [12_500, 99_999.99, 999_999.99] {
             let width = NSAttributedString(string: Money.text(amount), attributes: [.font: bold]).size().width
             #expect(width < columns.valueW, "\(Money.text(amount)): \(width) in \(columns.valueW)")
         }
-        let label = try #require(UIFont(name: "GillSans-SemiBold", size: 10))
+        let label = PDFGenerator.labelFont(10)
         let paid = NSAttributedString(string: "PAID · BALANCE DUE", attributes: [.font: label, .kern: 1.5])
         #expect(paid.size().width < columns.labelW)
         #expect(columns.labelX + columns.labelW + columns.valueW <= contentW)
