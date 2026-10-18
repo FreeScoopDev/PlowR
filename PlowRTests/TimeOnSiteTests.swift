@@ -34,11 +34,11 @@ struct TimeOnSiteTests {
     // MARK: - Time on site
 
     @Test func timeOnSiteNeedsBothTimes() {
-        #expect(ProofOfService.timeOnSite(arrivedAt: at(4, 58), leftAt: at(5, 24)) == 26 * 60)
+        #expect(ProofOfService.timeOnSite(arrivedAt: at(4, 58), leftAt: at(5, 24)) == TimeInterval(26 * 60))
         #expect(ProofOfService.timeOnSite(arrivedAt: nil, leftAt: at(5, 24)) == nil)
         #expect(ProofOfService.timeOnSite(arrivedAt: at(4, 58), leftAt: nil) == nil)
         #expect(ProofOfService.timeOnSite(arrivedAt: nil, leftAt: nil) == nil)
-        #expect(ProofOfService.timeOnSite(of: record(arrived: at(4, 58), left: at(5, 24))) == 26 * 60)
+        #expect(ProofOfService.timeOnSite(of: record(arrived: at(4, 58), left: at(5, 24))) == TimeInterval(26 * 60))
         #expect(ProofOfService.timeOnSite(of: record(arrived: nil, left: at(5, 24))) == nil)
     }
 
@@ -47,7 +47,7 @@ struct TimeOnSiteTests {
         // time, negative or otherwise.
         #expect(ProofOfService.timeOnSite(arrivedAt: at(5, 24), leftAt: at(4, 58)) == nil)
         // The same instant is a time: under a minute.
-        #expect(ProofOfService.timeOnSite(arrivedAt: at(5, 0), leftAt: at(5, 0)) == 0)
+        #expect(ProofOfService.timeOnSite(arrivedAt: at(5, 0), leftAt: at(5, 0)) == TimeInterval(0))
     }
 
     @Test func durationsAreSaidToTheMinute() {
