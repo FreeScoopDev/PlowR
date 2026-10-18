@@ -175,10 +175,12 @@ struct EditClientView: View {
             ProposalEditView(proposal: proposal)
         }
         .sheet(isPresented: $showingProposalBuilder) {
-            NavigationStack { ProposalBuilderView(client: client, isInvoiceMode: false, taxExempt: draft.taxExempt) }
+            NavigationStack { ProposalBuilderView(client: client, isInvoiceMode: false, taxExempt: draft.taxExempt,
+                                                   discountPercent: draft.isComped ? 0 : draft.defaultDiscountPercent) }
         }
         .sheet(isPresented: $showingInvoiceBuilder) {
-            NavigationStack { ProposalBuilderView(client: client, isInvoiceMode: true, taxExempt: draft.taxExempt) }
+            NavigationStack { ProposalBuilderView(client: client, isInvoiceMode: true, taxExempt: draft.taxExempt,
+                                                   discountPercent: draft.isComped ? 0 : draft.defaultDiscountPercent) }
         }
         .sheet(isPresented: $showingNewContract) {
             ContractEditView(client: client, contract: nil)

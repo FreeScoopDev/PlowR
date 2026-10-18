@@ -254,6 +254,13 @@ enum ServiceLog {
         Contracts.charge(of: record.lines, under: Contracts.contract(covering: record, among: contracts))
     }
 
+    /// What of `record`'s charge is a per-visit contract's own price: the
+    /// line its charge adds that isn't one of the job's services. The client's
+    /// Default Discount doesn't come off it; the contract agreed that price.
+    static func contractVisitCharge(of record: ServiceRecord, contracts: [Contract]) -> Double {
+        charge(of: record, contracts: contracts).filter { !record.lines.contains($0) }.reduce(0) { $0 + $1.price }
+    }
+
     /// A job with services, none of them charged by the visit: a season or
     /// monthly contract covers all of it.
     static func isCovered(_ record: ServiceRecord, contracts: [Contract]) -> Bool {
@@ -356,8 +363,10 @@ enum ServiceLog {
             item.lineTotal = line.lineTotal
             return item
         }
+        let subtotal = items.reduce(0) { $0 + $1.lineTotal }
+        let contractCharge = contractVisitCharge(of: record, contracts: Contracts.all(in: context))
         let proposal = newDraftInvoice(for: client, items: items, operatorID: operatorID, notes: notes,
-                                       now: now, in: context)
+                                       discountableSubtotal: max(0, subtotal - contractCharge), now: now, in: context)
         record.invoiceID = proposal.id.uuidString
         if let visit = scheduledVisit(record.visitID, in: context) {
             proposal.visitID = visit.id.uuidString
@@ -390,8 +399,12 @@ enum ServiceLog {
     /// A new draft invoice for `client` with `items`: the next number, due in
     /// `invoiceTerm`, the business's default terms. Record Services and Bill
     /// Unbilled Work both make invoices through here, so they can't differ.
+    /// The client's Default Discount comes off, as on any new document, but
+    /// only off `discountableSubtotal` (nil: every item): a contract's own
+    /// price (an installment, a per-visit charge) is the one it agreed.
     static func newDraftInvoice(for client: Client, items: [ProposalLineItem], operatorID: String,
-                                notes: String = "", now: Date, in context: ModelContext) -> Proposal {
+                                notes: String = "", discountableSubtotal: Double? = nil,
+                                now: Date, in context: ModelContext) -> Proposal {
         let proposal = Proposal(operatorID: operatorID, client: client)
         proposal.invoiceNumber = InvoiceNumbering.next(operatorID: operatorID, in: context)
         proposal.invoiceDueDate = now.addingTimeInterval(invoiceTerm)
@@ -400,6 +413,10 @@ enum ServiceLog {
         // The business's sales tax, as on every new document, unless the
         // client is tax exempt.
         proposal.taxRate = DocumentDraft.startingTaxRate(rate: profile?.defaultTaxRate, taxExempt: client.taxExempt)
+        let percent = DocumentDraft.clientDiscountPercent(onScreen: nil, saved: client.defaultDiscountPercent,
+                                                          comped: client.isComped)
+        proposal.discountAmount = DocumentDraft.clientDiscount(
+            subtotal: discountableSubtotal ?? items.reduce(0) { $0 + $1.lineTotal }, percent: percent)
         if !notes.isEmpty { proposal.notes = notes }
         items.forEach { context.insert($0) }
         proposal.lineItems = items

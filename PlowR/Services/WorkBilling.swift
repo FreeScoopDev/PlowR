@@ -153,7 +153,11 @@ enum WorkBilling {
                 items.append(item)
             }
         }
+        // The client's Default Discount, but not off a per-visit contract's price.
+        let contractCharge = jobs.reduce(0) { $0 + ServiceLog.contractVisitCharge(of: $1, contracts: contracts) }
+        let subtotal = items.reduce(0) { $0 + $1.lineTotal }
         let proposal = ServiceLog.newDraftInvoice(for: work.client, items: items, operatorID: operatorID,
+                                                  discountableSubtotal: max(0, subtotal - contractCharge),
                                                   now: now, in: context)
         let visits = (try? context.fetch(FetchDescriptor<ScheduledVisit>())) ?? []
         for record in jobs {

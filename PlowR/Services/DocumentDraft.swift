@@ -31,6 +31,21 @@ nonisolated struct DocumentDraft {
         taxExempt ? 0 : max(rate ?? 0, 0)
     }
 
+    /// A client's Default Discount, as a percent of a new document's
+    /// subtotal: the client page's choice when it opened the builder, saved
+    /// or not, else the client's. None for a comped client, whose page hides
+    /// the choice.
+    static func clientDiscountPercent(onScreen: Double?, saved: Double, comped: Bool) -> Double {
+        comped ? 0 : min(max(onScreen ?? saved, 0), 100)
+    }
+
+    /// The discount `percent` of `subtotal` gives, to the cent. A new
+    /// document starts with it; the Discount field changes it.
+    static func clientDiscount(subtotal: Double, percent: Double) -> Double {
+        guard percent > 0, subtotal > 0 else { return 0 }
+        return InvoiceLines.roundedToCent(subtotal * min(percent, 100) / 100)
+    }
+
     struct Service {
         var id: String
         var name: String
@@ -71,6 +86,10 @@ nonisolated struct DocumentDraft {
     var customLines: [CustomLine] = []
     var discount: String = ""
     var taxRate: String = ""
+    /// The client's Default Discount (`clientDiscountPercent`): the discount
+    /// while the Discount field is empty, following the subtotal as lines
+    /// change. Anything typed, 0 included, replaces it.
+    var clientDiscountPercent: Double = 0
     /// Whose decimal separator the fields are typed in (`DecimalText`).
     var locale: Locale = .current
 
@@ -98,7 +117,15 @@ nonisolated struct DocumentDraft {
         return InvoiceLines.price(typed: amounts[key], default: fallback, locale: locale)
     }
 
-    var discountAmount: Double { max(0, InvoiceLines.price(typed: discount, default: 0, locale: locale)) }
+    var discountAmount: Double {
+        if discount.trimmingCharacters(in: .whitespaces).isEmpty { return clientDiscount }
+        return max(0, InvoiceLines.price(typed: discount, default: 0, locale: locale))
+    }
+
+    /// What the client's Default Discount comes to on these lines.
+    var clientDiscount: Double {
+        Self.clientDiscount(subtotal: lines().reduce(0) { $0 + $1.lineTotal }, percent: clientDiscountPercent)
+    }
     var taxRatePercent: Double { Proposal.taxRate(typed: taxRate) }
 
     /// Every line the document will have, in the order it will have them:
