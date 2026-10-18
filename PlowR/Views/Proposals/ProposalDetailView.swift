@@ -337,12 +337,7 @@ struct ProposalDetailView: View {
     // MARK: - Actions
 
     private func convertToInvoice() {
-        proposal.invoiceNumber = InvoiceNumbering.next(operatorID: proposal.operatorID, in: modelContext)
-        proposal.invoiceDueDate = Date().addingTimeInterval(30 * 86400)
-        // A proposal made for a scheduled visit now bills the visit's work.
-        if !proposal.visitID.isEmpty {
-            ServiceLog.markVisitInvoiced(visitID: proposal.visitID, invoice: proposal, in: modelContext)
-        }
+        guard InvoiceRecords.convertToInvoice(proposal, in: modelContext) else { return }
         generatePDF()
     }
 
