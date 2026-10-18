@@ -25,6 +25,8 @@ struct TimeOnSiteTests {
         let record = ServiceRecord(operatorID: "op", sourceKey: "k", source: .route)
         record.arrivedAt = arrived
         record.leftAt = left
+        // Done that day, as a route stop is.
+        record.performedAt = left ?? arrived ?? at(5, 30)
         return record
     }
 
