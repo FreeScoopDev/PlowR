@@ -79,6 +79,23 @@ struct SiteMonitorTests {
         #expect(SiteEvents.crossing(previous: .inside, placedAt: placed, presence: .unknown, at: placed + 9) == .none)
     }
 
+    @Test func afterAGapAFirstInsideIsNeverAnArrival() {
+        // Location was off, or approximate: the crew may have driven in meanwhile.
+        #expect(SiteEvents.crossing(previous: .unknown, placedAt: placed, afterGap: true, presence: .inside,
+                                    at: placed + 3600) == .insideWhenPlaced(placed + 3600))
+        #expect(SiteEvents.crossing(previous: .unknown, placedAt: placed, afterGap: true, presence: .outside,
+                                    at: placed + 3600) == .none)
+    }
+
+    @Test func diagnosticsComeBeforeTheState() {
+        #expect(SiteEvents.reading(state: .satisfied, diagnostics: FakeDiagnostics(accuracyLimited: true))
+            == .limited([.accuracyLimited]))
+        #expect(SiteEvents.reading(state: .unsatisfied, diagnostics: FakeDiagnostics(insufficientlyInUse: true))
+            == .limited([.insufficientlyInUse]))
+        #expect(SiteEvents.reading(state: .satisfied, diagnostics: FakeDiagnostics()) == .presence(.inside))
+        #expect(SiteEvents.reading(state: .unknown, diagnostics: FakeDiagnostics()) == .nothing)
+    }
+
     @Test func onlySatisfiedAndUnsatisfiedSayWhereThePhoneIs() {
         #expect(SiteEvents.presence(of: .satisfied) == .inside)
         #expect(SiteEvents.presence(of: .unsatisfied) == .outside)
@@ -371,7 +388,8 @@ struct SiteMonitorTests {
         let rig = try Rig()
         rig.conditions.held[rig.id(0)] = rig.area(0)
         SiteEvents.save([PlacedSite(rig.area(0), placedAt: rig.h.clock)], to: rig.h.defaults)
-        let unopened = SiteMonitor(defaults: rig.h.defaults, route: { rig.store })
+        let unopened = SiteMonitor(defaults: rig.h.defaults, route: { rig.store },
+                                   makeSession: { FakeSiteSession($0) })
         unopened.eraseAll()
         await unopened.settled()
         #expect(rig.h.defaults.data(forKey: SiteEvents.placedKey) == nil)
@@ -379,6 +397,112 @@ struct SiteMonitorTests {
         next.watch([])
         await next.settled()
         #expect(rig.conditions.held.isEmpty)
+    }
+
+    @Test func alreadyInsideTheCurrentStopEndsTheWaitForTheLastOnesDeparture() async throws {
+        // #185: 300 m apart (no overlap), Complete for the first tapped on
+        // arriving at the second. iOS's first answer for the second is
+        // "inside"; the first's exit, reported late, isn't when they left it.
+        let rig = try Rig()
+        let stops = rig.h.route.sortedStops
+        stops[1].latitude = stops[0].latitude + 300 / 111_195
+        let sites = FakeSiteWatching()
+        let store = rig.h.makeStore(sites: sites)
+        let routed = SiteMonitor(defaults: rig.h.defaults, now: { rig.h.clock }, route: { store },
+                                 makeSession: { FakeSiteSession($0) }, conditions: rig.conditions)
+        store.start(rig.h.route)
+        let run = try #require(store.runID)
+        rig.h.clock += 600
+        store.completeShownStop()
+        #expect(store.departures.map(\.stopID) == [stops[0].id])
+        routed.watch(sites.watched.last ?? [])
+        await routed.settled()
+        routed.receive(rig.id(1), presence: .inside, at: rig.h.clock + 3)
+        #expect(store.site.arrivalUnseen)
+        #expect(store.departures.isEmpty)
+        store.siteExited(rig.id(0), at: rig.h.clock + 900)
+        #expect(ServiceLog.runRecord(run: run, stop: stops[0].id, in: rig.h.context)?.leftAt == nil)
+    }
+
+    @Test func anEventFromBeforeTheAreaWasPlacedAgainIsIgnored() async throws {
+        let rig = try Rig()
+        rig.store.start(rig.h.route)
+        let monitor = rig.monitor()
+        monitor.watch([rig.area(0)])
+        await monitor.settled()
+        // The pin corrected ten minutes in: the area placed again, same ID.
+        rig.h.clock += 600
+        var moved = rig.area(0)
+        moved.latitude += 0.001
+        monitor.watch([moved])
+        await monitor.settled()
+        // The old placement's "outside", handed over late, would make the
+        // new one's first "inside" read as an arrival.
+        monitor.receive(rig.id(0), presence: .outside, at: rig.h.clock - 1)
+        monitor.receive(rig.id(0), presence: .inside, at: rig.h.clock + 5)
+        #expect(rig.store.site.arrivedAt == nil && rig.store.site.arrivalUnseen)
+    }
+
+    @Test func aGapInWatchingMakesTheNextInsideNoArrival() async throws {
+        let rig = try Rig()
+        rig.store.start(rig.h.route)
+        let monitor = rig.monitor()
+        monitor.watch([rig.area(0)])
+        await monitor.settled()
+        monitor.receive(rig.id(0), presence: .outside, at: rig.h.clock + 3)
+        monitor.noteLimits([.insufficientlyInUse], id: rig.id(0))
+        // Watching again much later: the crew may have pulled in meanwhile.
+        monitor.receive(rig.id(0), presence: .inside, at: rig.h.clock + 1800)
+        #expect(rig.store.site.arrivedAt == nil && rig.store.site.arrivalUnseen)
+        // Asking the user for permission isn't a gap.
+        let other = try Rig()
+        other.store.start(other.h.route)
+        let asking = other.monitor()
+        asking.watch([other.area(0)])
+        await asking.settled()
+        asking.receive(other.id(0), presence: .outside, at: other.h.clock + 3)
+        asking.noteLimits([.authorizationRequestInProgress], id: other.id(0))
+        asking.receive(other.id(0), presence: .inside, at: other.h.clock + 600)
+        #expect(other.store.site.arrivedAt == other.h.clock + 600)
+    }
+
+    @Test func locationChangedWhilePlowRWasntRunningIsSeenAtLaunch() async throws {
+        // Approximate when PlowR was last running; Precise back on by launch:
+        // every area is placed afresh.
+        let rig = try Rig(accuracy: .reducedAccuracy)
+        let before = rig.monitor()
+        before.resume(status: .authorizedAlways, accuracy: .reducedAccuracy)
+        rig.conditions.held[rig.id(0)] = rig.area(0)
+        SiteEvents.save([PlacedSite(rig.area(0), placedAt: rig.h.clock)], to: rig.h.defaults)
+        let after = rig.monitor()
+        after.resume(status: .authorizedAlways, accuracy: .fullAccuracy)
+        after.watch([rig.area(0)])
+        await after.settled()
+        #expect(rig.conditions.removed == [rig.id(0)] && rig.conditions.added == [rig.id(0)])
+
+        // Location off when last running, Always by launch: the next inside is no arrival.
+        let off = try Rig(authorization: .denied)
+        off.store.start(off.h.route)
+        let wasOff = off.monitor()
+        wasOff.resume(status: .denied, accuracy: .fullAccuracy)
+        wasOff.watch([off.area(0)])
+        await wasOff.settled()
+        wasOff.receive(off.id(0), presence: .outside, at: off.h.clock + 3)
+        let relaunched = off.monitor()
+        relaunched.resume(status: .authorizedAlways, accuracy: .fullAccuracy)
+        relaunched.receive(off.id(0), presence: .inside, at: off.h.clock + 1800)
+        #expect(off.store.site.arrivedAt == nil && off.store.site.arrivalUnseen)
+    }
+
+    @Test func eraseRemovesTheAreasEvenWithApproximateLocation() async throws {
+        let rig = try Rig(accuracy: .reducedAccuracy)
+        rig.conditions.held[rig.id(0)] = rig.area(0)
+        SiteEvents.save([PlacedSite(rig.area(0), placedAt: rig.h.clock)], to: rig.h.defaults)
+        let monitor = rig.monitor()
+        monitor.eraseAll()
+        await monitor.settled()
+        #expect(rig.conditions.held.isEmpty)
+        #expect(rig.h.defaults.data(forKey: SiteEvents.placedKey) == nil)
     }
 
     // MARK: - Delivered late

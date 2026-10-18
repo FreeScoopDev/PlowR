@@ -174,10 +174,17 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   already there ("arrival not caught"), first "outside" makes the next
   "inside" an arrival however soon; a first "inside" later than a minute is
   taken as the arrival (iOS may answer only when the phone crosses).
-  Location allowed only now makes the next answer a first answer again.
-  An event with iOS 18 diagnostics is never a crossing: `accuracyLimited`
-  shows the route screen's Precise Location note
-  (`SiteMonitor.accuracyLimited`), the rest are logged. A `CLServiceSession`
+  An event dated before its area's placement (a moved area, same ID) is
+  ignored. An event with iOS 18 diagnostics is never a crossing
+  (`SiteEvents.reading`: diagnostics first): `accuracyLimited` shows the
+  route screen's Precise Location note (`SiteMonitor.accuracyLimited`); all
+  are logged, and all but `authorizationRequestInProgress` mark a gap
+  (`PlacedSite.afterGap`): the next "inside" is never an arrival. So does
+  location allowed only now, including a change made while PlowR wasn't
+  running (last status and accuracy kept, `SiteEvents.accessKey`, read by
+  `resume`). Already inside the current stop ends the wait for an earlier
+  stop's departure, as an entry does (#185). The monitor opens on protected
+  data or becoming active, and reloads the record first if it read empty. A `CLServiceSession`
   is held only while areas are placed or wanted, at the level already
   allowed (`SiteEvents.sessionNeed`: never one that asks), retaken in
   `start()` from the record: iOS gives a backgrounded app with Always no

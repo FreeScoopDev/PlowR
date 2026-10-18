@@ -272,14 +272,7 @@ final class ActiveRouteStore {
         if let currentStopID, id == currentStopID.uuidString, let stopStartedAt, time >= stopStartedAt {
             site.entered(at: time)
             saveCheckpoint()
-            // At the current stop: an earlier stop's exit seen from now on
-            // isn't when they left it. iOS reports an exit only some way past
-            // the area's edge, so areas apart can still both hold the phone.
-            if !departures.isEmpty {
-                departures = []
-                SiteDepartures.save(departures, to: defaults)
-                updateSites()
-            }
+            atCurrentStop()
         }
         if departures.contains(where: { $0.stopID.uuidString == id && time >= $0.completedAt }) {
             departures.removeAll { $0.stopID.uuidString == id }
@@ -294,6 +287,17 @@ final class ActiveRouteStore {
         guard let currentStopID, id == currentStopID.uuidString, let stopStartedAt, time >= stopStartedAt else { return }
         site.insideWhenPlaced()
         saveCheckpoint()
+        atCurrentStop()
+    }
+
+    /// The phone is in the current stop's area: an earlier stop's exit seen
+    /// from now on isn't when they left it. iOS reports an exit only some way
+    /// past the area's edge, so areas apart can still both hold the phone.
+    private func atCurrentStop() {
+        guard !departures.isEmpty else { return }
+        departures = []
+        SiteDepartures.save(departures, to: defaults)
+        updateSites()
     }
 
     /// The phone went out of the area around the stop with this ID: for the

@@ -27,6 +27,10 @@ struct PlacedSite: Codable, Equatable {
     var longitude: Double
     var placedAt: Date
     var presence: SitePresence = .unknown
+    /// iOS stopped watching it for a while (location off or approximate, not
+    /// in use): where the phone went meanwhile isn't known, so its next
+    /// "inside" is no arrival, however late. nil in a record from before.
+    var afterGap: Bool?
 
     init(_ area: SiteArea, placedAt: Date) {
         id = area.id
@@ -94,12 +98,15 @@ enum SiteEvents {
     /// iOS may not answer until the phone actually crosses, so a first
     /// inside `SiteTimes.settleTime` or more after placing is taken as the
     /// arrival, as legacy monitoring did.
-    static func crossing(previous: SitePresence, placedAt: Date, presence: SitePresence,
+    /// After a gap in iOS's watching (`afterGap`), a first "inside" is never
+    /// an arrival: the crew may have driven in while nothing watched.
+    static func crossing(previous: SitePresence, placedAt: Date, afterGap: Bool = false, presence: SitePresence,
                          at date: Date) -> SiteCrossing {
         guard presence != previous, presence != .unknown else { return .none }
         switch (previous, presence) {
         case (.unknown, .inside):
-            return date.timeIntervalSince(placedAt) < SiteTimes.settleTime ? .insideWhenPlaced(date) : .entered(date)
+            return afterGap || date.timeIntervalSince(placedAt) < SiteTimes.settleTime
+                ? .insideWhenPlaced(date) : .entered(date)
         case (.unknown, .outside):
             return .none
         case (_, .inside):
@@ -107,6 +114,21 @@ enum SiteEvents {
         default:
             return .exited(date)
         }
+    }
+
+    /// What an event says: why iOS isn't watching (diagnostics come first: an
+    /// event carrying any is never a crossing), where the phone is, or
+    /// nothing (unknown, unmonitored).
+    enum Reading: Equatable {
+        case limited([SiteLimit])
+        case presence(SitePresence)
+        case nothing
+    }
+
+    static func reading(state: CLMonitor.Event.State, diagnostics: some SiteDiagnostics) -> Reading {
+        let limits = limits(of: diagnostics)
+        if !limits.isEmpty { return .limited(limits) }
+        return presence(of: state).map { .presence($0) } ?? .nothing
     }
 
     /// The diagnostics set on an event. Any means it's about iOS's watching,
@@ -141,6 +163,9 @@ enum SiteEvents {
     }
 
     static let placedKey = "siteAreasPlaced"
+    /// Location's status and accuracy when last seen, so a change made while
+    /// PlowR wasn't running is seen at the next launch.
+    static let accessKey = "siteAreasAccess"
 
     static func load(from defaults: UserDefaults) -> [PlacedSite] {
         guard let data = defaults.data(forKey: placedKey) else { return [] }

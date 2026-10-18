@@ -3,10 +3,13 @@
   region monitoring, which iOS has marked deprecated. Each arrival and
   departure is iOS's own time for the crossing, not the moment PlowR got
   round to it, which could be minutes later when the phone was locked or
-  PlowR was suspended. iOS also says where the phone is as soon as an area
-  is placed, so a crew already at the next house along is known to be there
-  ("arrival not caught") rather than guessed from timing, and a crew that
-  pulls in within a minute of the stop beginning now gets its arrival. A
+  PlowR was suspended. iOS's first report after an area is placed is taken
+  as where the phone already was, not a crossing: a crew already at the next
+  house along is "arrival not caught", and once iOS has said the phone is
+  outside, a crew that pulls in within a minute of the stop beginning gets
+  its arrival. After a gap in iOS's watching (location off or approximate,
+  even if changed while PlowR wasn't running), the next arrival is "not
+  caught" rather than a time from when watching resumed. A
   route running when the update installs carries on: its areas move over.
 
 ### Fixed

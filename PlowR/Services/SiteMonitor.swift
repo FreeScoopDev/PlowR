@@ -53,7 +53,7 @@ final class SiteMonitor: NSObject, CLLocationManagerDelegate, SiteWatching, Site
     private var legacy: (any RegionMonitoring)?
     private var manager: CLLocationManager?
     private var opening = false
-    private var protectedDataObserver: NSObjectProtocol?
+    private var protectedDataObservers: [NSObjectProtocol] = []
     /// The last change asked of the monitor, each waiting for the one before.
     private var applying: Task<Void, Never>?
 
@@ -119,12 +119,27 @@ final class SiteMonitor: NSObject, CLLocationManagerDelegate, SiteWatching, Site
         let manager = CLLocationManager()
         self.manager = manager
         legacy = manager
-        authorization = manager.authorizationStatus
-        accuracy = manager.accuracyAuthorization
+        resume(status: manager.authorizationStatus, accuracy: manager.accuracyAuthorization)
         manager.delegate = self
-        updateSession()
         // After launch, once UIKit's application exists.
         Task { openWhenProtectedDataAvailable() }
+    }
+
+    /// Location as last seen, then as now (a change made in Settings while
+    /// PlowR wasn't running is a change too), and the session from what was
+    /// placed before.
+    func resume(status current: CLAuthorizationStatus, accuracy currentAccuracy: CLAccuracyAuthorization) {
+        if let last = defaults.array(forKey: SiteEvents.accessKey) as? [Int], last.count == 2,
+           let status = CLAuthorizationStatus(rawValue: Int32(last[0])),
+           let lastAccuracy = CLAccuracyAuthorization(rawValue: last[1]) {
+            authorization = status
+            accuracy = lastAccuracy
+        } else {
+            authorization = current
+            accuracy = currentAccuracy
+        }
+        authorizationChanged(to: current, accuracy: currentAccuracy)
+        updateSession()
     }
 
     private func openWhenProtectedDataAvailable() {
@@ -132,20 +147,26 @@ final class SiteMonitor: NSObject, CLLocationManagerDelegate, SiteWatching, Site
             open()
             return
         }
-        protectedDataObserver = NotificationCenter.default.addObserver(
-            forName: UIApplication.protectedDataDidBecomeAvailableNotification, object: nil, queue: .main
-        ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.open() }
+        // Becoming active too, in case the unlock came while PlowR was suspended.
+        for name in [UIApplication.protectedDataDidBecomeAvailableNotification,
+                     UIApplication.didBecomeActiveNotification] {
+            protectedDataObservers.append(NotificationCenter.default.addObserver(
+                forName: name, object: nil, queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated { self?.open() }
+            })
         }
     }
 
     private func open() {
-        if let protectedDataObserver {
-            NotificationCenter.default.removeObserver(protectedDataObserver)
-            self.protectedDataObserver = nil
-        }
+        for observer in protectedDataObservers { NotificationCenter.default.removeObserver(observer) }
+        protectedDataObservers = []
         guard conditions == nil, !opening else { return }
         opening = true
+        // Preferences may have been unreadable at launch (before the first
+        // unlock after a restart): read again, or iOS's areas would look
+        // like strays and be removed.
+        if placed.isEmpty { placed = SiteEvents.load(from: defaults) }
         Task {
             let monitor = await CLMonitor(Self.monitorName)
             listen(to: monitor)
@@ -242,6 +263,7 @@ final class SiteMonitor: NSObject, CLLocationManagerDelegate, SiteWatching, Site
         wanted = []
         placed = []
         SiteEvents.save([], to: defaults)
+        defaults.removeObject(forKey: SiteEvents.accessKey)
         eraseOwed = true
         accuracyLimited = false
         lastExit = nil
@@ -252,32 +274,41 @@ final class SiteMonitor: NSObject, CLLocationManagerDelegate, SiteWatching, Site
     // MARK: - Events
 
     private func handle(_ event: CLMonitor.Event) {
-        let limits = SiteEvents.limits(of: event)
-        guard limits.isEmpty else {
-            noteLimits(limits, id: event.identifier)
-            return
+        switch SiteEvents.reading(state: event.state, diagnostics: event) {
+        case .limited(let limits): noteLimits(limits, id: event.identifier)
+        case .presence(let presence): receive(event.identifier, presence: presence, at: event.date)
+        case .nothing: break
         }
-        guard let presence = SiteEvents.presence(of: event.state) else { return }
-        receive(event.identifier, presence: presence, at: event.date)
     }
 
-    /// An event saying why an area isn't watched: not a crossing, and where
-    /// the phone was last heard to be is kept. Logged, for a stop whose times
-    /// weren't caught. The ID is a stop's UUID; nothing about the client.
+    /// An event saying why an area isn't watched: not a crossing. Where the
+    /// phone goes meanwhile isn't known, so the area's next answer is a first
+    /// answer, and its next "inside" no arrival (`afterGap`). Logged, for a
+    /// stop whose times weren't caught. The ID is a stop's UUID; nothing about
+    /// the client.
     func noteLimits(_ limits: [SiteLimit], id: String) {
         for limit in limits {
             Self.log.error("Area \(id, privacy: .public) not watched: \(limit.rawValue, privacy: .public)")
         }
         if limits.contains(.accuracyLimited) { accuracyLimited = true }
+        // Asking the user isn't a gap: iOS is still watching.
+        guard limits != [.authorizationRequestInProgress],
+              let index = placed.firstIndex(where: { $0.id == id }) else { return }
+        placed[index].presence = .unknown
+        placed[index].afterGap = true
+        SiteEvents.save(placed, to: defaults)
     }
 
     /// iOS says the phone is `presence` for the area `id`, as of `date`.
     func receive(_ id: String, presence: SitePresence, at date: Date) {
         accuracyLimited = false
-        guard let index = placed.firstIndex(where: { $0.id == id }) else { return }
+        // One from before this placement (an area moved, placed again under
+        // the same ID) isn't about it.
+        guard let index = placed.firstIndex(where: { $0.id == id }), date >= placed[index].placedAt else { return }
         let crossing = SiteEvents.crossing(previous: placed[index].presence, placedAt: placed[index].placedAt,
-                                           presence: presence, at: date)
+                                           afterGap: placed[index].afterGap ?? false, presence: presence, at: date)
         placed[index].presence = presence
+        if presence != .unknown { placed[index].afterGap = nil }
         SiteEvents.save(placed, to: defaults)
         let store = route()
         switch crossing {
@@ -306,15 +337,17 @@ final class SiteMonitor: NSObject, CLLocationManagerDelegate, SiteWatching, Site
 
     func authorizationChanged(to status: CLAuthorizationStatus, accuracy newAccuracy: CLAccuracyAuthorization) {
         // Allowed only now: iOS starts working out where the phone is only
-        // now, so its next answer for each area is a first answer. Not on
-        // every launch: a relaunch for an arrival would lose it.
+        // now, and the crew may have driven in meanwhile, so its next
+        // "inside" for each area is no arrival (`afterGap`). Not on every
+        // launch: a relaunch for an arrival would lose it.
         if Self.isNewlyAllowed(from: authorization, to: status) {
             for index in placed.indices {
                 placed[index].presence = .unknown
-                placed[index].placedAt = now()
+                placed[index].afterGap = true
             }
             SiteEvents.save(placed, to: defaults)
         }
+        defaults.set([Int(status.rawValue), newAccuracy.rawValue], forKey: SiteEvents.accessKey)
         authorization = status
         if accuracy == .reducedAccuracy, newAccuracy == .fullAccuracy { replaceAll = true }
         if newAccuracy == .fullAccuracy { accuracyLimited = false }

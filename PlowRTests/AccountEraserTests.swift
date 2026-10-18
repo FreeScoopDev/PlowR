@@ -38,7 +38,8 @@ struct AccountEraserTests {
         static let keys = ["clientName", "clientPhone", "clientEmail", "userRole", "completedRoutesCount",
                            "notifyIncludeLocation", "operatorName", ActiveRouteStore.checkpointKey,
                            CalendarSync.enabledKey, CalendarSync.seenKey, CalendarSync.removalOwedKey,
-                           EventKitVisitCalendarStore.calendarIDKey, SiteEvents.placedKey]
+                           EventKitVisitCalendarStore.calendarIDKey, SiteEvents.placedKey,
+                           SiteEvents.accessKey]
 
         let container: ModelContainer
         let context: ModelContext
