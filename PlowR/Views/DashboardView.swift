@@ -122,7 +122,7 @@ struct DashboardView: View {
         let overpaid = Payments.overpaid(myProposals)
         let items = DashboardToday.attention(
             overdue: (overdue.count, Payments.balance(of: overdue)),
-            paymentsDue: (due.count, ContractInstallments.amountDue(due)),
+            paymentsDue: (due.count, ContractInstallments.amountDue(due, defaultTaxRate: profile?.defaultTaxRate)),
             readyToSend: (drafts.count, Payments.balance(of: drafts)),
             followUps: pipeline.filter(\.needsFollowUp).count,
             billedTwice: billedTwice.count,
