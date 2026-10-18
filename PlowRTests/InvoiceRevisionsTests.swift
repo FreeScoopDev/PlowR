@@ -319,4 +319,85 @@ struct InvoiceRevisionsTests {
         #expect(record.invoiceID.isEmpty)
         #expect(first.installmentIndex == 1)
     }
+
+    // MARK: More that isn't a double (test audit)
+
+    /// One client's revisions of two different invoices aren't each other's.
+    @Test func revisionsOfTwoDifferentInvoicesArentADouble() throws {
+        let h = try Harness(stopCount: 0)
+        let a = ServiceLog.revise(invoice(h, total: 300, number: "INV-0042"), client: h.client, now: h.clock, in: h.context)
+        let b = ServiceLog.revise(invoice(h, total: 80, number: "INV-0060"), client: h.client, now: h.clock, in: h.context)
+        let documents = try all(h)
+        #expect(!InvoiceRevisions.hasOtherRevision(a, among: documents))
+        #expect(InvoiceRevisions.otherRevision(of: b, among: documents) == nil)
+        #expect(InvoiceRevisions.revisedTwice(documents, operatorID: "op").isEmpty)
+    }
+
+    /// Two plain invoices, no revisions: nothing to report.
+    @Test func twoPlainInvoicesArentRevisions() throws {
+        let h = try Harness(stopCount: 0)
+        let a = invoice(h, total: 300, number: "INV-0042")
+        _ = invoice(h, total: 80, number: "INV-0043")
+        let documents = try all(h)
+        #expect(InvoiceRevisions.revisedTwice(documents, operatorID: "op").isEmpty)
+        #expect(!InvoiceRevisions.hasOtherRevision(a, among: documents))
+    }
+
+    /// Delete, like void, never hands work across two contract payments.
+    @Test func deleteDoesntHandOverBetweenDifferentContractPayments() throws {
+        let h = try Harness(stopCount: 1)
+        let (_, first, second) = try revisedOnTwoDevices(h)
+        let contract = UUID().uuidString
+        first.contractID = contract
+        first.installmentIndex = 1
+        second.contractID = contract
+        second.installmentIndex = 2
+        let visit = ScheduledVisit(operatorID: "op", clientID: h.client.id.uuidString, clientName: h.client.name,
+                                   clientAddress: h.client.address, scheduledDate: h.clock)
+        h.context.insert(visit)
+        let record = try #require(ServiceLog.complete(visit, among: [visit], in: h.context, now: h.clock))
+        record.invoiceID = second.id.uuidString
+        ServiceLog.delete(second, in: h.context)
+        #expect(record.invoiceID != first.id.uuidString)
+    }
+
+    /// Another business's invoice with the original's number doesn't hide
+    /// a real double.
+    @Test func anotherBusinessesNumberDoesntHideADouble() throws {
+        let h = try Harness(stopCount: 0)
+        let (_, first, second) = try revisedOnTwoDevices(h)
+        let stranger = Proposal(operatorID: "someone else", client: h.client)
+        stranger.invoiceNumber = "INV-0042"
+        h.context.insert(stranger)
+        let documents = try all(h)
+        #expect(InvoiceRevisions.otherRevision(of: first, among: documents)?.id == second.id)
+        #expect(InvoiceRevisions.revisedTwice(documents, operatorID: "op").map(\.id) == [first.id])
+    }
+
+    /// One client, two invoices sharing a number, each revised: deleting one
+    /// revision gives its work to the original whose void names it.
+    @Test func deleteGoesBackToTheOriginalItRevised() throws {
+        let h = try Harness(stopCount: 1)
+        let firstOriginal = invoice(h, total: 300, number: "INV-0042")
+        let secondOriginal = invoice(h, total: 120, number: "INV-0042")
+        _ = ServiceLog.revise(firstOriginal, client: h.client, now: h.clock, in: h.context)
+        let revision = ServiceLog.revise(secondOriginal, client: h.client, now: h.clock, in: h.context)
+        let visit = ScheduledVisit(operatorID: "op", clientID: h.client.id.uuidString, clientName: h.client.name,
+                                   clientAddress: h.client.address, scheduledDate: h.clock)
+        h.context.insert(visit)
+        let record = try #require(ServiceLog.complete(visit, among: [visit], in: h.context, now: h.clock))
+        record.invoiceID = revision.id.uuidString
+        ServiceLog.delete(revision, in: h.context)
+        #expect(record.invoiceID == secondOriginal.id.uuidString)
+        #expect(secondOriginal.voidedAt == nil && firstOriginal.voidedAt != nil)
+    }
+
+    /// Marked paid with no payment recorded counts as money in.
+    @Test func markedPaidCountsAsAPayment() throws {
+        let h = try Harness(stopCount: 0)
+        let (_, first, second) = try revisedOnTwoDevices(h)
+        second.invoicePaidAt = h.clock
+        #expect(InvoiceRevisions.advice(for: first, other: second).hasSuffix("The other one has a payment: void this one."))
+    }
 }
+
