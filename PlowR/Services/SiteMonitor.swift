@@ -44,6 +44,9 @@ final class SiteMonitor: NSObject, CLLocationManagerDelegate, SiteWatching {
     /// The status last seen. iOS calls the authorization callback when the
     /// manager is made too, with nothing changed.
     private var authorization: CLAuthorizationStatus
+    /// Approximate location watches no areas: none are placed then, and all
+    /// are placed afresh once Precise Location is back.
+    private var accuracy: CLAccuracyAuthorization
 
     /// Whether going from `old` to `new` means location was allowed only now.
     static func isNewlyAllowed(from old: CLAuthorizationStatus, to new: CLAuthorizationStatus) -> Bool {
@@ -53,6 +56,7 @@ final class SiteMonitor: NSObject, CLLocationManagerDelegate, SiteWatching {
 
     override private init() {
         authorization = manager.authorizationStatus
+        accuracy = manager.accuracyAuthorization
         super.init()
         manager.delegate = self
         for region in manager.monitoredRegions {
@@ -68,7 +72,8 @@ final class SiteMonitor: NSObject, CLLocationManagerDelegate, SiteWatching {
 
     func watch(_ areas: [SiteArea]) {
         wanted = areas
-        guard CLLocationManager.isMonitoringAvailable(for: CLCircularRegion.self) else { return }
+        guard CLLocationManager.isMonitoringAvailable(for: CLCircularRegion.self),
+              accuracy == .fullAccuracy else { return }
         for region in stale { manager.stopMonitoring(for: region) }
         stale = []
         // A kept area whose centre came back from iOS a hair off is the same area.
@@ -100,6 +105,7 @@ final class SiteMonitor: NSObject, CLLocationManagerDelegate, SiteWatching {
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         let status = manager.authorizationStatus
+        let newAccuracy = manager.accuracyAuthorization
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             // Allowed only now: iOS starts working out where the phone is
@@ -109,6 +115,16 @@ final class SiteMonitor: NSObject, CLLocationManagerDelegate, SiteWatching {
                 for area in placed { placedAt[area.id] = Date() }
             }
             authorization = status
+            if accuracy == .reducedAccuracy, newAccuracy == .fullAccuracy {
+                // Whatever iOS kept from before isn't to be trusted: place all again.
+                for area in placed {
+                    self.manager.stopMonitoring(for: CLCircularRegion(
+                        center: CLLocationCoordinate2D(latitude: area.latitude, longitude: area.longitude),
+                        radius: Self.radius, identifier: area.id))
+                }
+                placed = []
+            }
+            accuracy = newAccuracy
             if let wanted { watch(wanted) }
         }
     }
@@ -136,6 +152,12 @@ final class SiteMonitor: NSObject, CLLocationManagerDelegate, SiteWatching {
         // Logged, for a stop whose times weren't caught. The ID is a stop's
         // UUID; nothing about the client.
         Self.log.error("Area \(region?.identifier ?? "unknown", privacy: .public) not watched: \(error.localizedDescription, privacy: .public)")
+        // Not watched, so not placed: the next watch places it again.
+        guard let id = region?.identifier else { return }
+        DispatchQueue.main.async { [weak self] in
+            self?.placed.removeAll { $0.id == id }
+            self?.placedAt[id] = nil
+        }
     }
 
     private static let log = Logger(subsystem: "Scoops.PlowR", category: "SiteMonitor")

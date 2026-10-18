@@ -239,6 +239,8 @@ struct SiteTimesTests {
         store.end()
         let stop = h.route.sortedStops[0]
         #expect(store.departures.map(\.stopID) == [stop.id])
+        // Its pin corrected 300 m between the passes, so the two areas don't overlap.
+        stop.latitude += 300 / 111_195
         // A second pass soon after: leaving the stop now is this run's.
         store.start(h.route)
         #expect(store.departures.isEmpty)
@@ -387,6 +389,49 @@ struct SiteTimesTests {
         #expect(store.departures.isEmpty)
         store.siteExited(id(stops[1]), at: h.clock + 60)
         #expect(ServiceLog.runRecord(run: run, stop: stops[1].id, in: h.context)?.leftAt == nil)
+    }
+
+    @Test func comingIntoTheNextStopsAreaEndsTheWaitEvenWhenTheAreasDontOverlap() throws {
+        // iOS reports an exit only some way past an area's edge: 300 m apart,
+        // the crew can be at the second stop while still "in" the first's.
+        let h = try Harness()
+        pin(h)
+        placeSecond(h, metres: 300)
+        let store = h.makeStore()
+        store.start(h.route)
+        let run = try #require(store.runID)
+        let stops = h.route.sortedStops
+        h.clock += 600
+        store.completeShownStop()
+        #expect(store.departures.map(\.stopID) == [stops[0].id])
+        h.clock += 120
+        store.siteEntered(id(stops[1]), at: h.clock)
+        #expect(store.departures.isEmpty)
+        store.siteExited(id(stops[0]), at: h.clock + 900)
+        #expect(ServiceLog.runRecord(run: run, stop: stops[0].id, in: h.context)?.leftAt == nil)
+    }
+
+    @Test func completingAStopSeenLeavingEndsTheWaitForTheLastOne() throws {
+        // The second stop awaits nothing itself (its exit was seen): only the
+        // clear on completing keeps the first stop's late exit off its record.
+        let h = try Harness()
+        pin(h)
+        let store = h.makeStore()
+        store.start(h.route)
+        let run = try #require(store.runID)
+        let stops = h.route.sortedStops
+        h.clock += 600
+        store.completeShownStop()
+        #expect(store.departures.map(\.stopID) == [stops[0].id])
+        // Reported as having gone out of the second stop's area with no entry
+        // first (no entry, so the first's wait isn't ended by an arrival).
+        h.clock += 600
+        store.siteExited(id(stops[1]), at: h.clock)
+        h.clock += 60
+        store.completeShownStop()
+        #expect(store.departures.isEmpty)
+        store.siteExited(id(stops[0]), at: h.clock + 60)
+        #expect(ServiceLog.runRecord(run: run, stop: stops[0].id, in: h.context)?.leftAt == nil)
     }
 
     @Test func severalDeparturesSavedByAnOlderVersionAreCutToTheNewest() throws {

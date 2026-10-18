@@ -271,6 +271,14 @@ final class ActiveRouteStore {
         if let currentStopID, id == currentStopID.uuidString, let stopStartedAt, time >= stopStartedAt {
             site.entered(at: time, settleFrom: max(stopStartedAt, placedAt ?? stopStartedAt))
             saveCheckpoint()
+            // At the current stop: an earlier stop's exit seen from now on
+            // isn't when they left it. iOS reports an exit only some way past
+            // the area's edge, so areas apart can still both hold the phone.
+            if !departures.isEmpty {
+                departures = []
+                SiteDepartures.save(departures, to: defaults)
+                updateSites()
+            }
         }
         if departures.contains(where: { $0.stopID.uuidString == id }) {
             departures.removeAll { $0.stopID.uuidString == id }

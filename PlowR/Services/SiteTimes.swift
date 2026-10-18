@@ -47,8 +47,9 @@ struct SiteTimes: Codable, Equatable {
 /// its area was placed). Watched until the phone leaves the area. Not after
 /// `SiteDepartures.window` (driving by days later isn't leaving), and not
 /// once the phone is seen coming in (it wasn't there when the stop was
-/// completed, so a later exit isn't leaving it), once a later stop is
-/// completed or passed (the crew was there, so they'd left this one), or
+/// completed, so a later exit isn't leaving it), once the phone is seen in
+/// a later stop's area or a later stop is completed or passed (the crew was
+/// there, so they'd left this one), or
 /// when the current stop's area overlaps it (leaving the current stop would
 /// also go out of this one's). Kept apart from the route, so the last stop's
 /// departure is still caught after End Route.
