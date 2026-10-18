@@ -9,6 +9,10 @@ struct ProposalBuilderView: View {
     /// The client page's Tax Exempt switch, saved or not: started from that
     /// page right after turning it on, the saved client still says no.
     var taxExempt: Bool?
+    /// The client page's Default Discount and Comped switch, saved or not,
+    /// as with `taxExempt`.
+    var discountPercent: Double?
+    var comped: Bool?
     @Environment(\.modelContext) private var modelContext
     @Environment(\.access) private var access
     @Environment(\.dismiss) private var dismiss
@@ -327,10 +331,11 @@ struct ProposalBuilderView: View {
                 }
             }
             .listRowBackground(PlowRColor.surface)
-            Section("Discount & Tax") {
+            Section {
                 HStack {
                     Text("Discount $")
-                    TextField("0.00", text: $discountAmount)
+                    TextField(clientDiscountPercent > 0 ? String(format: "%.2f", draft.clientDiscount) : "0.00",
+                              text: $discountAmount)
                         .keyboardType(.decimalPad)
                 }
                 HStack {
@@ -338,6 +343,12 @@ struct ProposalBuilderView: View {
                     TextField("0.0", text: $taxRateString)
                         .keyboardType(.decimalPad)
                     Text("%")
+                }
+            } header: {
+                Text("Discount & Tax")
+            } footer: {
+                if clientDiscountPercent > 0 {
+                    Text("\(Proposal.percentText(clientDiscountPercent))% client discount while the field is empty. Type an amount, or 0, to change it.")
                 }
             }
             .listRowBackground(PlowRColor.surface)
@@ -390,8 +401,15 @@ struct ProposalBuilderView: View {
             lineNotes: lineNotes,
             customLines: customItems.map { .init(name: $0.name, amount: $0.amount, notes: $0.notes) },
             discount: discountAmount,
-            taxRate: taxRateString
+            taxRate: taxRateString,
+            clientDiscountPercent: clientDiscountPercent
         )
+    }
+
+    /// The client's Default Discount, the starting discount (DocumentDraft).
+    private var clientDiscountPercent: Double {
+        DocumentDraft.clientDiscountPercent(onScreen: discountPercent, onScreenComped: comped,
+                                            saved: client.defaultDiscountPercent, savedComped: client.isComped)
     }
 
     /// The estimate is the total of the document Save would make.

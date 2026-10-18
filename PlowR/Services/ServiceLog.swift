@@ -254,6 +254,23 @@ enum ServiceLog {
         Contracts.charge(of: record.lines, under: Contracts.contract(covering: record, among: contracts))
     }
 
+    /// What of a job's `charge` (ServiceLog.charge) is a per-visit contract's
+    /// own price: the line the charge adds that isn't one of the job's
+    /// services. The client's Default Discount doesn't come off it; the
+    /// contract agreed that price.
+    static func contractVisitCharge(in charge: [ServiceRecord.Line], of record: ServiceRecord) -> Double {
+        charge.filter { !record.lines.contains($0) }.reduce(0) { $0 + $1.price }
+    }
+
+    /// The client's Default Discount on a new invoice: their percent of
+    /// `discountable` (the subtotal less any contract's own price), to the cent.
+    static func clientDiscount(for client: Client, discountable: Double) -> Double {
+        let percent = DocumentDraft.clientDiscountPercent(onScreen: nil, onScreenComped: nil,
+                                                          saved: client.defaultDiscountPercent,
+                                                          savedComped: client.isComped)
+        return DocumentDraft.clientDiscount(subtotal: discountable, percent: percent)
+    }
+
     /// A job with services, none of them charged by the visit: a season or
     /// monthly contract covers all of it.
     static func isCovered(_ record: ServiceRecord, contracts: [Contract]) -> Bool {
@@ -342,12 +359,28 @@ enum ServiceLog {
         return record
     }
 
+    /// Record Services' invoice for `record`: `recording`'s lines under
+    /// `contract` (the one covering the stop), with that contract's own
+    /// price kept out of the client's discount. The screen calls only this,
+    /// so the lines and the price kept out can't disagree. nil: nothing to bill.
+    @discardableResult
+    static func invoice(_ record: ServiceRecord, recording: StopRecording, under contract: Contract?, client: Client,
+                        operatorID: String, notes: String, now: Date = .now, in context: ModelContext) -> Proposal? {
+        let lines = recording.invoiceLines(under: contract)
+        guard !lines.isEmpty else { return nil }
+        return invoice(record, lines: lines, contractCharge: recording.contractCharge(under: contract), client: client,
+                       operatorID: operatorID, notes: notes, now: now, in: context)
+    }
+
     /// A draft invoice for `record`'s work, from Record Services' lines, and
     /// the record marked as billed on it. The record's visit, if it has one,
     /// is linked to the invoice too, as Schedule → Invoice links them, so the
-    /// Schedule doesn't offer to invoice it again.
+    /// Schedule doesn't offer to invoice it again. `contractCharge`: the
+    /// per-visit contract's price among `lines` (StopRecording.contractCharge),
+    /// not discounted.
     @discardableResult
-    static func invoice(_ record: ServiceRecord, lines: [InvoiceLines.Line], client: Client, operatorID: String,
+    static func invoice(_ record: ServiceRecord, lines: [InvoiceLines.Line], contractCharge: Double,
+                        client: Client, operatorID: String,
                         notes: String, now: Date = .now, in context: ModelContext) -> Proposal {
         let items = lines.enumerated().map { index, line in
             let item = ProposalLineItem(serviceName: line.serviceName, zoneLabel: line.zoneLabel,
@@ -356,8 +389,9 @@ enum ServiceLog {
             item.lineTotal = line.lineTotal
             return item
         }
+        let subtotal = items.reduce(0) { $0 + $1.lineTotal }
         let proposal = newDraftInvoice(for: client, items: items, operatorID: operatorID, notes: notes,
-                                       now: now, in: context)
+                                       discountableSubtotal: max(0, subtotal - contractCharge), now: now, in: context)
         record.invoiceID = proposal.id.uuidString
         if let visit = scheduledVisit(record.visitID, in: context) {
             proposal.visitID = visit.id.uuidString
@@ -387,8 +421,12 @@ enum ServiceLog {
     /// A new draft invoice for `client` with `items`: the next number, due in
     /// `InvoiceTerms.days`, the business's default terms. Record Services and Bill
     /// Unbilled Work both make invoices through here, so they can't differ.
+    /// The client's Default Discount comes off, as on any new document, but
+    /// only off `discountableSubtotal` (nil: every item): a contract's own
+    /// price (an installment, a per-visit charge) is the one it agreed.
     static func newDraftInvoice(for client: Client, items: [ProposalLineItem], operatorID: String,
-                                notes: String = "", now: Date, in context: ModelContext) -> Proposal {
+                                notes: String = "", discountableSubtotal: Double? = nil,
+                                now: Date, in context: ModelContext) -> Proposal {
         let proposal = Proposal(operatorID: operatorID, client: client)
         proposal.invoiceNumber = InvoiceNumbering.next(operatorID: operatorID, in: context)
         proposal.invoiceDueDate = InvoiceTerms.dueDate(from: now)
@@ -397,6 +435,8 @@ enum ServiceLog {
         // The business's sales tax, as on every new document, unless the
         // client is tax exempt.
         proposal.taxRate = DocumentDraft.startingTaxRate(rate: profile?.defaultTaxRate, taxExempt: client.taxExempt)
+        proposal.discountAmount = clientDiscount(
+            for: client, discountable: discountableSubtotal ?? items.reduce(0) { $0 + $1.lineTotal })
         if !notes.isEmpty { proposal.notes = notes }
         items.forEach { context.insert($0) }
         proposal.lineItems = items

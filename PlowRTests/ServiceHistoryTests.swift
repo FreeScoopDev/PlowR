@@ -93,7 +93,7 @@ struct ServiceHistoryTests {
         let first = form([clear, salt], selected: [clear])
         let record = ServiceLog.logWork(first, notes: "", performedAt: h.clock, minutes: 10, for: h.client,
                                         operatorID: "op", in: h.context)
-        ServiceLog.invoice(record, lines: first.invoiceLines, client: h.client, operatorID: "op", notes: "",
+        ServiceLog.invoice(record, lines: first.invoiceLines, contractCharge: 0, client: h.client, operatorID: "op", notes: "",
                            now: h.clock, in: h.context)
         ServiceLog.update(record, lines: form([clear, salt], selected: [salt]).recordLines, notes: "Late note",
                           performedAt: h.clock, minutes: 12, isBillable: false, in: h.context)
@@ -128,7 +128,7 @@ struct ServiceHistoryTests {
         let screen = form([clear], selected: [clear])
         let record = ServiceLog.logWork(screen, notes: "", performedAt: h.clock, minutes: 0, for: h.client,
                                         operatorID: "op", in: h.context)
-        let invoice = ServiceLog.invoice(record, lines: screen.invoiceLines, client: h.client, operatorID: "op",
+        let invoice = ServiceLog.invoice(record, lines: screen.invoiceLines, contractCharge: 0, client: h.client, operatorID: "op",
                                          notes: "", now: h.clock, in: h.context)
         #expect(!ServiceLog.deleteRecord(record, in: h.context))
         ServiceLog.delete(invoice, in: h.context)

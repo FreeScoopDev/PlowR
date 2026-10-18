@@ -47,9 +47,7 @@ nonisolated struct StopRecording {
     func invoiceLines(under contract: Contract?) -> [InvoiceLines.Line] {
         let covered = Set(contract?.serviceIDs ?? [])
         var lines: [InvoiceLines.Line] = []
-        let anyCovered = services.contains { selectedIDs.contains($0.id) && covered.contains($0.id) }
-            || keptLines.contains { covered.contains($0.serviceID) }
-        if let contract, anyCovered, Contracts.pricing(of: contract) == .perVisit {
+        if let contract, contractCharge(under: contract) > 0 {
             lines.append(InvoiceLines.Line(serviceName: "\(contract.name): visit", zoneLabel: "", quantity: 1,
                                            unitType: "flat", unitPrice: contract.price, lineTotal: contract.price))
         }
@@ -67,6 +65,17 @@ nonisolated struct StopRecording {
                                            unitType: "flat", unitPrice: custom.price, lineTotal: custom.price))
         }
         return lines
+    }
+
+    /// A per-visit contract's own price on the invoice `invoiceLines(under:)`
+    /// makes (0 when it adds no visit line): the price the contract agreed,
+    /// which the client's Default Discount doesn't come off.
+    func contractCharge(under contract: Contract?) -> Double {
+        guard let contract, Contracts.pricing(of: contract) == .perVisit else { return 0 }
+        let covered = Set(contract.serviceIDs)
+        let anyCovered = services.contains { selectedIDs.contains($0.id) && covered.contains($0.id) }
+            || keptLines.contains { covered.contains($0.serviceID) }
+        return anyCovered ? contract.price : 0
     }
 
     /// The Service Log's lines: one per service, priced at what its invoice

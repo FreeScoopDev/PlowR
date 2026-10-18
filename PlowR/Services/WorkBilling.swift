@@ -43,9 +43,22 @@ enum WorkBilling {
                 (charges[record.id] ?? record.lines).contains { $0.unitType == "perSqFt" && $0.price <= 0 }
             }.count
         }
+        /// What the invoice will come to before tax: the work, less the
+        /// client's Default Discount, worked out as the invoice works it out.
         var total: Double {
+            Proposal.totals(subtotal: subtotal, discount: ServiceLog.clientDiscount(for: client, discountable: discountable),
+                            taxRate: 0).discounted
+        }
+        /// The work's charges, before any discount.
+        var subtotal: Double {
             InvoiceLines.roundedToCent(records.reduce(0) { sum, record in
                 sum + (charges[record.id] ?? record.lines).reduce(0) { $0 + $1.price }
+            })
+        }
+        /// The subtotal less any per-visit contract's own price.
+        var discountable: Double {
+            max(0, subtotal - records.reduce(0) { sum, record in
+                sum + ServiceLog.contractVisitCharge(in: charges[record.id] ?? record.lines, of: record)
             })
         }
     }
@@ -153,7 +166,13 @@ enum WorkBilling {
                 items.append(item)
             }
         }
+        // The client's Default Discount, but not off a per-visit contract's price.
+        let contractCharge = jobs.reduce(0) {
+            $0 + ServiceLog.contractVisitCharge(in: charges[$1.id] ?? $1.lines, of: $1)
+        }
+        let subtotal = items.reduce(0) { $0 + $1.lineTotal }
         let proposal = ServiceLog.newDraftInvoice(for: work.client, items: items, operatorID: operatorID,
+                                                  discountableSubtotal: max(0, subtotal - contractCharge),
                                                   now: now, in: context)
         let visits = (try? context.fetch(FetchDescriptor<ScheduledVisit>())) ?? []
         for record in jobs {

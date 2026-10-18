@@ -125,7 +125,7 @@ struct StopRecordingTests {
         let first = screen(h, selected: [clear])
         let record = ServiceLog.saveRecording(first, notes: "", for: stop, of: h.client, run: run,
                                               operatorID: "op", startedAt: h.clock, in: h.context)
-        let invoice = ServiceLog.invoice(record, lines: first.invoiceLines, client: h.client, operatorID: "op",
+        let invoice = ServiceLog.invoice(record, lines: first.invoiceLines, contractCharge: 0, client: h.client, operatorID: "op",
                                          notes: "", now: h.clock, in: h.context)
         ServiceLog.saveRecording(screen(h, selected: [salt]), notes: "Later note", for: stop, of: h.client, run: run,
                                  operatorID: "op", startedAt: h.clock, in: h.context)
@@ -144,7 +144,7 @@ struct StopRecordingTests {
         let record = ServiceLog.saveRecording(screen, notes: "n", for: stop, of: h.client, run: UUID(),
                                               operatorID: "op", startedAt: h.clock, in: h.context)
         #expect(ServiceLog.isUnbilled(record, in: h.context))
-        let invoice = ServiceLog.invoice(record, lines: screen.invoiceLines, client: h.client, operatorID: "op",
+        let invoice = ServiceLog.invoice(record, lines: screen.invoiceLines, contractCharge: 0, client: h.client, operatorID: "op",
                                          notes: "n", now: h.clock, in: h.context)
         #expect(!ServiceLog.isUnbilled(record, in: h.context))
         #expect(invoice.isInvoice)
@@ -340,7 +340,7 @@ struct StopRecordingTests {
         let screen = screen(h, selected: [clear])
         let record = ServiceLog.saveRecording(screen, notes: "", for: stop, of: h.client, run: UUID(),
                                               operatorID: "op", startedAt: h.clock, in: h.context)
-        let original = ServiceLog.invoice(record, lines: screen.invoiceLines, client: h.client, operatorID: "op",
+        let original = ServiceLog.invoice(record, lines: screen.invoiceLines, contractCharge: 0, client: h.client, operatorID: "op",
                                           notes: "", now: h.clock, in: h.context)
         let revision = Proposal(operatorID: "op", client: h.client)
         revision.invoiceNumber = "INV-0001-R1"
@@ -365,7 +365,7 @@ struct StopRecordingTests {
         let record = ServiceLog.saveRecording(screen, notes: "", for: stop, of: h.client,
                                               run: try #require(store.runID), operatorID: "op",
                                               startedAt: h.clock, in: h.context)
-        let invoice = ServiceLog.invoice(record, lines: screen.invoiceLines, client: h.client, operatorID: "op",
+        let invoice = ServiceLog.invoice(record, lines: screen.invoiceLines, contractCharge: 0, client: h.client, operatorID: "op",
                                          notes: "", now: h.clock, in: h.context)
         #expect(visit.proposalID == invoice.id.uuidString)
         #expect(invoice.visitID == visit.id.uuidString)
@@ -449,13 +449,13 @@ struct StopRecordingTests {
         let screen = screen(h, selected: [clear])
         let record = ServiceLog.saveRecording(screen, notes: "", for: stop, of: h.client, run: run,
                                               operatorID: "op", startedAt: h.clock, in: h.context)
-        let first = ServiceLog.invoice(record, lines: screen.invoiceLines, client: h.client, operatorID: "op",
+        let first = ServiceLog.invoice(record, lines: screen.invoiceLines, contractCharge: 0, client: h.client, operatorID: "op",
                                        notes: "", now: h.clock, in: h.context)
         #expect(visit.proposalID == first.id.uuidString)
         ServiceLog.delete(first, in: h.context)
         try h.context.save()
         #expect(visit.proposalID == "")
-        let second = ServiceLog.invoice(record, lines: screen.invoiceLines, client: h.client, operatorID: "op",
+        let second = ServiceLog.invoice(record, lines: screen.invoiceLines, contractCharge: 0, client: h.client, operatorID: "op",
                                         notes: "", now: h.clock, in: h.context)
         #expect(visit.proposalID == second.id.uuidString)
     }
@@ -469,7 +469,7 @@ struct StopRecordingTests {
         let screen = screen(h, selected: [clear])
         let record = ServiceLog.saveRecording(screen, notes: "", for: stop, of: h.client, run: UUID(),
                                               operatorID: "op", startedAt: h.clock, in: h.context)
-        let original = ServiceLog.invoice(record, lines: screen.invoiceLines, client: h.client, operatorID: "op",
+        let original = ServiceLog.invoice(record, lines: screen.invoiceLines, contractCharge: 0, client: h.client, operatorID: "op",
                                           notes: "", now: h.clock, in: h.context)
         let revision = invoice(h, original.invoiceNumber + "-R1")
         revision.revisionOf = original.invoiceNumber
