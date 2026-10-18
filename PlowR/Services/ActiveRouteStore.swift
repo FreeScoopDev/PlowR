@@ -215,6 +215,12 @@ final class ActiveRouteStore {
             return sortedStops.contains { $0.id == stopID } ? .allStopsAlreadyDone : .stopChanged
         }
         guard stopID == stop.id else { return .stopChanged }
+        // The crew was at this stop: an earlier stop's exit seen from now on
+        // isn't when they left it (the areas overlap, or it came too late).
+        if !departures.isEmpty {
+            departures = []
+            SiteDepartures.save(departures, to: defaults)
+        }
         if recording { recordVisit(for: stop) }
         currentStopIndex += 1
         currentStopID = currentStop?.id
@@ -304,6 +310,11 @@ final class ActiveRouteStore {
         // A stop awaiting a departure from an earlier run that's current
         // again (the route run a second time): leaving it now is this run's.
         if let currentStopID { current.removeAll { $0.stopID == currentStopID } }
+        // One whose area overlaps the current stop's: going out of the current
+        // stop would also go out of it, so its exit can't say when they left it.
+        if let stop = currentStop, stop.latitude != 0 || stop.longitude != 0 {
+            current.removeAll { SiteDepartures.overlaps($0, latitude: stop.latitude, longitude: stop.longitude) }
+        }
         if current != departures {
             departures = current
             SiteDepartures.save(departures, to: defaults)

@@ -1,5 +1,6 @@
 import CoreLocation
 import Foundation
+import os
 
 /// The app's one keeper of job-site areas: the current stop's, for arrival
 /// and departure, and completed stops' still waiting on a departure.
@@ -132,7 +133,12 @@ final class SiteMonitor: NSObject, CLLocationManagerDelegate, SiteWatching {
 
     func locationManager(_ manager: CLLocationManager, monitoringDidFailFor region: CLRegion?, withError error: Error) {
         // Not fatal: the stop is completed by hand, and its times are the route's.
+        // Logged, for a stop whose times weren't caught. The ID is a stop's
+        // UUID; nothing about the client.
+        Self.log.error("Area \(region?.identifier ?? "unknown", privacy: .public) not watched: \(error.localizedDescription, privacy: .public)")
     }
+
+    private static let log = Logger(subsystem: "Scoops.PlowR", category: "SiteMonitor")
 }
 
 /// `SiteMonitor`, except under tests: the test host is the app, and mustn't

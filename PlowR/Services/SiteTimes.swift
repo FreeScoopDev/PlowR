@@ -1,3 +1,4 @@
+import CoreLocation
 import Foundation
 
 /// When the crew got to the current stop and left it, as GPS saw it: the
@@ -46,8 +47,11 @@ struct SiteTimes: Codable, Equatable {
 /// its area was placed). Watched until the phone leaves the area. Not after
 /// `SiteDepartures.window` (driving by days later isn't leaving), and not
 /// once the phone is seen coming in (it wasn't there when the stop was
-/// completed, so a later exit isn't leaving it). Kept apart from the route,
-/// so the last stop's departure is still caught after End Route.
+/// completed, so a later exit isn't leaving it), once a later stop is
+/// completed or passed (the crew was there, so they'd left this one), or
+/// when the current stop's area overlaps it (leaving the current stop would
+/// also go out of this one's). Kept apart from the route, so the last stop's
+/// departure is still caught after End Route.
 struct PendingDeparture: Codable, Equatable {
     var runID: UUID
     var stopID: UUID
@@ -60,8 +64,6 @@ enum SiteDepartures {
     static let key = "siteDepartures"
     /// How long after completing a stop a departure from it still counts.
     static let window: TimeInterval = 2 * 60 * 60
-    /// iOS watches at most 20 areas for an app; one is the current stop's.
-    static let limit = 5
 
     static func load(from defaults: UserDefaults) -> [PendingDeparture] {
         guard let data = defaults.data(forKey: key) else { return [] }
@@ -76,9 +78,18 @@ enum SiteDepartures {
         }
     }
 
-    /// Those still within their window, newest last, at most `limit`.
+    /// Those still within their window: at most the newest, as only the
+    /// last stop moved on from is awaited (a list saved by an older version
+    /// could hold several).
     static func current(_ pending: [PendingDeparture], now: Date) -> [PendingDeparture] {
-        Array(pending.filter { now.timeIntervalSince($0.completedAt) <= window }.suffix(limit))
+        Array(pending.filter { now.timeIntervalSince($0.completedAt) <= window }.suffix(1))
+    }
+
+    /// Whether the pending stop's area and an area centred here overlap.
+    static func overlaps(_ pending: PendingDeparture, latitude: Double, longitude: Double) -> Bool {
+        let distance = CLLocation(latitude: pending.latitude, longitude: pending.longitude)
+            .distance(from: CLLocation(latitude: latitude, longitude: longitude))
+        return distance < 2 * SiteMonitor.radius
     }
 }
 

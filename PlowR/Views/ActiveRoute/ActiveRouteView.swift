@@ -196,9 +196,19 @@ struct ActiveRouteView: View {
     /// Location on While Using: GPS works on screen, but job-site arrivals
     /// and departures (and the offer to text the next client) need Always.
     private var alwaysLocationNote: some View {
+        locationNote("Arrival and departure times are recorded only while PlowR is on screen. Set Location to Always to record them with the app closed.",
+                     settingsLabel: "Open Settings to set Location to Always")
+    }
+
+    /// Approximate location: iOS watches no job-site areas (RouteGPS.needsPrecise).
+    private var preciseLocationNote: some View {
+        locationNote("Arrival and departure times aren't recorded: Precise Location is off for PlowR. Turn it on in Settings to record them.",
+                     settingsLabel: "Open Settings to turn on Precise Location")
+    }
+
+    private func locationNote(_ text: String, settingsLabel: String) -> some View {
         HStack(alignment: .top, spacing: 8) {
-            Label("Arrival and departure times are recorded only while PlowR is on screen. Set Location to Always to record them with the app closed.",
-                  systemImage: "location.circle")
+            Label(text, systemImage: "location.circle")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             Spacer(minLength: 0)
@@ -211,7 +221,7 @@ struct ActiveRouteView: View {
                     .frame(minWidth: 44, minHeight: 44)
                     .contentShape(Rectangle())
             }
-            .accessibilityLabel("Open Settings to set Location to Always")
+            .accessibilityLabel(settingsLabel)
         }
         .padding(.horizontal)
         .padding(.vertical, 8)
@@ -234,7 +244,10 @@ struct ActiveRouteView: View {
                             .padding(.horizontal)
                             .padding(.vertical, 8)
                     }
-                    if RouteGPS.needsAlways(status: locationManager.authorizationStatus, isMac: OnMac.isMac) {
+                    if RouteGPS.needsPrecise(status: locationManager.authorizationStatus,
+                                             accuracy: locationManager.accuracyAuthorization, isMac: OnMac.isMac) {
+                        preciseLocationNote
+                    } else if RouteGPS.needsAlways(status: locationManager.authorizationStatus, isMac: OnMac.isMac) {
                         alwaysLocationNote
                     }
                     VStack(spacing: PlowRLayout.space3) {
