@@ -152,11 +152,18 @@ final class SiteMonitor: NSObject, CLLocationManagerDelegate, SiteWatching {
         // Logged, for a stop whose times weren't caught. The ID is a stop's
         // UUID; nothing about the client.
         Self.log.error("Area \(region?.identifier ?? "unknown", privacy: .public) not watched: \(error.localizedDescription, privacy: .public)")
-        // Not watched, so not placed: the next watch places it again.
-        guard let id = region?.identifier else { return }
+        // Not watched, so not placed: the next watch places it again. Only
+        // if it's still where it failed: one placed again since (its pin
+        // moved) is a different placement.
+        guard let circle = region as? CLCircularRegion else { return }
+        let failed = SiteArea(id: circle.identifier, latitude: circle.center.latitude,
+                              longitude: circle.center.longitude)
         DispatchQueue.main.async { [weak self] in
-            self?.placed.removeAll { $0.id == id }
-            self?.placedAt[id] = nil
+            guard let self else { return }
+            let before = placed.count
+            placed.removeAll { $0.id == failed.id && abs($0.latitude - failed.latitude) < 1e-7
+                && abs($0.longitude - failed.longitude) < 1e-7 }
+            if placed.count != before { placedAt[failed.id] = nil }
         }
     }
 
