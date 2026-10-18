@@ -189,4 +189,95 @@ struct InvoiceRevisionsTests {
         #expect(original.voidedAt == nil)
         #expect(Payments.owed(try all(h)) == 300)
     }
+
+    // MARK: Not a double
+
+    /// Two invoices sent with one number from two devices (never
+    /// renumbered), each revised for its own reason: two real invoices, not
+    /// one revised twice. Taking one back mustn't touch the other.
+    @Test func revisionsOfTwoInvoicesSharingANumberAreNotADouble() throws {
+        let h = try Harness(stopCount: 1)
+        let other = Client(name: "Other Client", phone: "", address: "9 Elm St", operatorID: "op")
+        h.context.insert(other)
+        let mine = invoice(h, total: 300, number: "INV-0042")
+        let theirs = invoice(h, total: 120, number: "INV-0042")
+        theirs.clientID = other.id.uuidString
+        theirs.clientName = other.name
+        let myRevision = ServiceLog.revise(mine, client: h.client, now: h.clock, in: h.context)
+        let theirRevision = ServiceLog.revise(theirs, client: other, now: h.clock, in: h.context)
+        let visit = ScheduledVisit(operatorID: "op", clientID: other.id.uuidString, clientName: other.name,
+                                   clientAddress: other.address, scheduledDate: h.clock)
+        h.context.insert(visit)
+        let record = try #require(ServiceLog.complete(visit, among: [visit], in: h.context, now: h.clock))
+        record.invoiceID = theirRevision.id.uuidString
+        let documents = try all(h)
+        #expect(InvoiceRevisions.revisedTwice(documents, operatorID: "op").isEmpty)
+        #expect(!InvoiceRevisions.hasOtherRevision(myRevision, among: documents))
+        #expect(!InvoiceRevisions.hasOtherRevision(theirRevision, among: documents))
+
+        // Taking theirs back gives their own original back, with its work.
+        ServiceLog.delete(theirRevision, in: h.context)
+        try h.context.save()
+        #expect(theirs.voidedAt == nil)
+        #expect(mine.voidedAt != nil)
+        #expect(record.invoiceID == theirs.id.uuidString)
+        #expect(myRevision.voidedAt == nil)
+    }
+
+    /// The same, for one client with two invoices sharing a number: which
+    /// revision is of which can't be told, so neither is called a double.
+    @Test func oneClientsTwoInvoicesSharingANumberAreNotADouble() throws {
+        let h = try Harness(stopCount: 0)
+        let first = invoice(h, total: 300, number: "INV-0042")
+        let second = invoice(h, total: 120, number: "INV-0042")
+        let a = ServiceLog.revise(first, client: h.client, now: h.clock, in: h.context)
+        let b = ServiceLog.revise(second, client: h.client, now: h.clock, in: h.context)
+        let documents = try all(h)
+        #expect(InvoiceRevisions.revisedTwice(documents, operatorID: "op").isEmpty)
+        #expect(InvoiceRevisions.otherRevision(of: a, among: documents) == nil)
+        #expect(InvoiceRevisions.otherRevision(of: b, in: h.context) == nil)
+    }
+
+    /// Another business's revision of the same number is never the other one.
+    @Test func anotherBusinessesRevisionIsIgnored() throws {
+        let h = try Harness(stopCount: 0)
+        let original = invoice(h, total: 300, number: "INV-0042")
+        let mine = ServiceLog.revise(original, client: h.client, now: h.clock, in: h.context)
+        let stranger = Proposal(operatorID: "someone else", client: h.client)
+        stranger.invoiceNumber = "INV-0042-R1"
+        stranger.revisionOf = "INV-0042"
+        h.context.insert(stranger)
+        let documents = try all(h)
+        #expect(InvoiceRevisions.otherRevision(of: mine, among: documents) == nil)
+        #expect(InvoiceRevisions.otherRevision(of: mine, in: h.context) == nil)
+        #expect(InvoiceRevisions.revisedTwice(documents, operatorID: "op").isEmpty)
+    }
+
+    /// Deleted but not yet saved: no longer counts.
+    @Test func aDeletedRevisionDoesntCount() throws {
+        let h = try Harness(stopCount: 0)
+        let (_, first, second) = try revisedOnTwoDevices(h)
+        let documents = try all(h)
+        h.context.delete(second)
+        #expect(second.isDeleted)
+        #expect(InvoiceRevisions.revisedTwice(documents, operatorID: "op").isEmpty)
+        #expect(InvoiceRevisions.otherRevision(of: first, among: documents) == nil)
+    }
+
+    /// Both sent before syncing, so both kept the same number: told apart by
+    /// when each was made.
+    @Test func twoRevisionsWithOneNumberAreToldApart() throws {
+        let h = try Harness(stopCount: 0)
+        let (_, first, second) = try revisedOnTwoDevices(h)
+        second.invoiceNumber = first.invoiceNumber
+        let documents = try all(h)
+        let detail = InvoiceRevisions.dashboardDetail(for: first, among: documents)
+        #expect(detail.contains("\(first.invoiceNumber) (made "))
+        #expect(detail.components(separatedBy: "(made ").count == 3)
+        #expect(InvoiceRevisions.linkTitle(to: second, from: first).hasPrefix("Open the other copy, made "))
+        #expect(InvoiceRevisions.advice(for: first, other: second).hasPrefix("Another \(first.invoiceNumber), made "))
+        #expect(InvoiceRevisions.linkTitle(to: second, from: InvoiceRevisions.otherRevision(of: second, among: documents) ?? second)
+            .hasPrefix("Open the other copy"))
+    }
 }
+

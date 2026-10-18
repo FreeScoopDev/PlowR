@@ -170,8 +170,7 @@ enum ContractInstallments {
     /// copy no money came in on, so a client who paid isn't asked again.
     static func duplicateAdvice(for invoice: Proposal, other: Proposal) -> String {
         let lead = "Another invoice also bills this contract payment: they were made on two devices before they synced."
-        func paid(_ p: Proposal) -> Bool { p.paymentsTotal > Payments.tolerance || p.invoicePaidAt != nil }
-        switch (paid(invoice), paid(other)) {
+        switch (Payments.hasMoneyIn(invoice), Payments.hasMoneyIn(other)) {
         case (true, false):
             return "\(lead) This one has a payment: delete or void the other one."
         case (false, true):

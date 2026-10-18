@@ -120,10 +120,10 @@ struct ProposalDetailView: View {
                 // revisions bill it. Never taken back by itself; said here.
                 VStack(alignment: .leading, spacing: 6) {
                     Label(InvoiceRevisions.advice(for: proposal, other: other),
-                          systemImage: "exclamationmark.triangle.fill")
+                          systemImage: PlowRSymbol.warning.name)
                         .foregroundStyle(PlowRColor.Status.owed.text)
                     NavigationLink { ProposalDetailView(proposal: other) } label: {
-                        Text("Open \(other.invoiceNumber)")
+                        Text(InvoiceRevisions.linkTitle(to: other, from: proposal))
                             .fontWeight(.semibold)
                             .frame(minHeight: 44)
                             .contentShape(Rectangle())

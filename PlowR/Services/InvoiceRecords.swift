@@ -98,7 +98,7 @@ enum InvoiceRecords {
         guard releasesWork, invoice.paymentsTotal <= Payments.tolerance else { return }
         // Its work goes to the other revision, not back to billable, and a
         // contract payment it billed stays made.
-        if let otherRevision {
+        if let otherRevision, InvoiceRevisions.canHandOver(invoice, to: otherRevision) {
             ServiceLog.moveBilling(from: invoice, to: otherRevision, in: context)
             return
         }

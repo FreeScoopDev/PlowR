@@ -529,10 +529,15 @@ enum ServiceLog {
         // Revised on two devices: the other revision replaces the original,
         // so it takes the work, and the original stays void.
         let otherRevision = InvoiceRevisions.otherRevision(of: document, in: context)
-        let original = document.revisionOf.isEmpty || otherRevision != nil ? nil
-            : (try? context.fetch(FetchDescriptor<Proposal>()))?
-            .first { $0.invoiceNumber == document.revisionOf && $0.operatorID == document.operatorID
+            .flatMap { InvoiceRevisions.canHandOver(document, to: $0) ? $0 : nil }
+        // Two invoices can share the number (sent from two devices): the one
+        // whose void names this revision is its original.
+        let originals = document.revisionOf.isEmpty || otherRevision != nil ? []
+            : ((try? context.fetch(FetchDescriptor<Proposal>())) ?? [])
+            .filter { $0.invoiceNumber == document.revisionOf && $0.operatorID == document.operatorID
                 && $0.id != document.id }
+        let original = originals.first { $0.voidNote == InvoiceRecords.revisedNote(document.invoiceNumber) }
+            ?? originals.first
         let replacement = (otherRevision ?? original)?.id.uuidString ?? ""
         for record in billed(on: document, in: context) { record.invoiceID = replacement }
         for visit in linkedVisits(to: document, in: context) { visit.proposalID = replacement }
