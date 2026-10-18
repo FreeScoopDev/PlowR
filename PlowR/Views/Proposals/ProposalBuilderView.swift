@@ -408,8 +408,8 @@ struct ProposalBuilderView: View {
 
     /// The client's Default Discount, the starting discount (DocumentDraft).
     private var clientDiscountPercent: Double {
-        DocumentDraft.clientDiscountPercent(onScreen: discountPercent, saved: client.defaultDiscountPercent,
-                                            comped: comped ?? client.isComped)
+        DocumentDraft.clientDiscountPercent(onScreen: discountPercent, onScreenComped: comped,
+                                            saved: client.defaultDiscountPercent, savedComped: client.isComped)
     }
 
     /// The estimate is the total of the document Save would make.

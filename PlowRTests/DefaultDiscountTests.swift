@@ -192,14 +192,18 @@ struct DefaultDiscountTests {
     }
 
     @Test func theClientPagesChoiceWinsUnlessComped() {
-        #expect(DocumentDraft.clientDiscountPercent(onScreen: 15, saved: 5, comped: false) == 15)
-        #expect(DocumentDraft.clientDiscountPercent(onScreen: nil, saved: 5, comped: false) == 5)
-        #expect(DocumentDraft.clientDiscountPercent(onScreen: 15, saved: 5, comped: true) == 0)
-        // The client page just turned Comped off, unsaved: the builder passes the page's switch.
-        let page = DocumentDraft.clientDiscountPercent(onScreen: 10, saved: 0, comped: false)
-        #expect(page == 10)
-        #expect(DocumentDraft.clientDiscountPercent(onScreen: 150, saved: 0, comped: false) == 100)
-        #expect(DocumentDraft.clientDiscountPercent(onScreen: -5, saved: 0, comped: false) == 0)
+        #expect(DocumentDraft.clientDiscountPercent(onScreen: 15, onScreenComped: nil, saved: 5, savedComped: false) == 15)
+        #expect(DocumentDraft.clientDiscountPercent(onScreen: nil, onScreenComped: nil, saved: 5, savedComped: false) == 5)
+        #expect(DocumentDraft.clientDiscountPercent(onScreen: 15, onScreenComped: nil, saved: 5, savedComped: true) == 0)
+        // The client page just turned Comped off, unsaved: its switch wins over the saved one.
+        #expect(DocumentDraft.clientDiscountPercent(onScreen: 10, onScreenComped: false,
+                                                    saved: 10, savedComped: true) == 10)
+        #expect(DocumentDraft.clientDiscountPercent(onScreen: nil, onScreenComped: nil,
+                                                    saved: 10, savedComped: true) == 0)
+        #expect(DocumentDraft.clientDiscountPercent(onScreen: 10, onScreenComped: true,
+                                                    saved: 10, savedComped: false) == 0)
+        #expect(DocumentDraft.clientDiscountPercent(onScreen: 150, onScreenComped: nil, saved: 0, savedComped: false) == 100)
+        #expect(DocumentDraft.clientDiscountPercent(onScreen: -5, onScreenComped: nil, saved: 0, savedComped: false) == 0)
         #expect(DocumentDraft.clientDiscount(subtotal: -20, percent: 10) == 0)
     }
 }

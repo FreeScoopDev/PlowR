@@ -32,11 +32,12 @@ nonisolated struct DocumentDraft {
     }
 
     /// A client's Default Discount, as a percent of a new document's
-    /// subtotal: the client page's choice when it opened the builder, saved
-    /// or not, else the client's. None for a comped client, whose page hides
-    /// the choice.
-    static func clientDiscountPercent(onScreen: Double?, saved: Double, comped: Bool) -> Double {
-        comped ? 0 : min(max(onScreen ?? saved, 0), 100)
+    /// subtotal: the client page's choices when it opened the builder, saved
+    /// or not (`onScreen…`, nil from anywhere else), else the client's. None
+    /// for a comped client, whose page hides the choice.
+    static func clientDiscountPercent(onScreen: Double?, onScreenComped: Bool?,
+                                      saved: Double, savedComped: Bool) -> Double {
+        (onScreenComped ?? savedComped) ? 0 : min(max(onScreen ?? saved, 0), 100)
     }
 
     /// The discount `percent` of `subtotal` gives, to the cent. A new

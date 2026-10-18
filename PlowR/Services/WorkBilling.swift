@@ -46,7 +46,8 @@ enum WorkBilling {
         /// What the invoice will come to before tax: the work, less the
         /// client's Default Discount, worked out as the invoice works it out.
         var total: Double {
-            InvoiceLines.roundedToCent(subtotal - ServiceLog.clientDiscount(for: client, discountable: discountable))
+            Proposal.totals(subtotal: subtotal, discount: ServiceLog.clientDiscount(for: client, discountable: discountable),
+                            taxRate: 0).discounted
         }
         /// The work's charges, before any discount.
         var subtotal: Double {

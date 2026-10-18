@@ -265,8 +265,9 @@ enum ServiceLog {
     /// The client's Default Discount on a new invoice: their percent of
     /// `discountable` (the subtotal less any contract's own price), to the cent.
     static func clientDiscount(for client: Client, discountable: Double) -> Double {
-        let percent = DocumentDraft.clientDiscountPercent(onScreen: nil, saved: client.defaultDiscountPercent,
-                                                          comped: client.isComped)
+        let percent = DocumentDraft.clientDiscountPercent(onScreen: nil, onScreenComped: nil,
+                                                          saved: client.defaultDiscountPercent,
+                                                          savedComped: client.isComped)
         return DocumentDraft.clientDiscount(subtotal: discountable, percent: percent)
     }
 
@@ -365,7 +366,7 @@ enum ServiceLog {
     /// per-visit contract's price among `lines` (StopRecording.contractCharge),
     /// not discounted.
     @discardableResult
-    static func invoice(_ record: ServiceRecord, lines: [InvoiceLines.Line], contractCharge: Double = 0,
+    static func invoice(_ record: ServiceRecord, lines: [InvoiceLines.Line], contractCharge: Double,
                         client: Client, operatorID: String,
                         notes: String, now: Date = .now, in context: ModelContext) -> Proposal {
         let items = lines.enumerated().map { index, line in
