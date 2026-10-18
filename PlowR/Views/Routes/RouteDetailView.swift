@@ -219,6 +219,8 @@ struct RouteDetailView: View {
         .onChange(of: canOptimize, initial: true) { _, ready in
             PlowRTips.update { PlowRTips.pinnedStopsReady = ready }
         }
+        // Every route page starts from its own stops, not the last page's.
+        .onDisappear { PlowRTips.update { PlowRTips.pinnedStopsReady = false } }
         .sheet(isPresented: $showingHelp) {
             HelpTopicsSheet(screen: .routeDetail)
         }
