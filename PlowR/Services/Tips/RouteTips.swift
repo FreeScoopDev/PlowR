@@ -94,7 +94,8 @@ nonisolated struct WidgetTip: PlowRTip {
 }
 
 nonisolated extension PlowRTips {
-    /// Every tip's copy id, for TipsTests.
-    static let routeTipIDs = [StopServicesTip.helpID, SkipTodayTip.helpID, OptimizeOrderTip.helpID,
-                              RecordServicesTip.helpID, SiriTip.helpID, WidgetTip.helpID]
+    /// Every route tip, for TipsTests (which fails a PlowRTip not listed).
+    static let routeTipTypes: [any PlowRTip.Type] = [StopServicesTip.self, SkipTodayTip.self, OptimizeOrderTip.self,
+                                                     RecordServicesTip.self, SiriTip.self, WidgetTip.self]
+    static var routeTipIDs: [String] { routeTipTypes.map { $0.helpID } }
 }
