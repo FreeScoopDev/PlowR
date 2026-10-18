@@ -47,9 +47,13 @@ nonisolated enum PlowRTips {
             }
         }
         #if DEBUG
-        // Screenshots show no tips; -PlowRShowTips shows every one.
-        if DemoLaunch.isOn || DemoLaunch.isNew { Tips.hideAllTipsForTesting() }
-        if defaults.bool(forKey: showAllKey) { Tips.showAllTipsForTesting() }
+        // Screenshots show no tips; -PlowRShowTips shows every one (with
+        // the demo's data too).
+        if defaults.bool(forKey: showAllKey) {
+            Tips.showAllTipsForTesting()
+        } else if DemoLaunch.isOn || DemoLaunch.isNew {
+            Tips.hideAllTipsForTesting()
+        }
         #endif
         do {
             // The app's own container: not the app group (the widget has no

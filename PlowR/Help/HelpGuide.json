@@ -252,7 +252,7 @@
           "summary": "See your progress and next stop on your Home Screen.",
           "screens": ["routes", "home"],
           "tips": [
-            { "id": "tip-widget", "title": "Your route on the Home Screen", "message": "Add the **Today's Route** widget to see your next stop at a glance." }
+            { "id": "tip-widget", "title": "Your route at a glance", "message": "Add the **Today's Route** widget to your Home Screen to see your next stop." }
           ]
         },
         {
