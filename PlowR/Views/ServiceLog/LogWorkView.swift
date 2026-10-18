@@ -37,7 +37,7 @@ struct LogWorkView: View {
     private var canSave: Bool {
         (!recording.recordLines.isEmpty || hasNotes) && recording.unreadableFields().isEmpty && minutesReadable
     }
-    private var minutesReadable: Bool { ServiceLog.readMinutes(minutes) != nil }
+    private var minutesReadable: Bool { ServiceLog.minutesToSave(typed: minutes) != nil }
     private var hasChanges: Bool { !selectedIDs.isEmpty || !customItems.isEmpty || hasNotes || !minutes.isEmpty }
 
     // PlowR Pro: read only, this editor shows why instead (EditsNeedPro).
@@ -104,9 +104,8 @@ struct LogWorkView: View {
     }
 
     private func save() {
-        guard canSave else { return }
-        ServiceLog.logWork(recording, notes: notes, performedAt: performedAt,
-                           minutes: ServiceLog.readMinutes(minutes) ?? 0,
+        guard canSave, let minutes = ServiceLog.minutesToSave(typed: minutes) else { return }
+        ServiceLog.logWork(recording, notes: notes, performedAt: performedAt, minutes: minutes,
                            for: client, at: placeID, operatorID: client.operatorID, in: modelContext)
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         dismiss()

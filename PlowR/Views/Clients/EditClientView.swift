@@ -750,7 +750,7 @@ struct EditClientView: View {
             Button {
                 $gate.unless(ProGate.serviceReport(access)) { showingServiceReport = true }
             } label: {
-                Label("Service Report", systemImage: "checkmark.seal")
+                Label("Service Report", systemImage: PlowRSymbol.serviceReport.name)
             }
             if client.totalVisits == 0 {
                 Text("No route visits recorded yet")

@@ -108,6 +108,9 @@ struct ServiceRecordDetailView: View {
                 } else if !isBillable {
                     Text("No charge: this work won't be billed.")
                 }
+                if record.source == .route {
+                    Text(ServiceLog.routeMinutesNote)
+                }
             }
             .listRowBackground(PlowRColor.surface)
 
@@ -213,8 +216,7 @@ struct ServiceRecordDetailView: View {
             } header: {
                 Text("Job Site (GPS)")
             } footer: {
-                Text("When the phone came into and went out of an area about 100 m around the pin, as iOS reported it. "
-                     + "Kept as recorded: they can't be edited.")
+                Text(ProofOfService.siteFooter)
             }
             .listRowBackground(PlowRColor.surface)
         }
@@ -243,8 +245,11 @@ struct ServiceRecordDetailView: View {
         loaded = snapshot
     }
 
-    /// Left as it opened, or a number of minutes (ServiceLog.readMinutes).
-    private var minutesReadable: Bool { minutes == minutesAsLoaded || ServiceLog.readMinutes(minutes) != nil }
+    /// What the minutes field saves (ServiceLog.minutesToSave); nil when it can't be read.
+    private var minutesToSave: Double? {
+        ServiceLog.minutesToSave(typed: minutes, asLoaded: minutesAsLoaded, recorded: record.minutes)
+    }
+    private var minutesReadable: Bool { minutesToSave != nil }
 
     /// No price here that can't be read (ServiceLinesSections says which),
     /// and minutes that can be.
@@ -258,10 +263,9 @@ struct ServiceRecordDetailView: View {
     }
 
     private func save() {
-        guard canSave else { return }
+        guard canSave, let minutes = minutesToSave else { return }
         ServiceLog.update(record, lines: recording.recordLines, notes: notes, performedAt: performedAt,
-                          minutes: minutes == minutesAsLoaded ? record.minutes : ServiceLog.readMinutes(minutes) ?? 0,
-                          isBillable: isBillable, in: modelContext)
+                          minutes: minutes, isBillable: isBillable, in: modelContext)
         loaded = snapshot
         dismiss()
     }

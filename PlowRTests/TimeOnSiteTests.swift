@@ -83,12 +83,54 @@ struct TimeOnSiteTests {
                 .map { "\($0.label): \(plain($0.value) ?? "")" }
         }
         #expect(rows(record(arrived: at(4, 58), left: at(6, 3)))
-                == ["Arrived: 4:58 AM", "Left: 6:03 AM", "On Site: 1 h 05 min"])
+                == ["Arrived: 4:58 AM", "Left: 6:03 AM", "On Site (GPS): 1 h 05 min"])
         #expect(rows(record(arrived: nil, left: at(6, 3))) == ["Arrived: Not caught", "Left: 6:03 AM"])
         #expect(rows(record(arrived: at(4, 58), left: nil)) == ["Arrived: 4:58 AM", "Left: Not caught"])
         // A job GPS never saw (logged by hand, location off) has no rows:
         // nothing says "not caught" about work GPS was never watching.
         #expect(rows(record(arrived: nil, left: nil)).isEmpty)
+    }
+
+    @Test func aTimeOnAnotherDayThanTheJobsGivesItsDate() {
+        // The job's Done date was moved to the next day: GPS's times can't
+        // read as that day's.
+        let moved = record(arrived: at(23, 50), left: at(23, 58))
+        moved.performedAt = at(23, 58).addingTimeInterval(24 * 60 * 60)
+        let values = ProofOfService.siteRows(of: moved, timeZone: zone, locale: english).map { plain($0.value) ?? "" }
+        #expect(values == ["Jan 14, 2027 11:50 PM", "Jan 14, 2027 11:58 PM", "8 min"])
+        let sameDay = record(arrived: at(4, 58), left: at(5, 24))
+        sameDay.performedAt = at(5, 30)
+        #expect(ProofOfService.siteRows(of: sameDay, timeZone: zone, locale: english).map { plain($0.value) ?? "" }
+                == ["4:58 AM", "5:24 AM", "26 min"])
+    }
+
+    @Test func theGPSWordingFollowsTheAreasRadius() {
+        #expect(ProofOfService.gpsNote == "GPS, within about \(Int(SiteMonitor.radius)) m")
+        #expect(ProofOfService.siteFooter.contains("about \(Int(SiteMonitor.radius)) m"))
+        #expect(ProofOfService.onSiteListText(26 * 60) == "26 min on site (GPS)")
+    }
+
+    // MARK: - The route recap
+
+    @Test func theRecapTakesEachStopsOldestRecord() {
+        let stopA = UUID(), stopB = UUID(), stopC = UUID()
+        func runRecord(_ stop: UUID, created: Date, arrived: Date?, left: Date?) -> ServiceRecord {
+            let made = record(arrived: arrived, left: left)
+            made.stopID = stop.uuidString
+            made.createdAt = created
+            return made
+        }
+        let records = [
+            runRecord(stopA, created: at(6, 0), arrived: at(5, 0), left: at(5, 40)),   // a later copy
+            runRecord(stopA, created: at(5, 50), arrived: at(5, 0), left: at(5, 20)),  // the oldest: kept
+            runRecord(stopB, created: at(6, 0), arrived: nil, left: at(6, 10)),        // arrival not caught
+            runRecord(stopC, created: at(7, 0), arrived: at(6, 30), left: at(7, 0))
+        ]
+        let times = ServiceLog.timesOnSite(records)
+        #expect(times[stopA] == TimeInterval(20 * 60))
+        #expect(times[stopB] == nil)
+        #expect(times[stopC] == TimeInterval(30 * 60))
+        #expect(times.count == 2)
     }
 
     // MARK: - Minutes on Site
@@ -112,6 +154,23 @@ struct TimeOnSiteTests {
         #expect(ServiceLog.readMinutes("10000", locale: us) == nil)
     }
 
+    @Test func whatEachMinutesFieldSaves() {
+        let us = Locale(identifier: "en_US")
+        // The job's page opened showing 44.6 recorded minutes as "45".
+        func job(_ typed: String) -> Double? {
+            ServiceLog.minutesToSave(typed: typed, asLoaded: "45", recorded: 44.6, locale: us)
+        }
+        #expect(job("45") == 44.6)          // untouched: the exact time is kept
+        #expect(job("30") == 30)
+        #expect(job("") == 0)               // emptied: no time
+        #expect(job("45 min") == nil)       // can't be read: nothing saved
+        #expect(job("1:30") == nil)
+        // Log Work opens empty with nothing recorded.
+        #expect(ServiceLog.minutesToSave(typed: "", locale: us) == 0)
+        #expect(ServiceLog.minutesToSave(typed: "20", locale: us) == 20)
+        #expect(ServiceLog.minutesToSave(typed: "45 min", locale: us) == nil)
+    }
+
     @Test func aDecimalCommaIsReadWhereTheRegionWritesOne() {
         #expect(ServiceLog.readMinutes("12,5", locale: Locale(identifier: "fr_FR")) == 12.5)
         // Elsewhere a comma separates thousands: not guessed at.
@@ -121,15 +180,17 @@ struct TimeOnSiteTests {
     @Test func bothMinutesFieldsReadThroughOneFunction() throws {
         for file in ["ServiceRecordDetailView.swift", "LogWorkView.swift"] {
             let text = try source("ServiceLog/\(file)")
-            #expect(text.contains("ServiceLog.readMinutes(minutes)"), "\(file)")
+            #expect(text.contains("ServiceLog.minutesToSave(typed: minutes"), "\(file)")
             #expect(text.contains("ServiceLog.unreadableMinutesMessage"), "\(file)")
-            #expect(!text.contains("Double(minutes"), "\(file) reads minutes on its own")
+            // Save takes the minutes only from minutesToSave, with no fallback.
+            #expect(text.contains("guard canSave, let minutes ="), "\(file)")
+            #expect(!text.contains("Double(minutes") && !text.contains("readMinutes(minutes)"),
+                    "\(file) reads minutes on its own")
         }
         let detail = try source("ServiceLog/ServiceRecordDetailView.swift")
         #expect(detail.contains("cantSaveMessage: cantSaveMessage"))
-        // GPS's times are shown, never bound to a control.
-        #expect(!detail.contains("$record.arrivedAt") && !detail.contains("$record.leftAt"))
-        #expect(!detail.contains("record.arrivedAt =") && !detail.contains("record.leftAt ="))
+        // GPS's times are shown, never written here.
+        #expect(!detail.contains("arrivedAt =") && !detail.contains("leftAt ="))
     }
 
     // MARK: - The Service Report from the client page

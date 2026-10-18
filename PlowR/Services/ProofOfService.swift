@@ -190,7 +190,10 @@ enum ProofOfService {
     }
 
     /// What GPS's times are said with, wherever they show.
-    static let gpsNote = "GPS, within about 100 m"
+    static let gpsNote = "GPS, within about \(Int(SiteMonitor.radius)) m"
+    /// Under the job page's GPS rows.
+    static let siteFooter = "When the phone came into and went out of an area about \(Int(SiteMonitor.radius)) m "
+        + "around the pin, as iOS reported it. Kept as recorded: they can't be edited."
     static let arrivalNotCaught = "Arrival not caught"
     static let departureNotCaught = "Departure not caught"
 
@@ -232,18 +235,33 @@ enum ProofOfService {
     }
 
     /// The job's page's GPS rows: Arrived and Left ("Not caught" where GPS
-    /// missed one) and, when it caught both, On Site. None when it caught
-    /// neither. Shown as recorded: these can't be edited.
+    /// missed one) and, when it caught both, On Site (GPS). None when it
+    /// caught neither. Shown as recorded: these can't be edited. A time on
+    /// another day than the job's (its Done date moved) gives its date, so
+    /// it can't pass as that day's.
     static func siteRows(of record: ServiceRecord, timeZone: TimeZone = .current,
                          locale: Locale = .current) -> [SiteRow] {
         guard record.arrivedAt != nil || record.leftAt != nil else { return [] }
         var time = Date.FormatStyle.dateTime.hour().minute().locale(locale)
         time.timeZone = timeZone
-        var rows = [SiteRow(label: "Arrived", value: record.arrivedAt?.formatted(time) ?? "Not caught"),
-                    SiteRow(label: "Left", value: record.leftAt?.formatted(time) ?? "Not caught")]
-        if let onSite = timeOnSite(of: record) { rows.append(SiteRow(label: "On Site", value: duration(onSite))) }
+        var day = Date.FormatStyle.dateTime.month(.abbreviated).day().year().locale(locale)
+        day.timeZone = timeZone
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        let jobDay = record.performedAt
+        func when(_ date: Date?) -> String {
+            guard let date else { return "Not caught" }
+            return calendar.isDate(date, inSameDayAs: jobDay) ? date.formatted(time)
+                : "\(date.formatted(day)) \(date.formatted(time))"
+        }
+        var rows = [SiteRow(label: "Arrived", value: when(record.arrivedAt)),
+                    SiteRow(label: "Left", value: when(record.leftAt))]
+        if let onSite = timeOnSite(of: record) { rows.append(SiteRow(label: "On Site (GPS)", value: duration(onSite))) }
         return rows
     }
+
+    /// The time on site where a list shows it: "26 min on site (GPS)".
+    static func onSiteListText(_ interval: TimeInterval) -> String { "\(onSiteText(interval)) (GPS)" }
 
     /// "38 min", "1 h 05 min", "under 1 min".
     static func duration(_ interval: TimeInterval) -> String {

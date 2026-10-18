@@ -565,6 +565,32 @@ enum ServiceLog {
         return value
     }
 
+    /// GPS's time on site (ProofOfService.timeOnSite) at each stop in one
+    /// run's records, by stop ID, from a stop's oldest record as runRecord
+    /// picks. A stop GPS didn't see both arrive and leave at is left out.
+    static func timesOnSite(_ runRecords: [ServiceRecord]) -> [UUID: TimeInterval] {
+        var result: [UUID: TimeInterval] = [:]
+        for (stopID, copies) in Dictionary(grouping: runRecords, by: \.stopID) {
+            guard let id = UUID(uuidString: stopID), let record = oldest(copies),
+                  let onSite = ProofOfService.timeOnSite(of: record) else { continue }
+            result[id] = onSite
+        }
+        return result
+    }
+
+    /// What a Minutes on Site field saves, or nil when it can't be saved.
+    /// `asLoaded`: the field as it opened, which shows `recorded` to the
+    /// whole minute; left so (or typed back), the exact `recorded` is kept.
+    /// Log Work opens empty with nothing recorded.
+    static func minutesToSave(typed: String, asLoaded: String = "", recorded: Double = 0,
+                              locale: Locale = .current) -> Double? {
+        typed == asLoaded ? recorded : readMinutes(typed, locale: locale)
+    }
+
+    /// What Minutes on Site holds for a route stop: from when it became the
+    /// current stop to when it was done, as the Service Report says.
+    static let routeMinutesNote = "For a route stop, from when it became the current stop to when it was done, so it includes travel."
+
     static let unreadableMinutesMessage = "Can't read Minutes on Site: type a number of minutes, such as 45."
 
     /// Work done off a route or a visit, logged from the client's Service
