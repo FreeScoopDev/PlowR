@@ -91,6 +91,10 @@ struct ServiceRecordDetailView: View {
                         .keyboardType(.numberPad)
                         .multilineTextAlignment(.trailing)
                 }
+                if !minutesReadable {
+                    Label(ServiceLog.unreadableMinutesMessage, systemImage: PlowRSymbol.warning.name)
+                        .foregroundStyle(PlowRColor.Status.overdue.text)
+                }
                 // Work from before the log: whether it was billed isn't known.
                 if record.source != .beforeLog {
                     Toggle("Bill for This Work", isOn: $isBillable)
@@ -122,6 +126,8 @@ struct ServiceRecordDetailView: View {
             .disabled(!access.canEdit)
 
             photosSection
+
+            siteSection
 
             Section("Details") {
                 LabeledContent("Recorded From", value: sourceText)
@@ -157,7 +163,7 @@ struct ServiceRecordDetailView: View {
         }
         .asksBeforeLeaving(hasChanges: hasChanges, isBusy: false, canSave: canSave,
                            message: "Your changes to this job aren't saved.",
-                           cantSaveMessage: DocumentDraft.unreadableMessage(recording.unreadableFields(locked: locked)),
+                           cantSaveMessage: cantSaveMessage,
                            save: save, discard: { dismiss() })
         .confirmationDialog("Delete this job?", isPresented: $showingDeleteConfirm, titleVisibility: .visible) {
             Button("Delete", role: .destructive) {
@@ -194,6 +200,26 @@ struct ServiceRecordDetailView: View {
         }
     }
 
+    /// What GPS saw at the job site (job-site areas, SiteTimes): shown as
+    /// recorded, never edited, as they matter in a dispute.
+    @ViewBuilder
+    private var siteSection: some View {
+        let rows = ProofOfService.siteRows(of: record)
+        if !rows.isEmpty {
+            Section {
+                ForEach(rows, id: \.self) { row in
+                    LabeledContent(row.label, value: row.value)
+                }
+            } header: {
+                Text("Job Site (GPS)")
+            } footer: {
+                Text("When the phone came into and went out of an area about 100 m around the pin, as iOS reported it. "
+                     + "Kept as recorded: they can't be edited.")
+            }
+            .listRowBackground(PlowRColor.surface)
+        }
+    }
+
     private var sourceText: String {
         switch record.source {
         case .route: record.routeName.isEmpty ? "A route" : "Route: \(record.routeName)"
@@ -217,13 +243,24 @@ struct ServiceRecordDetailView: View {
         loaded = snapshot
     }
 
-    /// No price here that can't be read (ServiceLinesSections says which).
-    private var canSave: Bool { recording.unreadableFields(locked: locked).isEmpty }
+    /// Left as it opened, or a number of minutes (ServiceLog.readMinutes).
+    private var minutesReadable: Bool { minutes == minutesAsLoaded || ServiceLog.readMinutes(minutes) != nil }
+
+    /// No price here that can't be read (ServiceLinesSections says which),
+    /// and minutes that can be.
+    private var canSave: Bool { recording.unreadableFields(locked: locked).isEmpty && minutesReadable }
+
+    private var cantSaveMessage: String {
+        let fields = recording.unreadableFields(locked: locked)
+        return [fields.isEmpty ? nil : DocumentDraft.unreadableMessage(fields),
+                minutesReadable ? nil : ServiceLog.unreadableMinutesMessage]
+            .compactMap { $0 }.joined(separator: " ")
+    }
 
     private func save() {
+        guard canSave else { return }
         ServiceLog.update(record, lines: recording.recordLines, notes: notes, performedAt: performedAt,
-                          minutes: minutes == minutesAsLoaded
-                              ? record.minutes : Double(minutes.trimmingCharacters(in: .whitespaces)) ?? 0,
+                          minutes: minutes == minutesAsLoaded ? record.minutes : ServiceLog.readMinutes(minutes) ?? 0,
                           isBillable: isBillable, in: modelContext)
         loaded = snapshot
         dismiss()

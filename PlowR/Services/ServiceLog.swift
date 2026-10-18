@@ -550,6 +550,23 @@ enum ServiceLog {
 
     // MARK: - A client's Service History
 
+    /// The most a job's Minutes on Site can be: about a week.
+    static let maxMinutes: Double = 10_000
+
+    /// The Minutes on Site field (a job's page, Log Work): 0 when empty, the
+    /// minutes typed (whole or decimal, a decimal comma as DecimalText reads
+    /// it), or nil when it can't be read, and then the screen says so and
+    /// won't save. It used to read anything else as 0, so "45 min" or "1:30"
+    /// lost the time unseen.
+    static func readMinutes(_ typed: String, locale: Locale = .current) -> Double? {
+        let text = typed.trimmingCharacters(in: .whitespaces)
+        if text.isEmpty { return 0 }
+        guard let value = DecimalText.number(text, locale: locale), value >= 0, value < maxMinutes else { return nil }
+        return value
+    }
+
+    static let unreadableMinutesMessage = "Can't read Minutes on Site: type a number of minutes, such as 45."
+
     /// Work done off a route or a visit, logged from the client's Service
     /// History, at the client's address.
     /// Not dated in the future: it's work done.

@@ -35,8 +35,9 @@ struct LogWorkView: View {
 
     private var hasNotes: Bool { !notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     private var canSave: Bool {
-        (!recording.recordLines.isEmpty || hasNotes) && recording.unreadableFields().isEmpty
+        (!recording.recordLines.isEmpty || hasNotes) && recording.unreadableFields().isEmpty && minutesReadable
     }
+    private var minutesReadable: Bool { ServiceLog.readMinutes(minutes) != nil }
     private var hasChanges: Bool { !selectedIDs.isEmpty || !customItems.isEmpty || hasNotes || !minutes.isEmpty }
 
     // PlowR Pro: read only, this editor shows why instead (EditsNeedPro).
@@ -60,6 +61,10 @@ struct LogWorkView: View {
                         TextField("Optional", text: $minutes)
                             .keyboardType(.numberPad)
                             .multilineTextAlignment(.trailing)
+                    }
+                    if !minutesReadable {
+                        Label(ServiceLog.unreadableMinutesMessage, systemImage: PlowRSymbol.warning.name)
+                            .foregroundStyle(PlowRColor.Status.overdue.text)
                     }
                 }
                 .listRowBackground(PlowRColor.surface)
@@ -99,8 +104,9 @@ struct LogWorkView: View {
     }
 
     private func save() {
+        guard canSave else { return }
         ServiceLog.logWork(recording, notes: notes, performedAt: performedAt,
-                           minutes: Double(minutes.trimmingCharacters(in: .whitespaces)) ?? 0,
+                           minutes: ServiceLog.readMinutes(minutes) ?? 0,
                            for: client, at: placeID, operatorID: client.operatorID, in: modelContext)
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         dismiss()

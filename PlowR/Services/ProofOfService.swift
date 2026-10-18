@@ -131,8 +131,8 @@ enum ProofOfService {
         if check.isFromStop {
             lines = ["Checked on a route at \(check.checkedAt.formatted(time)): below the contract's snow trigger, "
                      + "not cleared"]
-            lines.append(check.arrivedAt.map { "Arrived \($0.formatted(time)) (GPS, within about 100 m)" }
-                         ?? "Arrival not caught (GPS)")
+            lines.append(check.arrivedAt.map { "Arrived \($0.formatted(time)) (\(gpsNote))" }
+                         ?? "\(arrivalNotCaught) (GPS)")
             if !check.routeName.isEmpty { lines.append("Route: \(check.routeName)") }
         } else {
             var when = Date.FormatStyle.dateTime.month(.abbreviated).day().hour().minute().locale(locale)
@@ -189,16 +189,68 @@ enum ProofOfService {
         return text
     }
 
+    /// What GPS's times are said with, wherever they show.
+    static let gpsNote = "GPS, within about 100 m"
+    static let arrivalNotCaught = "Arrival not caught"
+    static let departureNotCaught = "Departure not caught"
+
     /// A route stop's arrival and departure as GPS saw them, if it saw
-    /// either; nil if it saw neither.
+    /// either; nil if it saw neither. With the time on site when it saw both.
     static func siteTimes(of record: ServiceRecord, timeZone: TimeZone = .current,
                           locale: Locale = .current) -> String? {
         guard record.arrivedAt != nil || record.leftAt != nil else { return nil }
         var time = Date.FormatStyle.dateTime.hour().minute().locale(locale)
         time.timeZone = timeZone
-        let arrived = record.arrivedAt.map { "Arrived \($0.formatted(time))" } ?? "Arrival not caught"
-        let left = record.leftAt.map { "Left \($0.formatted(time))" } ?? "Departure not caught"
-        return "\(arrived) · \(left) (GPS, within about 100 m)"
+        let arrived = record.arrivedAt.map { "Arrived \($0.formatted(time))" } ?? arrivalNotCaught
+        let left = record.leftAt.map { "Left \($0.formatted(time))" } ?? departureNotCaught
+        let onSite = timeOnSite(of: record).map { " · \(onSiteText($0))" } ?? ""
+        return "\(arrived) · \(left)\(onSite) (\(gpsNote))"
+    }
+
+    /// How long the phone was in the stop's area: from GPS's arrival to its
+    /// departure. Only when GPS caught both, and in that order; nil
+    /// otherwise, never a guess (SiteTimes keeps only what was seen).
+    static func timeOnSite(arrivedAt: Date?, leftAt: Date?) -> TimeInterval? {
+        guard let arrivedAt, let leftAt, leftAt >= arrivedAt else { return nil }
+        return leftAt.timeIntervalSince(arrivedAt)
+    }
+
+    static func timeOnSite(of record: ServiceRecord) -> TimeInterval? {
+        timeOnSite(arrivedAt: record.arrivedAt, leftAt: record.leftAt)
+    }
+
+    /// A time on site, to the nearest minute: "38 min on site",
+    /// "1 h 05 min on site", "under 1 min on site".
+    static func onSiteText(_ interval: TimeInterval) -> String {
+        "\(duration(interval)) on site"
+    }
+
+    /// A row on the job's page: "Arrived", "7:02 AM".
+    struct SiteRow: Hashable {
+        var label: String
+        var value: String
+    }
+
+    /// The job's page's GPS rows: Arrived and Left ("Not caught" where GPS
+    /// missed one) and, when it caught both, On Site. None when it caught
+    /// neither. Shown as recorded: these can't be edited.
+    static func siteRows(of record: ServiceRecord, timeZone: TimeZone = .current,
+                         locale: Locale = .current) -> [SiteRow] {
+        guard record.arrivedAt != nil || record.leftAt != nil else { return [] }
+        var time = Date.FormatStyle.dateTime.hour().minute().locale(locale)
+        time.timeZone = timeZone
+        var rows = [SiteRow(label: "Arrived", value: record.arrivedAt?.formatted(time) ?? "Not caught"),
+                    SiteRow(label: "Left", value: record.leftAt?.formatted(time) ?? "Not caught")]
+        if let onSite = timeOnSite(of: record) { rows.append(SiteRow(label: "On Site", value: duration(onSite))) }
+        return rows
+    }
+
+    /// "38 min", "1 h 05 min", "under 1 min".
+    static func duration(_ interval: TimeInterval) -> String {
+        let minutes = Int((interval / 60).rounded())
+        guard minutes >= 1 else { return "under 1 min" }
+        guard minutes >= 60 else { return "\(minutes) min" }
+        return "\(minutes / 60) h \(String(format: "%02d", minutes % 60)) min"
     }
 
     /// What the report says about a visit, line by line (also what tests read).

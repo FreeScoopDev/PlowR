@@ -101,6 +101,10 @@ enum ProGate: Identifiable, Equatable {
     /// A new document's PDF, from the builder's preview.
     static func makeDocument(_ access: Access) -> ProGate? { makeReport(access) }
 
+    /// The Service Report (ProofOfService), from the client page or their
+    /// Service History.
+    static func serviceReport(_ access: Access) -> ProGate? { proFeature("The Service Report", access) }
+
     static func proFeature(_ name: String, _ access: Access) -> ProGate? {
         if access.canUseProFeatures { return nil }
         return access.tier == .readOnly ? .readOnly : .proFeature(name)

@@ -14,6 +14,7 @@ struct RouteRecapView: View {
     var runStartedAt: Date?
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
     @State private var editingStop: RouteStop?
 
     private var completedStops: [RouteStop] {
@@ -165,6 +166,13 @@ struct RouteRecapView: View {
 
     // MARK: - Stop Row
 
+    /// This run's record of the stop (ServiceLog.runRecord), read in the
+    /// body so a departure GPS catches while the recap is open shows.
+    private func timeOnSite(of stop: RouteStop) -> TimeInterval? {
+        guard let runID, let record = ServiceLog.runRecord(run: runID, stop: stop.id, in: modelContext) else { return nil }
+        return ProofOfService.timeOnSite(of: record)
+    }
+
     private func stopRow(_ stop: RouteStop, index: Int, completed: Bool) -> some View {
         Button {
             editingStop = stop
@@ -207,6 +215,14 @@ struct RouteRecapView: View {
                         Text("\(stop.actualMinutes) min")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
+                    }
+                    // GPS's time at the job site, once it has seen the crew
+                    // arrive and leave (a departure seen later shows then).
+                    if completed, let onSite = timeOnSite(of: stop) {
+                        Text(ProofOfService.onSiteText(onSite))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .accessibilityLabel("\(ProofOfService.onSiteText(onSite)), by GPS")
                     }
                 }
 

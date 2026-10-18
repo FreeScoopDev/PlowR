@@ -57,7 +57,7 @@ struct ClientServiceHistoryView: View {
                         }
                     }
                     Button {
-                        $gate.unless(ProGate.proFeature("The Service Report", access)) { showingProof = true }
+                        $gate.unless(ProGate.serviceReport(access)) { showingProof = true }
                     } label: {
                         Label("Service Report", systemImage: "checkmark.seal")
                     }
@@ -137,6 +137,14 @@ struct ServiceRecordRow: View {
                     Label("\(Int(record.minutes.rounded())) min", systemImage: "clock")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
+                }
+                // How long GPS saw the phone at the job site, when it saw
+                // both the arrival and the departure (never a guess).
+                if let onSite = ProofOfService.timeOnSite(of: record) {
+                    Label(ProofOfService.onSiteText(onSite), systemImage: "mappin.and.ellipse")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel("\(ProofOfService.onSiteText(onSite)), by GPS")
                 }
                 if !record.routeName.isEmpty {
                     Label(record.routeName, systemImage: "map")
