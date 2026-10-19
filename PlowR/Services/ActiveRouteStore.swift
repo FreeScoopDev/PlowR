@@ -147,11 +147,28 @@ final class ActiveRouteStore {
         // A route (or its stops) can be deleted or reordered on another device
         // while this one is mid-route. Re-check whenever the store changes;
         // the app also calls validate() when it becomes active.
-        for name in [ModelContext.didSave, Notification.Name.NSPersistentStoreRemoteChange] {
-            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self?.validate() }
+        // Never making the poster wait (MainActorNotice), and a save only of
+        // this store's own database: one in another (the tests make many)
+        // ran validate() inside that save, reading this database, which
+        // deadlocked too.
+        NotificationCenter.default.addObserver(forName: ModelContext.didSave, object: nil, queue: nil) { [weak self] note in
+            let saved = (note.object as? ModelContext)?.container
+            MainActorNotice.run {
+                guard let self, Self.isOwnSave(saved, of: self.context) else { return }
+                self.validate()
             }
         }
+        NotificationCenter.default.addObserver(forName: .NSPersistentStoreRemoteChange, object: nil,
+                                               queue: nil) { [weak self] _ in
+            MainActorNotice.run { self?.validate() }
+        }
+    }
+
+    /// Whether a save in `saved` is one of this store's database (any of its
+    /// contexts: the app's background work saves through its own).
+    static func isOwnSave(_ saved: ModelContainer?, of context: ModelContext?) -> Bool {
+        guard let saved, let context else { return false }
+        return saved === context.container
     }
 
     /// Begins `route` at its first stop, leaving `skipping` out of this run.
