@@ -1,0 +1,3 @@
+### Added
+- Tips for the schedule and getting paid: in Add Visit, Repeat; on the Schedule, Create Route for a day with three or more visits; in Documents, Bill Unbilled Work (when there's work not billed yet), Send Reminder (when an invoice is overdue; not on a Mac) and adding a payment link (once an invoice has gone out with no payment method set up). As with the other tips, each shows once, at most one a day and one on a screen, and never again after you've used it.
+- A "Getting paid" section in the help guide (in the app and on getplowr.app): billing unbilled work, reminding a client to pay, and payment methods.

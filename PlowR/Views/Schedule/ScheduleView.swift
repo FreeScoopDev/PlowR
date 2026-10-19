@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import TipKit
 import UIKit
 import CoreLocation
 
@@ -9,6 +10,8 @@ struct ScheduleView: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     @Query private var allRoutes: [PlowRoute]
     @State private var gate: ProGate?
+    /// Create Route's tip, above a busy day.
+    @State private var dayTips = TipGroup(.firstAvailable) { RouteFromDayTip() }
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \ScheduledVisit.scheduledDate) private var allVisits: [ScheduledVisit]
     @Query private var allClients: [Client]
@@ -33,6 +36,18 @@ struct ScheduleView: View {
         myVisits
             .filter { Calendar.current.isDate($0.scheduledDate, inSameDayAs: selectedDate) }
             .sorted { $0.scheduledDate < $1.scheduledDate }
+    }
+
+    /// The chosen day's scheduled client visits, what Create Route turns into stops.
+    private var scheduledClientVisits: [ScheduledVisit] {
+        visitsForSelectedDate.filter { $0.status == .scheduled && !$0.clientID.isEmpty }
+    }
+
+    /// For Create Route's tip: the day's visits, or 0 when Create Route would
+    /// open the paywall.
+    private var routeFromDayCount: Int {
+        PlowRTips.routeFromDayCount(scheduledClientVisits.count, access: access, routes: allRoutes,
+                                    operatorID: authManager.userID)
     }
 
     private var overduePending: [ScheduledVisit] {
@@ -73,11 +88,24 @@ struct ScheduleView: View {
                 weatherSection
                 calendarSection
                 if Calendar.current.isDateInToday(selectedDate) { overdueSection }
+                if let tip = dayTips.currentTip {
+                    Section {
+                        TipView(tip)
+                    }
+                    .listRowBackground(PlowRColor.surface)
+                }
                 daySection
                 if !upcomingVisits.isEmpty { upcomingSection }
             }
             .plowRGrouped()
             .listStyle(.insetGrouped)
+            // Create Route's tip waits for a day with a few visits.
+            .onChange(of: routeFromDayCount, initial: true) { _, count in
+                PlowRTips.update { PlowRTips.dayVisitCount = count }
+            }
+            // Back from another tab or a visit: onChange doesn't fire again.
+            .onAppear { PlowRTips.update { PlowRTips.dayVisitCount = routeFromDayCount } }
+            .onDisappear { PlowRTips.update { PlowRTips.dayVisitCount = 0 } }
             .navigationTitle("Schedule")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
@@ -214,7 +242,6 @@ struct ScheduleView: View {
                     .foregroundStyle(.primary)
                     .textCase(nil)
                 if !typeSize.isAccessibilitySize { Spacer() }
-                let scheduledClientVisits = visitsForSelectedDate.filter { $0.status == .scheduled && !$0.clientID.isEmpty }
                 if !scheduledClientVisits.isEmpty {
                     Button {
                         $gate.unless(ProGate.createRoute(access, routes: allRoutes, operatorID: authManager.userID)) {
@@ -411,6 +438,7 @@ struct ScheduleView: View {
         }
         createdRouteName = name
         showingRouteCreated = true
+        PlowRTips.done(RouteFromDayTip(), RouteFromDayTip.routeMade)
     }
 
     /// What Create Route did, including any visits it left off.

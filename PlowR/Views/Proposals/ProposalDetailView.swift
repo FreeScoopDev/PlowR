@@ -302,7 +302,10 @@ struct ProposalDetailView: View {
 
             if MFMessageComposeViewController.canSendText(),
                let phone = proposalClient?.phone, !phone.isEmpty {
-                Button { showingReminder = true } label: {
+                Button {
+                    showingReminder = true
+                    PlowRTips.reminderOpened()
+                } label: {
                     Label("Remind", systemImage: PlowRSymbol.text.name)
                 }
                 .buttonStyle(.plowRSecondary)

@@ -166,7 +166,11 @@
             "Under **Recurrence**, turn on **Repeat** and pick a **Frequency**: Daily, Weekly, Every 2 Weeks or Monthly. For Weekly, choose the days.",
             "Turn on **End Date** if the work stops at the end of a season, then tap **Add**."
           ],
-          "note": "Want visits on your iPhone calendar too? Turn on **Settings → Calendar → Add Visits to Calendar**."
+          "note": "Want visits on your iPhone calendar too? Turn on **Settings → Calendar → Add Visits to Calendar**.",
+          "tips": [
+            { "id": "tip-repeat-visit", "title": "Same work every week?", "message": "Turn on **Repeat** for weekly or monthly visits." },
+            { "id": "tip-route-from-day", "title": "Route a busy day", "message": "Tap **Create Route** to turn this day's visits into a route." }
+          ]
         }
       ]
     },
@@ -225,6 +229,58 @@
             "Before you leave, open the route and tap **⋯** → **Message All Clients**. During a route, tap **Message All**.",
             "Pick a preset (Coming Today, On My Way, Running Late, Weather Delay, Almost Done) or write your own.",
             "Choose **Send Individually** (recommended) or a group text."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "money",
+      "title": "Getting paid",
+      "nav": "Getting paid",
+      "style": "cards",
+      "intro": "Bill the work you've done, remind clients who owe, and make paying you easy.",
+      "topics": [
+        {
+          "id": "bill-work",
+          "title": "Bill your unbilled work",
+          "summary": "A draft invoice for every client's recorded jobs, at once.",
+          "screens": ["documents"],
+          "steps": [
+            "Open **Documents**, tap **+**, and choose **Bill Unbilled Work**.",
+            "Choose **This Month**, **Last Month** or **All Unbilled**. Untick any client you're not billing yet.",
+            "Tap **Create Draft Invoices** (it shows how many and the total). Each client gets one draft, a line per service done, with its day.",
+            "Check each draft in **Documents**, then send it."
+          ],
+          "tips": [
+            { "id": "tip-bill-work", "title": "Bill everyone at once", "message": "Tap **+** and **Bill Unbilled Work** for a draft invoice per client." }
+          ]
+        },
+        {
+          "id": "payment-reminders",
+          "title": "Remind a client to pay",
+          "summary": "A friendly text with the amount owed and the due date.",
+          "screens": ["documents"],
+          "steps": [
+            "In **Documents**, touch and hold a sent invoice and tap **Send Reminder**, or open the invoice and tap **Remind**.",
+            "PlowR writes the text with the amount and due date; you send it from Messages."
+          ],
+          "note": "It needs the client's phone number and a device that can send texts. An invoice is overdue from the day after its due date; overdue invoices show in red, and Home counts them.",
+          "tips": [
+            { "id": "tip-reminder", "title": "Nudge a late payer", "message": "Touch and hold an overdue invoice and tap **Send Reminder**." }
+          ]
+        },
+        {
+          "id": "payment-methods",
+          "title": "Make paying you easy",
+          "summary": "Payment links and handles printed on every invoice.",
+          "screens": ["documents", "settings"],
+          "steps": [
+            "Go to **Settings → Payment Methods** and tap **+**.",
+            "Add how you take payment: a Venmo, PayPal, Square or Cash App link, a Zelle handle, check or cash.",
+            "Your invoices list them. A payment link also prints as a code your client can scan to pay."
+          ],
+          "tips": [
+            { "id": "tip-payment-methods", "title": "Get paid faster", "message": "Add a payment link in **Settings → Payment Methods**; invoices print a code to scan and pay." }
           ]
         }
       ]

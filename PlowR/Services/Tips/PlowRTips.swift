@@ -49,6 +49,14 @@ nonisolated enum PlowRTips {
     /// The client page on screen has a visit with a GPS arrival time, what
     /// the Service Report is best at showing.
     @Parameter(.transient) static var clientHasArrivals: Bool = false
+    /// The Schedule's chosen day: its scheduled client visits.
+    @Parameter(.transient) static var dayVisitCount: Int = 0
+    /// Documents: there's recorded work not billed yet.
+    @Parameter(.transient) static var hasUnbilledWork: Bool = false
+    /// Documents: an invoice is overdue.
+    @Parameter(.transient) static var hasOverdue: Bool = false
+    /// Documents: an invoice has been sent and no payment method is set up.
+    @Parameter(.transient) static var needsPaymentMethod: Bool = false
 
     /// Called with a tip's id when `done` runs, configured or not: lets
     /// tests see an action finish its tip.

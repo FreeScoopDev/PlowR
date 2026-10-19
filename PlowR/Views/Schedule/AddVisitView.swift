@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import TipKit
 
 struct AddVisitView: View {
     @Environment(AuthManager.self) private var authManager
@@ -69,6 +70,8 @@ struct AddVisitView: View {
     @State private var estimatedMinutes: Int
     @State private var notes: String
     @State private var isRecurring: Bool
+    /// Repeat's tip, above Recurrence on a new visit.
+    @State private var repeatTips = TipGroup(.firstAvailable) { RepeatVisitTip() }
     @State private var recurrenceType: RecurrenceType
     @State private var recurrenceInterval: Int
     @State private var hasEndDate: Bool
@@ -200,7 +203,15 @@ struct AddVisitView: View {
                 dateSection
                 visitInfoSection
                 detailsSection
-                if editing == nil { recurrenceSection }
+                if editing == nil {
+                    if let tip = repeatTips.currentTip {
+                        Section {
+                            TipView(tip)
+                        }
+                        .listRowBackground(PlowRColor.surface)
+                    }
+                    recurrenceSection
+                }
             }
             .plowRGrouped()
             .navigationTitle(editing == nil ? "Add Visit" : "Edit Visit")
@@ -518,6 +529,7 @@ struct AddVisitView: View {
     private func save() {
         guard let client = selectedClient else { return }
         if editing != nil { saveThisOnly(); return }
+        if isRecurring { PlowRTips.done(RepeatVisitTip(), RepeatVisitTip.visitRepeated) }
 
 
         let seriesID = UUID().uuidString

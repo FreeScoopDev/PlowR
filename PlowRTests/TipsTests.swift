@@ -141,6 +141,104 @@ struct TipsTests {
         #expect(!view.contains("try ClientImport.save(fresh"))
     }
 
+    /// Documents' money tips: an overdue invoice there's a Send Reminder
+    /// for, and a sent invoice with no way to pay printed on it.
+    @Test func theDocumentsTipsWaitOnTheirInvoices() throws {
+        let h = try ActiveRouteStoreTests.Harness(stopCount: 0)
+        let pat = h.client.id.uuidString
+        func invoice(sent: Bool, dueDaysAgo: Double?, client: String? = nil) -> Proposal {
+            let doc = Proposal(operatorID: "op", client: h.client)
+            doc.invoiceNumber = "INV-\(Int.random(in: 1_000...9_999))"
+            doc.invoiceSentAt = sent ? Date().addingTimeInterval(-40 * 86_400) : nil
+            doc.invoiceDueDate = dueDaysAgo.map { Date().addingTimeInterval(-$0 * 86_400) }
+            if let client { doc.clientID = client }
+            h.context.insert(doc)
+            return doc
+        }
+        func state(_ docs: [Proposal], methods: Int = 0, canText: Bool = true,
+                   textable: Set<String>? = nil) -> PlowRTips.DocumentsState {
+            PlowRTips.documentsState(invoices: docs, activePaymentMethods: methods, canText: canText,
+                                     textable: textable ?? [pat])
+        }
+        let draft = invoice(sent: false, dueDaysAgo: nil)
+        // A proposal marked sent isn't an invoice out.
+        let sentProposal = Proposal(operatorID: "op", client: h.client)
+        sentProposal.invoiceSentAt = Date()
+        h.context.insert(sentProposal)
+        #expect(state([draft, sentProposal]) == .init(hasOverdue: false, needsPaymentMethod: false))
+        let sent = invoice(sent: true, dueDaysAgo: -5)                         // due in 5 days
+        #expect(state([draft, sent]) == .init(hasOverdue: false, needsPaymentMethod: true))
+        #expect(state([draft, sent], methods: 1) == .init(hasOverdue: false, needsPaymentMethod: false))
+        let late = invoice(sent: true, dueDaysAgo: 3)
+        #expect(state([late], methods: 2) == .init(hasOverdue: true, needsPaymentMethod: false))
+        // No Send Reminder to tap: a device that can't text, or a client with no phone.
+        #expect(!state([late], methods: 2, canText: false).hasOverdue)
+        #expect(!state([late], methods: 2, textable: []).hasOverdue)
+        // Overdue for a client with no phone, beside one with a phone: only the second counts.
+        let elsewhere = invoice(sent: true, dueDaysAgo: 3, client: UUID().uuidString)
+        #expect(!state([elsewhere], methods: 2).hasOverdue)
+        #expect(state([elsewhere, late], methods: 2).hasOverdue)
+    }
+
+    /// Create Route's tip never leads to the paywall: a free business with
+    /// its one route gets no count; Pro, or a free one with no route yet, does.
+    @Test func createRoutesTipWaitsForARouteThatCanBeMade() throws {
+        let h = try ActiveRouteStoreTests.Harness(stopCount: 0)
+        let free = Access(plan: .free, clientCount: 1)
+        let pro = Access(plan: .pro, clientCount: 1)
+        #expect(PlowRTips.routeFromDayCount(4, access: free, routes: [], operatorID: "op") == 4)
+        #expect(PlowRTips.routeFromDayCount(4, access: free, routes: [h.route], operatorID: "op") == 0)
+        #expect(PlowRTips.routeFromDayCount(4, access: pro, routes: [h.route], operatorID: "op") == 4)
+        #expect(PlowRTips.routeFromDayCount(4, access: Access(plan: .lapsed, clientCount: 11), routes: [],
+                                            operatorID: "op") == 0)                  // read only
+    }
+
+    /// Bill Unbilled Work finishes its tip only when it made an invoice.
+    @Test func billingFinishesTheTipOnlyWhenItBilled() {
+        var done: [String] = []
+        PlowRTips.onDone = { done.append($0) }
+        defer { PlowRTips.onDone = nil }
+        PlowRTips.billed(WorkBilling.Outcome())
+        #expect(done.isEmpty)
+        var made = WorkBilling.Outcome()
+        made.invoices = [Proposal(operatorID: "op", client: Client(name: "Pat", phone: "", address: "", operatorID: "op"))]
+        PlowRTips.billed(made)
+        #expect(done == [BillWorkTip.helpID])
+    }
+
+    /// Each schedule and money tip is finished by its action, live, right
+    /// beside the line that does the thing (not in another button).
+    @Test(arguments: [
+        ("PlowR/Views/Schedule/AddVisitView.swift",
+         #"if editing != nil \{ saveThisOnly\(\); return \}\s*\n\s*if isRecurring \{ PlowRTips\.done\(RepeatVisitTip\(\), RepeatVisitTip\.visitRepeated\) \}"#),
+        ("PlowR/Views/Schedule/ScheduleView.swift",
+         #"showingRouteCreated = true\s*\n\s*PlowRTips\.done\(RouteFromDayTip\(\), RouteFromDayTip\.routeMade\)"#),
+        ("PlowR/Views/Proposals/BillWorkView.swift",
+         #"outcome = WorkBilling\.invoiceAll\([^\n]*\n\s*if let outcome \{ PlowRTips\.billed\(outcome\) \}"#),
+        ("PlowR/Views/Proposals/ProposalListView.swift",
+         #"reminderProposal = proposal\s*\n\s*PlowRTips\.reminderOpened\(\)"#),
+        ("PlowR/Views/Proposals/ProposalDetailView.swift",
+         #"showingReminder = true\s*\n\s*PlowRTips\.reminderOpened\(\)"#),
+        ("PlowR/Views/Settings/PaymentMethodsView.swift",
+         #"modelContext\.insert\(method\)\s*\n\s*PlowRTips\.done\(PaymentMethodsTip\(\), PaymentMethodsTip\.methodAdded\)"#),
+    ])
+    func eachMoneyTipIsFinishedByItsAction(_ file: String, _ pattern: String) throws {
+        let text = try source(file)
+        let regex = try Regex(pattern)
+        #expect(text.matches(of: regex).count == 1, "\(file)")
+        #expect(!text.contains("#if") && !text.contains("/*"), "\(file) has code that may not compile in")
+    }
+
+    /// Create Route's tip is done only once a route was made: after the
+    /// guard that stops on no stops.
+    @Test func createRoutesTipIsDoneOnlyAfterARouteIsMade() throws {
+        let text = try source("PlowR/Views/Schedule/ScheduleView.swift")
+        let guardLine = try #require(text.range(of: "guard !stops.isEmpty else {"))
+        let insert = try #require(text.range(of: "modelContext.insert(route)"))
+        let done = try #require(text.range(of: "PlowRTips.done(RouteFromDayTip(), RouteFromDayTip.routeMade)"))
+        #expect(guardLine.upperBound < insert.lowerBound && insert.upperBound < done.lowerBound)
+    }
+
     @Test func aBusinessThatHasRunARouteIsNotOnItsFirst() {
         #expect(!PlowRTips.hasRunRoute(completedRoutes: 0, serviceRecords: 0))
         #expect(PlowRTips.hasRunRoute(completedRoutes: 1, serviceRecords: 0))

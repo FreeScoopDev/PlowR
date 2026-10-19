@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import MessageUI
+import TipKit
 
 struct ProposalListView: View {
     @Environment(\.modelContext) private var modelContext
@@ -20,6 +21,13 @@ struct ProposalListView: View {
     @State private var proposalToVoid: Proposal?
     @State private var filterStatus: FilterStatus = .all
     @State private var reminderProposal: Proposal?
+    @Query private var allPaymentMethods: [PaymentMethod]
+    /// One money tip at a time, whichever's ready.
+    @State private var tips = TipGroup(.firstAvailable) {
+        BillWorkTip()
+        ReminderTip()
+        PaymentMethodsTip()
+    }
 
     enum FilterStatus: String, CaseIterable {
         case all = "All"
@@ -58,6 +66,20 @@ struct ProposalListView: View {
         Payments.owed(base)
     }
 
+    private var documentsState: PlowRTips.DocumentsState {
+        PlowRTips.documentsState(invoices: base,
+                                 activePaymentMethods: allPaymentMethods.filter {
+                                     $0.operatorID == authManager.userID && $0.isActive
+                                 }.count,
+                                 canText: MFMessageComposeViewController.canSendText(),
+                                 textable: Set(myClients.filter { !$0.phone.isEmpty }.map(\.id.uuidString)))
+    }
+
+    /// Changes when invoices are made or voided: when unbilled work can change.
+    private var billingKey: [Int] {
+        [base.count, base.filter { $0.voidedAt != nil }.count]
+    }
+
     private var overdueCount: Int { base.filter { $0.invoiceStatus == .overdue }.count }
 
     private var draftCount: Int { base.filter { $0.isInvoice && $0.invoiceStatus == .draft }.count }
@@ -71,13 +93,27 @@ struct ProposalListView: View {
     var body: some View {
         Group {
             if myProposals.isEmpty && archivedProposals.isEmpty {
-                ContentUnavailableView(
-                    "No \(filterStatus == .all ? "Proposals" : filterStatus.rawValue) Yet",
-                    systemImage: "doc.text",
-                    description: Text("Create a proposal for a client to generate a shareable PDF quote.")
-                )
+                // Work done but nothing billed yet: the tip shows here too.
+                VStack(spacing: 0) {
+                    if let tip = tips.currentTip {
+                        TipView(tip)
+                            .padding(.horizontal)
+                            .padding(.top, PlowRLayout.space3)
+                    }
+                    ContentUnavailableView(
+                        "No \(filterStatus == .all ? "Proposals" : filterStatus.rawValue) Yet",
+                        systemImage: "doc.text",
+                        description: Text("Create a proposal for a client to generate a shareable PDF quote.")
+                    )
+                }
             } else {
                 List {
+                    if let tip = tips.currentTip {
+                        Section {
+                            TipView(tip)
+                        }
+                        .listRowBackground(PlowRColor.surface)
+                    }
                     if filterStatus == .all && (outstandingTotal > 0 || overdueCount > 0 || draftCount > 0) {
                         summarySection
                     }
@@ -102,6 +138,35 @@ struct ProposalListView: View {
         .background(PlowRColor.ground)
         .navigationTitle(filterStatus == .all ? "Documents" : filterStatus.rawValue)
         .proGateSheet($gate)
+        // What the money tips wait on.
+        .onChange(of: documentsState, initial: true) { _, state in
+            PlowRTips.update {
+                PlowRTips.hasOverdue = state.hasOverdue
+                PlowRTips.needsPaymentMethod = state.needsPaymentMethod
+            }
+        }
+        // Unbilled work, looked for only while its tip can still show (the
+        // look reads every job), again when invoices are made or voided.
+        .task(id: billingKey) {
+            guard PlowRTips.wantsUnbilledWork else { return }
+            let unbilled = !WorkBilling.unbilledWork(in: nil, operatorID: authManager.userID, in: modelContext).isEmpty
+            PlowRTips.update { PlowRTips.hasUnbilledWork = unbilled }
+        }
+        // Back from an invoice or another tab: onChange doesn't fire again.
+        .onAppear {
+            let state = documentsState
+            PlowRTips.update {
+                PlowRTips.hasOverdue = state.hasOverdue
+                PlowRTips.needsPaymentMethod = state.needsPaymentMethod
+            }
+        }
+        .onDisappear {
+            PlowRTips.update {
+                PlowRTips.hasOverdue = false
+                PlowRTips.needsPaymentMethod = false
+                PlowRTips.hasUnbilledWork = false
+            }
+        }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
@@ -285,6 +350,7 @@ struct ProposalListView: View {
             if MFMessageComposeViewController.canSendText() && !clientPhone.isEmpty {
                 Button {
                     reminderProposal = proposal
+                    PlowRTips.reminderOpened()
                 } label: {
                     Label("Send Reminder", systemImage: "message.fill")
                 }
