@@ -91,6 +91,30 @@ struct ActiveRouteStoreTests {
         }
     }
 
+    /// A store re-checks its route on a save of its own database only. One in
+    /// another database (the tests make many) ran validate() inside that
+    /// save and deadlocked against CoreData's queue, hanging CI.
+    @Test func onlyItsOwnDatabasesSavesAreChecked() async throws {
+        let h = try Harness()
+        var lookups = 0
+        let store = h.makeStore(fetchRoutes: { lookups += 1; return try $0.fetch(FetchDescriptor<PlowRoute>()) })
+        store.start(h.route)
+        let other = try Harness()
+        try await Task.sleep(for: .milliseconds(50))
+        let before = lookups
+        other.context.insert(PlowRoute(name: "Elsewhere", operatorID: "op"))
+        try other.context.save()
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(lookups == before)                                   // not this store's database
+        h.context.insert(PlowRoute(name: "Here", operatorID: "op"))
+        try h.context.save()
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(lookups > before)                                    // its own: checked
+        #expect(ActiveRouteStore.isOwnSave(h.context, of: h.context))
+        #expect(!ActiveRouteStore.isOwnSave(other.context, of: h.context))
+        #expect(!ActiveRouteStore.isOwnSave(nil, of: h.context))
+    }
+
     @Test func startBeginsAtTheFirstStop() throws {
         let h = try Harness()
         let surfaces = FakeRouteSurfaces()

@@ -147,11 +147,31 @@ final class ActiveRouteStore {
         // A route (or its stops) can be deleted or reordered on another device
         // while this one is mid-route. Re-check whenever the store changes;
         // the app also calls validate() when it becomes active.
-        for name in [ModelContext.didSave, Notification.Name.NSPersistentStoreRemoteChange] {
-            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self?.validate() }
+        // Only this store's own database: a save is announced to every
+        // observer, and one in another database (the tests make many) used
+        // to run validate() inside that save, on the main thread, reading
+        // this database while CoreData's queue held it: a deadlock that hung
+        // CI runs from 2026-10-18 (#190's first run, #193).
+        NotificationCenter.default.addObserver(forName: ModelContext.didSave, object: nil, queue: .main) { [weak self] note in
+            let saved = note.object as? ModelContext
+            MainActor.assumeIsolated {
+                guard let self, Self.isOwnSave(saved, of: self.context) else { return }
+                self.validate()
             }
         }
+        // Another device's changes, from CoreData's own queue (so never
+        // inside a save here).
+        NotificationCenter.default.addObserver(forName: .NSPersistentStoreRemoteChange, object: nil,
+                                               queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.validate() }
+        }
+    }
+
+    /// Whether a save of `saved` is one of this store's database (any of
+    /// its contexts: the app's background work saves through its own).
+    static func isOwnSave(_ saved: ModelContext?, of context: ModelContext?) -> Bool {
+        guard let saved, let context else { return false }
+        return saved.container === context.container
     }
 
     /// Begins `route` at its first stop, leaving `skipping` out of this run.
