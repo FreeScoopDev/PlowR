@@ -403,7 +403,8 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   store; demo launches hide tips, Debug `-PlowRShowTips YES` shows all) and
   holds the rule parameters (`gettingStarted` from the Dashboard, `canEdit`
   and `isPro` from `.feedsTips()`, `onMac`, `hasRunRoute` seeded at launch,
-  `hasRouteWidget`, `pinnedStopsReady`). Set a parameter only through
+  `hasRouteWidget`, `pinnedStopsReady`, `clientCount`, `hasPipeline`,
+  `clientHasArrivals`). Set a parameter only through
   `PlowRTips.update { }`, which does nothing until TipKit is configured
   (never under tests, where views and the route store still run). A tip is a `nonisolated
   struct` conforming to `PlowRTip`, whose `helpID` names its copy in
