@@ -229,6 +229,14 @@ struct TipsTests {
         #expect(!text.contains("#if") && !text.contains("/*"), "\(file) has code that may not compile in")
     }
 
+    /// The storm card's tip is finished by its text button, live.
+    @Test func theStormTipIsFinishedByItsButton() throws {
+        let text = try source("PlowR/Views/Storm/StormCard.swift")
+        let regex = try Regex(#"text\(reachedWithPhones\)\s*\n\s*PlowRTips\.done\(StormTextTip\(\), StormTextTip\.stormTexted\)"#)
+        #expect(text.matches(of: regex).count == 1)
+        #expect(!text.contains("#if") && !text.contains("/*"))
+    }
+
     /// Create Route's tip is done only once a route was made: after the
     /// guard that stops on no stops.
     @Test func createRoutesTipIsDoneOnlyAfterARouteIsMade() throws {

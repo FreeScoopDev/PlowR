@@ -98,5 +98,5 @@ nonisolated extension PlowRTips {
                                                       ServiceReportTip.self, RequestLinkTip.self]
     static var clientTipIDs: [String] { clientTipTypes.map { $0.helpID } }
     /// Every tip there is.
-    static var allTipIDs: [String] { routeTipIDs + clientTipIDs + moneyTipIDs }
+    static var allTipIDs: [String] { routeTipIDs + clientTipIDs + moneyTipIDs + snowTipIDs }
 }
