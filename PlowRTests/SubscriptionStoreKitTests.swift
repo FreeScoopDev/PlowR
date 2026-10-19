@@ -44,29 +44,45 @@ struct SubscriptionStoreKitTests {
     }
 
     @Test func buyingRunningOutAndARefund() async throws {
-        #expect(await Subscription.readStoreKit() == .init(active: false, everSubscribed: false))
+        // Cleared in init, but the app's copy of the transactions can lag that too.
+        let none = Subscription.Entitlements(active: false, everSubscribed: false)
+        #expect(await read(until: none) == none)
 
         let bought = try await session.buyProduct(identifier: Subscription.productID)
         // StoreKit's lists take a moment to show it (Subscription holds a
         // purchase made in the app meanwhile; AccessTests covers that).
-        #expect(await eventually(.init(active: true, everSubscribed: true)))
+        let subscribed = Subscription.Entitlements(active: true, everSubscribed: true)
+        #expect(await read(until: subscribed) == subscribed)
 
         // Cancelled, then its period ends.
         try session.disableAutoRenewForTransaction(identifier: UInt(bought.id))
         try session.expireSubscription(productIdentifier: Subscription.productID)
-        #expect(await eventually(.init(active: false, everSubscribed: true)))
+        let lapsed = Subscription.Entitlements(active: false, everSubscribed: true)
+        #expect(await read(until: lapsed) == lapsed)
 
         // A refunded purchase is as if never made.
         try session.refundTransaction(identifier: UInt(bought.id))
-        #expect(await eventually(.init(active: false, everSubscribed: false)))
+        #expect(await read(until: none) == none)
     }
 
-    /// StoreKit's test store applies a change a moment after it's made.
-    private func eventually(_ expected: Subscription.Entitlements) async -> Bool {
-        for _ in 0..<50 {
-            if await Subscription.readStoreKit() == expected { return true }
+    /// Reads the plan until it is `expected` or 30 seconds have passed, and
+    /// returns the last read, so a failure shows what StoreKit said.
+    ///
+    /// The test store applies a change at once, but the app's copy of the
+    /// transactions catches up when StoreKit gets to it, still showing the
+    /// old 31-day expiry until then: an expiry showed within 0.03 to 3.2
+    /// seconds in 21 local runs (2026-10-19), and two full runs hadn't seen
+    /// it after 5.7. Nothing tells the app when it has caught up (a
+    /// subscription running out sends no update), so this waits by the
+    /// clock, not by a count of reads: 50 reads came to about 5 seconds when
+    /// each answered fast.
+    private func read(until expected: Subscription.Entitlements) async -> Subscription.Entitlements {
+        let deadline = ContinuousClock.now + .seconds(30)
+        var last = await Subscription.readStoreKit()
+        while last != expected, ContinuousClock.now < deadline {
             try? await Task.sleep(for: .milliseconds(100))
+            last = await Subscription.readStoreKit()
         }
-        return false
+        return last
     }
 }
