@@ -61,12 +61,10 @@ final class CalendarSync {
 
     func configure(context: ModelContext) {
         self.context = context
-        // No queue, then on to the main actor: with `queue: .main` the poster
-        // waits for the main thread, which can be waiting on that database
-        // (ActiveRouteStore.configure says how that hung).
+        // Never making the poster wait (MainActorNotice).
         for name in [ModelContext.didSave, Notification.Name.NSPersistentStoreRemoteChange] {
             NotificationCenter.default.addObserver(forName: name, object: nil, queue: nil) { [weak self] _ in
-                Task { @MainActor in self?.scheduleSync() }
+                MainActorNotice.run { self?.scheduleSync() }
             }
         }
     }

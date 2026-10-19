@@ -147,25 +147,20 @@ final class ActiveRouteStore {
         // A route (or its stops) can be deleted or reordered on another device
         // while this one is mid-route. Re-check whenever the store changes;
         // the app also calls validate() when it becomes active.
-        //
-        // Only this store's own database, and never inside the post (no
-        // queue, then on to the main actor): with `queue: .main` the poster
-        // waits for the main thread, and CoreData posts holding its store,
-        // so a main thread reading that store and a save announced to this
-        // observer waited on each other. That deadlock, and validate() run
-        // inside another test's save, hung CI from 2026-10-18 (#190's first
-        // run, #193); a route app reading while iCloud brings changes could
-        // hang the same way.
+        // Never making the poster wait (MainActorNotice), and a save only of
+        // this store's own database: one in another (the tests make many)
+        // ran validate() inside that save, reading this database, which
+        // deadlocked too.
         NotificationCenter.default.addObserver(forName: ModelContext.didSave, object: nil, queue: nil) { [weak self] note in
             let saved = (note.object as? ModelContext)?.container
-            Task { @MainActor in
+            MainActorNotice.run {
                 guard let self, Self.isOwnSave(saved, of: self.context) else { return }
                 self.validate()
             }
         }
         NotificationCenter.default.addObserver(forName: .NSPersistentStoreRemoteChange, object: nil,
                                                queue: nil) { [weak self] _ in
-            Task { @MainActor in self?.validate() }
+            MainActorNotice.run { self?.validate() }
         }
     }
 
