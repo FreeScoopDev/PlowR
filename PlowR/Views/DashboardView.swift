@@ -187,6 +187,9 @@ struct DashboardView: View {
                     }
                     .accessibilityLabel("Settings")
                 }
+                ToolbarItem(placement: .topBarTrailing) {
+                    HelpToolbarButton(screen: .home)
+                }
             }
         }
         .onChange(of: access.plan, initial: true) { _, plan in ProStatusBanner.reopenOnSubscribe(plan) }

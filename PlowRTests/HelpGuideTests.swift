@@ -97,10 +97,36 @@ struct HelpGuideTests {
         }
     }
 
+    /// Screens with no Help item, and why. The route screen keeps its bar to
+    /// End Route while driving; its help is on the route's page (`routeDetail`).
+    private static let screensWithoutAHelpItem: Set<HelpScreen> = [.activeRoute]
+
     /// Each screen with a Help item has something to list.
-    @Test(arguments: [HelpScreen.clients, .routes, .schedule, .routeDetail])
+    @Test(arguments: HelpScreen.allCases.filter { !screensWithoutAHelpItem.contains($0) })
     func screensWithAHelpItemHaveTopics(_ screen: HelpScreen) throws {
         #expect(!(try repoGuide()).topics(for: screen).isEmpty)
+    }
+
+    /// A topic tagged for a screen is one tap away there: every screen
+    /// shows its Help item (`HelpToolbarButton` or `HelpTopicsSheet`) in
+    /// some view, and a screen without one has no topics to lose.
+    @Test func everyScreenShowsItsHelpItem() throws {
+        let views = Self.root.appendingPathComponent("PlowR/Views")
+        let files = try #require(FileManager.default.enumerator(at: views, includingPropertiesForKeys: nil))
+            .compactMap { $0 as? URL }.filter { $0.pathExtension == "swift" }
+        #expect(!files.isEmpty)
+        let source = try files.map { try String(contentsOf: $0, encoding: .utf8) }.joined(separator: "\n")
+        let guide = try repoGuide()
+        for screen in HelpScreen.allCases {
+            let shown = source.range(of: "(HelpToolbarButton|HelpTopicsSheet)\\(screen: \\.\(screen.rawValue)\\)",
+                                     options: .regularExpression) != nil
+            if Self.screensWithoutAHelpItem.contains(screen) {
+                #expect(!shown, "\(screen) has a Help item now: take it out of screensWithoutAHelpItem")
+                #expect(guide.topics(for: screen).isEmpty, "Topics tagged \(screen) show nowhere")
+            } else {
+                #expect(shown, "No view shows the Help item for \(screen)")
+            }
+        }
     }
 
     /// The JSON as plain values, every field included (`emoji` and the

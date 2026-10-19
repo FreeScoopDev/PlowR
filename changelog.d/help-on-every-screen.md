@@ -1,0 +1,2 @@
+### Fixed
+- Home, Documents and Settings have a Help button, as Clients, Routes and Schedule do. The guide tags its topics for those screens (Getting paid for Documents; setting up, running a route and the storm card for Home; sync, export and the plan for Settings), but no screen showed them, so they were only in Settings → Help Guide and on the website. A test now fails a screen the guide can tag that has no Help item; the route screen keeps none on purpose (its bar is End Route while driving) and no topic is tagged for it.
