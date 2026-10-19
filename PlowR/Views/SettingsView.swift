@@ -281,6 +281,11 @@ struct SettingsView: View {
         }
         .plowRGrouped()
         .navigationTitle("Settings")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                HelpToolbarButton(screen: .settings)
+            }
+        }
         .proGateSheet($gate)
         // PlowR Pro's sheets, here on the Form, never on its section.
         .modifier(ProSettingsSection.Presentations(showingPaywall: $showingPaywall, showingManage: $showingManage,

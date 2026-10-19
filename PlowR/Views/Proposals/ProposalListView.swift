@@ -192,6 +192,9 @@ struct ProposalListView: View {
                     Image(systemName: "plus")
                 }
             }
+            ToolbarItem(placement: .topBarTrailing) {
+                HelpToolbarButton(screen: .documents)
+            }
             ToolbarItem(placement: .topBarLeading) {
                 Menu {
                     Picker("Filter", selection: $filterStatus) {
