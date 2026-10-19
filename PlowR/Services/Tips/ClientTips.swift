@@ -67,6 +67,19 @@ nonisolated struct RequestLinkTip: PlowRTip {
     var options: [any TipOption] { [MaxDisplayCount(1)] }
 }
 
+extension ClientImport {
+    /// Import Clients' save, from its screen: the clients, then the import
+    /// tip finished, only once they're saved (a save that throws finishes
+    /// nothing).
+    @MainActor
+    static func saveFromScreen(_ preview: Preview, as kind: Kind, operatorID: String, in context: ModelContext,
+                               saving: (ModelContext) throws -> Void = { try $0.save() }) throws -> Result {
+        let result = try save(preview, as: kind, operatorID: operatorID, in: context, saving: saving)
+        PlowRTips.done(ImportClientsTip(), ImportClientsTip.clientsImported)
+        return result
+    }
+}
+
 extension PlowRTips {
     /// Whether the client has a visit with a GPS arrival time (the Service
     /// Report's tip waits for one).

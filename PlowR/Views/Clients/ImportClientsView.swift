@@ -367,8 +367,7 @@ struct ImportClientsView: View {
                 return
             }
             do {
-                result = try ClientImport.save(fresh, as: kind, operatorID: authManager.userID, in: modelContext)
-                PlowRTips.done(ImportClientsTip(), ImportClientsTip.clientsImported)
+                result = try ClientImport.saveFromScreen(fresh, as: kind, operatorID: authManager.userID, in: modelContext)
                 saveFailed = false
                 previewChanged = false
                 undone = nil

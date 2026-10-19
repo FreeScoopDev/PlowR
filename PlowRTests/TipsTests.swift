@@ -112,16 +112,33 @@ struct TipsTests {
     ])
     func eachClientTipIsFinishedByItsAction(_ file: String, _ call: String) throws {
         let text = try source(file)
-        let lines = text.split(separator: "\n").filter { $0.contains(call) }
-        #expect(lines.contains { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }, "\(file)")
+        // In the screen's own onAppear, live: not commented or compiled out.
+        #expect(text.contains(".onAppear { \(call) }"), "\(file)")
+        #expect(!text.contains("#if") && !text.contains("/*"), "\(file) has code that may not compile in")
     }
 
+    /// Import Clients' screen saves through `saveFromScreen`, which finishes
+    /// the import tip only once the clients are saved.
     @Test func theImportTipIsFinishedOnlyAfterTheClientsSaved() throws {
-        let text = try source("PlowR/Views/Clients/ImportClientsView.swift")
-        let save = try #require(text.range(of: "result = try ClientImport.save("))
-        let done = try #require(text.range(of: "PlowRTips.done(ImportClientsTip(), ImportClientsTip.clientsImported)"))
-        let caught = try #require(text.range(of: "} catch {", range: save.upperBound..<text.endIndex))
-        #expect(save.upperBound < done.lowerBound && done.upperBound < caught.lowerBound)
+        var done: [String] = []
+        PlowRTips.onDone = { done.append($0) }
+        defer { PlowRTips.onDone = nil }
+        let h = try ActiveRouteStoreTests.Harness(stopCount: 0)
+        let table = CSVReader.Table(header: ["Name", "Phone", "Address"], rows: [["Pat Rowe", "", "1 Elm St"]])
+        let preview = ClientImport.preview(table, fields: [.name, .phone, .address], existing: [],
+                                           addressesAsProperties: false)
+        struct DiskFull: Error {}
+        #expect(throws: DiskFull.self) {
+            try ClientImport.saveFromScreen(preview, as: .customers, operatorID: "op", in: h.context) { _ in
+                throw DiskFull()
+            }
+        }
+        #expect(done.isEmpty)
+        _ = try ClientImport.saveFromScreen(preview, as: .customers, operatorID: "op", in: h.context)
+        #expect(done == [ImportClientsTip.helpID])
+        let view = try source("PlowR/Views/Clients/ImportClientsView.swift")
+        #expect(view.contains("result = try ClientImport.saveFromScreen("))
+        #expect(!view.contains("try ClientImport.save(fresh"))
     }
 
     @Test func aBusinessThatHasRunARouteIsNotOnItsFirst() {
