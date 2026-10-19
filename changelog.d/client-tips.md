@@ -1,2 +1,0 @@
-### Added
-- Tips for clients and leads: on the client list, the Pipeline (once you have leads or quotes) and Import from Spreadsheet (once you have a few clients); on a client's page, the Service Report (once a visit has a GPS arrival time); in Settings, the Request Link (once you have five clients). Like the route tips, each shows once, at most one a day and one on a screen, and never again after you've used the feature. The import, Service Report and Request Link tips show only with PlowR Pro, since those are Pro features; tips never mention a price.

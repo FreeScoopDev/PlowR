@@ -1,2 +1,0 @@
-### Fixed
-- Convert to Invoice from the Documents list now does what it does on the document's page: it's not offered for a proposal that was made into a contract, and a proposal made for a scheduled visit marks that visit's job billed. The list had its own copy that only gave the proposal a number and a due date, so a season contract's proposal could also be invoiced (the client billed twice), and the visit's job stayed Not Billed, so Bill Unbilled Work offered it again. Both now go through one function, `InvoiceRecords.convertToInvoice`, which checks for a contract itself.

@@ -7,6 +7,103 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 New entries go in `changelog.d/` (see its README) and are gathered here when a version is cut.
 
+## [1.8.0] - 2026-10-19
+
+### Added
+- getplowr.app has a help guide (`help.html`, linked from the home and Support pages): setting up a business, adding clients, building a route with expected services, repeating visits, running a route and texting clients, quick tips, an FAQ and what's new. Every step names the buttons and screens as the app shows them, traced from the code, so a new business can get going without writing in. Its 23 screenshots are in `docs/help/`, taken from the sample business (`-PlowRDemo`) on an iPhone 17 simulator so no real client's details appear; `docs/help/SCREENSHOTS.md`, which the site doesn't publish, lists them for retaking.
+- Help in the app: Settings → Help has the Help Guide (every topic, with its steps, no network needed), Help on the Web and Contact Support, and Clients, Routes, Schedule and a route's ⋯ menu have a Help item that lists that screen's topics. Until now the guide was only on getplowr.app and nothing in the app pointed to it.
+- Time on site, from GPS: a job's page shows when the phone came into and went out of the job site's area (Arrived, Left, and On Site (GPS) when both were caught), and the client's Service History and the route recap show the time on site. A route job's Minutes on Site now says it runs from when the stop became the current one to when it was done, so it includes travel, as the Service Report has always said: the two figures measure different things. These times are proof of service in a dispute, and until now only the Service Report PDF showed them. They're only what GPS saw: no time on site is shown unless both the arrival and the departure were caught, and they can't be edited. The Service Report's GPS line gives the time on site too, so the report and the screens say the same thing.
+- A Service Report row on the client page, under Service History. It was three taps deep (client, All Work, Service Report). It's PlowR Pro, as before, through the same gate.
+- Tips on the route screens (TipKit): on a route's page, tap a stop to set its services, swipe to Skip Today, and Optimize Order; on the first route, Record Services, under its button and never over Complete Stop; on the Route Recap, Siri and Control Center, then the widget. Each tip shows once (a swipe twice), at most one a day and one on a screen, and never again once you've done the thing. None show while Get Started has steps left, and editing tips stay hidden while PlowR is read only. Settings → Help → Show Tips Again brings them back. They teach what people asked about without a manual, at the moment it's useful.
+- Tips for clients and leads: on the client list, the Pipeline (once you have leads or quotes) and Import from Spreadsheet (once you have a few clients); on a client's page, the Service Report (once a visit has a GPS arrival time); in Settings, the Request Link (once you have five clients). Like the route tips, each shows once, at most one a day and one on a screen, and never again after you've used the feature. The import, Service Report and Request Link tips show only with PlowR Pro, since those are Pro features; tips never mention a price.
+- Tips for the schedule and getting paid: in Add Visit, Repeat; on the Schedule, Create Route for a day with three or more visits; in Documents, Bill Unbilled Work (when there's work not billed yet), Send Reminder (when an invoice is overdue; not on a Mac) and adding a payment link (once an invoice has gone out with no payment method set up). As with the other tips, each shows once, at most one a day and one on a screen, and never again after you've used it.
+- A "Getting paid" section in the help guide (in the app and on getplowr.app): billing unbilled work, reminding a client to pay, and payment methods.
+- A tip on Home's storm card: when a storm's forecast reaches clients' contract triggers, it points to **Text Clients Whose Trigger It Reaches**, with PlowR Pro, since storm texts are a Pro feature, and not on a Mac, which can't text. It shows once and goes for good after the first text. The storm card already explains Below Trigger in its own words, so there's no second tip for that.
+
+### Changed
+- The invoice and proposal screen's buttons are in the 1.7 design: one copper main action for each state (Convert a proposal, or View Contract once it is one; Mark Sent a draft; take a Payment on an invoice that's out) and the rest in the plain secondary style. They were system blue, orange and green, the last screen still in the old look, and orange there meant "sent" while amber means "owed" everywhere else. Paid and void invoices have nothing left to do, so no button there is the main one. What each button does, and when it shows, is unchanged.
+- Setup and the Get Started card say weather alerts come "the evening before bad weather is forecast". They said "before snow or a storm" to every business, lawn and landscaping crews included, though the alert covers rain, ice and storms too.
+- Before, After and Below Trigger tags on visit photos are status chips that grow with the text size. They were 9 pt white text on orange or green, about 2.2:1 and hard to read outdoors, in the colours that mean owed and done on invoices. Before is now neutral and After is done (green); the Before/After photo buttons on Record Services match.
+- A new "PlowR" calendar in Apple Calendar is the brand forest green, not the old navy. A calendar you already have keeps its colour.
+- Job-site arrivals and departures now come from Apple's `CLMonitor` instead of
+  region monitoring, which iOS has marked deprecated. Each arrival and
+  departure is iOS's own time for the crossing, not the moment PlowR got
+  round to it, which could be minutes later when the phone was locked or
+  PlowR was suspended. iOS's first report after an area is placed is taken
+  as where the phone already was, not a crossing: a crew already at the next
+  house along is "arrival not caught", and once iOS has said the phone is
+  outside, a crew that pulls in within a minute of the stop beginning gets
+  its arrival. After a gap in iOS's watching (location off or approximate,
+  even if changed while PlowR wasn't running), the next arrival is "not
+  caught" rather than a time from when watching resumed. A
+  route running when the update installs carries on: its areas move over.
+
+### Fixed
+- The "free tier" and "subscription ended" note on the Dashboard now looks like
+  the cards around it (the app's own card and type) instead of a grey system card
+  that stood out on the dark green page.
+- The Schedule screen no longer breaks at the largest text sizes: the day heading
+  and Create Route, and each visit's name, time and status, were squeezed into one
+  letter per line. They now stack. The 7-day forecast's weekday and precipitation text
+  (8 and 9 point, fixed) now scales with the text size.
+- The PlowR Pro screen's feature list lines its text up: each icon has one width.
+- Leaving a job site no longer completes a stop by itself. When the next client had chosen not to be texted, or on an iPad or Mac that can't text, the phone going out of the stop's area completed the stop with no tap. A GPS wobble at the edge of the area, a big lot, or a walk to the truck mid-job could then record a visit and start the next stop's timer. Now leaving only offers the text to the next client, and only after the phone has stayed out for 45 seconds, so a brief wobble offers nothing. Completing a stop is always a tap (or Siri, or Control Center).
+- Convert to Invoice from the Documents list now does what it does on the document's page: it's not offered for a proposal that was made into a contract, and a proposal made for a scheduled visit marks that visit's job billed. The list had its own copy that only gave the proposal a number and a due date, so a season contract's proposal could also be invoiced (the client billed twice), and the visit's job stayed Not Billed, so Bill Unbilled Work offered it again. Both now go through one function, `InvoiceRecords.convertToInvoice`, which checks for a contract itself.
+- A client's Default Discount now comes off their new invoices and proposals. The client page let you set 5–50%, but nothing priced with it, so a client set to 10% with $400 of work was billed $400. It is now the starting discount in the proposal and invoice builder (it follows the lines as you add them; type an amount, or 0, to change it) and on invoices PlowR makes for you: from Record Services and from Bill Unbilled Work. A contract's own price isn't discounted again, because it's the price the contract agreed: not its payments, and not a per-visit contract's visit charge. Extras billed alongside are discounted. Bill Unbilled Work's list shows each client's total after the discount, so it matches the invoice it makes (before tax). Invoices already made are unchanged.
+- An invoice is no longer overdue on its due date. A due date was "30 days from now" counted in hours, time of day included, and an invoice was late the moment that passed. One sent at 2 pm on Oct 17 said "Due Nov 16", but it turned Overdue at 1 pm on Nov 16 (the clocks change in between). It then counted as late in Money Owed, joined the 9 AM overdue alert, and its reminder text called it overdue. One sent just after midnight showed a due date a day early, giving 29 days. Now terms are 30 calendar days, and an invoice is overdue from the start of the day after its due date. Invoices already sent keep their dates and follow the same rule: late from the day after the date they show.
+- A price, discount or tax rate PlowR can't read is now pointed out, not quietly replaced. In a US region, "1,250" typed with a hardware keyboard or pasted (the comma read as a thousands separator) billed the catalog price instead. The same text as a discount became $0, and as a custom item the line was dropped. A tax of "105" or "8..25" became 0%. A negative line amount was accepted. Now the proposal and invoice builder, Record Services, Log Work and a job's own page name the field they can't read, say what to type, and won't save until it's fixed. On a document's Edit screen, a discount or tax rate it can't read isn't saved, so the document keeps its old one; the screen says so, and Done and Mark as Sent wait until it's fixed. A line amount there can't go below $0.
+- A contract now says its prices are before tax, and what each payment will be billed. Its payments become invoices with the business's sales tax added, but the contract PDF and the Dashboard showed only the price before tax: a client who signed "$900 season, 3 payments" got three $324 invoices at 8% with nothing on the contract about tax. With tax to pay, the PDF's price now ends "plus tax" and each payment reads "$300.00 + 8% tax = $324.00" (a single payment, a month or a visit the same way); the Dashboard's contract payments due is what the invoices will bill; and the contract page's Payments section says the amounts not invoiced yet are before tax and the rate each invoice adds, and shows each invoiced payment at its invoice's total. A tax-exempt client's contract says nothing about tax, as before. The prices themselves are unchanged.
+- A contract made from a proposal keeps the proposal's tax rate for its payments. It was dropped, so payments were taxed at the business's rate instead of the one the client was quoted. Contracts made before this, and ones not made from a proposal, still use the business's rate. A per-visit contract's charges go on the visit's invoice, at the business's rate, as before.
+- A stop's departure time is no longer taken from leaving the next stop. A
+  stop completed while still inside its job-site area waits for the crew to
+  leave it; when the next stop was within about 200 m, the two areas
+  overlapped, and leaving the next stop also "left" the first one, so the
+  first stop's Service Report showed the time the crew left the next one and
+  overstated time there. iOS reports an exit only some way past the area's
+  edge, so stops a few hundred metres apart could do it too. Now that wait
+  ends when the next stop's area overlaps it, when the phone is seen coming
+  into the next stop's area, and whenever a later stop is completed or
+  passed (the crew was there, so they had already left), and the report says
+  "Departure not caught" rather than give a time GPS didn't see.
+- The route screen says when Precise Location is off. With approximate
+  location iOS watches no job-site areas, so no arrival or departure was ever
+  recorded and nothing said why. A note with a Settings button now explains
+  it, and the Service Report's "not caught" explanation names approximate
+  location and stops too close together among the reasons.
+- Money is written one way everywhere: on screens, invoice, proposal and contract PDFs, the Service Report and the payment reminder text. PDFs printed "$12500.00" with no thousands separator; some screens followed the phone's region ("US$" or "1.234,56 $US" outside the US) while documents didn't. Whole-dollar tiles (Home, Clients, Invoices, Client Stats) and the Clients list's "due" badge showed a $0.40 balance as "$0" in the owed colour, and rounded $148.50 to "$148" where the totals round half a cent up. Now every amount is in US dollars written the US way ("$12,500.00"), rounded to the cent by the same rule as the totals, and a whole-dollar figure that isn't zero never reads "$0" (under half a dollar it shows the cents). The after-hours note on a proposal said "1.2×" for a 1.25× multiplier; it now shows 1.25×. CSV export is unchanged: it keeps plain numbers for spreadsheets.
+- Minutes on Site, on a job's page and on Log Work, says when it can't read what was typed ("45 min", "1:30") and won't save until it's fixed. Before, anything that wasn't a plain number was saved as no time at all, without a word. Prices already work this way. A decimal comma is read where the region writes one.
+- An invoice revised on two devices before they synced is pointed out. Each device voided the original and made its own revision, so after syncing both revisions were live and the client's balance, Money Owed and Home counted what's owed twice, with nothing saying so. Home's What needs you now lists "invoice revised twice", naming the client, the original and both revisions, and each revision's page says another revision is live, which one to take back (the one no payment came in on) and links to it. PlowR doesn't take either back by itself, since one may already be with the client. Taking one back is now safe too: voiding it hands its jobs and visit to the other revision instead of making them billable again, and deleting an unsent one no longer brings the original back beside the other revision.
+- An arrival or departure from before a stop was completed, handed over late
+  (a stop completed from Control Center with the phone locked), no longer
+  cancels or stands in for the departure after completing it.
+- When iOS reports that approximate location stops it watching job sites,
+  the route screen shows the Precise Location note; other reasons (too many
+  areas, location denied) are logged instead of passing silently.
+- A possible hang while iCloud brings changes: the route in progress, calendar sync, the client sweep and the first-run import wait listened for database notices on the main queue, which makes the thread posting them wait for the main thread. CoreData posts those notices holding its database, so a main thread reading the database at that moment waited forever. They now take the notice without making the poster wait. The route in progress also re-checks itself only when its own database saves. This is what hung about half of CI's test runs from 2026-10-18; reproduced on iOS 26.5 and gone after the fix (three full runs).
+- Home, Documents and Settings have a Help button, as Clients, Routes and Schedule do. The guide tags its topics for those screens (Getting paid for Documents; setting up, running a route and the storm card for Home; sync, export and the plan for Settings), but no screen showed them, so they were only in Settings → Help Guide and on the website. A test now fails a screen the guide can tag that has no Help item; the route screen keeps none on purpose (its bar is End Route while driving) and no topic is tagged for it.
+
+### Internal
+- Removed what nothing used: the weather strip's background colours, two unused route-screen values, a Dashboard initials helper, `LocationManager.isAuthorized`, and the always-true `Access.canRecordPayment` and `canExport` with the test that checked only those constants (it counted as coverage of "payments are never locked" while guarding nothing).
+- Five corner radii off the scale now use the layout tokens.
+- A test proves Delete Everything removes the saved Sign in with Apple ID, not just that a sign-out closure ran. The saved ID now goes through a small `SavedSignIn` (the Keychain in the app, one query shared by save, load and delete) because a test build isn't signed and the real Keychain refuses it (errSecMissingEntitlement): the test holds the ID itself and checks it's gone after the real sign-out. Checked by skipping the delete in `signOut`: the test failed. The Keychain call itself still can't be exercised by the unsigned test build.
+- A job-site area iOS fails to watch is logged (`SiteMonitor`, category
+  `SiteMonitor`) instead of being ignored, and placed again at the next
+  update. No areas are placed while location is approximate, and all are
+  placed afresh when Precise Location comes back, so turning it on mid-stop
+  starts recording from then. Temporary full accuracy was
+  considered and left out: it ends when the app leaves the screen, and the
+  areas exist to work with PlowR closed.
+- `Money` (`PlowR/Services/Money.swift`) holds the currency code, the locale and the formatting; `MoneyTests` fails if another money format appears in the app's source.
+- The help has one source, `PlowR/Help/HelpGuide.json`: the app bundles it, `scripts/help_guide.py` makes the website's `docs/help.html` from it, and the 1.8 tips will take their copy from it, so the help is written once and can't drift between the site and the app. The page records the JSON's hash and its own, and `HelpGuideTests` (in the required test check) fails a PR that edits one without the other. The same tests hold the copy to the service-language rule, which the Swift-only guard can't read.
+- `SiteMonitor` keeps one `CLMonitor` ("PlowRSites"), opened once protected
+  data is available, and holds a `CLServiceSession` only while areas are
+  watched (Always or While Using, whichever is already allowed, so it never
+  asks). Delete Account & Data removes the monitor's areas and PlowR's record
+  of them on both paths.
+- CI: a hung test fails after 2 minutes, naming the test, instead of running the whole job into its 45-minute limit, and the test log is kept when a run fails or is cancelled. #190's first run hung, GitHub cancelled the job, and no log was saved to say which test it was.
+- Tip copy is in `HelpGuide.json` (a topic's `tips`), the same source as the help guide and the website, so it's written once. TipKit keeps its store in the app's own container, not the app group or iCloud. Delete Account & Data (both paths) asks for that store to be reset at the next launch, the only time TipKit allows it. Tests never configure TipKit, and demo launches hide tips. `-PlowRShowTips YES` (Debug) shows every tip.
+- `SubscriptionStoreKitTests.buyingRunningOutAndARefund` no longer fails now and then in a full local run (twice on 2026-10-18/19, both times waiting for the expiry). Apple's local test store applies an expiry at once, but the app's copy of the transactions catches up later, and nothing tells the app when: measured runs took 0.03 to 3.2 seconds, the two failures hadn't seen it after 5.7. The test gave up after 50 reads, which came to about 5 seconds when each read answered fast, so heavy CPU load (slower reads) never caused it. It now waits up to 30 seconds by the clock, and a failure shows what StoreKit last said instead of "false". What it checks is unchanged: a purchase counts, an expiry ends it, a refund counts as never made. The first check, nothing bought, waits the same way, since the transactions cleared before it can lag too. CI still doesn't run StoreKit tests.
+
 ## [1.7.0] - 2026-10-11
 
 ### Added
