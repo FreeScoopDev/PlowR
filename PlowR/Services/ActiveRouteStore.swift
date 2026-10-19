@@ -147,31 +147,33 @@ final class ActiveRouteStore {
         // A route (or its stops) can be deleted or reordered on another device
         // while this one is mid-route. Re-check whenever the store changes;
         // the app also calls validate() when it becomes active.
-        // Only this store's own database: a save is announced to every
-        // observer, and one in another database (the tests make many) used
-        // to run validate() inside that save, on the main thread, reading
-        // this database while CoreData's queue held it: a deadlock that hung
-        // CI runs from 2026-10-18 (#190's first run, #193).
-        NotificationCenter.default.addObserver(forName: ModelContext.didSave, object: nil, queue: .main) { [weak self] note in
-            let saved = note.object as? ModelContext
-            MainActor.assumeIsolated {
+        //
+        // Only this store's own database, and never inside the post (no
+        // queue, then on to the main actor): with `queue: .main` the poster
+        // waits for the main thread, and CoreData posts holding its store,
+        // so a main thread reading that store and a save announced to this
+        // observer waited on each other. That deadlock, and validate() run
+        // inside another test's save, hung CI from 2026-10-18 (#190's first
+        // run, #193); a route app reading while iCloud brings changes could
+        // hang the same way.
+        NotificationCenter.default.addObserver(forName: ModelContext.didSave, object: nil, queue: nil) { [weak self] note in
+            let saved = (note.object as? ModelContext)?.container
+            Task { @MainActor in
                 guard let self, Self.isOwnSave(saved, of: self.context) else { return }
                 self.validate()
             }
         }
-        // Another device's changes, from CoreData's own queue (so never
-        // inside a save here).
         NotificationCenter.default.addObserver(forName: .NSPersistentStoreRemoteChange, object: nil,
-                                               queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.validate() }
+                                               queue: nil) { [weak self] _ in
+            Task { @MainActor in self?.validate() }
         }
     }
 
-    /// Whether a save of `saved` is one of this store's database (any of
-    /// its contexts: the app's background work saves through its own).
-    static func isOwnSave(_ saved: ModelContext?, of context: ModelContext?) -> Bool {
+    /// Whether a save in `saved` is one of this store's database (any of its
+    /// contexts: the app's background work saves through its own).
+    static func isOwnSave(_ saved: ModelContainer?, of context: ModelContext?) -> Bool {
         guard let saved, let context else { return false }
-        return saved.container === context.container
+        return saved === context.container
     }
 
     /// Begins `route` at its first stop, leaving `skipping` out of this run.

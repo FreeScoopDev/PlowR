@@ -18,11 +18,13 @@ final class CloudImportWatch {
     func start(center: NotificationCenter = .default) {
         guard observer == nil else { return }
         observer = center.addObserver(forName: NSPersistentCloudKitContainer.eventChangedNotification,
-                                      object: nil, queue: .main) { note in
+                                      object: nil, queue: nil) { note in
+            // Read here, on CoreData's thread, then on to the main actor
+            // without making the poster wait (`queue: .main` would).
             let event = note.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey]
                 as? NSPersistentCloudKitContainer.Event
             let ended = Self.endsImport(isImport: event?.type == .import, endDate: event?.endDate)
-            MainActor.assumeIsolated { self.record(importEnded: ended) }
+            Task { @MainActor in self.record(importEnded: ended) }
         }
     }
 

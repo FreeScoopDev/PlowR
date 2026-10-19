@@ -70,8 +70,10 @@ enum ClientStops {
                                     center: NotificationCenter = .default,
                                     after delay: Duration = .seconds(1)) -> NSObjectProtocol {
         let sweep = Sweep(container: container, delay: delay)
-        return center.addObserver(forName: .NSPersistentStoreRemoteChange, object: nil, queue: .main) { _ in
-            MainActor.assumeIsolated { sweep.schedule() }
+        // No queue, then on to the main actor: CoreData posts this holding its
+        // store, and `queue: .main` would make it wait for the main thread.
+        return center.addObserver(forName: .NSPersistentStoreRemoteChange, object: nil, queue: nil) { _ in
+            Task { @MainActor in sweep.schedule() }
         }
     }
 

@@ -110,9 +110,36 @@ struct ActiveRouteStoreTests {
         try h.context.save()
         try await Task.sleep(for: .milliseconds(50))
         #expect(lookups > before)                                    // its own: checked
-        #expect(ActiveRouteStore.isOwnSave(h.context, of: h.context))
-        #expect(!ActiveRouteStore.isOwnSave(other.context, of: h.context))
+        #expect(ActiveRouteStore.isOwnSave(h.container, of: h.context))
+        #expect(!ActiveRouteStore.isOwnSave(other.container, of: h.context))
         #expect(!ActiveRouteStore.isOwnSave(nil, of: h.context))
+    }
+
+    /// CoreData posts a remote change from its own thread, holding its
+    /// store. An observer on `queue: .main` made that post wait for the main
+    /// thread, which could itself be waiting on the store: a deadlock. The
+    /// post must return while the main thread is busy.
+    @Test func aRemoteChangeNeverWaitsForTheMainThread() async throws {
+        let h = try Harness()
+        let store = h.makeStore()
+        store.start(h.route)
+        let cal = CalendarSync(store: FakeVisitCalendarStore(), defaults: h.defaults)
+        cal.configure(context: h.context)
+        let followed = ClientStops.followRemoteChanges(of: h.container)
+        defer { NotificationCenter.default.removeObserver(followed) }
+        let posted = PostClock()
+        let poster = Thread {
+            NotificationCenter.default.post(name: .NSPersistentStoreRemoteChange, object: nil)
+            NotificationCenter.default.post(name: ModelContext.didSave, object: nil)
+            posted.mark()
+        }
+        poster.start()
+        // Hold the main thread longer than a post should take.
+        Thread.sleep(forTimeInterval: 0.5)
+        let mainFreed = Date()
+        try await Task.sleep(for: .milliseconds(100))
+        let at = try #require(posted.at)
+        #expect(at < mainFreed)
     }
 
     @Test func startBeginsAtTheFirstStop() throws {
@@ -578,4 +605,12 @@ struct ActiveRouteStoreTests {
         #expect(store.completeCurrentStop(expecting: shown) == .allStopsAlreadyDone)
         #expect(h.clients[0].totalVisits == 1)
     }
+}
+
+/// When a background post returned (for aRemoteChangeNeverWaitsForTheMainThread).
+final class PostClock: @unchecked Sendable {
+    private let lock = NSLock()
+    private var time: Date?
+    func mark() { lock.lock(); time = Date(); lock.unlock() }
+    var at: Date? { lock.lock(); defer { lock.unlock() }; return time }
 }
