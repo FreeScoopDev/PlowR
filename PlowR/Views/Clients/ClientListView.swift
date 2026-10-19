@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import TipKit
 
 private enum ClientSortOption: String, CaseIterable {
     case name       = "Name"
@@ -25,6 +26,13 @@ struct ClientListView: View {
     @State private var showingAddClient = false
     @State private var showingContactScanner = false
     @State private var showingImport = false
+    /// One tip at a time on the list, whichever's ready (the Pipeline first
+    /// when both are): not `.ordered`, which would hold Import behind a
+    /// Pipeline tip that a business with no leads never sees.
+    @State private var tips = TipGroup(.firstAvailable) {
+        PipelineTip()
+        ImportClientsTip()
+    }
     @State private var gate: ProGate?
     @State private var clientToDelete: Client?
     @State private var clientToDeactivate: Client?
@@ -111,13 +119,17 @@ struct ClientListView: View {
         Payments.received(allProposals.filter { $0.operatorID == authManager.userID })
     }
 
-    /// Leads and quotes (Pipeline), when there are any.
+    /// Leads and quotes (Pipeline), worked out once per render for the row and its tip.
+    private var pipelineEntries: [Pipeline.Entry] {
+        Pipeline.entries(allClients, operatorID: authManager.userID,
+                         facts: Pipeline.Facts(documents: allProposals, records: allRecords,
+                                               visits: allVisits, stops: allStops))
+    }
+
+    /// The Pipeline row, when there are leads or quotes.
     @ViewBuilder
-    private var pipelineLink: some View {
+    private func pipelineLink(_ entries: [Pipeline.Entry]) -> some View {
         // Shown while anyone's in it, lost too: the Pipeline is where they're reopened.
-        let entries = Pipeline.entries(allClients, operatorID: authManager.userID,
-                                       facts: Pipeline.Facts(documents: allProposals, records: allRecords,
-                                                             visits: allVisits, stops: allStops))
         if !entries.isEmpty {
             Section {
                 NavigationLink { PipelineView() } label: {
@@ -137,6 +149,7 @@ struct ClientListView: View {
     }
 
     var body: some View {
+        let entries = pipelineEntries
         Group {
             if clients.isEmpty && myClients.isEmpty {
                 ContentUnavailableView {
@@ -155,9 +168,15 @@ struct ClientListView: View {
                 }
             } else {
                 List {
+                    if let tip = tips.currentTip {
+                        Section {
+                            TipView(tip)
+                        }
+                        .listRowBackground(PlowRColor.surface)
+                    }
                     if !myClients.isEmpty {
                         clientSummarySection
-                        pipelineLink
+                        pipelineLink(entries)
                     }
                     ForEach(activeClients) { client in
                         clientRow(client)
@@ -179,6 +198,13 @@ struct ClientListView: View {
         // first item.
         .background(PlowRColor.ground)
         .navigationTitle("Clients")
+        // The Pipeline's tip waits for its row: whether there is one, not
+        // whether it's scrolled into view.
+        .onChange(of: entries.isEmpty, initial: true) { _, empty in
+            PlowRTips.update { PlowRTips.hasPipeline = !empty }
+        }
+        .onAppear { PlowRTips.update { PlowRTips.hasPipeline = !entries.isEmpty } }   // back from a client
+        .onDisappear { PlowRTips.update { PlowRTips.hasPipeline = false } }
         .searchable(text: $searchText, prompt: "Search clients")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {

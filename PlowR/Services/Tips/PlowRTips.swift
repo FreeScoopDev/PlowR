@@ -38,8 +38,17 @@ nonisolated enum PlowRTips {
     /// The Today's Route widget is on a Home Screen.
     @Parameter static var hasRouteWidget: Bool = false
     /// The route page on screen has two pinned stops, the least Optimize
-    /// Order works on.
-    @Parameter static var pinnedStopsReady: Bool = false
+    /// Order works on. Transient, as every screen's own parameter is: a value
+    /// left by a page the app was ended on mustn't outlive the launch.
+    @Parameter(.transient) static var pinnedStopsReady: Bool = false
+    /// This business's clients as the plan counts them (`access.clientCount`:
+    /// active ones, leads included), for tips that wait until there are a few.
+    @Parameter static var clientCount: Int = 0
+    /// The client list shows the Pipeline (there are leads or quotes).
+    @Parameter(.transient) static var hasPipeline: Bool = false
+    /// The client page on screen has a visit with a GPS arrival time, what
+    /// the Service Report is best at showing.
+    @Parameter(.transient) static var clientHasArrivals: Bool = false
 
     /// Called with a tip's id when `done` runs, configured or not: lets
     /// tests see an action finish its tip.
@@ -172,6 +181,7 @@ struct TipsAccessFeed: ViewModifier {
         content
             .onChange(of: access.canEdit, initial: true) { _, canEdit in PlowRTips.update { PlowRTips.canEdit = canEdit } }
             .onChange(of: access.tier == .pro, initial: true) { _, isPro in PlowRTips.update { PlowRTips.isPro = isPro } }
+            .onChange(of: access.clientCount, initial: true) { _, count in PlowRTips.update { PlowRTips.clientCount = count } }
     }
 }
 

@@ -37,6 +37,11 @@ struct RequestLinkView: View {
     }
 
     var body: some View {
+        form
+            .onAppear { PlowRTips.done(RequestLinkTip(), RequestLinkTip.linkOpened) }
+    }
+
+    private var form: some View {
         Form {
             if let profile, let link {
                 linkSection(link, profile: profile)

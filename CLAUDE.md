@@ -401,14 +401,20 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
 - **Tips (TipKit, since 1.8) live in `Services/Tips`**: `PlowRTips` sets
   TipKit up in `PlowRApp.init` (never under tests; `.applicationDefault`
   store; demo launches hide tips, Debug `-PlowRShowTips YES` shows all) and
-  holds the rule parameters (`gettingStarted` from the Dashboard, `canEdit`
-  and `isPro` from `.feedsTips()`, `onMac`, `hasRunRoute` seeded at launch,
-  `hasRouteWidget`, `pinnedStopsReady`). Set a parameter only through
+  holds the rule parameters (`gettingStarted` from the Dashboard, `canEdit`,
+  `isPro` and `clientCount` from `.feedsTips()`, `onMac`, `hasRunRoute`
+  seeded at launch, `hasRouteWidget`, and a screen's own: `pinnedStopsReady`,
+  `hasPipeline`, `clientHasArrivals`). A screen's own parameter is
+  `@Parameter(.transient)`, so a value left by a page the app was ended on
+  doesn't outlive the launch. Set a parameter only through
   `PlowRTips.update { }`, which does nothing until TipKit is configured
   (never under tests, where views and the route store still run). A tip is a `nonisolated
   struct` conforming to `PlowRTip`, whose `helpID` names its copy in
   `HelpGuide.json`; add the id to the type's list for `TipsTests`. One
-  `TipGroup(.ordered)` per screen, a `TipView` in its own Section on a list.
+  `TipGroup` per screen, a `TipView` in its own Section on a list:
+  `.firstAvailable` unless every earlier tip can always become eligible
+  (`.ordered` waits on each earlier tip, so one with a data-dependent rule
+  can hold the rest back for good).
   The action calls `PlowRTips.done(tip, event)`. Delete Account & Data
   leaves `resetTipsAtLaunch`: TipKit's store resets only before configure.
 - **The widget reads only the app group `UserDefaults`.** Anything it needs to
