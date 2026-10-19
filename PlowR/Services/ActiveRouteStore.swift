@@ -153,14 +153,14 @@ final class ActiveRouteStore {
         // deadlocked too.
         NotificationCenter.default.addObserver(forName: ModelContext.didSave, object: nil, queue: nil) { [weak self] note in
             let saved = (note.object as? ModelContext)?.container
-            MainActorNotice.run {
+            MainActorNotice.run { [weak self] in
                 guard let self, Self.isOwnSave(saved, of: self.context) else { return }
                 self.validate()
             }
         }
         NotificationCenter.default.addObserver(forName: .NSPersistentStoreRemoteChange, object: nil,
                                                queue: nil) { [weak self] _ in
-            MainActorNotice.run { self?.validate() }
+            MainActorNotice.run { [weak self] in self?.validate() }
         }
     }
 

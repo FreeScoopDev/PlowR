@@ -246,7 +246,7 @@ enum CSVExport {
                      directory: URL = FileManager.default.temporaryDirectory) throws -> URL {
         guard case .plain(let stamp) = day(now) else { throw CocoaError(.fileWriteUnknown) }
         let url = directory.appending(path: "PlowR \(kind) \(stamp).csv")
-        try Data(contents.utf8).write(to: url, options: .atomic)
+        try Data(contents.utf8).write(to: url, options: [.atomic, .completeFileProtection])
         return url
     }
 }

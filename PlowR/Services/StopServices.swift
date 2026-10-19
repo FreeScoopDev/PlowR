@@ -65,7 +65,11 @@ extension RouteStop {
         if latitude != 0 {
             return URL(string: "maps://?daddr=\(latitude),\(longitude)&dirflg=d")
         }
-        let address = clientAddress.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let address = clientAddress.addingPercentEncoding(withAllowedCharacters: Self.queryValueAllowed) ?? ""
         return address.isEmpty ? nil : URL(string: "maps://?daddr=\(address)")
     }
+
+    /// What a query value may leave unencoded: `.urlQueryAllowed` keeps `&`,
+    /// `=` and `+`, so "Smith & Sons, 5 Elm St" ended the address at "Smith ".
+    private static let queryValueAllowed = CharacterSet.urlQueryAllowed.subtracting(CharacterSet(charactersIn: "&=+"))
 }

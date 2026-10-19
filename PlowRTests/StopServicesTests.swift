@@ -92,6 +92,12 @@ struct StopServicesTests {
         let unpinned = RouteStop(order: 0, customName: "B", customAddress: "1 Main St")
         #expect(unpinned.appleMapsDirectionsURL?.absoluteString == "maps://?daddr=1%20Main%20St")
         #expect(RouteStop(order: 0, customName: "C").appleMapsDirectionsURL == nil)
+        // An "&" in the address must not end the daddr value early.
+        let ampersand = RouteStop(order: 0, customName: "D", customAddress: "Smith & Sons, 5 Elm St")
+        let url = try #require(ampersand.appleMapsDirectionsURL)
+        #expect(url.absoluteString == "maps://?daddr=Smith%20%26%20Sons,%205%20Elm%20St")
+        let daddr = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "daddr" }
+        #expect(daddr?.value == "Smith & Sons, 5 Elm St")
     }
 
     // Saving the stop's page with its services unchanged (only a note, say)

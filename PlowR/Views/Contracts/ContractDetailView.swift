@@ -303,7 +303,7 @@ struct ContractDetailView: View {
         let data = ContractPDF.generate(contract, client: contract.client, profile: profile, catalog: allServiceItems,
                                         madeWithPlowR: access.showsMadeWithPlowR)
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(ContractPDF.fileName(contract))
-        if (try? data.write(to: url)) != nil { pdfURL = url }
+        if (try? data.write(to: url, options: .completeFileProtection)) != nil { pdfURL = url }
     }
 
     private var period: String {
