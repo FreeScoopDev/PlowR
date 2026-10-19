@@ -81,6 +81,9 @@ struct BillWorkView: View {
                         // Billed as it is now: what was billed or deleted
                         // meanwhile is left out (WorkBilling.invoice re-checks).
                         outcome = WorkBilling.invoiceAll(chosen, operatorID: authManager.userID, in: modelContext)
+                        if outcome?.invoices.isEmpty == false {
+                            PlowRTips.done(BillWorkTip(), BillWorkTip.workBilled)
+                        }
                         loadWorks()
                     } label: {
                         Text(chosen.isEmpty ? "Choose Clients to Bill"

@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import MessageUI
+import TipKit
 
 struct ProposalListView: View {
     @Environment(\.modelContext) private var modelContext
@@ -20,6 +21,13 @@ struct ProposalListView: View {
     @State private var proposalToVoid: Proposal?
     @State private var filterStatus: FilterStatus = .all
     @State private var reminderProposal: Proposal?
+    @Query private var allPaymentMethods: [PaymentMethod]
+    /// One money tip at a time, whichever's ready.
+    @State private var tips = TipGroup(.firstAvailable) {
+        BillWorkTip()
+        ReminderTip()
+        PaymentMethodsTip()
+    }
 
     enum FilterStatus: String, CaseIterable {
         case all = "All"
@@ -58,6 +66,11 @@ struct ProposalListView: View {
         Payments.owed(base)
     }
 
+    private var documentsState: PlowRTips.DocumentsState {
+        PlowRTips.documentsState(invoices: base,
+                                 paymentMethods: allPaymentMethods.filter { $0.operatorID == authManager.userID }.count)
+    }
+
     private var overdueCount: Int { base.filter { $0.invoiceStatus == .overdue }.count }
 
     private var draftCount: Int { base.filter { $0.isInvoice && $0.invoiceStatus == .draft }.count }
@@ -78,6 +91,12 @@ struct ProposalListView: View {
                 )
             } else {
                 List {
+                    if let tip = tips.currentTip {
+                        Section {
+                            TipView(tip)
+                        }
+                        .listRowBackground(PlowRColor.surface)
+                    }
                     if filterStatus == .all && (outstandingTotal > 0 || overdueCount > 0 || draftCount > 0) {
                         summarySection
                     }
@@ -102,6 +121,24 @@ struct ProposalListView: View {
         .background(PlowRColor.ground)
         .navigationTitle(filterStatus == .all ? "Documents" : filterStatus.rawValue)
         .proGateSheet($gate)
+        // What the money tips wait on.
+        .onChange(of: documentsState, initial: true) { _, state in
+            PlowRTips.update {
+                PlowRTips.hasOverdue = state.hasOverdue
+                PlowRTips.needsPaymentMethod = state.needsPaymentMethod
+            }
+        }
+        .task(id: base.count) {
+            let unbilled = !WorkBilling.unbilledWork(in: nil, operatorID: authManager.userID, in: modelContext).isEmpty
+            PlowRTips.update { PlowRTips.hasUnbilledWork = unbilled }
+        }
+        .onDisappear {
+            PlowRTips.update {
+                PlowRTips.hasOverdue = false
+                PlowRTips.needsPaymentMethod = false
+                PlowRTips.hasUnbilledWork = false
+            }
+        }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
@@ -285,6 +322,7 @@ struct ProposalListView: View {
             if MFMessageComposeViewController.canSendText() && !clientPhone.isEmpty {
                 Button {
                     reminderProposal = proposal
+                    PlowRTips.done(ReminderTip(), ReminderTip.reminderOpened)
                 } label: {
                     Label("Send Reminder", systemImage: "message.fill")
                 }

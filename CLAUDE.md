@@ -404,7 +404,8 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   holds the rule parameters (`gettingStarted` from the Dashboard, `canEdit`,
   `isPro` and `clientCount` from `.feedsTips()`, `onMac`, `hasRunRoute`
   seeded at launch, `hasRouteWidget`, and a screen's own: `pinnedStopsReady`,
-  `hasPipeline`, `clientHasArrivals`). A screen's own parameter is
+  `hasPipeline`, `clientHasArrivals`, `dayVisitCount`, `hasUnbilledWork`,
+  `hasOverdue`, `needsPaymentMethod`). A screen's own parameter is
   `@Parameter(.transient)`, so a value left by a page the app was ended on
   doesn't outlive the launch. Set a parameter only through
   `PlowRTips.update { }`, which does nothing until TipKit is configured

@@ -76,6 +76,7 @@ struct PaymentMethodsView: View {
             AddPaymentMethodSheet(nextSortOrder: myMethods.count) { method in
                 method.operatorID = authManager.userID
                 modelContext.insert(method)
+                PlowRTips.done(PaymentMethodsTip(), PaymentMethodsTip.methodAdded)
             }
         }
     }

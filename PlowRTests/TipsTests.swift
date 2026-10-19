@@ -141,6 +141,50 @@ struct TipsTests {
         #expect(!view.contains("try ClientImport.save(fresh"))
     }
 
+    /// Documents' money tips: an overdue invoice, and a sent one with no way
+    /// to pay set up.
+    @Test func theDocumentsTipsWaitOnTheirInvoices() throws {
+        let h = try ActiveRouteStoreTests.Harness(stopCount: 0)
+        func invoice(sent: Bool, dueDaysAgo: Double?) -> Proposal {
+            let doc = Proposal(operatorID: "op", client: h.client)
+            doc.invoiceNumber = "INV-\(Int.random(in: 1_000...9_999))"
+            doc.invoiceSentAt = sent ? Date().addingTimeInterval(-40 * 86_400) : nil
+            doc.invoiceDueDate = dueDaysAgo.map { Date().addingTimeInterval(-$0 * 86_400) }
+            h.context.insert(doc)
+            return doc
+        }
+        let draft = invoice(sent: false, dueDaysAgo: nil)
+        let proposal = Proposal(operatorID: "op", client: h.client)
+        h.context.insert(proposal)
+        #expect(PlowRTips.documentsState(invoices: [draft, proposal], paymentMethods: 0)
+                == .init(hasOverdue: false, needsPaymentMethod: false))       // nothing sent yet
+        let sent = invoice(sent: true, dueDaysAgo: -5)                       // due in 5 days
+        #expect(PlowRTips.documentsState(invoices: [draft, sent], paymentMethods: 0)
+                == .init(hasOverdue: false, needsPaymentMethod: true))
+        #expect(PlowRTips.documentsState(invoices: [draft, sent], paymentMethods: 1)
+                == .init(hasOverdue: false, needsPaymentMethod: false))
+        let late = invoice(sent: true, dueDaysAgo: 3)
+        #expect(PlowRTips.documentsState(invoices: [late], paymentMethods: 2)
+                == .init(hasOverdue: true, needsPaymentMethod: false))
+    }
+
+    /// Each schedule and money tip is finished by its action, live (not
+    /// commented or compiled out).
+    @Test(arguments: [
+        ("PlowR/Views/Schedule/AddVisitView.swift", "if isRecurring { PlowRTips.done(RepeatVisitTip(), RepeatVisitTip.visitRepeated) }"),
+        ("PlowR/Views/Schedule/ScheduleView.swift", "PlowRTips.done(RouteFromDayTip(), RouteFromDayTip.routeMade)"),
+        ("PlowR/Views/Proposals/BillWorkView.swift", "PlowRTips.done(BillWorkTip(), BillWorkTip.workBilled)"),
+        ("PlowR/Views/Proposals/ProposalListView.swift", "PlowRTips.done(ReminderTip(), ReminderTip.reminderOpened)"),
+        ("PlowR/Views/Settings/PaymentMethodsView.swift", "PlowRTips.done(PaymentMethodsTip(), PaymentMethodsTip.methodAdded)"),
+    ])
+    func eachMoneyTipIsFinishedByItsAction(_ file: String, _ call: String) throws {
+        let text = try source(file)
+        let lines = text.split(separator: "\n").filter { $0.contains(call) }
+        #expect(lines.count == 1, "\(file)")
+        #expect(lines.allSatisfy { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }, "\(file)")
+        #expect(!text.contains("#if") && !text.contains("/*"), "\(file) has code that may not compile in")
+    }
+
     @Test func aBusinessThatHasRunARouteIsNotOnItsFirst() {
         #expect(!PlowRTips.hasRunRoute(completedRoutes: 0, serviceRecords: 0))
         #expect(PlowRTips.hasRunRoute(completedRoutes: 1, serviceRecords: 0))
