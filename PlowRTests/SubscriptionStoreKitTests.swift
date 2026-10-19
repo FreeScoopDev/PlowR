@@ -46,27 +46,32 @@ struct SubscriptionStoreKitTests {
     @Test func buyingRunningOutAndARefund() async throws {
         // Cleared in init, but the app's copy of the transactions can lag that too.
         let none = Subscription.Entitlements(active: false, everSubscribed: false)
-        #expect(await read(until: none) == none)
+        let atStart = await read(until: none)
+        #expect(atStart == none)
 
         let bought = try await session.buyProduct(identifier: Subscription.productID)
         // StoreKit's lists take a moment to show it (Subscription holds a
         // purchase made in the app meanwhile; AccessTests covers that).
         let subscribed = Subscription.Entitlements(active: true, everSubscribed: true)
-        #expect(await read(until: subscribed) == subscribed)
+        let afterPurchase = await read(until: subscribed)
+        #expect(afterPurchase == subscribed)
 
         // Cancelled, then its period ends.
         try session.disableAutoRenewForTransaction(identifier: UInt(bought.id))
         try session.expireSubscription(productIdentifier: Subscription.productID)
         let lapsed = Subscription.Entitlements(active: false, everSubscribed: true)
-        #expect(await read(until: lapsed) == lapsed)
+        let afterExpiry = await read(until: lapsed)
+        #expect(afterExpiry == lapsed)
 
         // A refunded purchase is as if never made.
         try session.refundTransaction(identifier: UInt(bought.id))
-        #expect(await read(until: none) == none)
+        let afterRefund = await read(until: none)
+        #expect(afterRefund == none)
     }
 
     /// Reads the plan until it is `expected` or 30 seconds have passed, and
-    /// returns the last read, so a failure shows what StoreKit said.
+    /// returns the last read, so a failure shows what StoreKit said (bind
+    /// it first: `#expect` doesn't show the value of an `await`).
     ///
     /// The test store applies a change at once, but the app's copy of the
     /// transactions catches up when StoreKit gets to it, still showing the
