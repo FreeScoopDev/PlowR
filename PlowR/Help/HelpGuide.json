@@ -247,8 +247,8 @@
           "screens": ["documents"],
           "steps": [
             "Open **Documents**, tap **+**, and choose **Bill Unbilled Work**.",
-            "Pick a **Period**. Untick any client you're not billing yet.",
-            "Tap **Create Draft Invoices**. Each client gets one draft, a line per service done, with its day.",
+            "Choose **This Month**, **Last Month** or **All Unbilled**. Untick any client you're not billing yet.",
+            "Tap **Create Draft Invoices** (it shows how many and the total). Each client gets one draft, a line per service done, with its day.",
             "Check each draft in **Documents**, then send it."
           ],
           "tips": [
@@ -261,10 +261,10 @@
           "summary": "A friendly text with the amount owed and the due date.",
           "screens": ["documents"],
           "steps": [
-            "In **Documents**, touch and hold a sent invoice.",
-            "Tap **Send Reminder**. PlowR writes the text with the amount and due date; you send it from Messages."
+            "In **Documents**, touch and hold a sent invoice and tap **Send Reminder**, or open the invoice and tap **Remind**.",
+            "PlowR writes the text with the amount and due date; you send it from Messages."
           ],
-          "note": "An invoice is overdue from the day after its due date. Overdue invoices show in red, and Home counts them.",
+          "note": "It needs the client's phone number and a device that can send texts. An invoice is overdue from the day after its due date; overdue invoices show in red, and Home counts them.",
           "tips": [
             { "id": "tip-reminder", "title": "Nudge a late payer", "message": "Touch and hold an overdue invoice and tap **Send Reminder**." }
           ]

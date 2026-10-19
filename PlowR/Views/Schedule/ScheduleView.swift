@@ -39,8 +39,15 @@ struct ScheduleView: View {
     }
 
     /// The chosen day's scheduled client visits, what Create Route turns into stops.
-    private var scheduledClientVisitCount: Int {
-        visitsForSelectedDate.filter { $0.status == .scheduled && !$0.clientID.isEmpty }.count
+    private var scheduledClientVisits: [ScheduledVisit] {
+        visitsForSelectedDate.filter { $0.status == .scheduled && !$0.clientID.isEmpty }
+    }
+
+    /// For Create Route's tip: the day's visits, or 0 when Create Route would
+    /// open the paywall.
+    private var routeFromDayCount: Int {
+        PlowRTips.routeFromDayCount(scheduledClientVisits.count, canCreateRoute:
+            ProGate.createRoute(access, routes: allRoutes, operatorID: authManager.userID) == nil)
     }
 
     private var overduePending: [ScheduledVisit] {
@@ -93,9 +100,11 @@ struct ScheduleView: View {
             .plowRGrouped()
             .listStyle(.insetGrouped)
             // Create Route's tip waits for a day with a few visits.
-            .onChange(of: scheduledClientVisitCount, initial: true) { _, count in
+            .onChange(of: routeFromDayCount, initial: true) { _, count in
                 PlowRTips.update { PlowRTips.dayVisitCount = count }
             }
+            // Back from another tab or a visit: onChange doesn't fire again.
+            .onAppear { PlowRTips.update { PlowRTips.dayVisitCount = routeFromDayCount } }
             .onDisappear { PlowRTips.update { PlowRTips.dayVisitCount = 0 } }
             .navigationTitle("Schedule")
             .navigationBarTitleDisplayMode(.large)
@@ -233,7 +242,6 @@ struct ScheduleView: View {
                     .foregroundStyle(.primary)
                     .textCase(nil)
                 if !typeSize.isAccessibilitySize { Spacer() }
-                let scheduledClientVisits = visitsForSelectedDate.filter { $0.status == .scheduled && !$0.clientID.isEmpty }
                 if !scheduledClientVisits.isEmpty {
                     Button {
                         $gate.unless(ProGate.createRoute(access, routes: allRoutes, operatorID: authManager.userID)) {

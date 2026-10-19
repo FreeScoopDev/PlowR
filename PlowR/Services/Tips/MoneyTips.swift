@@ -86,9 +86,38 @@ extension PlowRTips {
         var needsPaymentMethod: Bool
     }
 
-    static func documentsState(invoices: [Proposal], paymentMethods: Int) -> DocumentsState {
-        DocumentsState(hasOverdue: invoices.contains { $0.invoiceStatus == .overdue },
-                       needsPaymentMethod: paymentMethods == 0 && invoices.contains { $0.isInvoice && $0.invoiceSentAt != nil })
+    /// `hasOverdue`: an overdue invoice there's a Send Reminder for, on this
+    /// device (`canText`) to a client with a phone (`textable`: their IDs),
+    /// the button's own condition. `needsPaymentMethod`: an invoice went out
+    /// and none of the methods an invoice prints (the active ones) is set up.
+    static func documentsState(invoices: [Proposal], activePaymentMethods: Int,
+                               canText: Bool, textable: Set<String>) -> DocumentsState {
+        DocumentsState(hasOverdue: canText && invoices.contains { $0.invoiceStatus == .overdue && textable.contains($0.clientID) },
+                       needsPaymentMethod: activePaymentMethods == 0
+                           && invoices.contains { $0.isInvoice && $0.invoiceSentAt != nil })
+    }
+
+    /// The Schedule's day count for Create Route's tip: 0 when Create Route
+    /// would open the paywall (a free business that has its route): tips
+    /// never sell.
+    static func routeFromDayCount(_ count: Int, canCreateRoute: Bool) -> Int {
+        canCreateRoute ? count : 0
+    }
+
+    /// Bill Unbilled Work made its invoices: the tip is done, if it made any.
+    static func billed(_ outcome: WorkBilling.Outcome) {
+        if !outcome.invoices.isEmpty { done(BillWorkTip(), BillWorkTip.workBilled) }
+    }
+
+    /// A reminder text opened (the list's Send Reminder or the invoice's Remind).
+    static func reminderOpened() {
+        done(ReminderTip(), ReminderTip.reminderOpened)
+    }
+
+    /// Whether Documents still needs to look for unbilled work: TipKit is on
+    /// and Bill Unbilled Work's tip isn't done (the look reads every job).
+    static var wantsUnbilledWork: Bool {
+        isConfigured && BillWorkTip().status != .invalidated
     }
 }
 
