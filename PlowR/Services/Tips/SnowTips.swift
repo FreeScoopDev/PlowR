@@ -5,7 +5,7 @@ import TipKit
 /// the storm card only. Copy in `HelpGuide.json` (a snow-only topic).
 
 /// Home's storm card: text the clients whose contract trigger the forecast
-/// reaches. PlowR Pro (storm texts are).
+/// reaches. PlowR Pro (storm texts are). Not on a Mac (no texting).
 nonisolated struct StormTextTip: PlowRTip {
     static let helpID = "tip-storm-text"
     static let stormTexted = Tips.Event(id: "stormTexted")
@@ -13,6 +13,7 @@ nonisolated struct StormTextTip: PlowRTip {
     var rules: [Rule] {
         #Rule(PlowRTips.$gettingStarted) { $0 == false }
         #Rule(PlowRTips.$isPro) { $0 == true }
+        #Rule(PlowRTips.$onMac) { $0 == false }
         #Rule(Self.stormTexted) { $0.donations.count == 0 }
     }
 

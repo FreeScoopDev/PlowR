@@ -334,7 +334,7 @@
           "pro": true,
           "snowOnly": true,
           "tips": [
-            { "id": "tip-storm-text", "title": "Warn clients before it hits", "message": "Tap **Text Clients Whose Trigger It Reaches** to tell them snow is coming." }
+            { "id": "tip-storm-text", "title": "Tell clients about the storm", "message": "Tap **Text Clients Whose Trigger It Reaches** to let them know." }
           ]
         },
         {

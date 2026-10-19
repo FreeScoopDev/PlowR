@@ -237,6 +237,16 @@ struct TipsTests {
         #expect(!text.contains("#if") && !text.contains("/*"))
     }
 
+    /// A tip that teaches texting doesn't show on a Mac, which can't text.
+    @Test(arguments: ["SnowTips.swift:StormTextTip", "MoneyTips.swift:ReminderTip"])
+    func textingTipsAreNotForAMac(_ entry: String) throws {
+        let parts = entry.split(separator: ":").map(String.init)
+        let text = try source("PlowR/Services/Tips/\(parts[0])")
+        let start = try #require(text.range(of: "struct \(parts[1]): PlowRTip {"))
+        let end = text.range(of: "\n}\n", range: start.upperBound..<text.endIndex)?.lowerBound ?? text.endIndex
+        #expect(text[start.lowerBound..<end].contains("#Rule(PlowRTips.$onMac) { $0 == false }"))
+    }
+
     /// Create Route's tip is done only once a route was made: after the
     /// guard that stops on no stops.
     @Test func createRoutesTipIsDoneOnlyAfterARouteIsMade() throws {
