@@ -401,6 +401,7 @@ struct StopServiceRecorderView: View {
             }
         }
         UINotificationFeedbackGenerator().notificationOccurred(.success)
+        PlowRTips.done(RecordServicesTip(), RecordServicesTip.servicesRecorded)
         dismiss()
     }
 }
