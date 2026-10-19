@@ -26,8 +26,10 @@ struct ClientListView: View {
     @State private var showingAddClient = false
     @State private var showingContactScanner = false
     @State private var showingImport = false
-    /// One tip at a time on the list: the Pipeline, then importing.
-    @State private var tips = TipGroup(.ordered) {
+    /// One tip at a time on the list, whichever's ready (the Pipeline first
+    /// when both are): not `.ordered`, which would hold Import behind a
+    /// Pipeline tip that a business with no leads never sees.
+    @State private var tips = TipGroup(.firstAvailable) {
         PipelineTip()
         ImportClientsTip()
     }
@@ -117,13 +119,6 @@ struct ClientListView: View {
         Payments.received(allProposals.filter { $0.operatorID == authManager.userID })
     }
 
-    /// The Pipeline row shows (there are leads or quotes), for its tip.
-    private var hasPipeline: Bool {
-        !Pipeline.entries(allClients, operatorID: authManager.userID,
-                          facts: Pipeline.Facts(documents: allProposals, records: allRecords,
-                                                visits: allVisits, stops: allStops)).isEmpty
-    }
-
     /// Leads and quotes (Pipeline), when there are any.
     @ViewBuilder
     private var pipelineLink: some View {
@@ -146,6 +141,9 @@ struct ClientListView: View {
                 }
             }
             .listRowBackground(PlowRColor.surface)
+            // The Pipeline's tip waits for this row.
+            .onAppear { PlowRTips.update { PlowRTips.hasPipeline = true } }
+            .onDisappear { PlowRTips.update { PlowRTips.hasPipeline = false } }
         }
     }
 
@@ -198,13 +196,6 @@ struct ClientListView: View {
         // first item.
         .background(PlowRColor.ground)
         .navigationTitle("Clients")
-        // The tips wait for a few clients, and for the Pipeline to show.
-        .onChange(of: activeClients.count, initial: true) { _, count in
-            PlowRTips.update { PlowRTips.clientCount = count }
-        }
-        .onChange(of: hasPipeline, initial: true) { _, shown in
-            PlowRTips.update { PlowRTips.hasPipeline = shown }
-        }
         .searchable(text: $searchText, prompt: "Search clients")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {

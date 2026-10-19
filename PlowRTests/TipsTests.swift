@@ -103,6 +103,27 @@ struct TipsTests {
         #expect(PlowRTips.hasArrivals(clientID: id, in: h.context))
     }
 
+    /// Each client tip's action finishes it, in the screen that does the
+    /// thing (a live line, not a comment). The import's only after it saved.
+    @Test(arguments: [
+        ("PlowR/Views/Clients/PipelineView.swift", "PlowRTips.done(PipelineTip(), PipelineTip.pipelineOpened)"),
+        ("PlowR/Views/ServiceLog/ProofOfServiceView.swift", "PlowRTips.done(ServiceReportTip(), ServiceReportTip.reportOpened)"),
+        ("PlowR/Views/Settings/RequestLinkView.swift", "PlowRTips.done(RequestLinkTip(), RequestLinkTip.linkOpened)"),
+    ])
+    func eachClientTipIsFinishedByItsAction(_ file: String, _ call: String) throws {
+        let text = try source(file)
+        let lines = text.split(separator: "\n").filter { $0.contains(call) }
+        #expect(lines.contains { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }, "\(file)")
+    }
+
+    @Test func theImportTipIsFinishedOnlyAfterTheClientsSaved() throws {
+        let text = try source("PlowR/Views/Clients/ImportClientsView.swift")
+        let save = try #require(text.range(of: "result = try ClientImport.save("))
+        let done = try #require(text.range(of: "PlowRTips.done(ImportClientsTip(), ImportClientsTip.clientsImported)"))
+        let caught = try #require(text.range(of: "} catch {", range: save.upperBound..<text.endIndex))
+        #expect(save.upperBound < done.lowerBound && done.upperBound < caught.lowerBound)
+    }
+
     @Test func aBusinessThatHasRunARouteIsNotOnItsFirst() {
         #expect(!PlowRTips.hasRunRoute(completedRoutes: 0, serviceRecords: 0))
         #expect(PlowRTips.hasRunRoute(completedRoutes: 1, serviceRecords: 0))
