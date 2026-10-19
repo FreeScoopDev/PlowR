@@ -1,5 +1,0 @@
-### Added
-- Tips on the route screens (TipKit): on a route's page, tap a stop to set its services, swipe to Skip Today, and Optimize Order; on the first route, Record Services, under its button and never over Complete Stop; on the Route Recap, Siri and Control Center, then the widget. Each tip shows once (a swipe twice), at most one a day and one on a screen, and never again once you've done the thing. None show while Get Started has steps left, and editing tips stay hidden while PlowR is read only. Settings → Help → Show Tips Again brings them back. They teach what people asked about without a manual, at the moment it's useful.
-
-### Internal
-- Tip copy is in `HelpGuide.json` (a topic's `tips`), the same source as the help guide and the website, so it's written once. TipKit keeps its store in the app's own container, not the app group or iCloud. Delete Account & Data (both paths) asks for that store to be reset at the next launch, the only time TipKit allows it. Tests never configure TipKit, and demo launches hide tips. `-PlowRShowTips YES` (Debug) shows every tip.

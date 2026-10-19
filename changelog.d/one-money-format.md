@@ -1,5 +1,0 @@
-### Fixed
-- Money is written one way everywhere: on screens, invoice, proposal and contract PDFs, the Service Report and the payment reminder text. PDFs printed "$12500.00" with no thousands separator; some screens followed the phone's region ("US$" or "1.234,56 $US" outside the US) while documents didn't. Whole-dollar tiles (Home, Clients, Invoices, Client Stats) and the Clients list's "due" badge showed a $0.40 balance as "$0" in the owed colour, and rounded $148.50 to "$148" where the totals round half a cent up. Now every amount is in US dollars written the US way ("$12,500.00"), rounded to the cent by the same rule as the totals, and a whole-dollar figure that isn't zero never reads "$0" (under half a dollar it shows the cents). The after-hours note on a proposal said "1.2×" for a 1.25× multiplier; it now shows 1.25×. CSV export is unchanged: it keeps plain numbers for spreadsheets.
-
-### Internal
-- `Money` (`PlowR/Services/Money.swift`) holds the currency code, the locale and the formatting; `MoneyTests` fails if another money format appears in the app's source.
