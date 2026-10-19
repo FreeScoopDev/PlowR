@@ -119,14 +119,14 @@ struct ClientListView: View {
         Payments.received(allProposals.filter { $0.operatorID == authManager.userID })
     }
 
-    /// Leads and quotes (Pipeline), when there are any.
-    @ViewBuilder
+    /// Leads and quotes (Pipeline), worked out once per render for the row and its tip.
     private var pipelineEntries: [Pipeline.Entry] {
         Pipeline.entries(allClients, operatorID: authManager.userID,
                          facts: Pipeline.Facts(documents: allProposals, records: allRecords,
                                                visits: allVisits, stops: allStops))
     }
 
+    /// The Pipeline row, when there are leads or quotes.
     @ViewBuilder
     private func pipelineLink(_ entries: [Pipeline.Entry]) -> some View {
         // Shown while anyone's in it, lost too: the Pipeline is where they're reopened.
