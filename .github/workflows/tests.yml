@@ -59,25 +59,20 @@ jobs:
           xcodebuild -version
 
       # A hung test used to run into the job's 45 minutes (#190's first run,
-      # 2026-10-18): GitHub cancelled the job, the upload below didn't run,
-      # and nothing said which test hung. Now each test may take 2 minutes
-      # (xcodebuild's time allowance, which Swift Testing honours: a probe
-      # test that slept 10 minutes failed at its limit with "Time limit was
-      # exceeded" and the run went on). A test that really needs longer says
-      # so itself, e.g. `@Test(.timeLimit(.minutes(5)))`, up to the 10-minute
-      # maximum. And the step has its own limit, so
-      # a run that still stalls fails the step rather than cancelling the
-      # job, and its log is kept.
+      # 2026-10-18): GitHub cancelled the job and nothing said which test
+      # hung. Each test may now take 2 minutes (xcodebuild's time allowance,
+      # which Swift Testing honours: a probe test that slept 10 minutes failed
+      # at its limit with "Time limit was exceeded" and the run went on).
       - name: Run the tests (PlowRTests)
-        timeout-minutes: 30
         env:
           TEST_OUTPUT_DIR: ${{ runner.temp }}/plowr-tests
           TEST_XCODEBUILD_ARGS: >-
             -test-timeouts-enabled YES
             -default-test-execution-time-allowance 120
-            -maximum-test-execution-time-allowance 600
+            -maximum-test-execution-time-allowance 120
         run: bash toolkit/bin/test.sh "$GITHUB_WORKSPACE"
 
+      # Cancelled too: a run that hits the job's time limit keeps its log.
       - name: Upload the log and result bundle on failure
         if: failure() || cancelled()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
