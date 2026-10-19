@@ -92,7 +92,7 @@ final class ICloudStatus {
             // CloudKit posts its account change from its own thread: never
             // make it wait (MainActorNotice).
             notifications.addObserver(forName: name, object: nil, queue: nil) { [weak self] _ in
-                MainActorNotice.run {
+                MainActorNotice.run { [weak self] in
                     guard let self else { return }
                     Task { await self.refresh() }
                 }

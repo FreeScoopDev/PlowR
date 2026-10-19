@@ -284,7 +284,7 @@ struct ClientStatsView: View {
         )
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("PlowR_Season_Report.pdf")
-        guard (try? data.write(to: url)) != nil else { return nil }
+        guard (try? data.write(to: url, options: .completeFileProtection)) != nil else { return nil }
         return IdentifiableURL(url: url)
     }
 }
