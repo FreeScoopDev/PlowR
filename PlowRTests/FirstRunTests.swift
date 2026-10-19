@@ -1,4 +1,5 @@
 import AuthenticationServices
+import CoreData
 import Foundation
 import StoreKit
 import SwiftData
@@ -200,6 +201,26 @@ struct CloudImportWaitTests {
         let watch = CloudImportWatch()
         watch.record(importEnded: true)
         #expect(CloudImportWait(watch: watch).isReady)
+    }
+
+    /// CoreData's CloudKit queue posts the import event; the watch must take
+    /// it without making that queue wait for the main thread (a deadlock).
+    @Test func theImportEventNeverWaitsForTheMainThread() async throws {
+        let center = NotificationCenter()
+        let watch = CloudImportWatch()
+        watch.start(center: center)
+        let posted = PostClock()
+        let poster = Thread {
+            center.post(name: NSPersistentCloudKitContainer.eventChangedNotification, object: nil)
+            posted.mark()
+        }
+        poster.start()
+        Thread.sleep(forTimeInterval: 0.5)          // the main thread, busy
+        let mainFreed = Date()
+        try await Task.sleep(for: .milliseconds(100))
+        let at = try #require(posted.at)
+        #expect(at < mainFreed)
+        #expect(!watch.importEnded)                 // no event in it: not an import's end
     }
 
     @Test func noICloudAccountMeansNoWait() async {

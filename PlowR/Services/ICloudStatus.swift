@@ -89,8 +89,10 @@ final class ICloudStatus {
         guard !isWatching else { return }
         isWatching = true
         for name in [UIApplication.didBecomeActiveNotification, Notification.Name.CKAccountChanged] {
-            notifications.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated {
+            // CloudKit posts its account change from its own thread: never
+            // make it wait (MainActorNotice).
+            notifications.addObserver(forName: name, object: nil, queue: nil) { [weak self] _ in
+                MainActorNotice.run {
                     guard let self else { return }
                     Task { await self.refresh() }
                 }
