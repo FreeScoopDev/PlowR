@@ -121,11 +121,15 @@ struct ClientListView: View {
 
     /// Leads and quotes (Pipeline), when there are any.
     @ViewBuilder
-    private var pipelineLink: some View {
+    private var pipelineEntries: [Pipeline.Entry] {
+        Pipeline.entries(allClients, operatorID: authManager.userID,
+                         facts: Pipeline.Facts(documents: allProposals, records: allRecords,
+                                               visits: allVisits, stops: allStops))
+    }
+
+    @ViewBuilder
+    private func pipelineLink(_ entries: [Pipeline.Entry]) -> some View {
         // Shown while anyone's in it, lost too: the Pipeline is where they're reopened.
-        let entries = Pipeline.entries(allClients, operatorID: authManager.userID,
-                                       facts: Pipeline.Facts(documents: allProposals, records: allRecords,
-                                                             visits: allVisits, stops: allStops))
         if !entries.isEmpty {
             Section {
                 NavigationLink { PipelineView() } label: {
@@ -141,13 +145,11 @@ struct ClientListView: View {
                 }
             }
             .listRowBackground(PlowRColor.surface)
-            // The Pipeline's tip waits for this row.
-            .onAppear { PlowRTips.update { PlowRTips.hasPipeline = true } }
-            .onDisappear { PlowRTips.update { PlowRTips.hasPipeline = false } }
         }
     }
 
     var body: some View {
+        let entries = pipelineEntries
         Group {
             if clients.isEmpty && myClients.isEmpty {
                 ContentUnavailableView {
@@ -174,7 +176,7 @@ struct ClientListView: View {
                     }
                     if !myClients.isEmpty {
                         clientSummarySection
-                        pipelineLink
+                        pipelineLink(entries)
                     }
                     ForEach(activeClients) { client in
                         clientRow(client)
@@ -196,6 +198,13 @@ struct ClientListView: View {
         // first item.
         .background(PlowRColor.ground)
         .navigationTitle("Clients")
+        // The Pipeline's tip waits for its row: whether there is one, not
+        // whether it's scrolled into view.
+        .onChange(of: entries.isEmpty, initial: true) { _, empty in
+            PlowRTips.update { PlowRTips.hasPipeline = !empty }
+        }
+        .onAppear { PlowRTips.update { PlowRTips.hasPipeline = !entries.isEmpty } }   // back from a client
+        .onDisappear { PlowRTips.update { PlowRTips.hasPipeline = false } }
         .searchable(text: $searchText, prompt: "Search clients")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
