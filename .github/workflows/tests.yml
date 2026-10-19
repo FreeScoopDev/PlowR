@@ -63,7 +63,9 @@ jobs:
       # and nothing said which test hung. Now each test may take 2 minutes
       # (xcodebuild's time allowance, which Swift Testing honours: a probe
       # test that slept 10 minutes failed at its limit with "Time limit was
-      # exceeded" and the run went on), and the step has its own limit, so
+      # exceeded" and the run went on). A test that really needs longer says
+      # so itself, e.g. `@Test(.timeLimit(.minutes(5)))`, up to the 10-minute
+      # maximum. And the step has its own limit, so
       # a run that still stalls fails the step rather than cancelling the
       # job, and its log is kept.
       - name: Run the tests (PlowRTests)
@@ -73,7 +75,7 @@ jobs:
           TEST_XCODEBUILD_ARGS: >-
             -test-timeouts-enabled YES
             -default-test-execution-time-allowance 120
-            -maximum-test-execution-time-allowance 120
+            -maximum-test-execution-time-allowance 600
         run: bash toolkit/bin/test.sh "$GITHUB_WORKSPACE"
 
       - name: Upload the log and result bundle on failure
