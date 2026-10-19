@@ -244,7 +244,10 @@ struct TipsTests {
         let text = try source("PlowR/Services/Tips/\(parts[0])")
         let start = try #require(text.range(of: "struct \(parts[1]): PlowRTip {"))
         let end = text.range(of: "\n}\n", range: start.upperBound..<text.endIndex)?.lowerBound ?? text.endIndex
-        #expect(text[start.lowerBound..<end].contains("#Rule(PlowRTips.$onMac) { $0 == false }"))
+        let tip = text[start.lowerBound..<end]
+        // A live line: not commented out, nothing that may compile it away.
+        #expect(tip.contains(/\n[ \t]*#Rule\(PlowRTips\.\$onMac\) \{ \$0 == false \}/))
+        #expect(!tip.contains("#if") && !tip.contains("/*") && !tip.contains("// #Rule"))
     }
 
     /// Create Route's tip is done only once a route was made: after the
