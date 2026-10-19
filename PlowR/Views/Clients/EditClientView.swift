@@ -59,6 +59,7 @@ struct EditClientView: View {
     @State private var showingProposalBuilder = false
     @State private var showingInvoiceBuilder = false
     @State private var showingAddVisit = false
+    @State private var showingServiceReport = false
     @State private var propertySheet: PropertySheet?
     @State private var showingNewContract = false
     @State private var showingMessageComposer = false
@@ -192,6 +193,9 @@ struct EditClientView: View {
         }
         .sheet(isPresented: $showingAddVisit) {
             AddVisitView(client: client)
+        }
+        .sheet(isPresented: $showingServiceReport) {
+            ProofOfServiceView(client: client)
         }
         .sheet(isPresented: $showingMessageComposer) {
             if !draft.phone.isEmpty {
@@ -741,6 +745,12 @@ struct EditClientView: View {
                 ClientTimelineView(client: client)
             } label: {
                 Label("Timeline", systemImage: "clock")
+            }
+            // The Service Report (PlowR Pro), here as well as in All Work.
+            Button {
+                $gate.unless(ProGate.serviceReport(access)) { showingServiceReport = true }
+            } label: {
+                Label("Service Report", systemImage: PlowRSymbol.serviceReport.name)
             }
             if client.totalVisits == 0 {
                 Text("No route visits recorded yet")

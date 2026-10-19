@@ -91,18 +91,27 @@ struct ServiceRecordDetailView: View {
                         .keyboardType(.numberPad)
                         .multilineTextAlignment(.trailing)
                 }
+                if !minutesReadable {
+                    Label(ServiceLog.unreadableMinutesMessage, systemImage: PlowRSymbol.warning.name)
+                        .foregroundStyle(PlowRColor.Status.overdue.text)
+                }
                 // Work from before the log: whether it was billed isn't known.
                 if record.source != .beforeLog {
                     Toggle("Bill for This Work", isOn: $isBillable)
                         .disabled(invoice != nil)
                 }
             } footer: {
-                if let invoice {
-                    Text("On invoice \(invoice.invoiceNumber).")
-                } else if record.source == .beforeLog {
-                    Text("Completed before PlowR kept a Service History, or on an older version of PlowR, so whether it was billed wasn't tracked. It's never counted as owed.")
-                } else if !isBillable {
-                    Text("No charge: this work won't be billed.")
+                VStack(alignment: .leading, spacing: PlowRLayout.space1) {
+                    if let invoice {
+                        Text("On invoice \(invoice.invoiceNumber).")
+                    } else if record.source == .beforeLog {
+                        Text("Completed before PlowR kept a Service History, or on an older version of PlowR, so whether it was billed wasn't tracked. It's never counted as owed.")
+                    } else if !isBillable {
+                        Text("No charge: this work won't be billed.")
+                    }
+                    if record.source == .route {
+                        Text(ServiceLog.routeMinutesNote)
+                    }
                 }
             }
             .listRowBackground(PlowRColor.surface)
@@ -122,6 +131,8 @@ struct ServiceRecordDetailView: View {
             .disabled(!access.canEdit)
 
             photosSection
+
+            siteSection
 
             Section("Details") {
                 LabeledContent("Recorded From", value: sourceText)
@@ -157,7 +168,7 @@ struct ServiceRecordDetailView: View {
         }
         .asksBeforeLeaving(hasChanges: hasChanges, isBusy: false, canSave: canSave,
                            message: "Your changes to this job aren't saved.",
-                           cantSaveMessage: DocumentDraft.unreadableMessage(recording.unreadableFields(locked: locked)),
+                           cantSaveMessage: cantSaveMessage,
                            save: save, discard: { dismiss() })
         .confirmationDialog("Delete this job?", isPresented: $showingDeleteConfirm, titleVisibility: .visible) {
             Button("Delete", role: .destructive) {
@@ -194,6 +205,25 @@ struct ServiceRecordDetailView: View {
         }
     }
 
+    /// What GPS saw at the job site (job-site areas, SiteTimes): shown as
+    /// recorded, never edited, as they matter in a dispute.
+    @ViewBuilder
+    private var siteSection: some View {
+        let rows = ProofOfService.siteRows(of: record)
+        if !rows.isEmpty {
+            Section {
+                ForEach(rows, id: \.self) { row in
+                    LabeledContent(row.label, value: row.value)
+                }
+            } header: {
+                Text("Job Site (GPS)")
+            } footer: {
+                Text(ProofOfService.siteFooter)
+            }
+            .listRowBackground(PlowRColor.surface)
+        }
+    }
+
     private var sourceText: String {
         switch record.source {
         case .route: record.routeName.isEmpty ? "A route" : "Route: \(record.routeName)"
@@ -217,14 +247,25 @@ struct ServiceRecordDetailView: View {
         loaded = snapshot
     }
 
-    /// No price here that can't be read (ServiceLinesSections says which).
-    private var canSave: Bool { recording.unreadableFields(locked: locked).isEmpty }
+    /// What the minutes field saves (ServiceLog.minutesToSave); nil when it can't be read.
+    private var minutesToSave: Double? {
+        ServiceLog.minutesToSave(typed: minutes, asLoaded: minutesAsLoaded, recorded: record.minutes)
+    }
+    private var minutesReadable: Bool { minutesToSave != nil }
+
+    /// No price here that can't be read (ServiceLinesSections says which),
+    /// and minutes that can be.
+    private var canSave: Bool { recording.unreadableFields(locked: locked).isEmpty && minutesReadable }
+
+    private var cantSaveMessage: String {
+        ServiceLog.cantSaveMessage(unreadableFields: recording.unreadableFields(locked: locked),
+                                   minutesReadable: minutesReadable)
+    }
 
     private func save() {
+        guard canSave, let minutes = minutesToSave else { return }
         ServiceLog.update(record, lines: recording.recordLines, notes: notes, performedAt: performedAt,
-                          minutes: minutes == minutesAsLoaded
-                              ? record.minutes : Double(minutes.trimmingCharacters(in: .whitespaces)) ?? 0,
-                          isBillable: isBillable, in: modelContext)
+                          minutes: minutes, isBillable: isBillable, in: modelContext)
         loaded = snapshot
         dismiss()
     }

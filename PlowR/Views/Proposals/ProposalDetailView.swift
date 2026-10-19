@@ -114,6 +114,25 @@ struct ProposalDetailView: View {
                 .padding(10)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(.ultraThinMaterial)
+            } else if InvoiceRevisions.hasOtherRevision(proposal, among: allProposals),
+                      let other = InvoiceRevisions.otherRevision(of: proposal, among: allProposals) {
+                // One invoice revised on two devices before they synced: both
+                // revisions bill it. Never taken back by itself; said here.
+                VStack(alignment: .leading, spacing: 6) {
+                    Label(InvoiceRevisions.advice(for: proposal, other: other),
+                          systemImage: PlowRSymbol.warning.name)
+                        .foregroundStyle(PlowRColor.Status.owed.text)
+                    NavigationLink { ProposalDetailView(proposal: other) } label: {
+                        Text(InvoiceRevisions.linkTitle(to: other, from: proposal))
+                            .fontWeight(.semibold)
+                            .frame(minHeight: 44)
+                            .contentShape(Rectangle())
+                    }
+                }
+                .font(.footnote)
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.ultraThinMaterial)
             } else if InvoiceRecords.hasDuplicateNumber(proposal, among: allProposals) {
                 // Two sent invoices with one number (made on two devices before
                 // they synced): never renumbered, since the client has it; said here.

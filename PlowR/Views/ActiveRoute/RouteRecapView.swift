@@ -21,6 +21,22 @@ struct RouteRecapView: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var editingStop: RouteStop?
+    /// This run's Service Log records, live: a departure GPS catches while
+    /// the recap is open shows.
+    @Query private var runRecords: [ServiceRecord]
+
+    init(route: PlowRoute, stops: [RouteStop], allClients: [Client], onEndRoute: @escaping () -> Void,
+         runID: UUID? = nil, runStartedAt: Date? = nil) {
+        self.route = route
+        self.stops = stops
+        self.allClients = allClients
+        self.onEndRoute = onEndRoute
+        self.runID = runID
+        self.runStartedAt = runStartedAt
+        // No run, no records: an ID nothing has.
+        let id = runID?.uuidString ?? "none"
+        _runRecords = Query(filter: #Predicate<ServiceRecord> { $0.runID == id })
+    }
 
     private var completedStops: [RouteStop] {
         stops.filter { $0.actualMinutes > 0 || !$0.completedServiceIDs.isEmpty }
@@ -67,9 +83,10 @@ struct RouteRecapView: View {
                 }
 
                 if !completedStops.isEmpty {
+                    let onSite = timesOnSite
                     Section("Completed Stops") {
                         ForEach(Array(completedStops.enumerated()), id: \.element.id) { idx, stop in
-                            stopRow(stop, index: idx + 1, completed: true)
+                            stopRow(stop, index: idx + 1, completed: true, onSite: onSite)
                         }
                     }
                     .listRowBackground(PlowRColor.surface)
@@ -180,7 +197,14 @@ struct RouteRecapView: View {
 
     // MARK: - Stop Row
 
-    private func stopRow(_ stop: RouteStop, index: Int, completed: Bool) -> some View {
+    /// GPS's time on site at each stop this run, by stop ID (the oldest
+    /// record of a stop, as ServiceLog.runRecord picks).
+    private var timesOnSite: [UUID: TimeInterval] {
+        ServiceLog.timesOnSite(runRecords)
+    }
+
+    private func stopRow(_ stop: RouteStop, index: Int, completed: Bool,
+                         onSite: [UUID: TimeInterval] = [:]) -> some View {
         Button {
             editingStop = stop
         } label: {
@@ -220,6 +244,13 @@ struct RouteRecapView: View {
                     }
                     if stop.actualMinutes > 0 {
                         Text("\(stop.actualMinutes) min")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    // GPS's time at the job site, once it has seen the crew
+                    // arrive and leave (a departure seen later shows then).
+                    if completed, let onSite = onSite[stop.id] {
+                        Text(ProofOfService.onSiteListText(onSite))
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }

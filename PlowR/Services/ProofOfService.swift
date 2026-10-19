@@ -131,8 +131,8 @@ enum ProofOfService {
         if check.isFromStop {
             lines = ["Checked on a route at \(check.checkedAt.formatted(time)): below the contract's snow trigger, "
                      + "not cleared"]
-            lines.append(check.arrivedAt.map { "Arrived \($0.formatted(time)) (GPS, within about 100 m)" }
-                         ?? "Arrival not caught (GPS)")
+            lines.append(check.arrivedAt.map { "Arrived \($0.formatted(time)) (\(gpsNote))" }
+                         ?? "\(arrivalNotCaught) (GPS)")
             if !check.routeName.isEmpty { lines.append("Route: \(check.routeName)") }
         } else {
             var when = Date.FormatStyle.dateTime.month(.abbreviated).day().hour().minute().locale(locale)
@@ -189,16 +189,93 @@ enum ProofOfService {
         return text
     }
 
+    /// What GPS's times are said with, wherever they show.
+    static var gpsNote: String { gpsNote(radius: SiteMonitor.radius) }
+    static func gpsNote(radius: Double) -> String { "GPS, within \(about(radius))" }
+    /// Under the job page's GPS rows.
+    static var siteFooter: String { siteFooter(radius: SiteMonitor.radius) }
+    static func siteFooter(radius: Double) -> String {
+        "When the phone came into and went out of an area \(about(radius)) around the pin, as iOS reported it. "
+            + "Kept as recorded: they can't be edited."
+    }
+
+    /// The job-site area's size as PlowR says it, from its radius in metres.
+    static func about(_ radius: Double) -> String { "about \(Int(radius.rounded())) m" }
+    static let arrivalNotCaught = "Arrival not caught"
+    static let departureNotCaught = "Departure not caught"
+
     /// A route stop's arrival and departure as GPS saw them, if it saw
-    /// either; nil if it saw neither.
+    /// either; nil if it saw neither. With the time on site when it saw both.
     static func siteTimes(of record: ServiceRecord, timeZone: TimeZone = .current,
                           locale: Locale = .current) -> String? {
         guard record.arrivedAt != nil || record.leftAt != nil else { return nil }
         var time = Date.FormatStyle.dateTime.hour().minute().locale(locale)
         time.timeZone = timeZone
-        let arrived = record.arrivedAt.map { "Arrived \($0.formatted(time))" } ?? "Arrival not caught"
-        let left = record.leftAt.map { "Left \($0.formatted(time))" } ?? "Departure not caught"
-        return "\(arrived) · \(left) (GPS, within about 100 m)"
+        let arrived = record.arrivedAt.map { "Arrived \($0.formatted(time))" } ?? arrivalNotCaught
+        let left = record.leftAt.map { "Left \($0.formatted(time))" } ?? departureNotCaught
+        let onSite = timeOnSite(of: record).map { " · \(onSiteText($0))" } ?? ""
+        return "\(arrived) · \(left)\(onSite) (\(gpsNote))"
+    }
+
+    /// How long the phone was in the stop's area: from GPS's arrival to its
+    /// departure. Only when GPS caught both, and in that order; nil
+    /// otherwise, never a guess (SiteTimes keeps only what was seen).
+    static func timeOnSite(arrivedAt: Date?, leftAt: Date?) -> TimeInterval? {
+        guard let arrivedAt, let leftAt, leftAt >= arrivedAt else { return nil }
+        return leftAt.timeIntervalSince(arrivedAt)
+    }
+
+    static func timeOnSite(of record: ServiceRecord) -> TimeInterval? {
+        timeOnSite(arrivedAt: record.arrivedAt, leftAt: record.leftAt)
+    }
+
+    /// A time on site, to the nearest minute: "38 min on site",
+    /// "1 h 05 min on site", "under 1 min on site".
+    static func onSiteText(_ interval: TimeInterval) -> String {
+        "\(duration(interval)) on site"
+    }
+
+    /// A row on the job's page: "Arrived", "7:02 AM".
+    struct SiteRow: Hashable {
+        var label: String
+        var value: String
+    }
+
+    /// The job's page's GPS rows: Arrived and Left ("Not caught" where GPS
+    /// missed one) and, when it caught both, On Site (GPS). None when it
+    /// caught neither. Shown as recorded: these can't be edited. A time on
+    /// another day than the job's (its Done date moved) gives its date, so
+    /// it can't pass as that day's.
+    static func siteRows(of record: ServiceRecord, timeZone: TimeZone = .current,
+                         locale: Locale = .current) -> [SiteRow] {
+        guard record.arrivedAt != nil || record.leftAt != nil else { return [] }
+        var time = Date.FormatStyle.dateTime.hour().minute().locale(locale)
+        time.timeZone = timeZone
+        var day = Date.FormatStyle.dateTime.month(.abbreviated).day().year().locale(locale)
+        day.timeZone = timeZone
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        let jobDay = record.performedAt
+        func when(_ date: Date?) -> String {
+            guard let date else { return "Not caught" }
+            return calendar.isDate(date, inSameDayAs: jobDay) ? date.formatted(time)
+                : "\(date.formatted(day)) \(date.formatted(time))"
+        }
+        var rows = [SiteRow(label: "Arrived", value: when(record.arrivedAt)),
+                    SiteRow(label: "Left", value: when(record.leftAt))]
+        if let onSite = timeOnSite(of: record) { rows.append(SiteRow(label: "On Site (GPS)", value: duration(onSite))) }
+        return rows
+    }
+
+    /// The time on site where a list shows it: "26 min on site (GPS)".
+    static func onSiteListText(_ interval: TimeInterval) -> String { "\(onSiteText(interval)) (GPS)" }
+
+    /// "38 min", "1 h 05 min", "under 1 min".
+    static func duration(_ interval: TimeInterval) -> String {
+        let minutes = Int((interval / 60).rounded())
+        guard minutes >= 1 else { return "under 1 min" }
+        guard minutes >= 60 else { return "\(minutes) min" }
+        return "\(minutes / 60) h \(String(format: "%02d", minutes % 60)) min"
     }
 
     /// What the report says about a visit, line by line (also what tests read).
@@ -257,7 +334,7 @@ enum ProofOfService {
         return "About this report: it lists what was recorded in PlowR. A route stop's start is when it became the "
             + "current stop (the route started, or the previous stop was completed), so it includes travel; its "
             + "completion is when it was marked done. \"Arrived\" and \"Left\" are when the phone came into and "
-            + "went out of an area about 100 m around the property's pin, as iOS reported it, which can be a few "
+            + "went out of an area \(about(SiteMonitor.radius)) around the property's pin, as iOS reported it, which can be a few "
             + "minutes late; \"not caught\" means it wasn't seen (location off or approximate, already inside when the "
             + "stop began, not seen leaving before the next stop was reached, or the next stop too close to tell "
             + "the two apart). Visits completed from the Schedule or logged by hand have no "

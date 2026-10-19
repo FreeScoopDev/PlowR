@@ -23,9 +23,9 @@ struct SiteTimesTests {
 
     @Test func anEntryAfterTheStopBeganIsTheArrivalAndTheFirstOneCounts() {
         var site = SiteTimes()
-        site.entered(at: start + 600, settleFrom: start)
+        site.entered(at: start + 600)
         site.exited(at: start + 900)
-        site.entered(at: start + 1000, settleFrom: start)     // back for the shovel
+        site.entered(at: start + 1000)     // back for the shovel
         #expect(site.arrivedAt == start + 600)
         #expect(site.leftAt == nil)                               // came back in: hadn't left
         site.exited(at: start + 1500)
@@ -34,25 +34,32 @@ struct SiteTimesTests {
     }
 
     @Test func alreadyInsideWhenTheStopBeganHasNoArrival() {
-        // iOS reporting a phone already in the area, just after it's placed.
+        // iOS's first answer after placing the area: already in it.
         var site = SiteTimes()
-        site.entered(at: start + SiteTimes.settleTime - 1, settleFrom: start)
+        site.insideWhenPlaced()
         #expect(site.arrivedAt == nil && site.arrivalUnseen)
         // Out to the truck and back: still not an arrival.
         site.exited(at: start + 300)
-        site.entered(at: start + 400, settleFrom: start)
-        #expect(site.arrivedAt == nil)
-        // At exactly the settle time it is one.
-        var later = SiteTimes()
-        later.entered(at: start + SiteTimes.settleTime, settleFrom: start)
-        #expect(later.arrivedAt == start + SiteTimes.settleTime)
+        site.entered(at: start + 400)
+        #expect(site.arrivedAt == nil && site.leftAt == nil)
+        // Already in after an arrival was seen: the arrival stands.
+        var arrived = SiteTimes()
+        arrived.entered(at: start + 60)
+        arrived.insideWhenPlaced()
+        #expect(arrived.arrivedAt == start + 60 && !arrived.arrivalUnseen)
+        // Already in after going out: hadn't left.
+        var back = SiteTimes()
+        back.entered(at: start + 60)
+        back.exited(at: start + 300)
+        back.insideWhenPlaced()
+        #expect(back.leftAt == nil && back.arrivedAt == start + 60)
     }
 
     @Test func leavingWithoutBeingSeenToArriveIsNoArrival() {
         var site = SiteTimes()
         site.exited(at: start + 300)
         #expect(site.arrivalUnseen && site.arrivedAt == nil && site.leftAt == start + 300)
-        site.entered(at: start + 900, settleFrom: start)
+        site.entered(at: start + 900)
         #expect(site.arrivedAt == nil)
     }
 
@@ -246,26 +253,31 @@ struct SiteTimesTests {
         #expect(store.departures.isEmpty)
     }
 
-    @Test func anEntrySoonAfterTheAreaIsPlacedAgainIsNoArrival() throws {
+    @Test func alreadyInsideWhenTheAreaWasPlacedIsNoArrival() throws {
         let h = try Harness()
         pin(h)
         let store = h.makeStore()
         store.start(h.route)
         let stop = h.route.sortedStops[0]
-        // The pin was fixed 10 minutes in, and its area placed again.
-        let placed = h.clock + 600
-        store.siteEntered(id(stop), at: placed + 5, placedAt: placed)
+        store.siteInsideWhenPlaced(id(stop), at: h.clock + 5)
         #expect(store.site.arrivedAt == nil && store.site.arrivalUnseen)
+        // Another stop's, or one from before the stop began, isn't this one's.
+        let other = h.makeStore()
+        other.start(h.route)
+        other.siteInsideWhenPlaced(id(h.route.sortedStops[1]), at: h.clock + 5)
+        other.siteInsideWhenPlaced(id(stop), at: h.clock - 5)
+        #expect(other.site == SiteTimes())
     }
 
-    @Test func anAreaPlacedBeforeTheStopBeganSettlesFromTheStop() throws {
+    @Test func aSeenCrossingSoonAfterTheStopBeganIsTheArrival() throws {
+        // iOS said "outside" first, so this is a real crossing however soon:
+        // the next house along, 150 m away (legacy monitoring couldn't tell).
         let h = try Harness()
         pin(h)
         let store = h.makeStore()
         store.start(h.route)
-        // Placed an hour ago (a completed stop's, say): the stop's own start counts.
-        store.siteEntered(id(h.route.sortedStops[0]), at: h.clock + 30, placedAt: h.clock - 3600)
-        #expect(store.site.arrivedAt == nil && store.site.arrivalUnseen)
+        store.siteEntered(id(h.route.sortedStops[0]), at: h.clock + 20)
+        #expect(store.site.arrivedAt == h.clock + 20)
     }
 
     @Test func onlyLocationAllowedNowResettles() {
@@ -567,7 +579,7 @@ struct SiteTimesTests {
         #expect(line(record) == nil)
         record.arrivedAt = at(4, 58)
         record.leftAt = at(5, 24)
-        #expect(line(record) == "Arrived 4:58 AM · Left 5:24 AM (GPS, within about 100 m)")
+        #expect(line(record) == "Arrived 4:58 AM · Left 5:24 AM · 26 min on site (GPS, within about 100 m)")
         record.arrivedAt = nil
         #expect(line(record) == "Arrival not caught · Left 5:24 AM (GPS, within about 100 m)")
         record.arrivedAt = at(4, 58)

@@ -8,32 +8,34 @@ import Foundation
 ///
 /// Only what was seen is kept. A crew already inside the area when the stop
 /// began (the next house along) never crosses into it, so it has no arrival,
-/// and none is made up: the report says arrival wasn't caught.
+/// and none is made up: the report says arrival wasn't caught. Times are
+/// iOS's own, from each event, not when PlowR ran.
 struct SiteTimes: Codable, Equatable {
     /// The first time the phone came into the area after the stop began.
     var arrivedAt: Date?
     /// The last time it went out, unless it came back in since.
     var leftAt: Date?
-    /// No arrival can be given: the phone was inside the area too soon after
-    /// the stop began to have driven there, or went out of it without having
-    /// been seen to come in. A later entry isn't the arrival either.
+    /// No arrival can be given: the phone was already inside the area when
+    /// it was placed, or went out of it without having been seen to come in.
+    /// A later entry isn't the arrival either.
     var arrivalUnseen = false
 
-    /// An entry this soon after the stop began, or after its area was placed
-    /// (again: its pin moved, or location was allowed only then), isn't an
-    /// arrival: iOS can report a phone already inside an area once it's placed.
+    /// iOS's first answer for an area this soon after placing it, if it's
+    /// "inside", is taken as already there rather than an arrival, when iOS
+    /// hadn't said "outside" first (`SiteEvents.crossing`).
     static let settleTime: TimeInterval = 60
 
-    /// `settleFrom`: the later of when the stop began and when its area was
-    /// last placed.
-    mutating func entered(at time: Date, settleFrom: Date) {
+    /// A crossing into the area that iOS saw, at its time.
+    mutating func entered(at time: Date) {
         leftAt = nil        // Back in: going out wasn't leaving.
         guard arrivedAt == nil, !arrivalUnseen else { return }
-        if time.timeIntervalSince(settleFrom) < Self.settleTime {
-            arrivalUnseen = true
-        } else {
-            arrivedAt = time
-        }
+        arrivedAt = time
+    }
+
+    /// iOS's first answer after the area was placed: the phone is in it.
+    mutating func insideWhenPlaced() {
+        leftAt = nil
+        if arrivedAt == nil { arrivalUnseen = true }
     }
 
     mutating func exited(at time: Date) {

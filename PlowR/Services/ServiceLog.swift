@@ -521,18 +521,28 @@ enum ServiceLog {
     }
 
     /// Deletes `document`. The work billed on it, and a visit linked to it,
-    /// go back to the original if it's a revision whose original still
-    /// exists; otherwise the work is unbilled again and the visit can be
+    /// go to the other revision if it was revised on two devices
+    /// (`InvoiceRevisions`), or back to the original if it's a revision whose
+    /// original still exists; otherwise the work is unbilled again and the visit can be
     /// invoiced again from the Schedule.
     static func delete(_ document: Proposal, in context: ModelContext) {
-        let original = document.revisionOf.isEmpty ? nil : (try? context.fetch(FetchDescriptor<Proposal>()))?
-            .first { $0.invoiceNumber == document.revisionOf && $0.operatorID == document.operatorID
+        // Revised on two devices: the other revision replaces the original,
+        // so it takes the work, and the original stays void.
+        let otherRevision = InvoiceRevisions.otherRevision(of: document, in: context)
+            .flatMap { InvoiceRevisions.canHandOver(document, to: $0) ? $0 : nil }
+        // Two invoices can share the number (sent from two devices): the one
+        // whose void names this revision is its original.
+        let originals = document.revisionOf.isEmpty || otherRevision != nil ? []
+            : ((try? context.fetch(FetchDescriptor<Proposal>())) ?? [])
+            .filter { $0.invoiceNumber == document.revisionOf && $0.operatorID == document.operatorID
                 && $0.id != document.id }
-        let replacement = original?.id.uuidString ?? ""
+        let original = originals.first { $0.voidNote == InvoiceRecords.revisedNote(document.invoiceNumber) }
+            ?? originals.first { $0.clientID == document.clientID } ?? originals.first
+        let replacement = (otherRevision ?? original)?.id.uuidString ?? ""
         for record in billed(on: document, in: context) { record.invoiceID = replacement }
         for visit in linkedVisits(to: document, in: context) { visit.proposalID = replacement }
         // A revision taken back before it went out: its original is owed again.
-        InvoiceRecords.restoreOriginal(of: document, in: context)
+        if otherRevision == nil { InvoiceRecords.restoreOriginal(of: document, in: context) }
         context.delete(document)
     }
 
@@ -549,6 +559,57 @@ enum ServiceLog {
     }
 
     // MARK: - A client's Service History
+
+    /// The most a job's Minutes on Site can be: about a week.
+    static let maxMinutes: Double = 10_000
+
+    /// The Minutes on Site field (a job's page, Log Work): 0 when empty, the
+    /// minutes typed (whole or decimal, a decimal comma as DecimalText reads
+    /// it), or nil when it can't be read, and then the screen says so and
+    /// won't save. It used to read anything else as 0, so "45 min" or "1:30"
+    /// lost the time unseen.
+    static func readMinutes(_ typed: String, locale: Locale = .current) -> Double? {
+        let text = typed.trimmingCharacters(in: .whitespaces)
+        if text.isEmpty { return 0 }
+        guard let value = DecimalText.number(text, locale: locale), value >= 0, value < maxMinutes else { return nil }
+        return value
+    }
+
+    /// GPS's time on site (ProofOfService.timeOnSite) at each stop in one
+    /// run's records, by stop ID, from a stop's oldest record as runRecord
+    /// picks. A stop GPS didn't see both arrive and leave at is left out.
+    static func timesOnSite(_ runRecords: [ServiceRecord]) -> [UUID: TimeInterval] {
+        var result: [UUID: TimeInterval] = [:]
+        for (stopID, copies) in Dictionary(grouping: runRecords, by: \.stopID) {
+            guard let id = UUID(uuidString: stopID), let record = oldest(copies),
+                  let onSite = ProofOfService.timeOnSite(of: record) else { continue }
+            result[id] = onSite
+        }
+        return result
+    }
+
+    /// What a Minutes on Site field saves, or nil when it can't be saved.
+    /// `asLoaded`: the field as it opened, which shows `recorded` to the
+    /// whole minute; left so (or typed back), the exact `recorded` is kept.
+    /// Log Work opens empty with nothing recorded.
+    static func minutesToSave(typed: String, asLoaded: String = "", recorded: Double = 0,
+                              locale: Locale = .current) -> Double? {
+        typed == asLoaded ? recorded : readMinutes(typed, locale: locale)
+    }
+
+    /// What Minutes on Site holds for a route stop: from when it became the
+    /// current stop to when it was done, as the Service Report says.
+    static let routeMinutesNote = "For a route stop, from when it became the current stop to when it was done, so it includes travel."
+
+    /// What leaving a job's page says when it can't be saved: the prices
+    /// that can't be read, then the minutes; empty when it can be.
+    static func cantSaveMessage(unreadableFields fields: [String], minutesReadable: Bool) -> String {
+        [fields.isEmpty ? nil : DocumentDraft.unreadableMessage(fields),
+         minutesReadable ? nil : unreadableMinutesMessage]
+            .compactMap { $0 }.joined(separator: " ")
+    }
+
+    static let unreadableMinutesMessage = "Can't read Minutes on Site: type a number of minutes, such as 45."
 
     /// Work done off a route or a visit, logged from the client's Service
     /// History, at the client's address.
