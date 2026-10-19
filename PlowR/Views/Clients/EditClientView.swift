@@ -1147,7 +1147,7 @@ struct EditClientView: View {
         let safe = client.name.replacingOccurrences(of: "/", with: "-")
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("\(prefix)-\(safe)-\(proposal.id.uuidString.prefix(6)).pdf")
-        try? data.write(to: url)
+        try? data.write(to: url, options: .completeFileProtection)
         documentShare = DocumentShare(proposal: proposal, url: url)
     }
 

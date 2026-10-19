@@ -173,6 +173,6 @@ struct ProofOfServiceView: View {
                                       weather: weather)
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent(ProofOfService.fileName(client: client, period: snapshot.period))
-        if (try? data.write(to: url)) != nil { pdfURL = url }
+        if (try? data.write(to: url, options: .completeFileProtection)) != nil { pdfURL = url }
     }
 }

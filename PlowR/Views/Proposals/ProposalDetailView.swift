@@ -351,7 +351,7 @@ struct ProposalDetailView: View {
             let safe = proposal.clientName.replacingOccurrences(of: "/", with: "-")
             let url = FileManager.default.temporaryDirectory
                 .appendingPathComponent("\(prefix)-\(safe).pdf")
-            try? data.write(to: url)
+            try? data.write(to: url, options: .completeFileProtection)
             shareURL = url
         }
     }
