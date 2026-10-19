@@ -332,7 +332,10 @@
           "summary": "When a storm's forecast reaches a contract's trigger, Home offers to text those clients.",
           "screens": ["home"],
           "pro": true,
-          "snowOnly": true
+          "snowOnly": true,
+          "tips": [
+            { "id": "tip-storm-text", "title": "Tell clients about the storm", "message": "Tap **Text Clients Whose Trigger It Reaches** to let them know." }
+          ]
         },
         {
           "id": "service-report",
