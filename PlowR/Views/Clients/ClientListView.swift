@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import TipKit
 
 private enum ClientSortOption: String, CaseIterable {
     case name       = "Name"
@@ -25,6 +26,11 @@ struct ClientListView: View {
     @State private var showingAddClient = false
     @State private var showingContactScanner = false
     @State private var showingImport = false
+    /// One tip at a time on the list: the Pipeline, then importing.
+    @State private var tips = TipGroup(.ordered) {
+        PipelineTip()
+        ImportClientsTip()
+    }
     @State private var gate: ProGate?
     @State private var clientToDelete: Client?
     @State private var clientToDeactivate: Client?
@@ -111,6 +117,13 @@ struct ClientListView: View {
         Payments.received(allProposals.filter { $0.operatorID == authManager.userID })
     }
 
+    /// The Pipeline row shows (there are leads or quotes), for its tip.
+    private var hasPipeline: Bool {
+        !Pipeline.entries(allClients, operatorID: authManager.userID,
+                          facts: Pipeline.Facts(documents: allProposals, records: allRecords,
+                                                visits: allVisits, stops: allStops)).isEmpty
+    }
+
     /// Leads and quotes (Pipeline), when there are any.
     @ViewBuilder
     private var pipelineLink: some View {
@@ -155,6 +168,12 @@ struct ClientListView: View {
                 }
             } else {
                 List {
+                    if let tip = tips.currentTip {
+                        Section {
+                            TipView(tip)
+                        }
+                        .listRowBackground(PlowRColor.surface)
+                    }
                     if !myClients.isEmpty {
                         clientSummarySection
                         pipelineLink
@@ -179,6 +198,13 @@ struct ClientListView: View {
         // first item.
         .background(PlowRColor.ground)
         .navigationTitle("Clients")
+        // The tips wait for a few clients, and for the Pipeline to show.
+        .onChange(of: activeClients.count, initial: true) { _, count in
+            PlowRTips.update { PlowRTips.clientCount = count }
+        }
+        .onChange(of: hasPipeline, initial: true) { _, shown in
+            PlowRTips.update { PlowRTips.hasPipeline = shown }
+        }
         .searchable(text: $searchText, prompt: "Search clients")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {

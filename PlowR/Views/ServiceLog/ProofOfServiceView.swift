@@ -48,6 +48,11 @@ struct ProofOfServiceView: View {
     }
 
     var body: some View {
+        report
+            .onAppear { PlowRTips.done(ServiceReportTip(), ServiceReportTip.reportOpened) }
+    }
+
+    private var report: some View {
         NavigationStack {
             Form {
                 if places.count > 1 {

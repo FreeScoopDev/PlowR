@@ -40,6 +40,14 @@ nonisolated enum PlowRTips {
     /// The route page on screen has two pinned stops, the least Optimize
     /// Order works on.
     @Parameter static var pinnedStopsReady: Bool = false
+    /// This business's active clients (the client list), for tips that
+    /// wait until there are a few.
+    @Parameter static var clientCount: Int = 0
+    /// The client list shows the Pipeline (there are leads or quotes).
+    @Parameter static var hasPipeline: Bool = false
+    /// The client page on screen has a visit with a GPS arrival time, what
+    /// the Service Report is best at showing.
+    @Parameter static var clientHasArrivals: Bool = false
 
     /// Called with a tip's id when `done` runs, configured or not: lets
     /// tests see an action finish its tip.

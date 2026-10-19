@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import TipKit
 import MapKit
 import CoreLocation
 import MessageUI
@@ -83,6 +84,9 @@ struct EditClientView: View {
 
     // MARK: - Body
 
+    /// The Service Report's tip, above Service History.
+    @State private var tips = TipGroup(.ordered) { ServiceReportTip() }
+
     var body: some View {
         Form {
             actionTilesSection
@@ -113,6 +117,12 @@ struct EditClientView: View {
                 .listRowBackground(PlowRColor.surface)
             }
             otherPropertiesSection
+            if let tip = tips.currentTip {
+                Section {
+                    TipView(tip)
+                }
+                .listRowBackground(PlowRColor.surface)
+            }
             historySection
             contractsSection
             scheduleSection
@@ -197,6 +207,12 @@ struct EditClientView: View {
         .sheet(isPresented: $showingServiceReport) {
             ProofOfServiceView(client: client)
         }
+        // The Service Report's tip waits for a visit GPS saw arrive.
+        .task(id: client.id) {
+            let has = PlowRTips.hasArrivals(clientID: client.id.uuidString, in: modelContext)
+            PlowRTips.update { PlowRTips.clientHasArrivals = has }
+        }
+        .onDisappear { PlowRTips.update { PlowRTips.clientHasArrivals = false } }
         .sheet(isPresented: $showingMessageComposer) {
             if !draft.phone.isEmpty {
                 // A plain text doesn't make the client "Awaiting Response":

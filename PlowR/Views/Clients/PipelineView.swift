@@ -22,6 +22,11 @@ struct PipelineView: View {
     }
 
     var body: some View {
+        content
+            .onAppear { PlowRTips.done(PipelineTip(), PipelineTip.pipelineOpened) }
+    }
+
+    @ViewBuilder private var content: some View {
         let entries = entries
         let followUp = entries.filter(\.needsFollowUp)
         List {

@@ -21,14 +21,14 @@ struct TipsTests {
 
     /// Every tip's copy is in HelpGuide.json and keeps the tip rule. A tip
     /// whose id isn't there would show an empty title.
-    @Test(arguments: PlowRTips.routeTipIDs)
+    @Test(arguments: PlowRTips.allTipIDs)
     func everyTipHasItsCopy(_ id: String) throws {
         let tip = try #require(PlowRTips.copy(id, in: try HelpGuide.load(from: .main)), "\(id) isn't in HelpGuide.json")
         #expect(HelpTip.isShort(title: tip.title, message: tip.message), "\(id)")
     }
 
     @Test func tipIDsAreDistinct() {
-        #expect(Set(PlowRTips.routeTipIDs).count == PlowRTips.routeTipIDs.count)
+        #expect(Set(PlowRTips.allTipIDs).count == PlowRTips.allTipIDs.count)
     }
 
     @Test func aResetIsTakenOnce() throws {
@@ -80,7 +80,26 @@ struct TipsTests {
             ids += text.matches(of: /static let helpID = "([^"]+)"/).map { String($0.1) }
         }
         #expect(!ids.isEmpty)
-        #expect(Set(ids) == Set(PlowRTips.routeTipIDs))
+        #expect(Set(ids) == Set(PlowRTips.allTipIDs))
+    }
+
+    /// The Service Report's tip waits for a visit of this client's with a
+    /// GPS arrival; another client's, or one with none, doesn't count.
+    @Test func theServiceReportTipWaitsForAnArrival() throws {
+        let h = try ActiveRouteStoreTests.Harness(stopCount: 0)
+        let id = h.client.id.uuidString
+        func record(client: String, arrived: Date?) {
+            let record = ServiceRecord(operatorID: "op", sourceKey: "manual:\(UUID().uuidString)", source: .manual)
+            record.clientID = client
+            record.arrivedAt = arrived
+            h.context.insert(record)
+        }
+        #expect(!PlowRTips.hasArrivals(clientID: id, in: h.context))
+        record(client: id, arrived: nil)
+        record(client: UUID().uuidString, arrived: h.clock)
+        #expect(!PlowRTips.hasArrivals(clientID: id, in: h.context))
+        record(client: id, arrived: h.clock)
+        #expect(PlowRTips.hasArrivals(clientID: id, in: h.context))
     }
 
     @Test func aBusinessThatHasRunARouteIsNotOnItsFirst() {

@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import TipKit
 import UIKit
 
 struct SettingsView: View {
@@ -49,10 +50,20 @@ struct SettingsView: View {
         }
     }
 
+    @State private var tips = TipGroup(.ordered) { RequestLinkTip() }
+
     var body: some View {
         Form {
             ProSettingsSection(showingPaywall: $showingPaywall, showingManage: $showingManage,
                                restoreFailed: $restoreFailed)
+
+            // The Request Link's tip, above the section it's in.
+            if let tip = tips.currentTip {
+                Section {
+                    TipView(tip)
+                }
+                .listRowBackground(PlowRColor.surface)
+            }
 
             Section("Business") {
                 NavigationLink(destination: BusinessProfileView()) {
