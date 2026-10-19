@@ -98,10 +98,10 @@ extension PlowRTips {
     }
 
     /// The Schedule's day count for Create Route's tip: 0 when Create Route
-    /// would open the paywall (a free business that has its route): tips
-    /// never sell.
-    static func routeFromDayCount(_ count: Int, canCreateRoute: Bool) -> Int {
-        canCreateRoute ? count : 0
+    /// would open the paywall (a free business that has its route), by the
+    /// button's own gate: tips never sell.
+    static func routeFromDayCount(_ count: Int, access: Access, routes: [PlowRoute], operatorID: String) -> Int {
+        ProGate.createRoute(access, routes: routes, operatorID: operatorID) == nil ? count : 0
     }
 
     /// Bill Unbilled Work made its invoices: the tip is done, if it made any.

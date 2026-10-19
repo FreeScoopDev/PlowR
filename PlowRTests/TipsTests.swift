@@ -174,12 +174,23 @@ struct TipsTests {
         // No Send Reminder to tap: a device that can't text, or a client with no phone.
         #expect(!state([late], methods: 2, canText: false).hasOverdue)
         #expect(!state([late], methods: 2, textable: []).hasOverdue)
+        // Overdue for a client with no phone, beside one with a phone: only the second counts.
+        let elsewhere = invoice(sent: true, dueDaysAgo: 3, client: UUID().uuidString)
+        #expect(!state([elsewhere], methods: 2).hasOverdue)
+        #expect(state([elsewhere, late], methods: 2).hasOverdue)
     }
 
-    /// Create Route's tip never leads to the paywall.
-    @Test func createRoutesTipWaitsForARouteThatCanBeMade() {
-        #expect(PlowRTips.routeFromDayCount(4, canCreateRoute: true) == 4)
-        #expect(PlowRTips.routeFromDayCount(4, canCreateRoute: false) == 0)
+    /// Create Route's tip never leads to the paywall: a free business with
+    /// its one route gets no count; Pro, or a free one with no route yet, does.
+    @Test func createRoutesTipWaitsForARouteThatCanBeMade() throws {
+        let h = try ActiveRouteStoreTests.Harness(stopCount: 0)
+        let free = Access(plan: .free, clientCount: 1)
+        let pro = Access(plan: .pro, clientCount: 1)
+        #expect(PlowRTips.routeFromDayCount(4, access: free, routes: [], operatorID: "op") == 4)
+        #expect(PlowRTips.routeFromDayCount(4, access: free, routes: [h.route], operatorID: "op") == 0)
+        #expect(PlowRTips.routeFromDayCount(4, access: pro, routes: [h.route], operatorID: "op") == 4)
+        #expect(PlowRTips.routeFromDayCount(4, access: Access(plan: .lapsed, clientCount: 11), routes: [],
+                                            operatorID: "op") == 0)                  // read only
     }
 
     /// Bill Unbilled Work finishes its tip only when it made an invoice.
@@ -195,21 +206,26 @@ struct TipsTests {
         #expect(done == [BillWorkTip.helpID])
     }
 
-    /// Each schedule and money tip is finished by its action, live (not
-    /// commented or compiled out), from every screen that does it.
+    /// Each schedule and money tip is finished by its action, live, right
+    /// beside the line that does the thing (not in another button).
     @Test(arguments: [
-        ("PlowR/Views/Schedule/AddVisitView.swift", "if isRecurring { PlowRTips.done(RepeatVisitTip(), RepeatVisitTip.visitRepeated) }"),
-        ("PlowR/Views/Schedule/ScheduleView.swift", "PlowRTips.done(RouteFromDayTip(), RouteFromDayTip.routeMade)"),
-        ("PlowR/Views/Proposals/BillWorkView.swift", "if let outcome { PlowRTips.billed(outcome) }"),
-        ("PlowR/Views/Proposals/ProposalListView.swift", "PlowRTips.reminderOpened()"),
-        ("PlowR/Views/Proposals/ProposalDetailView.swift", "PlowRTips.reminderOpened()"),
-        ("PlowR/Views/Settings/PaymentMethodsView.swift", "PlowRTips.done(PaymentMethodsTip(), PaymentMethodsTip.methodAdded)"),
+        ("PlowR/Views/Schedule/AddVisitView.swift",
+         #"if editing != nil \{ saveThisOnly\(\); return \}\s*\n\s*if isRecurring \{ PlowRTips\.done\(RepeatVisitTip\(\), RepeatVisitTip\.visitRepeated\) \}"#),
+        ("PlowR/Views/Schedule/ScheduleView.swift",
+         #"showingRouteCreated = true\s*\n\s*PlowRTips\.done\(RouteFromDayTip\(\), RouteFromDayTip\.routeMade\)"#),
+        ("PlowR/Views/Proposals/BillWorkView.swift",
+         #"outcome = WorkBilling\.invoiceAll\([^\n]*\n\s*if let outcome \{ PlowRTips\.billed\(outcome\) \}"#),
+        ("PlowR/Views/Proposals/ProposalListView.swift",
+         #"reminderProposal = proposal\s*\n\s*PlowRTips\.reminderOpened\(\)"#),
+        ("PlowR/Views/Proposals/ProposalDetailView.swift",
+         #"showingReminder = true\s*\n\s*PlowRTips\.reminderOpened\(\)"#),
+        ("PlowR/Views/Settings/PaymentMethodsView.swift",
+         #"modelContext\.insert\(method\)\s*\n\s*PlowRTips\.done\(PaymentMethodsTip\(\), PaymentMethodsTip\.methodAdded\)"#),
     ])
-    func eachMoneyTipIsFinishedByItsAction(_ file: String, _ call: String) throws {
+    func eachMoneyTipIsFinishedByItsAction(_ file: String, _ pattern: String) throws {
         let text = try source(file)
-        let lines = text.split(separator: "\n").filter { $0.contains(call) }
-        #expect(lines.count == 1, "\(file)")
-        #expect(lines.allSatisfy { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }, "\(file)")
+        let regex = try Regex(pattern)
+        #expect(text.matches(of: regex).count == 1, "\(file)")
         #expect(!text.contains("#if") && !text.contains("/*"), "\(file) has code that may not compile in")
     }
 
@@ -218,8 +234,9 @@ struct TipsTests {
     @Test func createRoutesTipIsDoneOnlyAfterARouteIsMade() throws {
         let text = try source("PlowR/Views/Schedule/ScheduleView.swift")
         let guardLine = try #require(text.range(of: "guard !stops.isEmpty else {"))
+        let insert = try #require(text.range(of: "modelContext.insert(route)"))
         let done = try #require(text.range(of: "PlowRTips.done(RouteFromDayTip(), RouteFromDayTip.routeMade)"))
-        #expect(guardLine.upperBound < done.lowerBound)
+        #expect(guardLine.upperBound < insert.lowerBound && insert.upperBound < done.lowerBound)
     }
 
     @Test func aBusinessThatHasRunARouteIsNotOnItsFirst() {

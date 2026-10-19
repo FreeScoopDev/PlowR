@@ -46,8 +46,8 @@ struct ScheduleView: View {
     /// For Create Route's tip: the day's visits, or 0 when Create Route would
     /// open the paywall.
     private var routeFromDayCount: Int {
-        PlowRTips.routeFromDayCount(scheduledClientVisits.count, canCreateRoute:
-            ProGate.createRoute(access, routes: allRoutes, operatorID: authManager.userID) == nil)
+        PlowRTips.routeFromDayCount(scheduledClientVisits.count, access: access, routes: allRoutes,
+                                    operatorID: authManager.userID)
     }
 
     private var overduePending: [ScheduledVisit] {
