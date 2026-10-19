@@ -138,8 +138,11 @@ enum RouteGPS {
     /// Arrival and departure times need Precise Location: with approximate
     /// location iOS watches no job-site areas, on screen or off. The route
     /// screen says so, in place of the Always note (not on a Mac).
+    /// `areasLimited`: iOS said so itself, on an area's event
+    /// (`SiteMonitor.accuracyLimited`).
     static func needsPrecise(status: CLAuthorizationStatus, accuracy: CLAccuracyAuthorization,
-                             isMac: Bool) -> Bool {
-        !isMac && (status == .authorizedAlways || status == .authorizedWhenInUse) && accuracy == .reducedAccuracy
+                             areasLimited: Bool = false, isMac: Bool) -> Bool {
+        !isMac && ((status == .authorizedAlways || status == .authorizedWhenInUse) && accuracy == .reducedAccuracy
+            || areasLimited)
     }
 }

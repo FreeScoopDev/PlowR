@@ -12,8 +12,9 @@ protocol NotificationClearing {
 
 extension UNUserNotificationCenter: NotificationClearing {}
 
-/// The geofences being monitored, as `CLLocationManager` holds them (for the
-/// whole app, not one manager). A protocol for the same reason.
+/// The geofences legacy region monitoring holds, as `CLLocationManager` has
+/// them (for the whole app, not one manager): PlowR 1.7's, stopped by
+/// `SiteMonitor` once it has placed its own. A protocol for the same reason.
 protocol RegionMonitoring {
     var monitoredRegions: Set<CLRegion> { get }
     func stopMonitoring(for region: CLRegion)
@@ -62,6 +63,9 @@ struct AccountEraser {
     var archiveFolders: [URL]
     var notifications: any NotificationClearing = UNUserNotificationCenter.current()
     var regions: any RegionMonitoring = CLLocationManager()
+    /// The job-site areas in iOS's monitor, which iOS keeps in a file of its
+    /// own, and PlowR's record of them.
+    var sites: any SiteErasing = SiteMonitor.shared
     var routeStore: ActiveRouteStore = .shared
     var clearWidget: @MainActor () -> Void = WidgetDataStore.clear
     /// Map pins an import is still looking up, and the addresses it missed.
@@ -157,6 +161,7 @@ struct AccountEraser {
         notifications.removeAllPendingNotificationRequests()
         notifications.removeAllDeliveredNotifications()
         for region in regions.monitoredRegions { regions.stopMonitoring(for: region) }
+        sites.eraseAll()
         clearWidget()
         return failures
     }
