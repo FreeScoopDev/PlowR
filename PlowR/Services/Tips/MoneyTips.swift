@@ -117,7 +117,9 @@ extension PlowRTips {
     /// Whether Documents still needs to look for unbilled work: TipKit is on
     /// and Bill Unbilled Work's tip isn't done (the look reads every job).
     static var wantsUnbilledWork: Bool {
-        isConfigured && BillWorkTip().status != .invalidated
+        guard isConfigured else { return false }
+        if case .invalidated = BillWorkTip().status { return false }
+        return true
     }
 }
 
