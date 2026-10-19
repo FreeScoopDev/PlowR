@@ -106,6 +106,24 @@ struct ActiveRouteStoreTests {
         #expect(!ActiveRouteStore.isOwnSave(h.container, of: nil))
     }
 
+    /// The wiring: a save of another database doesn't run this store's check
+    /// inside it; a save of its own does, at once. Read straight after each
+    /// save, before anything queued (a remote change) can run.
+    @Test func anotherDatabasesSaveDoesntRunTheCheck() throws {
+        let h = try Harness()
+        let other = try Harness()
+        var lookups = 0
+        let store = h.makeStore(fetchRoutes: { lookups += 1; return try $0.fetch(FetchDescriptor<PlowRoute>()) })
+        store.start(h.route)
+        lookups = 0
+        other.context.insert(PlowRoute(name: "Elsewhere", operatorID: "op"))
+        try other.context.save()
+        #expect(lookups == 0)
+        h.context.insert(PlowRoute(name: "Here", operatorID: "op"))
+        try h.context.save()
+        #expect(lookups > 0)
+    }
+
     /// CoreData posts a remote change from its own thread, holding its
     /// store. An observer on `queue: .main` made that post wait for the main
     /// thread, which could itself be waiting on the store: a deadlock. The
