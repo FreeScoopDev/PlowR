@@ -25,6 +25,24 @@ because GitHub Pages publishes everything else in `docs/`.
 
 Update this table as each row changes.
 
+## When the macOS tests run
+
+Added 2026-10-25. The `Tests` workflow always starts, because `Unit tests
+(iOS)` is a required check and a workflow that never started would leave it
+pending forever. A small Linux job (`Classify changes`) decides whether the
+`macos-26` job runs; a skipped required job counts as passing.
+
+| Event | macOS tests |
+| --- | --- |
+| Push to `main` | Always run. |
+| Pull request, draft | Skipped. |
+| Pull request, ready for review, docs only | Skipped. Docs only means every changed file is under `docs/` or `changelog.d/`, or is a Markdown file. |
+| Pull request, ready for review, anything else | Run (Swift, the Xcode project, tests, assets, scripts, workflows). |
+
+To run the tests on a draft, mark the PR **ready for review**; that starts the
+run (`ready_for_review` is one of the workflow's triggers). A newer push to
+the same PR still cancels the run in progress.
+
 ## Xcode Cloud
 
 Two workflows, both on `https://github.com/FreeScoopDev/PlowR.git` /

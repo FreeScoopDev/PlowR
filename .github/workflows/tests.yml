@@ -20,8 +20,17 @@ name: Tests
 on:
   pull_request:
     branches: [main]
+    # ready_for_review is here so marking a draft ready starts the run.
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
+
+# Which runs spend macOS time (docs/ci.md): a push to main always does. A pull
+# request does once it is ready for review (not a draft) and changes more than
+# docs. The `Unit tests (iOS)` check is required, so the workflow itself must
+# always start: a workflow-level paths filter would leave that check pending
+# forever. The decision is made by a cheap Linux job; a skipped required job
+# counts as passing.
 
 # Read the code, nothing more.
 permissions:
@@ -33,8 +42,54 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: Classify changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Drafts skip the macOS run; ready_for_review starts it.
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    outputs:
+      macos: ${{ steps.classify.outputs.macos }}
+    steps:
+      # Two commits are enough: on a pull_request run HEAD is the merge of the
+      # PR into main, and its first parent is main.
+      - name: Check out repo
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 2
+
+      # Docs-only means every changed file is under docs/ or changelog.d/, or
+      # is a Markdown file. Anything else (Swift, the Xcode project, tests,
+      # assets, scripts, workflows) needs the tests. Push to main always runs.
+      - name: Decide whether macOS tests are needed
+        id: classify
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_EVENT_NAME" != "pull_request" ]; then
+            echo "macos=true" >> "$GITHUB_OUTPUT"
+            echo "Not a pull request: running the tests."
+            exit 0
+          fi
+          files=$(git diff --name-only HEAD^1 HEAD)
+          echo "Changed files:"
+          echo "$files"
+          if [ -z "$files" ]; then
+            other=""
+          else
+            other=$(echo "$files" | grep -Ev '^(docs/|changelog\.d/)|\.md$' || true)
+          fi
+          if [ -n "$other" ] || [ -z "$files" ]; then
+            echo "macos=true" >> "$GITHUB_OUTPUT"
+            echo "Code or config changed: running the tests."
+          else
+            echo "macos=false" >> "$GITHUB_OUTPUT"
+            echo "Docs only: skipping the macOS tests."
+          fi
+
   unit:
     name: Unit tests (iOS)
+    needs: changes
+    if: needs.changes.outputs.macos == 'true'
     runs-on: macos-26
     timeout-minutes: 45
     steps:
