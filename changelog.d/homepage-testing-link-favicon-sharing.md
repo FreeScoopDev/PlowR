@@ -1,11 +1,9 @@
 ### Changed
-- The getplowr.app homepage said PlowR was "in testing" with no way for a
-  visitor to act on it. It now has an "Ask about testing" button (an email to
-  support) and an "Explore the help guide" button, so interested visitors have
-  a next step.
 - The public pages now have a favicon and home-screen icon, and the homepage
   has link-preview tags (canonical URL, Open Graph and a 1200x630 share card
   built from the app icon), so a shared link shows PlowR's icon instead of a
   bare URL.
-- The home and support pages share one stylesheet (`docs/assets/site.css`)
-  for their common base rules instead of each repeating them inline.
+- The support page's base rules moved into a shared stylesheet
+  (`docs/assets/site.css`) instead of sitting inline.
+- The snow removal page has the same favicon and link-preview tags as the
+  homepage, so a shared link to it also shows PlowR's icon.

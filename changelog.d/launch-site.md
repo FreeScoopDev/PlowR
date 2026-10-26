@@ -1,0 +1,7 @@
+### Changed
+- getplowr.app is ready for the App Store launch. The home page said PlowR was "in testing", gave no price and had no App Store link, so a snow or lawn business that found it had no way to tell what PlowR costs or where to get it. It now leads with what sets PlowR apart for those owner-operators, the Service Report (with a sample PDF made from the app's demo data, an invented business and client) and storm triggers for snow contracts, then states the free plan (10 active clients, one route) and PlowR Pro ($8.99 a month after a one-month free trial), with an App Store button. The button links to PlowR's App Store page. The page does not advertise the Mac version for now. The page now uses PlowR's own colours (forest green and copper) instead of the system blue.
+- The support page no longer has a "Does PlowR work on a Mac?" question, until the Mac version is ready to be advertised.
+
+### Added
+- A "snow plow and snow removal business app" page on getplowr.app (`snow-removal.html`), in plain words, so a plow operator searching for one finds a page that answers them: what PlowR does before, during and after a storm, and what it doesn't (the storm card is a forecast, not a measurement at each property).
+- `robots.txt` and `sitemap.xml` for getplowr.app, and a description on every page that lacked one, so search engines can find and summarise the site. The request pages (`r/`, `lead/`) stay out of the sitemap and keep `noindex`: each holds one business's or one prospect's details.

@@ -3,58 +3,108 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="PlowR: routes, clients, scheduling and invoices for snow removal, lawn care and landscaping businesses, on iPhone, iPad and Mac.">
-    <title>PlowR — Routes and clients for property-service businesses</title>
+    <meta name="description" content="PlowR is an iPhone and iPad app for snow plow, snow removal and lawn care owner-operators: routes stop by stop, a Service Report of every visit, storm triggers, and invoices. Free for up to 10 clients.">
+    <title>PlowR — Routes, Service Reports and invoices for snow and lawn crews</title>
+    <link rel="canonical" href="https://getplowr.app/">
     <link rel="icon" href="assets/favicon-64.png" type="image/png">
     <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-    <link rel="canonical" href="https://getplowr.app/">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="PlowR">
     <meta property="og:url" content="https://getplowr.app/">
-    <meta property="og:title" content="PlowR: routes and clients for property-service businesses">
-    <meta property="og:description" content="PlowR: routes, clients, scheduling and invoices for snow removal, lawn care and landscaping businesses, on iPhone, iPad and Mac.">
+    <meta property="og:title" content="PlowR: routes, Service Reports and invoices for snow and lawn crews">
+    <meta property="og:description" content="An iPhone and iPad app for snow plow, snow removal and lawn care owner-operators: routes stop by stop, a Service Report of every visit, storm triggers, and invoices. Free for up to 10 clients.">
     <meta property="og:image" content="https://getplowr.app/assets/share-card.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta property="og:image:alt" content="The PlowR app icon: a P with a mountain and a winding road.">
     <meta name="twitter:card" content="summary_large_image">
-    <link rel="stylesheet" href="assets/site.css">
     <style>
-        h1 { font-size: 2.4em; margin-bottom: 0; }
-        p.lede { font-size: 1.2em; color: var(--muted); margin-top: 4px; }
+        /* PlowR's design colours (PlowRColor in PlowR/DesignSystem.swift): ground, surface, line, ink, brand green, copper action. */
+        :root { color-scheme: light dark; --bg: #F5F2EC; --card: #FFFFFF; --line: #DDD6CA; --text: #17201B; --muted: #5B635D; --brand: #1F4D3A; --action: #A85A22; --on-action: #FFFFFF; --action-soft: #F4E1D2; --action-text: #7E4318; }
+        @media (prefers-color-scheme: dark) {
+            :root { --bg: #0D1813; --card: #15251D; --line: #284034; --text: #EEF1EC; --muted: #A3AEA6; --brand: #9CCFB3; --action: #E0954F; --on-action: #1C0E03; --action-soft: #3A2715; --action-text: #F0B27A; }
+        }
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 760px; margin: 40px auto; padding: 0 16px; color: var(--text); background: var(--bg); line-height: 1.6; }
+        h1 { font-size: 2.2em; line-height: 1.15; margin: 0; }
+        .brandname { color: var(--brand); font-weight: 700; font-size: 1.1em; margin: 0 0 8px; }
+        p.lede { font-size: 1.2em; color: var(--muted); margin-top: 8px; }
+        h2 { margin-top: 2em; line-height: 1.25; }
+        a { color: var(--brand); }
+        .appstore { display: inline-block; background: var(--action); color: var(--on-action); font-weight: 600; text-decoration: none; padding: 12px 22px; border-radius: 12px; margin: 8px 0; }
+        .box { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 18px; margin-top: 14px; }
+        .box p { margin: 6px 0; }
+        .box ul { padding-left: 20px; margin: 8px 0; }
+        .spotlight { border-left: 4px solid var(--brand); }
+        .muted { color: var(--muted); font-size: 0.92em; }
+        .pro { display: inline-block; font-size: 0.7em; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: var(--action-soft); color: var(--action-text); vertical-align: middle; margin-left: 4px; }
+        .shots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 20px 0 4px; }
+        .shots img { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 18px; }
         ul.features { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
-        ul.features li { background: var(--card); border-radius: 12px; padding: 14px 16px; }
+        ul.features li { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
         ul.features strong { display: block; }
-        .cta { display: flex; flex-wrap: wrap; gap: 12px; margin: 1em 0 1.5em; }
-        .cta a { display: inline-block; padding: 10px 18px; border-radius: 12px; border: 1px solid var(--link); font-weight: 600; text-decoration: none; }
-        .cta a.primary { background: var(--link); color: var(--bg); }
+        footer { margin-top: 3em; padding-top: 1em; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.9em; }
+        footer a { margin-right: 1em; display: inline-block; }
     </style>
 </head>
 <body>
 
 <main>
-<h1>PlowR</h1>
-<p class="lede">Routes, clients, scheduling and invoices for snow removal, lawn care and landscaping businesses.</p>
+<p class="brandname">PlowR</p>
+<h1>Run your snow and lawn routes, and keep proof of every visit.</h1>
+<p class="lede">PlowR is an iPhone and iPad app for owner-operators and small crews who plow, shovel, mow and look after properties: work your route stop by stop, hand over a Service Report when someone asks what was done, and send the invoice.</p>
 
-<p>PlowR runs a property-service business from your iPhone, iPad or Mac: who your clients are, where you're going today, what was done, and what's owed. It's built for small crews and owner-operators.</p>
+<p><a class="appstore" href="https://apps.apple.com/app/id6796051098">Download PlowR on the App Store</a></p>
 
-<p><strong>PlowR is in testing now and will be on the App Store soon.</strong></p>
-<p class="cta">
-    <a class="primary" href="mailto:support@getplowr.app?subject=Ask%20about%20testing%20PlowR">Ask about testing</a>
-    <a href="help.html">Explore the help guide</a>
-</p>
+<div class="box">
+    <p><strong>Free</strong> for up to 10 active clients and one route, with invoices, proposals and the schedule.</p>
+    <p><strong>PlowR Pro</strong> is $8.99 a month after a one-month free trial: unlimited clients and routes, Service Reports, storm and trigger tools, spreadsheet import, a Request Link for new customers, and invoices and proposals without the "Prepared with PlowR" line.</p>
+    <p class="muted">US price; the App Store shows yours before you subscribe. The trial is for new subscribers. If you cancel, nothing is deleted: with 10 clients or fewer you keep the free plan, and with more, everything stays there to see and export, and you can still record payments.</p>
+</div>
 
-<h2>What it does</h2>
+<div class="shots">
+    <img src="help/run-start-route-on-home.jpg" alt="PlowR's Home screen: today's route with a Start Route button, today's visits, an overdue invoice and money owed" loading="lazy">
+    <img src="help/run-route-screen-current-stop.jpg" alt="PlowR's route screen: a map of the stops, the weather, and the current stop with its services and a Complete Stop button" loading="lazy">
+    <img src="help/run-record-services.jpg" alt="Recording a stop in PlowR: before and after photos and the services performed" loading="lazy">
+</div>
+<p class="muted">Screens from PlowR's demo data: the business, clients and addresses are invented.</p>
+
+<h2>The Service Report: what you did, visit by visit</h2>
+<div class="box spotlight">
+    <p><strong>Proof of service, as a PDF</strong> <span class="pro">PRO</span></p>
+    <p>When a client disputes a bill, or an insurer asks about a slip on a walkway you cleared, make a Service Report for that property and any period: a contract's season, the last 30 days, this year, or dates you choose. For each visit it shows:</p>
+    <ul>
+        <li>when the stop started and was completed, for visits run on a route;</li>
+        <li>arrival and departure as the phone's GPS saw them, with location set to Always;</li>
+        <li>the services, notes, and before and after photos, with the time each was taken where PlowR knows it;</li>
+        <li>the estimated weather for the visit's day.</li>
+    </ul>
+    <p>It also lists the days a contract's snow trigger wasn't reached. It says only what PlowR recorded, and where each record came from. It's your own business record, not a certified one.</p>
+    <p><a href="sample-service-report.pdf">See a sample Service Report (PDF)</a></p>
+    <p class="muted">Made from PlowR's demo data: the business, client and address are invented. The sample has no photos, and the weather couldn't be looked up where it was made, so the report says that instead.</p>
+</div>
+
+<h2>Storm triggers for snow contracts</h2>
+<div class="box spotlight">
+    <p>Give each snow contract a trigger: every snowfall, or a depth such as 2 inches. When the forecast for today or the next two days reaches it, Home shows a storm card with the clients whose trigger it reaches, ready for you to text them in one go <span class="pro">PRO</span> and start the route. Before a storm of an inch or more, an alert at 6 PM the evening before says how much is forecast and how many triggers it reaches.</p>
+    <p>Less fell at a place than forecast? Mark it below trigger, from the storm card or right at the stop <span class="pro">PRO</span>: the stop starts skipped on its route, and the Service Report lists the day.</p>
+    <p class="muted">The storm card is a weather model's forecast for your area, not a measurement at each property, and it says so. Nothing is sent without you.</p>
+    <p>More for plow operators: <a href="snow-removal.html">PlowR as a snow plow and snow removal business app</a>.</p>
+</div>
+
+<h2>Everything else a property-service business runs on</h2>
 <ul class="features">
-    <li><strong>Clients and properties</strong>Contact details, notes, tags and every place you work for each client. Import your list from a spreadsheet.</li>
-    <li><strong>Routes</strong>Build routes, put stops in order, and work through them stop by stop, with a Live Activity on the Lock Screen.</li>
-    <li><strong>Schedule</strong>One-time and repeating visits, with an optional calendar of your own.</li>
-    <li><strong>Proposals and invoices</strong>PDFs with your logo, sent from your phone, with payments tracked as they come in.</li>
-    <li><strong>Contracts</strong>Seasonal and per-visit agreements, with installments and the visits they cover.</li>
-    <li><strong>Service records</strong>A log of every job with times and photos, and a Service Report of what you recorded, to share when a client or insurer asks.</li>
-    <li><strong>Weather</strong>Forecasts for your stops, and a storm card when snow is on the way.</li>
+    <li><strong>Routes</strong>Put stops in order, or let PlowR order them by driving distance. Work through them stop by stop, with a Live Activity on the Lock Screen and Complete Stop in Control Center.</li>
+    <li><strong>Texting clients</strong>Let the next client know you're on the way, or message every client on a route, from your phone's Messages.</li>
+    <li><strong>Clients and properties</strong>Contact details, notes, tags and every place you work for each client. Import your list from a spreadsheet <span class="pro">PRO</span>.</li>
+    <li><strong>Schedule</strong>One-time and repeating visits, such as weekly mowing, with an optional calendar of your own.</li>
+    <li><strong>Proposals and invoices</strong>PDFs with your logo, sent from your phone, with payments tracked as they come in and a reminder when one is overdue.</li>
+    <li><strong>Contracts</strong>A season price, a price per visit or a monthly amount, with installments.</li>
+    <li><strong>Weather</strong>The forecast on Home and on the route screen.</li>
+    <li><strong>New customers</strong>A Request Link they fill in to ask for service, which arrives as a lead <span class="pro">PRO</span>.</li>
     <li><strong>Your data, your iCloud</strong>Everything stays on your devices and in your own iCloud account. There are no PlowR servers.</li>
 </ul>
+<p>Snow removal, lawn care and cleanup share the same screens, so one app carries you from the first storm to the last mow.</p>
 
 <h2>Help</h2>
 <p>New to PlowR? The <a href="help.html">help guide</a> walks through setting up, adding clients, building routes and running your day.</p>
@@ -62,6 +112,7 @@
 </main>
 
 <footer>
+    <a href="snow-removal.html">Snow removal</a>
     <a href="help.html">Help</a>
     <a href="support.html">Support</a>
     <a href="privacy-policy.html">Privacy Policy</a>

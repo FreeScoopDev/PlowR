@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="A snow plow and snow removal business app for iPhone: snow triggers on contracts, a storm card from the forecast, routes stop by stop, GPS arrival times, photos, and a Service Report for each property.">
+    <title>Snow plow and snow removal business app for iPhone — PlowR</title>
+    <link rel="canonical" href="https://getplowr.app/snow-removal.html">
+    <link rel="icon" href="assets/favicon-64.png" type="image/png">
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="PlowR">
+    <meta property="og:url" content="https://getplowr.app/snow-removal.html">
+    <meta property="og:title" content="Snow plow and snow removal business app for iPhone — PlowR">
+    <meta property="og:description" content="A snow plow and snow removal business app for iPhone: snow triggers on contracts, a storm card from the forecast, routes stop by stop, GPS arrival times, photos, and a Service Report for each property.">
+    <meta property="og:image" content="https://getplowr.app/assets/share-card.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="The PlowR app icon: a P with a mountain and a winding road.">
+    <meta name="twitter:card" content="summary_large_image">
+    <style>
+        /* PlowR's design colours (PlowRColor in PlowR/DesignSystem.swift): ground, surface, line, ink, brand green, copper action. */
+        :root { color-scheme: light dark; --bg: #F5F2EC; --card: #FFFFFF; --line: #DDD6CA; --text: #17201B; --muted: #5B635D; --brand: #1F4D3A; --action: #A85A22; --on-action: #FFFFFF; --action-soft: #F4E1D2; --action-text: #7E4318; }
+        @media (prefers-color-scheme: dark) {
+            :root { --bg: #0D1813; --card: #15251D; --line: #284034; --text: #EEF1EC; --muted: #A3AEA6; --brand: #9CCFB3; --action: #E0954F; --on-action: #1C0E03; --action-soft: #3A2715; --action-text: #F0B27A; }
+        }
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 760px; margin: 40px auto; padding: 0 16px; color: var(--text); background: var(--bg); line-height: 1.6; }
+        h1 { font-size: 2.2em; line-height: 1.15; margin: 0; }
+        .brandname { color: var(--brand); font-weight: 700; font-size: 1.1em; margin: 0 0 8px; }
+        p.lede { font-size: 1.2em; color: var(--muted); margin-top: 8px; }
+        h2 { margin-top: 2em; line-height: 1.25; }
+        a { color: var(--brand); }
+        .appstore { display: inline-block; background: var(--action); color: var(--on-action); font-weight: 600; text-decoration: none; padding: 12px 22px; border-radius: 12px; margin: 8px 0; }
+        .box { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 18px; margin-top: 14px; }
+        .box p { margin: 6px 0; }
+        .box ul { padding-left: 20px; margin: 8px 0; }
+        .spotlight { border-left: 4px solid var(--brand); }
+        .muted { color: var(--muted); font-size: 0.92em; }
+        .pro { display: inline-block; font-size: 0.7em; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: var(--action-soft); color: var(--action-text); vertical-align: middle; margin-left: 4px; }
+        .shots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 20px 0 4px; }
+        .shots img { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 18px; }
+        ul.features { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+        ul.features li { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+        ul.features strong { display: block; }
+        footer { margin-top: 3em; padding-top: 1em; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.9em; }
+        footer a { margin-right: 1em; display: inline-block; }
+    </style>
+</head>
+<body>
+
+<p class="brandname"><a href="./" style="text-decoration: none;">PlowR</a></p>
+<h1>A snow plow and snow removal app for small businesses</h1>
+<p class="lede">If you plow driveways and lots, shovel walks and spread salt, PlowR keeps the season on your iPhone: who's on contract, what the storm will do to them, the route to clear them, and a record of every push.</p>
+
+<p><a class="appstore" href="https://apps.apple.com/app/id6796051098">Download PlowR on the App Store</a></p>
+
+<h2>Before the storm</h2>
+<div class="box">
+    <ul>
+        <li><strong>Snow triggers on contracts.</strong> Each snow contract can start at every snowfall or at a depth you set, such as 2 inches <span class="pro">PRO</span>.</li>
+        <li><strong>A storm card on Home.</strong> When the forecast for today or the next two days reaches a trigger, the card says roughly how much snow is coming and which clients' triggers it reaches.</li>
+        <li><strong>An alert the evening before</strong> a storm of an inch or more, at 6 PM, if you allow notifications.</li>
+        <li><strong>Tell your clients.</strong> Text the clients whose trigger it reaches from the storm card <span class="pro">PRO</span>, or message everyone on a route.</li>
+    </ul>
+    <p class="muted">The forecast is a weather model's estimate for your area over the whole day, not a measurement at each property. PlowR says so on the card, and sends nothing by itself.</p>
+</div>
+
+<h2>During the storm</h2>
+<div class="box">
+    <ul>
+        <li><strong>Your route, stop by stop.</strong> Stops in your order or ordered by driving distance, the current stop on the Lock Screen as a Live Activity, and Complete Stop from Control Center.</li>
+        <li><strong>What you did at each stop.</strong> Snow plowing, salting, walkway shoveling, roof snow removal or your own services, with notes and before and after photos.</li>
+        <li><strong>Arrival and departure from GPS.</strong> With location set to Always, PlowR notes when you got to each property and when you left. When it didn't see one, it records nothing rather than guessing.</li>
+        <li><strong>Below trigger.</strong> Not enough fell at a place? Mark it below trigger at the stop and move on <span class="pro">PRO</span>; no visit is recorded, and the day is kept for the report.</li>
+    </ul>
+</div>
+
+<h2>After the storm</h2>
+<div class="box">
+    <ul>
+        <li><strong>A Service Report for any property</strong> <span class="pro">PRO</span>: every visit in a season or the dates you choose, with times, GPS arrival and departure, services, photos, the estimated weather for each day, and the days below trigger. For a client who questions a bill, or an insurer asking about a slip-and-fall claim. It's your own record, not a certified one. <a href="sample-service-report.pdf">See a sample (PDF)</a>.</li>
+        <li><strong>Contracts and invoices.</strong> A season price, a price per visit or a monthly amount, with installments; invoices as PDFs with your logo, and payments tracked as they come in.</li>
+    </ul>
+</div>
+
+<h2>When the snow melts</h2>
+<p>Lawn care, cleanup and landscaping use the same clients, routes and schedule, with repeating visits for weekly mowing. One app, all year.</p>
+
+<h2>Price</h2>
+<div class="box">
+    <p><strong>Free</strong> for up to 10 active clients and one route.</p>
+    <p><strong>PlowR Pro</strong> is $8.99 a month after a one-month free trial, with unlimited clients and routes, the Service Report, and the storm and trigger tools.</p>
+    <p class="muted">US price; the App Store shows yours before you subscribe. The trial is for new subscribers. <a href="./">Everything PlowR does</a>.</p>
+</div>
+
+<footer>
+    <a href="./">Home</a>
+    <a href="help.html">Help</a>
+    <a href="support.html">Support</a>
+    <a href="privacy-policy.html">Privacy Policy</a>
+    <a href="terms-of-service.html">Terms of Service</a>
+</footer>
+
+</body>
+</html>
