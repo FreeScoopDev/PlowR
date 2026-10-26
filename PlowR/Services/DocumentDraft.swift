@@ -31,6 +31,22 @@ nonisolated struct DocumentDraft {
         taxExempt ? 0 : max(rate ?? 0, 0)
     }
 
+    /// A client's Default Discount, as a percent of a new document's
+    /// subtotal: the client page's choices when it opened the builder, saved
+    /// or not (`onScreen…`, nil from anywhere else), else the client's. None
+    /// for a comped client, whose page hides the choice.
+    static func clientDiscountPercent(onScreen: Double?, onScreenComped: Bool?,
+                                      saved: Double, savedComped: Bool) -> Double {
+        (onScreenComped ?? savedComped) ? 0 : min(max(onScreen ?? saved, 0), 100)
+    }
+
+    /// The discount `percent` of `subtotal` gives, to the cent. A new
+    /// document starts with it; the Discount field changes it.
+    static func clientDiscount(subtotal: Double, percent: Double) -> Double {
+        guard percent > 0, subtotal > 0 else { return 0 }
+        return InvoiceLines.roundedToCent(subtotal * min(percent, 100) / 100)
+    }
+
     struct Service {
         var id: String
         var name: String
@@ -71,6 +87,10 @@ nonisolated struct DocumentDraft {
     var customLines: [CustomLine] = []
     var discount: String = ""
     var taxRate: String = ""
+    /// The client's Default Discount (`clientDiscountPercent`): the discount
+    /// while the Discount field is empty, following the subtotal as lines
+    /// change. Anything typed, 0 included, replaces it.
+    var clientDiscountPercent: Double = 0
     /// Whose decimal separator the fields are typed in (`DecimalText`).
     var locale: Locale = .current
 
@@ -98,7 +118,15 @@ nonisolated struct DocumentDraft {
         return InvoiceLines.price(typed: amounts[key], default: fallback, locale: locale)
     }
 
-    var discountAmount: Double { max(0, InvoiceLines.price(typed: discount, default: 0, locale: locale)) }
+    var discountAmount: Double {
+        if discount.trimmingCharacters(in: .whitespaces).isEmpty { return clientDiscount }
+        return max(0, InvoiceLines.price(typed: discount, default: 0, locale: locale))
+    }
+
+    /// What the client's Default Discount comes to on these lines.
+    var clientDiscount: Double {
+        Self.clientDiscount(subtotal: lines().reduce(0) { $0 + $1.lineTotal }, percent: clientDiscountPercent)
+    }
     var taxRatePercent: Double { Proposal.taxRate(typed: taxRate) }
 
     /// Every line the document will have, in the order it will have them:
@@ -131,6 +159,36 @@ nonisolated struct DocumentDraft {
                                sortOrder: firstCustom + i))
         }
         return result
+    }
+
+    /// The fields that can't be read as an amount or a rate (InvoiceLines.isUnreadable,
+    /// Proposal.readTaxRate), named as the screen names them. The document
+    /// can't be saved until they're fixed: nothing typed is replaced unseen.
+    var unreadableFields: [String] {
+        var fields: [String] = []
+        for key in selections.sorted() where InvoiceLines.isUnreadable(amounts[key], locale: locale) {
+            guard let (serviceID, zoneIndex) = Self.parse(key),
+                  let service = services.first(where: { $0.id == serviceID }) else { continue }
+            fields.append(zones.indices.contains(zoneIndex) ? "\(service.name), \(zones[zoneIndex].label)" : service.name)
+        }
+        for custom in customLines where InvoiceLines.isUnreadable(custom.amount, locale: locale) {
+            fields.append(custom.name.isEmpty ? "A custom item" : custom.name)
+        }
+        if InvoiceLines.isUnreadable(discount, locale: locale) { fields.append("Discount") }
+        if taxUnreadable { fields.append("Tax") }
+        return fields
+    }
+
+    /// The Tax field isn't a rate from 0 to 100.
+    var taxUnreadable: Bool { Proposal.readTaxRate(taxRate) == nil }
+
+    /// What the screen says about `fields`: "Can't read Discount, Tax: type a
+    /// number such as 1250.50 (a tax rate from 0 to 100)." `taxUnreadable`:
+    /// the Tax field is among them (not a line that happens to be named Tax).
+    static func unreadableMessage(_ fields: [String], taxUnreadable: Bool = false) -> String {
+        let list = fields.joined(separator: ", ")
+        if taxUnreadable, fields.count == 1 { return "Can't read \(list): type a rate from 0 to 100, such as 8.25." }
+        return "Can't read \(list): type a number such as 1250.50" + (taxUnreadable ? " (a tax rate from 0 to 100)." : ".")
     }
 
     /// The estimate: the total of the document these lines, discount and tax make.

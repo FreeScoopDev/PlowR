@@ -123,11 +123,15 @@ final class Proposal {
         }
     }
 
-    var invoiceStatus: InvoiceStatus {
+    var invoiceStatus: InvoiceStatus { invoiceStatus(now: Date()) }
+
+    /// The status on `now`'s day: overdue from the day after the due date (InvoiceTerms).
+    func invoiceStatus(now: Date, calendar: Calendar = .current) -> InvoiceStatus {
         guard isInvoice else { return .proposal }
         if voidedAt != nil { return .void }
         if invoicePaidAt != nil { return .paid }
-        if let due = invoiceDueDate, due < Date(), invoiceSentAt != nil { return .overdue }
+        if let due = invoiceDueDate, InvoiceTerms.isPastDue(due, now: now, calendar: calendar),
+           invoiceSentAt != nil { return .overdue }
         if invoiceSentAt != nil { return .sent }
         return .draft
     }
@@ -228,10 +232,10 @@ extension Proposal {
         let statusWord = invoiceStatus == .overdue ? "overdue" : "outstanding"
         var message: String
         if isPartlyPaid {
-            let balance = balanceDue.formatted(.currency(code: "USD").locale(locale))
+            let balance = Money.text(balanceDue)
             message = "Hi \(clientName), just a friendly reminder that the balance of \(balance) on invoice \(invoiceNumber) is \(statusWord)."
         } else {
-            let amount = total.formatted(.currency(code: "USD").locale(locale))
+            let amount = Money.text(total)
             message = "Hi \(clientName), just a friendly reminder that invoice \(invoiceNumber) for \(amount) is \(statusWord)."
         }
         if let due = invoiceDueDate {

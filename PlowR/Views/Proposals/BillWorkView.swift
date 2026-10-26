@@ -81,11 +81,12 @@ struct BillWorkView: View {
                         // Billed as it is now: what was billed or deleted
                         // meanwhile is left out (WorkBilling.invoice re-checks).
                         outcome = WorkBilling.invoiceAll(chosen, operatorID: authManager.userID, in: modelContext)
+                        if let outcome { PlowRTips.billed(outcome) }
                         loadWorks()
                     } label: {
                         Text(chosen.isEmpty ? "Choose Clients to Bill"
                              : "Create \(chosen.count) Draft Invoice\(chosen.count == 1 ? "" : "s") · "
-                                + total.formatted(.currency(code: "USD")))
+                                + Money.text(total))
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.plowRAction)
@@ -132,7 +133,7 @@ struct BillWorkView: View {
                     }
                 }
                 Spacer()
-                Text(work.total, format: .currency(code: "USD"))
+                Text(Money.text(work.total))
                     .font(.subheadline.weight(.semibold))
                     .monospacedDigit()
             }

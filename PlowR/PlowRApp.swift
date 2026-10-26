@@ -67,14 +67,18 @@ struct PlowRApp: App {
         ActiveRouteStore.shared.configure(context: container.mainContext)
         // PlowR Pro: the plan kept from last time until StoreKit answers.
         Subscription.shared.start()
+        // Tips (after a reset Delete Account & Data asked for), before any view.
+        let records = (try? container.mainContext.fetchCount(FetchDescriptor<ServiceRecord>())) ?? 0
+        PlowRTips.configure(hasRunRoute: PlowRTips.hasRunRoute(
+            completedRoutes: UserDefaults.standard.integer(forKey: "completedRoutesCount"), serviceRecords: records))
         // Not under tests: the test host is the app, with the app's
         // preferences, and must leave the simulator's calendar alone.
         if !Self.isRunningUnderTests {
             CalendarSync.shared.configure(context: container.mainContext)
             // Here, not with the route screen: iOS relaunches the app in the
-            // background when the crew reaches or leaves a job site, and hands
-            // the crossing to the location manager that exists then.
-            _ = SiteMonitor.shared
+            // background when the crew reaches or leaves a job site, and holds
+            // the crossing until PlowR's monitor is open to take it.
+            SiteMonitor.shared.start()
         }
     }
 

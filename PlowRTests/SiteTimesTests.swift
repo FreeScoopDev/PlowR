@@ -23,9 +23,9 @@ struct SiteTimesTests {
 
     @Test func anEntryAfterTheStopBeganIsTheArrivalAndTheFirstOneCounts() {
         var site = SiteTimes()
-        site.entered(at: start + 600, settleFrom: start)
+        site.entered(at: start + 600)
         site.exited(at: start + 900)
-        site.entered(at: start + 1000, settleFrom: start)     // back for the shovel
+        site.entered(at: start + 1000)     // back for the shovel
         #expect(site.arrivedAt == start + 600)
         #expect(site.leftAt == nil)                               // came back in: hadn't left
         site.exited(at: start + 1500)
@@ -34,25 +34,32 @@ struct SiteTimesTests {
     }
 
     @Test func alreadyInsideWhenTheStopBeganHasNoArrival() {
-        // iOS reporting a phone already in the area, just after it's placed.
+        // iOS's first answer after placing the area: already in it.
         var site = SiteTimes()
-        site.entered(at: start + SiteTimes.settleTime - 1, settleFrom: start)
+        site.insideWhenPlaced()
         #expect(site.arrivedAt == nil && site.arrivalUnseen)
         // Out to the truck and back: still not an arrival.
         site.exited(at: start + 300)
-        site.entered(at: start + 400, settleFrom: start)
-        #expect(site.arrivedAt == nil)
-        // At exactly the settle time it is one.
-        var later = SiteTimes()
-        later.entered(at: start + SiteTimes.settleTime, settleFrom: start)
-        #expect(later.arrivedAt == start + SiteTimes.settleTime)
+        site.entered(at: start + 400)
+        #expect(site.arrivedAt == nil && site.leftAt == nil)
+        // Already in after an arrival was seen: the arrival stands.
+        var arrived = SiteTimes()
+        arrived.entered(at: start + 60)
+        arrived.insideWhenPlaced()
+        #expect(arrived.arrivedAt == start + 60 && !arrived.arrivalUnseen)
+        // Already in after going out: hadn't left.
+        var back = SiteTimes()
+        back.entered(at: start + 60)
+        back.exited(at: start + 300)
+        back.insideWhenPlaced()
+        #expect(back.leftAt == nil && back.arrivedAt == start + 60)
     }
 
     @Test func leavingWithoutBeingSeenToArriveIsNoArrival() {
         var site = SiteTimes()
         site.exited(at: start + 300)
         #expect(site.arrivalUnseen && site.arrivedAt == nil && site.leftAt == start + 300)
-        site.entered(at: start + 900, settleFrom: start)
+        site.entered(at: start + 900)
         #expect(site.arrivedAt == nil)
     }
 
@@ -231,41 +238,46 @@ struct SiteTimesTests {
     }
 
     @Test func aStopAwaitingADepartureThatIsCurrentAgainStopsAwaitingIt() throws {
-        let h = try Harness(stopCount: 2)
+        let h = try Harness(stopCount: 1)
         pin(h)
         let store = h.makeStore()
         store.start(h.route)
         store.completeShownStop()
-        store.completeShownStop()
         store.end()
-        let stops = h.route.sortedStops
-        #expect(store.departures.map(\.stopID) == [stops[0].id, stops[1].id])
-        // A second pass soon after: leaving the first stop now is this run's,
-        // while the last pass's last stop is still waited on.
+        let stop = h.route.sortedStops[0]
+        #expect(store.departures.map(\.stopID) == [stop.id])
+        // Its pin corrected 300 m between the passes, so the two areas don't overlap.
+        stop.latitude += 300 / 111_195
+        // A second pass soon after: leaving the stop now is this run's.
         store.start(h.route)
-        #expect(store.departures.map(\.stopID) == [stops[1].id])
+        #expect(store.departures.isEmpty)
     }
 
-    @Test func anEntrySoonAfterTheAreaIsPlacedAgainIsNoArrival() throws {
+    @Test func alreadyInsideWhenTheAreaWasPlacedIsNoArrival() throws {
         let h = try Harness()
         pin(h)
         let store = h.makeStore()
         store.start(h.route)
         let stop = h.route.sortedStops[0]
-        // The pin was fixed 10 minutes in, and its area placed again.
-        let placed = h.clock + 600
-        store.siteEntered(id(stop), at: placed + 5, placedAt: placed)
+        store.siteInsideWhenPlaced(id(stop), at: h.clock + 5)
         #expect(store.site.arrivedAt == nil && store.site.arrivalUnseen)
+        // Another stop's, or one from before the stop began, isn't this one's.
+        let other = h.makeStore()
+        other.start(h.route)
+        other.siteInsideWhenPlaced(id(h.route.sortedStops[1]), at: h.clock + 5)
+        other.siteInsideWhenPlaced(id(stop), at: h.clock - 5)
+        #expect(other.site == SiteTimes())
     }
 
-    @Test func anAreaPlacedBeforeTheStopBeganSettlesFromTheStop() throws {
+    @Test func aSeenCrossingSoonAfterTheStopBeganIsTheArrival() throws {
+        // iOS said "outside" first, so this is a real crossing however soon:
+        // the next house along, 150 m away (legacy monitoring couldn't tell).
         let h = try Harness()
         pin(h)
         let store = h.makeStore()
         store.start(h.route)
-        // Placed an hour ago (a completed stop's, say): the stop's own start counts.
-        store.siteEntered(id(h.route.sortedStops[0]), at: h.clock + 30, placedAt: h.clock - 3600)
-        #expect(store.site.arrivedAt == nil && store.site.arrivalUnseen)
+        store.siteEntered(id(h.route.sortedStops[0]), at: h.clock + 20)
+        #expect(store.site.arrivedAt == h.clock + 20)
     }
 
     @Test func onlyLocationAllowedNowResettles() {
@@ -298,17 +310,155 @@ struct SiteTimesTests {
         #expect(store.departures.isEmpty)
     }
 
-    @Test func atMostAFewDeparturesAreAwaited() throws {
-        let h = try Harness(stopCount: SiteDepartures.limit + 2)
+    // MARK: - Stops close together, and later stops
+
+    /// Puts the second stop `metres` north of the first.
+    private func placeSecond(_ h: Harness, metres: Double) {
+        let stops = h.route.sortedStops
+        stops[1].latitude = stops[0].latitude + metres / 111_195     // metres per degree of latitude
+        stops[1].longitude = stops[0].longitude
+    }
+
+    @Test func aStopsDepartureIsntAwaitedWhenTheNextStopsAreaOverlapsIt() throws {
+        let h = try Harness()
+        pin(h)
+        placeSecond(h, metres: 80)                // the next house along
+        let sites = FakeSiteWatching()
+        let store = h.makeStore(sites: sites)
+        store.start(h.route)
+        let run = try #require(store.runID)
+        let stops = h.route.sortedStops
+        h.clock += 300
+        store.siteEntered(id(stops[0]), at: h.clock)
+        h.clock += 900
+        store.completeShownStop()                 // still inside the first area
+        #expect(store.departures.isEmpty)
+        #expect(sites.ids == [id(stops[1])])
+        // Working the second stop, then leaving both areas at once: that's
+        // when they left the second, not the first.
+        h.clock += 1200
+        store.siteExited(id(stops[0]), at: h.clock)
+        store.siteExited(id(stops[1]), at: h.clock)
+        #expect(ServiceLog.runRecord(run: run, stop: stops[0].id, in: h.context)?.leftAt == nil)
+        #expect(store.site.leftAt == h.clock)     // the second stop's own departure is kept
+    }
+
+    @Test func areasOverlapUnderTwiceTheRadius() throws {
+        let h = try Harness()
+        pin(h)
+        placeSecond(h, metres: 2 * SiteMonitor.radius - 10)
+        let store = h.makeStore()
+        store.start(h.route)
+        store.completeShownStop()
+        #expect(store.departures.isEmpty)
+
+        let apart = try Harness()
+        pin(apart)
+        placeSecond(apart, metres: 2 * SiteMonitor.radius + 10)
+        let other = apart.makeStore()
+        other.start(apart.route)
+        other.completeShownStop()
+        #expect(other.departures.map(\.stopID) == [apart.route.sortedStops[0].id])
+    }
+
+    @Test func aPinMovedCloseStopsTheWait() throws {
+        let h = try Harness()
+        pin(h)
+        let sites = FakeSiteWatching()
+        let store = h.makeStore(sites: sites)
+        store.start(h.route)
+        let stops = h.route.sortedStops
+        store.completeShownStop()
+        #expect(store.departures.map(\.stopID) == [stops[0].id])
+        // The second stop's pin corrected on another device, next door to the first.
+        placeSecond(h, metres: 50)
+        try h.context.save()
+        #expect(store.departures.isEmpty)
+        #expect(sites.ids == [id(stops[1])])
+    }
+
+    @Test func completingTheNextStopEndsTheWaitForTheLastOnesDeparture() throws {
+        let h = try Harness()
+        pin(h)
+        let sites = FakeSiteWatching()
+        let store = h.makeStore(sites: sites)
+        store.start(h.route)
+        let run = try #require(store.runID)
+        let stops = h.route.sortedStops
+        h.clock += 600
+        store.completeShownStop()                 // the first stop's exit never came
+        h.clock += 900
+        store.completeShownStop()
+        // Only the stop just completed is awaited: they were at the second
+        // stop, so they'd left the first before it.
+        #expect(store.departures.map(\.stopID) == [stops[1].id])
+        #expect(sites.ids == [id(stops[1]), id(stops[2])])
+        store.siteExited(id(stops[0]), at: h.clock + 60)
+        #expect(ServiceLog.runRecord(run: run, stop: stops[0].id, in: h.context)?.leftAt == nil)
+        // Below Trigger at the third stop: they were there too.
+        h.clock += 600
+        _ = store.passCurrentStop(expecting: stops[2].id)
+        #expect(store.departures.isEmpty)
+        store.siteExited(id(stops[1]), at: h.clock + 60)
+        #expect(ServiceLog.runRecord(run: run, stop: stops[1].id, in: h.context)?.leftAt == nil)
+    }
+
+    @Test func comingIntoTheNextStopsAreaEndsTheWaitEvenWhenTheAreasDontOverlap() throws {
+        // iOS reports an exit only some way past an area's edge: 300 m apart,
+        // the crew can be at the second stop while still "in" the first's.
+        let h = try Harness()
+        pin(h)
+        placeSecond(h, metres: 300)
+        let store = h.makeStore()
+        store.start(h.route)
+        let run = try #require(store.runID)
+        let stops = h.route.sortedStops
+        h.clock += 600
+        store.completeShownStop()
+        #expect(store.departures.map(\.stopID) == [stops[0].id])
+        h.clock += 120
+        store.siteEntered(id(stops[1]), at: h.clock)
+        #expect(store.departures.isEmpty)
+        store.siteExited(id(stops[0]), at: h.clock + 900)
+        #expect(ServiceLog.runRecord(run: run, stop: stops[0].id, in: h.context)?.leftAt == nil)
+    }
+
+    @Test func completingAStopSeenLeavingEndsTheWaitForTheLastOne() throws {
+        // The second stop awaits nothing itself (its exit was seen): only the
+        // clear on completing keeps the first stop's late exit off its record.
+        let h = try Harness()
         pin(h)
         let store = h.makeStore()
         store.start(h.route)
-        for _ in 0..<(SiteDepartures.limit + 1) { store.completeShownStop() }
+        let run = try #require(store.runID)
         let stops = h.route.sortedStops
-        // The newest, after the next update.
-        #expect(store.departures.count == SiteDepartures.limit)
-        #expect(store.departures.last?.stopID == stops[SiteDepartures.limit].id)
-        #expect(store.departures.first?.stopID == stops[1].id)
+        h.clock += 600
+        store.completeShownStop()
+        #expect(store.departures.map(\.stopID) == [stops[0].id])
+        // Reported as having gone out of the second stop's area with no entry
+        // first (no entry, so the first's wait isn't ended by an arrival).
+        h.clock += 600
+        store.siteExited(id(stops[1]), at: h.clock)
+        h.clock += 60
+        store.completeShownStop()
+        #expect(store.departures.isEmpty)
+        store.siteExited(id(stops[0]), at: h.clock + 60)
+        #expect(ServiceLog.runRecord(run: run, stop: stops[0].id, in: h.context)?.leftAt == nil)
+    }
+
+    @Test func severalDeparturesSavedByAnOlderVersionAreCutToTheNewest() throws {
+        let h = try Harness(stopCount: 1)
+        let run = UUID()
+        let saved = (0..<3).map { i in
+            PendingDeparture(runID: run, stopID: UUID(), completedAt: h.clock - Double(300 * (3 - i)),
+                             latitude: 43 + Double(i) / 100, longitude: -79)
+        }
+        SiteDepartures.save(saved, to: h.defaults)
+        let sites = FakeSiteWatching()
+        let store = h.makeStore(sites: sites)
+        store.validate()
+        #expect(store.departures == [saved[2]])
+        #expect(sites.ids == [saved[2].stopID.uuidString])
     }
 
     @Test func nothingIsWatchedOrRemovedWhileTheRouteWaitsToBeRestored() throws {
@@ -429,7 +579,7 @@ struct SiteTimesTests {
         #expect(line(record) == nil)
         record.arrivedAt = at(4, 58)
         record.leftAt = at(5, 24)
-        #expect(line(record) == "Arrived 4:58 AM · Left 5:24 AM (GPS, within about 100 m)")
+        #expect(line(record) == "Arrived 4:58 AM · Left 5:24 AM · 26 min on site (GPS, within about 100 m)")
         record.arrivedAt = nil
         #expect(line(record) == "Arrival not caught · Left 5:24 AM (GPS, within about 100 m)")
         record.arrivedAt = at(4, 58)

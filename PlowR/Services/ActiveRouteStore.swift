@@ -147,11 +147,28 @@ final class ActiveRouteStore {
         // A route (or its stops) can be deleted or reordered on another device
         // while this one is mid-route. Re-check whenever the store changes;
         // the app also calls validate() when it becomes active.
-        for name in [ModelContext.didSave, Notification.Name.NSPersistentStoreRemoteChange] {
-            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self?.validate() }
+        // Never making the poster wait (MainActorNotice), and a save only of
+        // this store's own database: one in another (the tests make many)
+        // ran validate() inside that save, reading this database, which
+        // deadlocked too.
+        NotificationCenter.default.addObserver(forName: ModelContext.didSave, object: nil, queue: nil) { [weak self] note in
+            let saved = (note.object as? ModelContext)?.container
+            MainActorNotice.run { [weak self] in
+                guard let self, Self.isOwnSave(saved, of: self.context) else { return }
+                self.validate()
             }
         }
+        NotificationCenter.default.addObserver(forName: .NSPersistentStoreRemoteChange, object: nil,
+                                               queue: nil) { [weak self] _ in
+            MainActorNotice.run { [weak self] in self?.validate() }
+        }
+    }
+
+    /// Whether a save in `saved` is one of this store's database (any of its
+    /// contexts: the app's background work saves through its own).
+    static func isOwnSave(_ saved: ModelContainer?, of context: ModelContext?) -> Bool {
+        guard let saved, let context else { return false }
+        return saved === context.container
     }
 
     /// Begins `route` at its first stop, leaving `skipping` out of this run.
@@ -215,6 +232,12 @@ final class ActiveRouteStore {
             return sortedStops.contains { $0.id == stopID } ? .allStopsAlreadyDone : .stopChanged
         }
         guard stopID == stop.id else { return .stopChanged }
+        // The crew was at this stop: an earlier stop's exit seen from now on
+        // isn't when they left it (the areas overlap, or it came too late).
+        if !departures.isEmpty {
+            departures = []
+            SiteDepartures.save(departures, to: defaults)
+        }
         if recording { recordVisit(for: stop) }
         currentStopIndex += 1
         currentStopID = currentStop?.id
@@ -249,6 +272,8 @@ final class ActiveRouteStore {
     /// Finishes the route: clears the checkpoint and ends the Live Activity.
     func end() {
         guard isActive else { return }
+        // The next route isn't the first: the route screen's tip is done.
+        PlowRTips.routeRan()
         surfaces.end(progress)
         clearState()
         updateSites()
@@ -259,18 +284,39 @@ final class ActiveRouteStore {
     /// The phone came into the area around the stop with this ID
     /// (`SiteMonitor`): the current stop's arrival, or, for a completed stop
     /// still awaiting its departure, a sign the crew wasn't there when it was
-    /// completed, so a later exit isn't leaving it. `placedAt`: when the
-    /// area was placed this launch, if it was.
-    func siteEntered(_ id: String, at time: Date, placedAt: Date? = nil) {
+    /// completed, so a later exit isn't leaving it. Not one dated before the
+    /// stop was completed, delivered late (iOS holds events until PlowR can
+    /// take them): the crew was there then, and their departure still counts.
+    func siteEntered(_ id: String, at time: Date) {
         if let currentStopID, id == currentStopID.uuidString, let stopStartedAt, time >= stopStartedAt {
-            site.entered(at: time, settleFrom: max(stopStartedAt, placedAt ?? stopStartedAt))
+            site.entered(at: time)
             saveCheckpoint()
+            atCurrentStop()
         }
-        if departures.contains(where: { $0.stopID.uuidString == id }) {
+        if departures.contains(where: { $0.stopID.uuidString == id && time >= $0.completedAt }) {
             departures.removeAll { $0.stopID.uuidString == id }
             SiteDepartures.save(departures, to: defaults)
             updateSites()
         }
+    }
+
+    /// iOS's first answer after the area with this ID was placed: the phone
+    /// was already in it. For the current stop, no arrival can be given.
+    func siteInsideWhenPlaced(_ id: String, at time: Date) {
+        guard let currentStopID, id == currentStopID.uuidString, let stopStartedAt, time >= stopStartedAt else { return }
+        site.insideWhenPlaced()
+        saveCheckpoint()
+        atCurrentStop()
+    }
+
+    /// The phone is in the current stop's area: an earlier stop's exit seen
+    /// from now on isn't when they left it. iOS reports an exit only some way
+    /// past the area's edge, so areas apart can still both hold the phone.
+    private func atCurrentStop() {
+        guard !departures.isEmpty else { return }
+        departures = []
+        SiteDepartures.save(departures, to: defaults)
+        updateSites()
     }
 
     /// The phone went out of the area around the stop with this ID: for the
@@ -281,11 +327,13 @@ final class ActiveRouteStore {
             site.exited(at: time)
             saveCheckpoint()
         }
-        guard let index = departures.firstIndex(where: { $0.stopID.uuidString == id }) else { return }
+        // One dated before the stop was completed, delivered late, isn't its
+        // departure: they may have come back in since.
+        guard let index = departures.firstIndex(where: { $0.stopID.uuidString == id && time >= $0.completedAt })
+        else { return }
         let pending = departures.remove(at: index)
         SiteDepartures.save(departures, to: defaults)
-        let elapsed = time.timeIntervalSince(pending.completedAt)
-        if elapsed >= 0, elapsed <= SiteDepartures.window, let context,
+        if time.timeIntervalSince(pending.completedAt) <= SiteDepartures.window, let context,
            let record = ServiceLog.runRecord(run: pending.runID, stop: pending.stopID, in: context) {
             record.leftAt = time
             // Saved now: iOS woke the app in the background for this.
@@ -304,6 +352,11 @@ final class ActiveRouteStore {
         // A stop awaiting a departure from an earlier run that's current
         // again (the route run a second time): leaving it now is this run's.
         if let currentStopID { current.removeAll { $0.stopID == currentStopID } }
+        // One whose area overlaps the current stop's: going out of the current
+        // stop would also go out of it, so its exit can't say when they left it.
+        if let stop = currentStop, stop.latitude != 0 || stop.longitude != 0 {
+            current.removeAll { SiteDepartures.overlaps($0, latitude: stop.latitude, longitude: stop.longitude) }
+        }
         if current != departures {
             departures = current
             SiteDepartures.save(departures, to: defaults)

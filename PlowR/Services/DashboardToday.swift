@@ -51,13 +51,14 @@ enum DashboardToday {
     static func attention(overdue: (count: Int, amount: Double),
                           paymentsDue: (count: Int, amount: Double),
                           readyToSend: (count: Int, amount: Double),
-                          followUps: Int, billedTwice: Int, overpaid: Int) -> [DashboardAttention] {
+                          followUps: Int, billedTwice: Int, revisedTwice: Int, overpaid: Int) -> [DashboardAttention] {
         let all = [
             DashboardAttention(kind: .overdue, count: overdue.count, amount: overdue.amount),
             DashboardAttention(kind: .paymentsDue, count: paymentsDue.count, amount: paymentsDue.amount),
             DashboardAttention(kind: .readyToSend, count: readyToSend.count, amount: readyToSend.amount),
             DashboardAttention(kind: .followUps, count: followUps, amount: nil),
             DashboardAttention(kind: .billedTwice, count: billedTwice, amount: nil),
+            DashboardAttention(kind: .revisedTwice, count: revisedTwice, amount: nil),
             DashboardAttention(kind: .overpaid, count: overpaid, amount: nil)
         ]
         return all.filter { $0.count > 0 }
@@ -69,7 +70,7 @@ struct DashboardAttention: Identifiable, Equatable {
     enum Kind: Int, CaseIterable {
         // In the order shown: money late first, then money to bill, then
         // money to chase, then records to check.
-        case overdue, paymentsDue, readyToSend, followUps, billedTwice, overpaid
+        case overdue, paymentsDue, readyToSend, followUps, billedTwice, revisedTwice, overpaid
     }
     let kind: Kind
     let count: Int
@@ -83,6 +84,7 @@ struct DashboardAttention: Identifiable, Equatable {
         case .readyToSend: count == 1 ? "1 invoice ready to send" : "\(count) invoices ready to send"
         case .followUps: count == 1 ? "1 quote to follow up" : "\(count) quotes to follow up"
         case .billedTwice: count == 1 ? "1 contract payment billed twice" : "\(count) contract payments billed twice"
+        case .revisedTwice: count == 1 ? "1 invoice revised twice" : "\(count) invoices revised twice"
         case .overpaid: count == 1 ? "1 invoice paid more than its total" : "\(count) invoices paid more than their total"
         }
     }

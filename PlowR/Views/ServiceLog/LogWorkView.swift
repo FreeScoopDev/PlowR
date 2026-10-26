@@ -34,7 +34,10 @@ struct LogWorkView: View {
     private var zones: [InvoiceLines.Zone] { Place.of(client, propertyID: placeID)?.zones ?? [] }
 
     private var hasNotes: Bool { !notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-    private var canSave: Bool { !recording.recordLines.isEmpty || hasNotes }
+    private var canSave: Bool {
+        (!recording.recordLines.isEmpty || hasNotes) && recording.unreadableFields().isEmpty && minutesReadable
+    }
+    private var minutesReadable: Bool { ServiceLog.minutesToSave(typed: minutes) != nil }
     private var hasChanges: Bool { !selectedIDs.isEmpty || !customItems.isEmpty || hasNotes || !minutes.isEmpty }
 
     // PlowR Pro: read only, this editor shows why instead (EditsNeedPro).
@@ -58,6 +61,10 @@ struct LogWorkView: View {
                         TextField("Optional", text: $minutes)
                             .keyboardType(.numberPad)
                             .multilineTextAlignment(.trailing)
+                    }
+                    if !minutesReadable {
+                        Label(ServiceLog.unreadableMinutesMessage, systemImage: PlowRSymbol.warning.name)
+                            .foregroundStyle(PlowRColor.Status.overdue.text)
                     }
                 }
                 .listRowBackground(PlowRColor.surface)
@@ -97,8 +104,8 @@ struct LogWorkView: View {
     }
 
     private func save() {
-        ServiceLog.logWork(recording, notes: notes, performedAt: performedAt,
-                           minutes: Double(minutes.trimmingCharacters(in: .whitespaces)) ?? 0,
+        guard canSave, let minutes = ServiceLog.minutesToSave(typed: minutes) else { return }
+        ServiceLog.logWork(recording, notes: notes, performedAt: performedAt, minutes: minutes,
                            for: client, at: placeID, operatorID: client.operatorID, in: modelContext)
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         dismiss()

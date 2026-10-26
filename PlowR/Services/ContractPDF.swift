@@ -13,8 +13,10 @@ enum ContractPDF {
         var lines: [String]
     }
 
-    /// What the page says (also what tests read).
-    static func sections(of contract: Contract, client: Client?, catalog: [ServiceItem],
+    /// What the page says (also what tests read). `defaultTaxRate` is the
+    /// business's: with tax to pay, the price says so, and each payment
+    /// shows what its invoice will be (Contracts.billed).
+    static func sections(of contract: Contract, client: Client?, catalog: [ServiceItem], defaultTaxRate: Double?,
                          calendar: Calendar = .current) -> [Section] {
         let format = Date.FormatStyle.dateTime.month(.wide).day().year()
         var sections: [Section] = []
@@ -34,12 +36,21 @@ enum ContractPDF {
         let services = catalog.filter { contract.serviceIDs.contains($0.id.uuidString) }
             .sorted { $0.sortOrder < $1.sortOrder }.map(\.name)
         sections.append(Section(heading: "Services Covered", lines: services.isEmpty ? ["As agreed"] : services))
-        var price = [Contracts.priceSummary(of: contract)]
+        let rate = Contracts.taxRate(of: contract, defaultRate: defaultTaxRate)
+        func amount(_ value: Double) -> String {
+            let pretax = Money.text(value)
+            guard rate > 0 else { return pretax }
+            let billed = Money.text(Contracts.billed(value, taxRate: rate))
+            return "\(pretax) + \(Proposal.percentText(rate))% tax = \(billed)"
+        }
+        var price = [Contracts.priceSummary(of: contract) + (rate > 0 ? ", plus tax" : "")]
         let schedule = ContractInstallments.schedule(of: contract, calendar: calendar)
         if schedule.count > 1 || Contracts.pricing(of: contract) == .monthly {
             price += schedule.map {
-                "\($0.date.formatted(.dateTime.month(.abbreviated).day().year())): \($0.amount.formatted(.currency(code: "USD")))"
+                "\($0.date.formatted(.dateTime.month(.abbreviated).day().year())): \(amount($0.amount))"
             }
+        } else if rate > 0 {
+            price.append(amount(contract.price) + (Contracts.pricing(of: contract) == .perVisit ? " a visit" : ""))
         }
         if Contracts.pricing(of: contract) != .perVisit {
             price.append("Services not listed above are billed separately.")
@@ -65,7 +76,8 @@ enum ContractPDF {
                          catalog: [ServiceItem], madeWithPlowR: Bool) -> Data {
         PDFPageWriter.document(profile: profile) { page in
             page.header(title: "SERVICE CONTRACT", subtitle: contract.name, profile: profile)
-            for section in sections(of: contract, client: client, catalog: catalog) {
+            for section in sections(of: contract, client: client, catalog: catalog,
+                                    defaultTaxRate: profile?.defaultTaxRate) {
                 page.heading(section.heading)
                 for line in section.lines { page.text(line, .systemFont(ofSize: 11), gap: 2) }
                 page.y += 10

@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import TipKit
 import UIKit
 
 struct SettingsView: View {
@@ -14,6 +15,8 @@ struct SettingsView: View {
     @State private var showingPaywall = false
     @State private var showingManage = false
     @State private var restoreFailed = false
+    /// Show Tips Again was tapped: they come back at the next launch.
+    @State private var tipsComeBack = PlowRTips.isResetPending()
 
     @State private var showingFindService = false
     /// The request screen at the end of Find Services requires this store.
@@ -47,10 +50,20 @@ struct SettingsView: View {
         }
     }
 
+    @State private var tips = TipGroup(.ordered) { RequestLinkTip() }
+
     var body: some View {
         Form {
             ProSettingsSection(showingPaywall: $showingPaywall, showingManage: $showingManage,
                                restoreFailed: $restoreFailed)
+
+            // The Request Link's tip, above the section it's in.
+            if let tip = tips.currentTip {
+                Section {
+                    TipView(tip)
+                }
+                .listRowBackground(PlowRColor.surface)
+            }
 
             Section("Business") {
                 NavigationLink(destination: BusinessProfileView()) {
@@ -136,6 +149,23 @@ struct SettingsView: View {
                     }
                 }
 
+            } header: {
+                Text("Data & Backup")
+            } footer: {
+                Text("Your data syncs through your private iCloud to every device signed in to your Apple ID. To take PlowR's data off one device and leave the others alone, use Delete Account & Data → Remove from This Device: that also turns sync off on that device until you turn it back on here. Export Data (under Business) keeps a copy as spreadsheets.")
+                    .font(.caption)
+            }
+            .listRowBackground(PlowRColor.surface)
+
+            // The guide is the bundled HelpGuide.json, the same file the
+            // website's help page is made from.
+            Section {
+                NavigationLink(destination: HelpGuideView()) {
+                    Label("Help Guide", systemImage: PlowRSymbol.help.name)
+                }
+                Link(destination: HelpGuide.shared.web) {
+                    Label("Help on the Web", systemImage: "safari")
+                }
                 Button {
                     if let url = URL(string: "mailto:support@getplowr.app?subject=PlowR%20Support") {
                         openURL(url)
@@ -143,11 +173,19 @@ struct SettingsView: View {
                 } label: {
                     Label("Contact Support", systemImage: "envelope")
                 }
+                Button {
+                    PlowRTips.scheduleReset()
+                    tipsComeBack = true
+                } label: {
+                    Label("Show Tips Again", systemImage: "lightbulb")
+                }
+                .disabled(tipsComeBack)
             } header: {
-                Text("Data & Backup")
+                Text("Help")
             } footer: {
-                Text("Your data syncs through your private iCloud to every device signed in to your Apple ID. To take PlowR's data off one device and leave the others alone, use Delete Account & Data → Remove from This Device: that also turns sync off on that device until you turn it back on here. Export Data (under Business) keeps a copy as spreadsheets.")
-                    .font(.caption)
+                if tipsComeBack {
+                    Text("Tips come back the next time you open PlowR.")
+                }
             }
             .listRowBackground(PlowRColor.surface)
 
@@ -243,6 +281,11 @@ struct SettingsView: View {
         }
         .plowRGrouped()
         .navigationTitle("Settings")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                HelpToolbarButton(screen: .settings)
+            }
+        }
         .proGateSheet($gate)
         // PlowR Pro's sheets, here on the Form, never on its section.
         .modifier(ProSettingsSection.Presentations(showingPaywall: $showingPaywall, showingManage: $showingManage,

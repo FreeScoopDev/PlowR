@@ -70,8 +70,9 @@ enum ClientStops {
                                     center: NotificationCenter = .default,
                                     after delay: Duration = .seconds(1)) -> NSObjectProtocol {
         let sweep = Sweep(container: container, delay: delay)
-        return center.addObserver(forName: .NSPersistentStoreRemoteChange, object: nil, queue: .main) { _ in
-            MainActor.assumeIsolated { sweep.schedule() }
+        // Never making the poster wait (MainActorNotice).
+        return center.addObserver(forName: .NSPersistentStoreRemoteChange, object: nil, queue: nil) { _ in
+            MainActorNotice.run { sweep.schedule() }
         }
     }
 

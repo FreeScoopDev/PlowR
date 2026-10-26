@@ -100,7 +100,7 @@ struct ContractInstallmentsTests {
             for: ContractInstallments.due(season, now: date(2027, 2, 1), calendar: calendar)[0], of: season,
             in: h.context, now: date(2027, 2, 1), calendar: calendar))
         DocumentSent.markSent(second, in: h.context, now: date(2027, 3, 1))
-        #expect(second.invoiceDueDate == date(2027, 3, 1).addingTimeInterval(30 * 86_400))
+        #expect(second.invoiceDueDate == InvoiceTerms.dueDate(from: date(2027, 3, 1)))
     }
 
     @Test func aDraftOrACancelledContractIsntDue() throws {

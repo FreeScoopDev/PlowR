@@ -1,4 +1,5 @@
 import SwiftUI
+import TipKit
 
 /// The Dashboard's storm card (StormWatch): the snowfall forecast, which
 /// contract clients' triggers it reaches, a text to those clients, and the
@@ -15,6 +16,8 @@ struct StormCard: View {
     /// Marks a client below their trigger that day (true), or takes the mark
     /// off (false): less fell at their place than the forecast said.
     let mark: (StormWatch.Trigger, Bool) -> Void
+    /// The storm text's tip, above its button.
+    @State private var tips = TipGroup(.firstAvailable) { StormTextTip() }
 
     static let presets: [(String, String)] = [
         ("Storm Coming", "Snow is in the forecast. We'll be out to clear your property once it reaches the depth in your contract."),
@@ -35,6 +38,11 @@ struct StormCard: View {
                     }
                     if !reachedWithPhones.isEmpty {
                         Divider()
+                        if let tip = tips.currentTip {
+                            TipView(tip)
+                                .padding(.horizontal, 14)
+                                .padding(.top, 14)
+                        }
                         textButton
                     }
                     Divider()
@@ -54,7 +62,10 @@ struct StormCard: View {
     private var textButton: some View {
         // No count: clients who'd rather not be texted are listed but start
         // unticked, as on a route's Message All.
-        Button { text(reachedWithPhones) } label: {
+        Button {
+            text(reachedWithPhones)
+            PlowRTips.done(StormTextTip(), StormTextTip.stormTexted)
+        } label: {
             Label("Text Clients Whose Trigger It Reaches", systemImage: "bubble.left.and.bubble.right")
                 .font(.subheadline.weight(.semibold))
                 .frame(maxWidth: .infinity, alignment: .leading)

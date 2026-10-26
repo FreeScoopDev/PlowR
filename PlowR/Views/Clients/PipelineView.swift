@@ -22,6 +22,11 @@ struct PipelineView: View {
     }
 
     var body: some View {
+        content
+            .onAppear { PlowRTips.done(PipelineTip(), PipelineTip.pipelineOpened) }
+    }
+
+    @ViewBuilder private var content: some View {
         let entries = entries
         let followUp = entries.filter(\.needsFollowUp)
         List {
@@ -89,7 +94,7 @@ struct PipelineView: View {
             }
             Spacer()
             if let total = entry.quoteTotal {
-                Text(total, format: .currency(code: "USD")).font(.subheadline)
+                Text(Money.text(total)).font(.subheadline)
             }
             if entry.needsFollowUp, let days = entry.waitingDays {
                 StatusChip("\(days)d", systemImage: "clock", status: .owed)

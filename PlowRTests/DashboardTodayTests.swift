@@ -44,7 +44,7 @@ struct DashboardTodayTests {
     /// to check; nothing with a count of zero.
     @Test func whatNeedsYouIsInOrderAndOnlyWhatsThere() {
         let items = DashboardToday.attention(overdue: (2, 640), paymentsDue: (0, 0), readyToSend: (3, 300),
-                                             followUps: 1, billedTwice: 0, overpaid: 1)
+                                             followUps: 1, billedTwice: 0, revisedTwice: 0, overpaid: 1)
         #expect(items.map(\.kind) == [.overdue, .readyToSend, .followUps, .overpaid])
         #expect(items.first?.amount == 640)
         #expect(items.first?.title == "2 invoices overdue")
@@ -52,15 +52,24 @@ struct DashboardTodayTests {
 
     @Test func nothingWaitingIsAnEmptyList() {
         #expect(DashboardToday.attention(overdue: (0, 0), paymentsDue: (0, 0), readyToSend: (0, 0),
-                                         followUps: 0, billedTwice: 0, overpaid: 0).isEmpty)
+                                         followUps: 0, billedTwice: 0, revisedTwice: 0, overpaid: 0).isEmpty)
     }
 
     @Test func oneOfEachReadsInTheSingular() {
         let items = DashboardToday.attention(overdue: (1, 10), paymentsDue: (1, 10), readyToSend: (1, 10),
-                                             followUps: 1, billedTwice: 1, overpaid: 1)
+                                             followUps: 1, billedTwice: 1, revisedTwice: 1, overpaid: 1)
         #expect(items.map(\.title) == ["1 invoice overdue", "1 contract payment due", "1 invoice ready to send",
                                        "1 quote to follow up", "1 contract payment billed twice",
-                                       "1 invoice paid more than its total"])
+                                       "1 invoice revised twice", "1 invoice paid more than its total"])
+    }
+
+    /// Two revisions of one invoice are records to check, after billed twice.
+    @Test func revisedTwiceIsCountedAndPlaced() {
+        let items = DashboardToday.attention(overdue: (0, 0), paymentsDue: (0, 0), readyToSend: (0, 0),
+                                             followUps: 0, billedTwice: 1, revisedTwice: 2, overpaid: 1)
+        #expect(items.map(\.kind) == [.billedTwice, .revisedTwice, .overpaid])
+        #expect(items[1].title == "2 invoices revised twice")
+        #expect(items[1].amount == nil)
     }
 }
 
@@ -116,6 +125,6 @@ struct DashboardLeadStateTests {
         let due = (0..<3).map {
             (contract: contract, installment: ContractInstallments.Installment(index: $0 + 1, date: now, amount: 0.1))
         }
-        #expect(ContractInstallments.amountDue(due) == 0.3)
+        #expect(ContractInstallments.amountDue(due, defaultTaxRate: nil) == 0.3)
     }
 }

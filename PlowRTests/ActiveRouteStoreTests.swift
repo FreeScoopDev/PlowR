@@ -91,6 +91,66 @@ struct ActiveRouteStoreTests {
         }
     }
 
+    /// A store re-checks its route on a save of its own database only. One in
+    /// another database (the tests make many) ran validate() inside that
+    /// save, reading this database, and deadlocked against CoreData, hanging
+    /// CI. (A remote change can't be told apart by database, and is never
+    /// run inside a save: see the next test.)
+    @Test func onlyItsOwnDatabasesSavesAreChecked() throws {
+        let h = try Harness()
+        let other = try Harness()
+        #expect(ActiveRouteStore.isOwnSave(h.container, of: h.context))
+        #expect(ActiveRouteStore.isOwnSave(h.context.container, of: ModelContext(h.container)))  // another context, same database
+        #expect(!ActiveRouteStore.isOwnSave(other.container, of: h.context))
+        #expect(!ActiveRouteStore.isOwnSave(nil, of: h.context))
+        #expect(!ActiveRouteStore.isOwnSave(h.container, of: nil))
+    }
+
+    /// The wiring: a save of another database doesn't run this store's check
+    /// inside it; a save of its own does, at once. Read straight after each
+    /// save, before anything queued (a remote change) can run.
+    @Test func anotherDatabasesSaveDoesntRunTheCheck() throws {
+        let h = try Harness()
+        let other = try Harness()
+        var lookups = 0
+        let store = h.makeStore(fetchRoutes: { lookups += 1; return try $0.fetch(FetchDescriptor<PlowRoute>()) })
+        store.start(h.route)
+        lookups = 0
+        other.context.insert(PlowRoute(name: "Elsewhere", operatorID: "op"))
+        try other.context.save()
+        #expect(lookups == 0)
+        h.context.insert(PlowRoute(name: "Here", operatorID: "op"))
+        try h.context.save()
+        #expect(lookups > 0)
+    }
+
+    /// CoreData posts a remote change from its own thread, holding its
+    /// store. An observer on `queue: .main` made that post wait for the main
+    /// thread, which could itself be waiting on the store: a deadlock. The
+    /// post must return while the main thread is busy.
+    @Test func aRemoteChangeNeverWaitsForTheMainThread() async throws {
+        let h = try Harness()
+        let store = h.makeStore()
+        store.start(h.route)
+        let cal = CalendarSync(store: FakeVisitCalendarStore(), defaults: h.defaults)
+        cal.configure(context: h.context)
+        let followed = ClientStops.followRemoteChanges(of: h.container)
+        defer { NotificationCenter.default.removeObserver(followed) }
+        let posted = PostClock()
+        let poster = Thread {
+            NotificationCenter.default.post(name: .NSPersistentStoreRemoteChange, object: nil)
+            NotificationCenter.default.post(name: ModelContext.didSave, object: nil)
+            posted.mark()
+        }
+        poster.start()
+        // Hold the main thread longer than a post should take.
+        Thread.sleep(forTimeInterval: 0.5)
+        let mainFreed = Date()
+        try await Task.sleep(for: .milliseconds(100))
+        let at = try #require(posted.at)
+        #expect(at < mainFreed)
+    }
+
     @Test func startBeginsAtTheFirstStop() throws {
         let h = try Harness()
         let surfaces = FakeRouteSurfaces()
@@ -554,4 +614,12 @@ struct ActiveRouteStoreTests {
         #expect(store.completeCurrentStop(expecting: shown) == .allStopsAlreadyDone)
         #expect(h.clients[0].totalVisits == 1)
     }
+}
+
+/// When a background post returned (for aRemoteChangeNeverWaitsForTheMainThread).
+final class PostClock: @unchecked Sendable {
+    private let lock = NSLock()
+    private var time: Date?
+    func mark() { lock.lock(); time = Date(); lock.unlock() }
+    var at: Date? { lock.lock(); defer { lock.unlock() }; return time }
 }

@@ -42,7 +42,7 @@ struct ProposalRowView: View {
             Spacer()
 
             VStack(alignment: .trailing, spacing: 4) {
-                Text(String(format: "$%.2f", proposal.total))
+                Text(Money.text(proposal.total))
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(.primary)
 

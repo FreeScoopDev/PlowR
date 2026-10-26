@@ -114,6 +114,25 @@ struct ProposalDetailView: View {
                 .padding(10)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(.ultraThinMaterial)
+            } else if InvoiceRevisions.hasOtherRevision(proposal, among: allProposals),
+                      let other = InvoiceRevisions.otherRevision(of: proposal, among: allProposals) {
+                // One invoice revised on two devices before they synced: both
+                // revisions bill it. Never taken back by itself; said here.
+                VStack(alignment: .leading, spacing: 6) {
+                    Label(InvoiceRevisions.advice(for: proposal, other: other),
+                          systemImage: PlowRSymbol.warning.name)
+                        .foregroundStyle(PlowRColor.Status.owed.text)
+                    NavigationLink { ProposalDetailView(proposal: other) } label: {
+                        Text(InvoiceRevisions.linkTitle(to: other, from: proposal))
+                            .fontWeight(.semibold)
+                            .frame(minHeight: 44)
+                            .contentShape(Rectangle())
+                    }
+                }
+                .font(.footnote)
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.ultraThinMaterial)
             } else if InvoiceRecords.hasDuplicateNumber(proposal, among: allProposals) {
                 // Two sent invoices with one number (made on two devices before
                 // they synced): never renumbered, since the client has it; said here.
@@ -283,7 +302,10 @@ struct ProposalDetailView: View {
 
             if MFMessageComposeViewController.canSendText(),
                let phone = proposalClient?.phone, !phone.isEmpty {
-                Button { showingReminder = true } label: {
+                Button {
+                    showingReminder = true
+                    PlowRTips.reminderOpened()
+                } label: {
                     Label("Remind", systemImage: PlowRSymbol.text.name)
                 }
                 .buttonStyle(.plowRSecondary)
@@ -329,7 +351,7 @@ struct ProposalDetailView: View {
             let safe = proposal.clientName.replacingOccurrences(of: "/", with: "-")
             let url = FileManager.default.temporaryDirectory
                 .appendingPathComponent("\(prefix)-\(safe).pdf")
-            try? data.write(to: url)
+            try? data.write(to: url, options: .completeFileProtection)
             shareURL = url
         }
     }
@@ -337,12 +359,7 @@ struct ProposalDetailView: View {
     // MARK: - Actions
 
     private func convertToInvoice() {
-        proposal.invoiceNumber = InvoiceNumbering.next(operatorID: proposal.operatorID, in: modelContext)
-        proposal.invoiceDueDate = Date().addingTimeInterval(30 * 86400)
-        // A proposal made for a scheduled visit now bills the visit's work.
-        if !proposal.visitID.isEmpty {
-            ServiceLog.markVisitInvoiced(visitID: proposal.visitID, invoice: proposal, in: modelContext)
-        }
+        guard InvoiceRecords.convertToInvoice(proposal, in: modelContext) else { return }
         generatePDF()
     }
 

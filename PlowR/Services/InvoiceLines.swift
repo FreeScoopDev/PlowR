@@ -92,6 +92,18 @@ nonisolated enum InvoiceLines {
         return roundedToCent(value)
     }
 
+    /// Whether `typed` is something other than an amount: not empty, and not
+    /// money from 0 up that `price(typed:)` would read. Such a field must say
+    /// so: before, "1,250" in a US region quietly billed the catalog price, a
+    /// discount became $0 and a custom line was dropped.
+    static func isUnreadable(_ typed: String?, locale: Locale = .current) -> Bool {
+        let text = (typed ?? "").trimmingCharacters(in: .whitespaces)
+        return !text.isEmpty && ServiceCatalog.price(typed: text, locale: locale) == nil
+    }
+
+    /// A line amount as the Edit screen keeps it: to the cent, never below $0.
+    static func lineAmount(_ amount: Double) -> Double { roundedToCent(max(0, amount)) }
+
     /// The invoice lines for a service as recorded at a stop, from what's in
     /// its price field (nil if the field was never shown).
     static func lines(serviceName: String, unitType: String, pricePerUnit: Double,

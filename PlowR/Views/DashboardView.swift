@@ -111,6 +111,7 @@ struct DashboardView: View {
     private struct Waiting {
         var items: [DashboardAttention]
         var firstBilledTwice: Proposal?
+        var firstRevisedTwice: Proposal?
         var firstOverpaid: Proposal?
     }
 
@@ -119,15 +120,18 @@ struct DashboardView: View {
         let due = ContractInstallments.allDue(allContracts, operatorID: authManager.userID)
         let drafts = myProposals.filter { $0.isInvoice && $0.invoiceStatus == .draft }
         let billedTwice = ContractInstallments.duplicates(myProposals, operatorID: authManager.userID)
+        let revisedTwice = InvoiceRevisions.revisedTwice(myProposals, operatorID: authManager.userID)
         let overpaid = Payments.overpaid(myProposals)
         let items = DashboardToday.attention(
             overdue: (overdue.count, Payments.balance(of: overdue)),
-            paymentsDue: (due.count, ContractInstallments.amountDue(due)),
+            paymentsDue: (due.count, ContractInstallments.amountDue(due, defaultTaxRate: profile?.defaultTaxRate)),
             readyToSend: (drafts.count, Payments.balance(of: drafts)),
             followUps: pipeline.filter(\.needsFollowUp).count,
             billedTwice: billedTwice.count,
+            revisedTwice: revisedTwice.count,
             overpaid: overpaid.count)
-        return Waiting(items: items, firstBilledTwice: billedTwice.first, firstOverpaid: overpaid.first)
+        return Waiting(items: items, firstBilledTwice: billedTwice.first, firstRevisedTwice: revisedTwice.first,
+                       firstOverpaid: overpaid.first)
     }
 
     // MARK: - Body
@@ -183,6 +187,9 @@ struct DashboardView: View {
                     }
                     .accessibilityLabel("Settings")
                 }
+                ToolbarItem(placement: .topBarTrailing) {
+                    HelpToolbarButton(screen: .home)
+                }
             }
         }
         .onChange(of: access.plan, initial: true) { _, plan in ProStatusBanner.reopenOnSubscribe(plan) }
@@ -202,6 +209,8 @@ struct DashboardView: View {
         }
         // Payments open as a sheet, as from an invoice's page.
         .sheet(item: $overpaidInvoice) { InvoicePaymentsView(invoice: $0) }
+        // No tips while Get Started has steps left: it's the one thing to do.
+        .onChange(of: showsGetStarted, initial: true) { _, shows in PlowRTips.update { PlowRTips.gettingStarted = shows } }
         .task {
             iCloud.watch()
             // Notifications are asked for in setup and from Get Started,
@@ -274,15 +283,22 @@ struct DashboardView: View {
 
     // MARK: - Get Started
 
+    private var checklist: FirstRun.Checklist {
+        FirstRun.checklist(profile: profile, clients: myClients.count, routes: myRoutes.count,
+                           documents: myProposals, alertsUndecided: alertsUndecided)
+    }
+
+    /// Read here, not after the page appears: a hidden card flashed up.
+    private var showsGetStarted: Bool {
+        let id = authManager.userID
+        return FirstRun.showsChecklist(completedSetup: UserDefaults.standard.bool(forKey: FirstRun.completedKey(id)),
+                                       hidden: checklistHidden || UserDefaults.standard.bool(forKey: FirstRun.checklistHiddenKey(id)),
+                                       checklist: checklist)
+    }
+
     @ViewBuilder
     private var getStarted: some View {
-        let checklist = FirstRun.checklist(profile: profile, clients: myClients.count, routes: myRoutes.count,
-                                           documents: myProposals, alertsUndecided: alertsUndecided)
-        let id = authManager.userID
-        // Read here, not after the page appears: a hidden card flashed up.
-        if FirstRun.showsChecklist(completedSetup: UserDefaults.standard.bool(forKey: FirstRun.completedKey(id)),
-                                   hidden: checklistHidden || UserDefaults.standard.bool(forKey: FirstRun.checklistHiddenKey(id)),
-                                   checklist: checklist) {
+        if showsGetStarted {
             GetStartedCard(checklist: checklist,
                            addClient: { $gate.unless(ProGate.addClient(access)) { showingAddClient = true } },
                            newRoute: {
@@ -598,6 +614,14 @@ struct DashboardView: View {
                 }
                 .buttonStyle(.plain)
             }
+        case .revisedTwice:
+            if let first = waiting.firstRevisedTwice {
+                NavigationLink { ProposalDetailView(proposal: first) } label: {
+                    attentionContent(item, symbol: PlowRSymbol.warning.name, status: .owed,
+                                     detail: InvoiceRevisions.dashboardDetail(for: first, among: myProposals))
+                }
+                .buttonStyle(.plain)
+            }
         case .overpaid:
             if let first = waiting.firstOverpaid {
                 Button { overpaidInvoice = first } label: {
@@ -631,7 +655,7 @@ struct DashboardView: View {
                 if let detail {
                     Text(detail).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
                 } else if let amount = item.amount, amount > 0 {
-                    Text(amount, format: .currency(code: "USD"))
+                    Text(Money.text(amount))
                         .font(.caption)
                         .foregroundStyle(status?.text ?? PlowRColor.inkSecondary)
                 }
@@ -652,12 +676,12 @@ struct DashboardView: View {
             StatTileRow {
                 // Outstanding opens what's owed by how late it is.
                 NavigationLink { MoneyOwedView() } label: {
-                    StatTile(value: outstandingBalance.formatted(.currency(code: "USD").precision(.fractionLength(0))),
+                    StatTile(value: Money.whole(outstandingBalance),
                              label: "Owed", status: outstandingBalance > 0 ? .owed : nil)
                 }
                 .buttonStyle(.plain)
                 NavigationLink { ClientStatsView() } label: {
-                    StatTile(value: received.formatted(.currency(code: "USD").precision(.fractionLength(0))),
+                    StatTile(value: Money.whole(received),
                              label: "In this month", status: received > 0 ? .done : nil)
                 }
                 .buttonStyle(.plain)

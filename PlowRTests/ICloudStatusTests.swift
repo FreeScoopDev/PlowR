@@ -184,6 +184,27 @@ struct ICloudStatusTests {
         #expect(status.state == .available)
     }
 
+    /// CloudKit posts its account change from its own thread: taking it must
+    /// never make that thread wait for the main thread (MainActorNotice).
+    @Test func anAccountChangeNeverWaitsForTheMainThread() async throws {
+        let s = try Setup()
+        let status = s.make()
+        status.watch()
+        try await waitUntil { s.checks == 1 }
+        let posted = PostClock()
+        let center = s.notifications
+        let poster = Thread {
+            center.post(name: .CKAccountChanged, object: nil)
+            posted.mark()
+        }
+        poster.start()
+        Thread.sleep(forTimeInterval: 0.5)          // the main thread, busy
+        let mainFreed = Date()
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(try #require(posted.at) < mainFreed)
+        try await waitUntil { s.checks == 2 }      // and the check still runs
+    }
+
     @Test func comingBackAndAccountChangesAreChecked() async throws {
         let s = try Setup()
         let status = s.make()

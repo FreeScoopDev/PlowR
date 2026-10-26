@@ -254,6 +254,23 @@ enum ServiceLog {
         Contracts.charge(of: record.lines, under: Contracts.contract(covering: record, among: contracts))
     }
 
+    /// What of a job's `charge` (ServiceLog.charge) is a per-visit contract's
+    /// own price: the line the charge adds that isn't one of the job's
+    /// services. The client's Default Discount doesn't come off it; the
+    /// contract agreed that price.
+    static func contractVisitCharge(in charge: [ServiceRecord.Line], of record: ServiceRecord) -> Double {
+        charge.filter { !record.lines.contains($0) }.reduce(0) { $0 + $1.price }
+    }
+
+    /// The client's Default Discount on a new invoice: their percent of
+    /// `discountable` (the subtotal less any contract's own price), to the cent.
+    static func clientDiscount(for client: Client, discountable: Double) -> Double {
+        let percent = DocumentDraft.clientDiscountPercent(onScreen: nil, onScreenComped: nil,
+                                                          saved: client.defaultDiscountPercent,
+                                                          savedComped: client.isComped)
+        return DocumentDraft.clientDiscount(subtotal: discountable, percent: percent)
+    }
+
     /// A job with services, none of them charged by the visit: a season or
     /// monthly contract covers all of it.
     static func isCovered(_ record: ServiceRecord, contracts: [Contract]) -> Bool {
@@ -342,12 +359,28 @@ enum ServiceLog {
         return record
     }
 
+    /// Record Services' invoice for `record`: `recording`'s lines under
+    /// `contract` (the one covering the stop), with that contract's own
+    /// price kept out of the client's discount. The screen calls only this,
+    /// so the lines and the price kept out can't disagree. nil: nothing to bill.
+    @discardableResult
+    static func invoice(_ record: ServiceRecord, recording: StopRecording, under contract: Contract?, client: Client,
+                        operatorID: String, notes: String, now: Date = .now, in context: ModelContext) -> Proposal? {
+        let lines = recording.invoiceLines(under: contract)
+        guard !lines.isEmpty else { return nil }
+        return invoice(record, lines: lines, contractCharge: recording.contractCharge(under: contract), client: client,
+                       operatorID: operatorID, notes: notes, now: now, in: context)
+    }
+
     /// A draft invoice for `record`'s work, from Record Services' lines, and
     /// the record marked as billed on it. The record's visit, if it has one,
     /// is linked to the invoice too, as Schedule → Invoice links them, so the
-    /// Schedule doesn't offer to invoice it again.
+    /// Schedule doesn't offer to invoice it again. `contractCharge`: the
+    /// per-visit contract's price among `lines` (StopRecording.contractCharge),
+    /// not discounted.
     @discardableResult
-    static func invoice(_ record: ServiceRecord, lines: [InvoiceLines.Line], client: Client, operatorID: String,
+    static func invoice(_ record: ServiceRecord, lines: [InvoiceLines.Line], contractCharge: Double,
+                        client: Client, operatorID: String,
                         notes: String, now: Date = .now, in context: ModelContext) -> Proposal {
         let items = lines.enumerated().map { index, line in
             let item = ProposalLineItem(serviceName: line.serviceName, zoneLabel: line.zoneLabel,
@@ -356,8 +389,9 @@ enum ServiceLog {
             item.lineTotal = line.lineTotal
             return item
         }
+        let subtotal = items.reduce(0) { $0 + $1.lineTotal }
         let proposal = newDraftInvoice(for: client, items: items, operatorID: operatorID, notes: notes,
-                                       now: now, in: context)
+                                       discountableSubtotal: max(0, subtotal - contractCharge), now: now, in: context)
         record.invoiceID = proposal.id.uuidString
         if let visit = scheduledVisit(record.visitID, in: context) {
             proposal.visitID = visit.id.uuidString
@@ -365,9 +399,6 @@ enum ServiceLog {
         }
         return proposal
     }
-
-    /// How long a new invoice gives to pay.
-    static let invoiceTerm: TimeInterval = 30 * 86_400
 
     /// A new document with `proposal`'s lines and terms (Duplicate). A new
     /// document, not a revision: a tax-exempt client's starts at 0%, as any
@@ -388,18 +419,26 @@ enum ServiceLog {
     }
 
     /// A new draft invoice for `client` with `items`: the next number, due in
-    /// `invoiceTerm`, the business's default terms. Record Services and Bill
+    /// `InvoiceTerms.days`, the business's default terms. Record Services and Bill
     /// Unbilled Work both make invoices through here, so they can't differ.
+    /// The client's Default Discount comes off, as on any new document, but
+    /// only off `discountableSubtotal` (nil: every item): a contract's own
+    /// price (an installment, a per-visit charge) is the one it agreed.
+    /// `taxRate` (a contract's payment, Contracts.taxRate) replaces the
+    /// business's rate and the client's exemption, already applied.
     static func newDraftInvoice(for client: Client, items: [ProposalLineItem], operatorID: String,
-                                notes: String = "", now: Date, in context: ModelContext) -> Proposal {
+                                notes: String = "", discountableSubtotal: Double? = nil, taxRate: Double? = nil,
+                                now: Date, in context: ModelContext) -> Proposal {
         let proposal = Proposal(operatorID: operatorID, client: client)
         proposal.invoiceNumber = InvoiceNumbering.next(operatorID: operatorID, in: context)
-        proposal.invoiceDueDate = now.addingTimeInterval(invoiceTerm)
+        proposal.invoiceDueDate = InvoiceTerms.dueDate(from: now)
         let profile = BusinessProfiles.current((try? context.fetch(FetchDescriptor<BusinessProfile>())) ?? [], operatorID: operatorID)
         proposal.disclaimer = profile?.defaultDisclaimer ?? ""
         // The business's sales tax, as on every new document, unless the
         // client is tax exempt.
-        proposal.taxRate = DocumentDraft.startingTaxRate(rate: profile?.defaultTaxRate, taxExempt: client.taxExempt)
+        proposal.taxRate = taxRate ?? DocumentDraft.startingTaxRate(rate: profile?.defaultTaxRate, taxExempt: client.taxExempt)
+        proposal.discountAmount = clientDiscount(
+            for: client, discountable: discountableSubtotal ?? items.reduce(0) { $0 + $1.lineTotal })
         if !notes.isEmpty { proposal.notes = notes }
         items.forEach { context.insert($0) }
         proposal.lineItems = items
@@ -437,7 +476,7 @@ enum ServiceLog {
         revision.taxRate = original.taxRate
         revision.disclaimer = original.disclaimer
         revision.notes = original.notes
-        revision.invoiceDueDate = now.addingTimeInterval(invoiceTerm)
+        revision.invoiceDueDate = InvoiceTerms.dueDate(from: now)
         let copies = original.makeLineItemCopies()
         copies.forEach { context.insert($0) }
         revision.lineItems = copies
@@ -482,18 +521,28 @@ enum ServiceLog {
     }
 
     /// Deletes `document`. The work billed on it, and a visit linked to it,
-    /// go back to the original if it's a revision whose original still
-    /// exists; otherwise the work is unbilled again and the visit can be
+    /// go to the other revision if it was revised on two devices
+    /// (`InvoiceRevisions`), or back to the original if it's a revision whose
+    /// original still exists; otherwise the work is unbilled again and the visit can be
     /// invoiced again from the Schedule.
     static func delete(_ document: Proposal, in context: ModelContext) {
-        let original = document.revisionOf.isEmpty ? nil : (try? context.fetch(FetchDescriptor<Proposal>()))?
-            .first { $0.invoiceNumber == document.revisionOf && $0.operatorID == document.operatorID
+        // Revised on two devices: the other revision replaces the original,
+        // so it takes the work, and the original stays void.
+        let otherRevision = InvoiceRevisions.otherRevision(of: document, in: context)
+            .flatMap { InvoiceRevisions.canHandOver(document, to: $0) ? $0 : nil }
+        // Two invoices can share the number (sent from two devices): the one
+        // whose void names this revision is its original.
+        let originals = document.revisionOf.isEmpty || otherRevision != nil ? []
+            : ((try? context.fetch(FetchDescriptor<Proposal>())) ?? [])
+            .filter { $0.invoiceNumber == document.revisionOf && $0.operatorID == document.operatorID
                 && $0.id != document.id }
-        let replacement = original?.id.uuidString ?? ""
+        let original = originals.first { $0.voidNote == InvoiceRecords.revisedNote(document.invoiceNumber) }
+            ?? originals.first { $0.clientID == document.clientID } ?? originals.first
+        let replacement = (otherRevision ?? original)?.id.uuidString ?? ""
         for record in billed(on: document, in: context) { record.invoiceID = replacement }
         for visit in linkedVisits(to: document, in: context) { visit.proposalID = replacement }
         // A revision taken back before it went out: its original is owed again.
-        InvoiceRecords.restoreOriginal(of: document, in: context)
+        if otherRevision == nil { InvoiceRecords.restoreOriginal(of: document, in: context) }
         context.delete(document)
     }
 
@@ -510,6 +559,57 @@ enum ServiceLog {
     }
 
     // MARK: - A client's Service History
+
+    /// The most a job's Minutes on Site can be: about a week.
+    static let maxMinutes: Double = 10_000
+
+    /// The Minutes on Site field (a job's page, Log Work): 0 when empty, the
+    /// minutes typed (whole or decimal, a decimal comma as DecimalText reads
+    /// it), or nil when it can't be read, and then the screen says so and
+    /// won't save. It used to read anything else as 0, so "45 min" or "1:30"
+    /// lost the time unseen.
+    static func readMinutes(_ typed: String, locale: Locale = .current) -> Double? {
+        let text = typed.trimmingCharacters(in: .whitespaces)
+        if text.isEmpty { return 0 }
+        guard let value = DecimalText.number(text, locale: locale), value >= 0, value < maxMinutes else { return nil }
+        return value
+    }
+
+    /// GPS's time on site (ProofOfService.timeOnSite) at each stop in one
+    /// run's records, by stop ID, from a stop's oldest record as runRecord
+    /// picks. A stop GPS didn't see both arrive and leave at is left out.
+    static func timesOnSite(_ runRecords: [ServiceRecord]) -> [UUID: TimeInterval] {
+        var result: [UUID: TimeInterval] = [:]
+        for (stopID, copies) in Dictionary(grouping: runRecords, by: \.stopID) {
+            guard let id = UUID(uuidString: stopID), let record = oldest(copies),
+                  let onSite = ProofOfService.timeOnSite(of: record) else { continue }
+            result[id] = onSite
+        }
+        return result
+    }
+
+    /// What a Minutes on Site field saves, or nil when it can't be saved.
+    /// `asLoaded`: the field as it opened, which shows `recorded` to the
+    /// whole minute; left so (or typed back), the exact `recorded` is kept.
+    /// Log Work opens empty with nothing recorded.
+    static func minutesToSave(typed: String, asLoaded: String = "", recorded: Double = 0,
+                              locale: Locale = .current) -> Double? {
+        typed == asLoaded ? recorded : readMinutes(typed, locale: locale)
+    }
+
+    /// What Minutes on Site holds for a route stop: from when it became the
+    /// current stop to when it was done, as the Service Report says.
+    static let routeMinutesNote = "For a route stop, from when it became the current stop to when it was done, so it includes travel."
+
+    /// What leaving a job's page says when it can't be saved: the prices
+    /// that can't be read, then the minutes; empty when it can be.
+    static func cantSaveMessage(unreadableFields fields: [String], minutesReadable: Bool) -> String {
+        [fields.isEmpty ? nil : DocumentDraft.unreadableMessage(fields),
+         minutesReadable ? nil : unreadableMinutesMessage]
+            .compactMap { $0 }.joined(separator: " ")
+    }
+
+    static let unreadableMinutesMessage = "Can't read Minutes on Site: type a number of minutes, such as 45."
 
     /// Work done off a route or a visit, logged from the client's Service
     /// History, at the client's address.

@@ -14,6 +14,12 @@ enum Payments {
     /// Amounts within half a cent are the same amount.
     static let tolerance = 0.005
 
+    /// Whether money came in on `invoice`: a payment, or marked paid. Of two
+    /// copies made on two devices, the one to keep (the banners' advice).
+    static func hasMoneyIn(_ invoice: Proposal) -> Bool {
+        invoice.paymentsTotal > tolerance || invoice.invoicePaidAt != nil
+    }
+
     // MARK: - Recording
 
     /// Records `amount` received on `invoice`, never dated in the future.

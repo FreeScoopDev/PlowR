@@ -91,7 +91,7 @@ struct DocumentEditsTests {
         let (doc, container) = try invoice(discount: 0, taxRate: 0, dueDate: nil)
         _ = container
         edits(for: doc, now: due).apply(to: doc)
-        #expect(doc.invoiceDueDate == due.addingTimeInterval(30 * 86400))
+        #expect(doc.invoiceDueDate == InvoiceTerms.dueDate(from: due))
     }
 
     // A proposal gets its due date when it becomes an invoice, not here.

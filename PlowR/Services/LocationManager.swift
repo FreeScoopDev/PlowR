@@ -9,6 +9,9 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
 
     var currentLocation: CLLocation?
     var authorizationStatus: CLAuthorizationStatus = .notDetermined
+    /// Approximate (Precise Location off) means no job-site areas: iOS
+    /// watches them only with precise location (RouteGPS.needsPrecise).
+    var accuracyAuthorization: CLAccuracyAuthorization = .fullAccuracy
 
     /// The route screen's GPS: the map's dot, arrival estimates, weather and
     /// the location a text can include. Only while the screen is on screen
@@ -28,6 +31,7 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
         manager.desiredAccuracy = Self.accuracy
         manager.distanceFilter = Self.distanceFilter
         authorizationStatus = manager.authorizationStatus
+        accuracyAuthorization = manager.accuracyAuthorization
     }
 
     func requestPermission() {
@@ -97,6 +101,7 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         authorizationStatus = manager.authorizationStatus
+        accuracyAuthorization = manager.accuracyAuthorization
     }
 }
 
@@ -128,5 +133,16 @@ enum RouteGPS {
     /// says so (not on a Mac, which follows no route).
     static func needsAlways(status: CLAuthorizationStatus, isMac: Bool) -> Bool {
         !isMac && status == .authorizedWhenInUse
+    }
+
+    /// Arrival and departure times need Precise Location: with approximate
+    /// location iOS watches no job-site areas, on screen or off. The route
+    /// screen says so, in place of the Always note (not on a Mac).
+    /// `areasLimited`: iOS said so itself, on an area's event
+    /// (`SiteMonitor.accuracyLimited`).
+    static func needsPrecise(status: CLAuthorizationStatus, accuracy: CLAccuracyAuthorization,
+                             areasLimited: Bool = false, isMac: Bool) -> Bool {
+        !isMac && ((status == .authorizedAlways || status == .authorizedWhenInUse) && accuracy == .reducedAccuracy
+            || areasLimited)
     }
 }

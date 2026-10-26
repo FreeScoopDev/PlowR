@@ -17,13 +17,31 @@ because GitHub Pages publishes everything else in `docs/`.
 
 | | |
 | --- | --- |
-| GitHub Actions `Tests` (`.github/workflows/tests.yml`) | Removed 2026-09-27 for Xcode Cloud's `CI Tests`. **Back 2026-10-10**, job `Unit tests (iOS)` on `macos-26`: the membership's Xcode Cloud hours ran out and every `CI Tests` run was cancelled. It runs the full scheme through the toolkit's `bin/test.sh` (pinned commit). First run 9 min (965 tests, Xcode 26.6). **Required since 2026-10-10** in place of `CI Tests`. Free on a public repo. |
+| GitHub Actions `Tests` (`.github/workflows/tests.yml`) | Removed 2026-09-27 for Xcode Cloud's `CI Tests`. **Back 2026-10-10**, job `Unit tests (iOS)` on `macos-26`: the membership's Xcode Cloud hours ran out and every `CI Tests` run was cancelled. It runs the full scheme through the toolkit's `bin/test.sh` (pinned commit). First run 9 min (965 tests, Xcode 26.6). Since 2026-10-19 each test may take 2 minutes, and the log and result bundle are uploaded when a run fails or is cancelled: a hung test had run into the job's 45 minutes with no log kept. **Required since 2026-10-10** in place of `CI Tests`. Free on a public repo. |
 | Xcode Cloud `CI Tests` | **Created 2026-09-26** (steps 1–13). Green on its first run (#7); failed a deliberate break (#8) as it should. **Retired 2026-10-10**: no longer required; its Pull Request start condition is to be removed in App Store Connect so it stops spending hours. |
 | Xcode Cloud `Release Flow` | **Created 2026-09-26** (steps 14–19). Never started yet. First used for PlowR's first Release Flow build. |
 | GitHub Actions `Critic verdict` (`.github/workflows/critic-verdict.yml`) | **Added 2026-10-09.** Fails a major PR (a `feat/` branch, or more than `criticMinLines` changed lines of Swift outside `PlowRTests`) whose description has no critic verdict, or a BLOCK one; re-runs when the description is edited. **Required since 2026-10-09**, after it posted on #127 and failed a deliberate break (#128: red with no verdict, red with BLOCK, green with APPROVE). |
 | Branch protection on `main` | **Active since 2026-09-27.** Ruleset "Protect main": no deletion, no force-push, changes only through a PR (squash merge, 0 approvals), required checks `Unit tests (iOS)` (GitHub Actions, since 2026-10-10; it replaced `PlowR \| CI Tests \| Test - iOS`), `Service-language guard` and `SwiftLint` (added 2026-09-27), and `Critic verdict` (added 2026-10-09). No bypass list. Check with `gh api repos/FreeScoopDev/PlowR/rules/branches/main`, not the settings page. |
 
 Update this table as each row changes.
+
+## When the macOS tests run
+
+Added 2026-10-25. The `Tests` workflow always starts, because `Unit tests
+(iOS)` is a required check and a workflow that never started would leave it
+pending forever. A small Linux job (`Classify changes`) decides whether the
+`macos-26` job runs; a skipped required job counts as passing.
+
+| Event | macOS tests |
+| --- | --- |
+| Push to `main` | Always run. |
+| Pull request, draft | Skipped. |
+| Pull request, ready for review, docs only | Skipped. Docs only means every changed file is under `docs/` or `changelog.d/`, or is a Markdown file. |
+| Pull request, ready for review, anything else | Run (Swift, the Xcode project, tests, assets, scripts, workflows). |
+
+To run the tests on a draft, mark the PR **ready for review**; that starts the
+run (`ready_for_review` is one of the workflow's triggers). A newer push to
+the same PR still cancels the run in progress.
 
 ## Xcode Cloud
 

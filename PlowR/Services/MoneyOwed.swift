@@ -24,13 +24,12 @@ enum MoneyOwed {
     }
 
     /// How late `invoice` is. Late means overdue as its status says it (sent,
-    /// past its due date), counted in whole days, at least one. A draft, or
-    /// one with no due date, isn't late.
+    /// past its due day, InvoiceTerms), counted in whole days, one on the day
+    /// after the due date. A draft, or one with no due date, isn't late.
     static func age(of invoice: Proposal, now: Date, calendar: Calendar = .current) -> Age {
-        guard invoice.invoiceSentAt != nil, let due = invoice.invoiceDueDate, due < now else { return .notDue }
-        let days = max(1, calendar.dateComponents([.day], from: calendar.startOfDay(for: due),
-                                                  to: calendar.startOfDay(for: now)).day ?? 1)
-        switch days {
+        guard invoice.invoiceSentAt != nil, let due = invoice.invoiceDueDate,
+              InvoiceTerms.isPastDue(due, now: now, calendar: calendar) else { return .notDue }
+        switch InvoiceTerms.daysLate(due, now: now, calendar: calendar) {
         case ...30: return .upTo30
         case ...60: return .upTo60
         case ...90: return .upTo90

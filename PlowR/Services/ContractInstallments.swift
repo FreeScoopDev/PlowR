@@ -82,9 +82,14 @@ enum ContractInstallments {
         }
     }
 
-    /// What `due` comes to, to the cent: the Dashboard's contract payments due.
-    static func amountDue(_ due: [(contract: Contract, installment: Installment)]) -> Double {
-        InvoiceLines.roundedToCent(due.reduce(0) { $0 + $1.installment.amount })
+    /// What `due` comes to, to the cent, with the tax each invoice will add
+    /// (Contracts.billed): the Dashboard's contract payments due.
+    /// `defaultTaxRate` is the business's.
+    static func amountDue(_ due: [(contract: Contract, installment: Installment)], defaultTaxRate: Double?) -> Double {
+        InvoiceLines.roundedToCent(due.reduce(0) {
+            $0 + Contracts.billed($1.installment.amount,
+                                  taxRate: Contracts.taxRate(of: $1.contract, defaultRate: defaultTaxRate))
+        })
     }
 
     /// Every payment due across this business's contracts.
@@ -104,7 +109,13 @@ enum ContractInstallments {
         let item = ProposalLineItem(serviceName: title(of: installment, in: contract, calendar: calendar), zoneLabel: "",
                                     quantity: 1, unitType: "flat", unitPrice: installment.amount, sortOrder: 0, itemNotes: "")
         item.lineTotal = installment.amount
+        // The contract's agreed price: no Default Discount on top of it, and
+        // its own tax rate, as its PDF and the Dashboard said.
+        let profiles = (try? context.fetch(FetchDescriptor<BusinessProfile>())) ?? []
+        let profile = BusinessProfiles.current(profiles, operatorID: contract.operatorID)
         let invoice = ServiceLog.newDraftInvoice(for: client, items: [item], operatorID: contract.operatorID,
+                                                discountableSubtotal: 0,
+                                                taxRate: Contracts.taxRate(of: contract, defaultRate: profile?.defaultTaxRate),
                                                 now: now, in: context)
         invoice.invoiceDueDate = nil
         invoice.contractID = contract.id.uuidString
@@ -159,8 +170,7 @@ enum ContractInstallments {
     /// copy no money came in on, so a client who paid isn't asked again.
     static func duplicateAdvice(for invoice: Proposal, other: Proposal) -> String {
         let lead = "Another invoice also bills this contract payment: they were made on two devices before they synced."
-        func paid(_ p: Proposal) -> Bool { p.paymentsTotal > Payments.tolerance || p.invoicePaidAt != nil }
-        switch (paid(invoice), paid(other)) {
+        switch (Payments.hasMoneyIn(invoice), Payments.hasMoneyIn(other)) {
         case (true, false):
             return "\(lead) This one has a payment: delete or void the other one."
         case (false, true):

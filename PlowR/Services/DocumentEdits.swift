@@ -24,20 +24,33 @@ nonisolated struct DocumentEdits {
         openedDiscountText = discount > 0 ? String(format: "%.2f", discount) : ""
         openedTaxRateText = taxRate > 0 ? Proposal.percentText(taxRate) : ""
         // An invoice without a due date shows one 30 days out, and saving keeps it.
-        openedDueDate = dueDate ?? now.addingTimeInterval(30 * 86400)
+        openedDueDate = dueDate ?? InvoiceTerms.dueDate(from: now)
         discountText = openedDiscountText
         taxRateText = openedTaxRateText
         self.dueDate = openedDueDate
     }
 
-    /// The discount typed, or nil if the field is as it opened.
+    /// The discount typed, or nil if the field is as it opened or can't be
+    /// read (the stored discount stays; the screen says so).
     var typedDiscount: Double? {
-        discountText == openedDiscountText ? nil : max(0, InvoiceLines.price(typed: discountText, default: 0))
+        guard discountText != openedDiscountText, !discountUnreadable else { return nil }
+        return max(0, InvoiceLines.price(typed: discountText, default: 0))
     }
 
-    /// The tax rate typed, in percent, or nil if the field is as it opened.
+    /// The discount typed can't be read.
+    var discountUnreadable: Bool { discountText != openedDiscountText && InvoiceLines.isUnreadable(discountText) }
+    /// The tax rate typed isn't a rate from 0 to 100.
+    var taxUnreadable: Bool { taxRateText != openedTaxRateText && Proposal.readTaxRate(taxRateText) == nil }
+
+    /// The tax rate typed, in percent, or nil if the field is as it opened or
+    /// isn't a rate from 0 to 100 (the stored rate stays; the screen says so).
     var typedTaxRate: Double? {
-        taxRateText == openedTaxRateText ? nil : Proposal.taxRate(typed: taxRateText)
+        taxRateText == openedTaxRateText ? nil : Proposal.readTaxRate(taxRateText)
+    }
+
+    /// The fields typed that can't be read, as the screen names them. They aren't saved.
+    var unreadableFields: [String] {
+        (discountUnreadable ? ["Discount"] : []) + (taxUnreadable ? ["Tax"] : [])
     }
 }
 

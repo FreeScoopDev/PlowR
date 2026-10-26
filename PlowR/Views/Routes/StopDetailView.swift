@@ -209,6 +209,7 @@ struct StopDetailView: View {
         stop.equipmentNotes = equipmentNotes
         stop.targetMinutes = targetMinutes
         try? modelContext.save()
+        PlowRTips.done(StopServicesTip(), StopServicesTip.servicesSaved)
         dismiss()
     }
 }

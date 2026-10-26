@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import TipKit
 import MapKit
 import CoreLocation
 import MessageUI
@@ -59,6 +60,7 @@ struct EditClientView: View {
     @State private var showingProposalBuilder = false
     @State private var showingInvoiceBuilder = false
     @State private var showingAddVisit = false
+    @State private var showingServiceReport = false
     @State private var propertySheet: PropertySheet?
     @State private var showingNewContract = false
     @State private var showingMessageComposer = false
@@ -81,6 +83,9 @@ struct EditClientView: View {
     private var hasUnsavedChanges: Bool { draft != ClientDraft(client) }
 
     // MARK: - Body
+
+    /// The Service Report's tip, above Service History.
+    @State private var tips = TipGroup(.ordered) { ServiceReportTip() }
 
     var body: some View {
         Form {
@@ -112,6 +117,12 @@ struct EditClientView: View {
                 .listRowBackground(PlowRColor.surface)
             }
             otherPropertiesSection
+            if let tip = tips.currentTip {
+                Section {
+                    TipView(tip)
+                }
+                .listRowBackground(PlowRColor.surface)
+            }
             historySection
             contractsSection
             scheduleSection
@@ -127,6 +138,8 @@ struct EditClientView: View {
         .navigationBarTitleDisplayMode(.inline)
         .asksBeforeLeaving(hasChanges: hasUnsavedChanges, isBusy: isSaving, canSave: draft.canSave,
                            message: draft.unsavedMessage(comparedWith: ClientDraft(client)),
+                           // Without a name and a phone number there's nothing to save.
+                           cantSaveMessage: "A client needs a name and a phone number to be saved.",
                            save: { $gate.unless(ProGate.edit(access)) { save() } }, discard: { dismiss() })
         // The client changed underneath (Schedule making them active again, an
         // edit synced from another device): fields not edited here follow.
@@ -175,10 +188,12 @@ struct EditClientView: View {
             ProposalEditView(proposal: proposal)
         }
         .sheet(isPresented: $showingProposalBuilder) {
-            NavigationStack { ProposalBuilderView(client: client, isInvoiceMode: false, taxExempt: draft.taxExempt) }
+            NavigationStack { ProposalBuilderView(client: client, isInvoiceMode: false, taxExempt: draft.taxExempt,
+                                                   discountPercent: draft.defaultDiscountPercent, comped: draft.isComped) }
         }
         .sheet(isPresented: $showingInvoiceBuilder) {
-            NavigationStack { ProposalBuilderView(client: client, isInvoiceMode: true, taxExempt: draft.taxExempt) }
+            NavigationStack { ProposalBuilderView(client: client, isInvoiceMode: true, taxExempt: draft.taxExempt,
+                                                   discountPercent: draft.defaultDiscountPercent, comped: draft.isComped) }
         }
         .sheet(isPresented: $showingNewContract) {
             ContractEditView(client: client, contract: nil)
@@ -189,6 +204,15 @@ struct EditClientView: View {
         .sheet(isPresented: $showingAddVisit) {
             AddVisitView(client: client)
         }
+        .sheet(isPresented: $showingServiceReport) {
+            ProofOfServiceView(client: client)
+        }
+        // The Service Report's tip waits for a visit GPS saw arrive.
+        .task(id: client.id) {
+            let has = PlowRTips.hasArrivals(clientID: client.id.uuidString, in: modelContext)
+            PlowRTips.update { PlowRTips.clientHasArrivals = has }
+        }
+        .onDisappear { PlowRTips.update { PlowRTips.clientHasArrivals = false } }
         .sheet(isPresented: $showingMessageComposer) {
             if !draft.phone.isEmpty {
                 // A plain text doesn't make the client "Awaiting Response":
@@ -738,6 +762,12 @@ struct EditClientView: View {
             } label: {
                 Label("Timeline", systemImage: "clock")
             }
+            // The Service Report (PlowR Pro), here as well as in All Work.
+            Button {
+                $gate.unless(ProGate.serviceReport(access)) { showingServiceReport = true }
+            } label: {
+                Label("Service Report", systemImage: PlowRSymbol.serviceReport.name)
+            }
             if client.totalVisits == 0 {
                 Text("No route visits recorded yet")
                     .foregroundStyle(.secondary)
@@ -766,14 +796,14 @@ struct EditClientView: View {
                 }
                 if totalRevenuePaid > 0 {
                     LabeledContent("Revenue Collected") {
-                        Text(totalRevenuePaid, format: .currency(code: "USD"))
+                        Text(Money.text(totalRevenuePaid))
                             .foregroundStyle(PlowRColor.Status.done.text)
                     }
                 }
             }
             if outstandingBalance > 0 {
                 LabeledContent("Outstanding Balance") {
-                    Text(outstandingBalance, format: .currency(code: "USD"))
+                    Text(Money.text(outstandingBalance))
                         .foregroundStyle(PlowRColor.Status.owed.text)        // outstanding, as everywhere
                         .fontWeight(.semibold)
                 }
@@ -1045,7 +1075,7 @@ struct EditClientView: View {
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 6) {
-                Text(String(format: "$%.2f", document.total))
+                Text(Money.text(document.total))
                     .font(.subheadline)
                     .fontWeight(.semibold)
                 BalanceDueCaption(document: document)
@@ -1117,7 +1147,7 @@ struct EditClientView: View {
         let safe = client.name.replacingOccurrences(of: "/", with: "-")
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("\(prefix)-\(safe)-\(proposal.id.uuidString.prefix(6)).pdf")
-        try? data.write(to: url)
+        try? data.write(to: url, options: .completeFileProtection)
         documentShare = DocumentShare(proposal: proposal, url: url)
     }
 

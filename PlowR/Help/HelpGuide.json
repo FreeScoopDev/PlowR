@@ -1,0 +1,428 @@
+{
+  "title": "PlowR Help",
+  "lede": "Tips and how-tos for running your routes, clients and day.",
+  "description": "How to use PlowR: setting up your business, adding clients, building routes with expected services, running a route and texting clients, tips and common questions.",
+  "web": "https://getplowr.app/help.html",
+  "sections": [
+    {
+      "id": "start",
+      "title": "Getting started",
+      "nav": "Getting started",
+      "style": "cards",
+      "intro": "PlowR has five tabs: Home, Clients, Routes, Documents and Schedule. Settings is the gear at the top of Home.",
+      "topics": [
+        {
+          "id": "set-up-business",
+          "title": "Set up your business",
+          "summary": "Your name, logo, services, prices and tax rate, in about a minute.",
+          "screens": ["home", "settings"],
+          "shots": [
+            { "file": "start-how-will-you-be-using.jpg", "alt": "How will you be using PlowR?" },
+            { "file": "start-welcome-to-plowr-setup.jpg", "alt": "Welcome to PlowR setup" },
+            { "file": "start-what-do-you-do.jpg", "alt": "What do you do?" },
+            { "file": "start-home-get-started-card.jpg", "alt": "Home, Get Started card" }
+          ],
+          "steps": [
+            "Choose **I run a service business**, then sign in with Apple.",
+            "Enter your **Business name** and add your logo. It goes on your proposals and invoices.",
+            "Under **What do you do?**, pick Snow Removal, Lawn Care, Cleanup, or any mix. PlowR adds the usual services and prices, which you can change later.",
+            "Enter your **Default tax rate (%)**.",
+            "Turn on **Alerts** and **Your location** if you'd like them. Every step has **Skip**.",
+            "On Home, the **Get Started** card walks you through your first client, route and invoice."
+          ],
+          "note": "PlowR is free for up to 10 active clients and one route, for as long as you like. PlowR Pro adds unlimited clients and routes, Service Reports, storm tools, client import and a Request Link. Items marked [PRO] need it."
+        }
+      ]
+    },
+    {
+      "id": "clients",
+      "title": "Adding clients",
+      "nav": "Adding clients",
+      "style": "cards",
+      "intro": "Add clients one at a time, bring in a whole list, or let new customers come to you.",
+      "topics": [
+        {
+          "id": "add-client",
+          "title": "Add a client",
+          "summary": "Name, phone and address; the rest goes on the client's page.",
+          "screens": ["clients"],
+          "shots": [
+            { "file": "clients-clients-tab-menu.jpg", "alt": "Clients tab, + menu" },
+            { "file": "clients-new-client-form.jpg", "alt": "New Client form" },
+            { "file": "clients-client-page.jpg", "alt": "client page" }
+          ],
+          "steps": [
+            "Open the **Clients** tab, tap **+**, and choose **Add Manually**.",
+            "Enter their **Full Name** and **Phone Number**, and an email if you have one. Or tap **Import Contact** to fill it in from your Contacts.",
+            "Type the **Street Address** and pick the match. PlowR pins it on the map.",
+            "Tap **Save**.",
+            "On the client's page, add the rest: tags, notes, **Expected Services**, billing preferences, **Tax Exempt**, route notes, and other properties."
+          ],
+          "note": "Tip: set a client's **Expected Services** once and every route they're on starts with them."
+        },
+        {
+          "id": "import-clients",
+          "title": "Bring in your whole list",
+          "summary": "Import clients from a spreadsheet saved as a CSV file.",
+          "screens": ["clients", "settings"],
+          "pro": true,
+          "shots": [
+            { "file": "clients-import-from-spreadsheet.jpg", "alt": "Import from Spreadsheet" },
+            { "file": "clients-import-preview.jpg", "alt": "import preview" }
+          ],
+          "steps": [
+            "Save your list as a CSV file. Numbers, Excel and Google Sheets can all do this.",
+            "In **Clients**, tap **+** → **Import from Spreadsheet**, then **Choose a CSV File**.",
+            "Check what PlowR will add, then save. An import can be undone."
+          ],
+          "note": "On a device with a camera you can also use **Scan with Camera**.",
+          "tips": [
+            { "id": "tip-import-clients", "title": "Bring in your list", "message": "Tap **+** and **Import from Spreadsheet** to add many clients at once." }
+          ]
+        },
+        {
+          "id": "request-link",
+          "title": "Let new customers find you",
+          "summary": "Share your Request Link; each request becomes a lead.",
+          "screens": ["clients", "settings"],
+          "pro": true,
+          "shots": [
+            { "file": "clients-request-link-screen.jpg", "alt": "Request Link screen" },
+            { "file": "clients-new-lead-from-a-request.jpg", "alt": "New Lead from a request" }
+          ],
+          "steps": [
+            "Go to **Settings → Business → Request Link**.",
+            "Share it however suits you: **Copy Link**, **Share Link**, a QR code for a flyer or truck, or **Text to a Client**.",
+            "When someone sends a request, you get a text. Tap **Add to PlowR**, check the details, and tap **Save Lead**."
+          ],
+          "tips": [
+            { "id": "tip-pipeline", "title": "Keep track of leads", "message": "**Pipeline** shows who's quoted and who needs a follow-up." },
+            { "id": "tip-request-link", "title": "Let customers find you", "message": "Share your **Request Link** on a flyer or your truck; each request becomes a lead." }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "routes",
+      "title": "Building a route with expected services",
+      "nav": "Building a route",
+      "style": "cards",
+      "intro": "A route is your list of stops in order, with the services each stop needs.",
+      "topics": [
+        {
+          "id": "create-route",
+          "title": "Create a route",
+          "summary": "Name it, add stops, and put them in order.",
+          "screens": ["routes", "routeDetail"],
+          "tips": [
+            { "id": "tip-optimize-order", "title": "Let PlowR order your stops", "message": "Tap **⋯** and **Optimize Order** for the shortest drive between stops." }
+          ],
+          "shots": [
+            { "file": "routes-new-route-sheet.jpg", "alt": "New Route sheet" },
+            { "file": "routes-add-stops-client-picker.jpg", "alt": "Add Stops client picker" },
+            { "file": "routes-route-page.jpg", "alt": "route page" }
+          ],
+          "steps": [
+            "Open the **Routes** tab and tap **+**.",
+            "Give it a **Route Name**, like \"Monday North Side\".",
+            "Tap **Add Stop**, choose clients from **Your Clients** (or **Enter Manually** for a one-time stop), then tap **Done**.",
+            "Drag stops into the order you want, and tap **Save**.",
+            "Or let PlowR order them: on the route page, tap **⋯** → **Optimize Order**."
+          ]
+        },
+        {
+          "id": "stop-services",
+          "title": "Set the services each stop needs",
+          "summary": "Expected services, stop notes and equipment, on one route or all.",
+          "screens": ["routeDetail"],
+          "tips": [
+            { "id": "tip-stop-services", "title": "Set what each stop needs", "message": "Tap a stop to switch on the services it needs." },
+            { "id": "tip-skip-today", "title": "Skipping a stop today?", "message": "Swipe a stop right and tap **Skip Today** to leave it out of this run." }
+          ],
+          "shots": [
+            { "file": "routes-stop-sheet-expected-services.jpg", "alt": "Stop sheet, Expected Services" },
+            { "file": "routes-only-on-this-route-choice.jpg", "alt": "Only on This Route choice" }
+          ],
+          "steps": [
+            "On the route page, tap a stop.",
+            "Under **Expected Services**, switch on what the stop needs. Add stop notes and equipment if useful.",
+            "Tap **Save**, then choose **Only on This Route** or **On All Routes From Now On**."
+          ],
+          "note": "Your list of services and prices lives in **Settings → Service Catalog**. Skipping a stop just for today? Swipe it and tap **Skip Today**."
+        },
+        {
+          "id": "repeat-visits",
+          "title": "Optional: set up repeating visits",
+          "summary": "Visits that repeat on a schedule, like a weekly mow.",
+          "screens": ["schedule"],
+          "lead": "For clients you serve on a regular schedule, like a weekly mow. Routes don't repeat on their own; repeating visits live in Schedule.",
+          "shots": [
+            { "file": "routes-schedule-tab.jpg", "alt": "Schedule tab" },
+            { "file": "routes-add-visit-recurrence.jpg", "alt": "Add Visit, Recurrence" }
+          ],
+          "steps": [
+            "Open the **Schedule** tab and tap **+**.",
+            "In **Add Visit**, choose the **Client** and the **Date**.",
+            "Under **Recurrence**, turn on **Repeat** and pick a **Frequency**: Daily, Weekly, Every 2 Weeks or Monthly. For Weekly, choose the days.",
+            "Turn on **End Date** if the work stops at the end of a season, then tap **Add**."
+          ],
+          "note": "Want visits on your iPhone calendar too? Turn on **Settings → Calendar → Add Visits to Calendar**.",
+          "tips": [
+            { "id": "tip-repeat-visit", "title": "Same work every week?", "message": "Turn on **Repeat** for weekly or monthly visits." },
+            { "id": "tip-route-from-day", "title": "Route a busy day", "message": "Tap **Create Route** to turn this day's visits into a route." }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "run",
+      "title": "Running a route and texting clients",
+      "nav": "Running a route",
+      "style": "cards",
+      "intro": "Work through your stops one by one, record what you did, and keep clients in the loop.",
+      "topics": [
+        {
+          "id": "run-route",
+          "title": "Start and work your route",
+          "summary": "Navigate, record services, complete each stop, and end with a recap.",
+          "screens": ["routeDetail", "home"],
+          "tips": [
+            { "id": "tip-record-services", "title": "Record what you did", "message": "Tap **Record Services** to add photos, services and notes for this stop." }
+          ],
+          "shots": [
+            { "file": "run-start-route-on-home.jpg", "alt": "Start Route on Home" },
+            { "file": "run-route-screen-current-stop.jpg", "alt": "route screen, current stop" },
+            { "file": "run-record-services.jpg", "alt": "Record Services" }
+          ],
+          "steps": [
+            "Tap **Start Route** on the route page or on Home's Today card.",
+            "Tap **Navigate** to get directions in Apple Maps, Google Maps or Waze.",
+            "At the stop, tap **Record Services** to add before and after photos, the services done (**Add Expected** fills them in), and notes. Then **Save**.",
+            "Tap **Complete · Text Next Client** to finish the stop and move on. (It says **Complete Stop** when there's no one to text.)",
+            "After the last stop, tap **Review & End Route** to see the **Route Recap**, then **End Route**."
+          ],
+          "note": "Set Location to **Always** so PlowR records arrival and departure times even when the app is closed."
+        },
+        {
+          "id": "notify-next",
+          "title": "Let the next client know you're coming",
+          "summary": "A ready text with your arrival time, sent from your own Messages.",
+          "screens": ["routeDetail"],
+          "shots": [
+            { "file": "run-notify-next-client.jpg", "alt": "The text prompt for the next client, with quick add-ons, a custom note, the location link switch and a message preview" },
+            { "file": "run-messages-compose.jpg", "alt": "Messages compose" }
+          ],
+          "steps": [
+            "When you complete a stop, PlowR offers **Notify Next Client?** with a ready message: \"I'm on my way and about N minutes out.\"",
+            "Add a quick note if you need one, like Running Late, Weather Delay or Gate / Access, or type your own.",
+            "Turn on **Include my location link** if you want them to see where you are.",
+            "Tap **Send Message**. It goes from your own Messages app. Or tap **Skip**."
+          ],
+          "note": "Client doesn't want texts? Turn on **Skip arrival message prompt** on their page."
+        },
+        {
+          "id": "message-all",
+          "title": "Message everyone on the route",
+          "summary": "One message to every client on today's route.",
+          "screens": ["routeDetail"],
+          "steps": [
+            "Before you leave, open the route and tap **⋯** → **Message All Clients**. During a route, tap **Message All**.",
+            "Pick a preset (Coming Today, On My Way, Running Late, Weather Delay, Almost Done) or write your own.",
+            "Choose **Send Individually** (recommended) or a group text."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "money",
+      "title": "Getting paid",
+      "nav": "Getting paid",
+      "style": "cards",
+      "intro": "Bill the work you've done, remind clients who owe, and make paying you easy.",
+      "topics": [
+        {
+          "id": "bill-work",
+          "title": "Bill your unbilled work",
+          "summary": "A draft invoice for every client's recorded jobs, at once.",
+          "screens": ["documents"],
+          "steps": [
+            "Open **Documents**, tap **+**, and choose **Bill Unbilled Work**.",
+            "Choose **This Month**, **Last Month** or **All Unbilled**. Untick any client you're not billing yet.",
+            "Tap **Create Draft Invoices** (it shows how many and the total). Each client gets one draft, a line per service done, with its day.",
+            "Check each draft in **Documents**, then send it."
+          ],
+          "tips": [
+            { "id": "tip-bill-work", "title": "Bill everyone at once", "message": "Tap **+** and **Bill Unbilled Work** for a draft invoice per client." }
+          ]
+        },
+        {
+          "id": "payment-reminders",
+          "title": "Remind a client to pay",
+          "summary": "A friendly text with the amount owed and the due date.",
+          "screens": ["documents"],
+          "steps": [
+            "In **Documents**, touch and hold a sent invoice and tap **Send Reminder**, or open the invoice and tap **Remind**.",
+            "PlowR writes the text with the amount and due date; you send it from Messages."
+          ],
+          "note": "It needs the client's phone number and a device that can send texts. An invoice is overdue from the day after its due date; overdue invoices show in red, and Home counts them.",
+          "tips": [
+            { "id": "tip-reminder", "title": "Nudge a late payer", "message": "Touch and hold an overdue invoice and tap **Send Reminder**." }
+          ]
+        },
+        {
+          "id": "payment-methods",
+          "title": "Make paying you easy",
+          "summary": "Payment links and handles printed on every invoice.",
+          "screens": ["documents", "settings"],
+          "steps": [
+            "Go to **Settings → Payment Methods** and tap **+**.",
+            "Add how you take payment: a Venmo, PayPal, Square or Cash App link, a Zelle handle, check or cash.",
+            "Your invoices list them. A payment link also prints as a code your client can scan to pay."
+          ],
+          "tips": [
+            { "id": "tip-payment-methods", "title": "Get paid faster", "message": "Add a payment link in **Settings → Payment Methods**; invoices print a code to scan and pay." }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tips",
+      "title": "Quick tips",
+      "nav": "Quick tips",
+      "style": "tips",
+      "topics": [
+        {
+          "id": "siri",
+          "title": "Hands-free with Siri",
+          "emoji": "🗣️",
+          "summary": "\"Complete current stop in PlowR\" or \"Notify next client in PlowR\".",
+          "screens": ["routeDetail"],
+          "tips": [
+            { "id": "tip-siri", "title": "Finish stops hands-free", "message": "Ask Siri to complete the current stop in PlowR, or add **Complete Current Stop** to Control Center." }
+          ]
+        },
+        {
+          "id": "control-center",
+          "title": "Control Center",
+          "emoji": "🎛️",
+          "summary": "Add Complete Current Stop to Control Center to finish a stop in one tap.",
+          "screens": ["routeDetail"]
+        },
+        {
+          "id": "widget",
+          "title": "Today's Route widget",
+          "emoji": "📱",
+          "summary": "See your progress and next stop on your Home Screen.",
+          "screens": ["routes", "home"],
+          "tips": [
+            { "id": "tip-widget", "title": "Your route at a glance", "message": "Add the **Today's Route** widget to your Home Screen to see your next stop." }
+          ]
+        },
+        {
+          "id": "lock-screen",
+          "title": "Lock Screen",
+          "emoji": "🔒",
+          "summary": "Your route's progress shows on the Lock Screen while it runs.",
+          "screens": ["routes"]
+        },
+        {
+          "id": "storm-card",
+          "title": "Storm card",
+          "emoji": "❄️",
+          "summary": "When a storm's forecast reaches a contract's trigger, Home offers to text those clients.",
+          "screens": ["home"],
+          "pro": true,
+          "snowOnly": true,
+          "tips": [
+            { "id": "tip-storm-text", "title": "Tell clients about the storm", "message": "Tap **Text Clients Whose Trigger It Reaches** to let them know." }
+          ]
+        },
+        {
+          "id": "service-report",
+          "title": "Service Report",
+          "emoji": "📄",
+          "summary": "Arrival and departure times, timed photos and weather for each visit, as a PDF for a client or insurer.",
+          "screens": ["clients"],
+          "pro": true,
+          "tips": [
+            { "id": "tip-service-report", "title": "Show the work was done", "message": "Tap **Service Report** for a PDF of each visit's times, photos and weather." }
+          ]
+        },
+        {
+          "id": "calendar",
+          "title": "Your calendar",
+          "emoji": "📅",
+          "summary": "Settings → Calendar → Add Visits to Calendar keeps a PlowR calendar in step.",
+          "screens": ["schedule", "settings"]
+        },
+        {
+          "id": "export-data",
+          "title": "Export your data",
+          "emoji": "💾",
+          "summary": "Settings → Business → Export Data makes spreadsheets of everything. Share All sends them together.",
+          "screens": ["settings"]
+        }
+      ]
+    },
+    {
+      "id": "faq",
+      "title": "FAQ & troubleshooting",
+      "nav": "FAQ",
+      "style": "faq",
+      "outro": "More answers on the [Support](https://getplowr.app/support.html) page, or write to [support@getplowr.app](mailto:support@getplowr.app).",
+      "topics": [
+        {
+          "id": "why-always-location",
+          "title": "Why does PlowR ask for Always location?",
+          "summary": "So it can record when you arrive at and leave each stop, and offer the next client's text, even with the app closed. With While Using, times are only recorded while PlowR is on screen.",
+          "screens": ["routeDetail", "settings"]
+        },
+        {
+          "id": "pro-ends",
+          "title": "What happens if my Pro subscription ends?",
+          "summary": "Nothing is deleted. With 10 or fewer active clients you're back on the free tier. With more, PlowR is read only: you can still view, export and record payments, and subscribing again unlocks everything.",
+          "screens": ["settings"]
+        },
+        {
+          "id": "client-limit",
+          "title": "I hit the 10-client limit",
+          "summary": "Clients you mark inactive don't count. Or try PlowR Pro for unlimited clients and routes.",
+          "screens": ["clients"]
+        },
+        {
+          "id": "sync",
+          "title": "My data isn't on my other device",
+          "summary": "Check both devices are signed in to the same Apple ID with iCloud on for PlowR. Settings → Data & Backup shows whether iCloud is working.",
+          "screens": ["settings"]
+        },
+        {
+          "id": "client-mode",
+          "title": "Can a client use PlowR too?",
+          "summary": "Yes. Choosing \"I'm looking for services\" lets people find businesses near them and request work.",
+          "screens": ["settings"]
+        }
+      ]
+    },
+    {
+      "id": "new",
+      "title": "What's new",
+      "nav": "What's new",
+      "style": "release",
+      "topics": [
+        {
+          "id": "release-1-7",
+          "title": "PlowR 1.7: first release",
+          "summary": "A one-minute setup, a Get Started checklist, a new Home and route screen, and a fresh look.",
+          "screens": [],
+          "bullets": [
+            "A one-minute setup: name, logo, services and prices, tax rate and alerts. Every step can be skipped.",
+            "A Get Started checklist on Home walks you to your first client, route and invoice.",
+            "A new Home that puts today first: today's route, what needs you, money owed and money in.",
+            "A route screen built for gloves and a glance, with a big Complete Stop button.",
+            "A fresh look, with a matching widget and Live Activity."
+          ]
+        }
+      ]
+    }
+  ]
+}

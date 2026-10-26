@@ -128,7 +128,7 @@ struct StopServiceRecorderView: View {
         case .season, .monthly:
             "The services it covers aren't billed by the visit, and aren't put on an invoice from here. Others are billed as extras."
         case .perVisit:
-            "The services it covers are billed at \(contract.price.formatted(.currency(code: "USD"))) a visit, here and in Bill Unbilled Work."
+            "The services it covers are billed at \(Money.text(contract.price)) a visit, here and in Bill Unbilled Work."
         }
     }
 
@@ -225,7 +225,7 @@ struct StopServiceRecorderView: View {
                             .disabled(invoiceLines.isEmpty)
                         }
                     }
-                    .disabled(client == nil || !hasAnythingToSave)
+                    .disabled(client == nil || !hasAnythingToSave || !recording.unreadableFields(locked: servicesLocked).isEmpty)
                 }
             }
             .sheet(isPresented: $showingCamera) {
@@ -393,15 +393,15 @@ struct StopServiceRecorderView: View {
         }
 
         // Billed as its contract says: nothing for work it covers, its price per visit.
-        let lines = invoiceLines
-        if choice != .none, ServiceLog.invoice(of: record, in: modelContext) == nil, !lines.isEmpty {
-            let proposal = ServiceLog.invoice(record, lines: lines, client: client,
-                                              operatorID: operatorID, notes: notes, in: modelContext)
+        if choice != .none, ServiceLog.invoice(of: record, in: modelContext) == nil,
+           let proposal = ServiceLog.invoice(record, recording: recording, under: coveringContract(client),
+                                             client: client, operatorID: operatorID, notes: notes, in: modelContext) {
             if choice == .sent {
                 DocumentSent.markSent(proposal, in: modelContext)
             }
         }
         UINotificationFeedbackGenerator().notificationOccurred(.success)
+        PlowRTips.done(RecordServicesTip(), RecordServicesTip.servicesRecorded)
         dismiss()
     }
 }

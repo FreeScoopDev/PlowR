@@ -26,6 +26,10 @@ final class Contract {
     var price: Double = 0
     /// How many payments a season price is split into (1: all up front).
     var installments: Int = 1
+    /// The sales tax its payments are charged, before a tax-exempt client's
+    /// exemption: the rate of the proposal it was made from. Nil: the
+    /// business's rate at the time (Contracts.taxRate).
+    var taxRate: Double?
     /// Visits it books itself: weekdays (1 = Sunday … 7 = Saturday), every
     /// `scheduleIntervalWeeks` weeks. None: it books nothing.
     var scheduleWeekdays: [Int] = []

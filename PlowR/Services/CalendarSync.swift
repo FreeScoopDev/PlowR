@@ -61,9 +61,10 @@ final class CalendarSync {
 
     func configure(context: ModelContext) {
         self.context = context
+        // Never making the poster wait (MainActorNotice).
         for name in [ModelContext.didSave, Notification.Name.NSPersistentStoreRemoteChange] {
-            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self?.scheduleSync() }
+            NotificationCenter.default.addObserver(forName: name, object: nil, queue: nil) { [weak self] _ in
+                MainActorNotice.run { [weak self] in self?.scheduleSync() }
             }
         }
     }

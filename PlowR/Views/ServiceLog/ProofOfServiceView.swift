@@ -48,6 +48,11 @@ struct ProofOfServiceView: View {
     }
 
     var body: some View {
+        report
+            .onAppear { PlowRTips.done(ServiceReportTip(), ServiceReportTip.reportOpened) }
+    }
+
+    private var report: some View {
         NavigationStack {
             Form {
                 if places.count > 1 {
@@ -168,6 +173,6 @@ struct ProofOfServiceView: View {
                                       weather: weather)
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent(ProofOfService.fileName(client: client, period: snapshot.period))
-        if (try? data.write(to: url)) != nil { pdfURL = url }
+        if (try? data.write(to: url, options: .completeFileProtection)) != nil { pdfURL = url }
     }
 }

@@ -1,4 +1,5 @@
 import SwiftUI
+import TipKit
 import SwiftData
 import MapKit
 import CoreLocation
@@ -9,6 +10,8 @@ import MessageUI
 /// owns the route: this view can appear, disappear or be torn down with the app
 /// without starting, ending or losing the route.
 struct ActiveRouteView: View {
+    /// The route screen's one tip, on the first route (RouteTips).
+    private let recordServicesTip = RecordServicesTip()
     let route: PlowRoute
     @Environment(ActiveRouteStore.self) private var store
     @Environment(\.access) private var access
@@ -85,6 +88,7 @@ struct ActiveRouteView: View {
         showingFirstStopPrompt || showingNotifyPrompt || textOnlyStop != nil || recorderStop != nil || showingMassMessage
             || belowTriggerStop != nil || showingBelowTriggerChangedAlert
             || showingRouteRecap || showingNavPicker || showingRouteChangedAlert || showingLocationDeniedAlert
+            || gate != nil
     }
 
     /// The names of the active services `stop` is expected to need.
@@ -195,9 +199,19 @@ struct ActiveRouteView: View {
     /// Location on While Using: GPS works on screen, but job-site arrivals
     /// and departures (and the offer to text the next client) need Always.
     private var alwaysLocationNote: some View {
+        locationNote("Arrival and departure times are recorded only while PlowR is on screen. Set Location to Always to record them with the app closed.",
+                     settingsLabel: "Open Settings to set Location to Always")
+    }
+
+    /// Approximate location: iOS watches no job-site areas (RouteGPS.needsPrecise).
+    private var preciseLocationNote: some View {
+        locationNote("Arrival and departure times aren't recorded: Precise Location is off for PlowR. Turn it on in Settings to record them.",
+                     settingsLabel: "Open Settings to turn on Precise Location")
+    }
+
+    private func locationNote(_ text: String, settingsLabel: String) -> some View {
         HStack(alignment: .top, spacing: 8) {
-            Label("Arrival and departure times are recorded only while PlowR is on screen. Set Location to Always to record them with the app closed.",
-                  systemImage: "location.circle")
+            Label(text, systemImage: "location.circle")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             Spacer(minLength: 0)
@@ -210,7 +224,7 @@ struct ActiveRouteView: View {
                     .frame(minWidth: 44, minHeight: 44)
                     .contentShape(Rectangle())
             }
-            .accessibilityLabel("Open Settings to set Location to Always")
+            .accessibilityLabel(settingsLabel)
         }
         .padding(.horizontal)
         .padding(.vertical, 8)
@@ -233,7 +247,11 @@ struct ActiveRouteView: View {
                             .padding(.horizontal)
                             .padding(.vertical, 8)
                     }
-                    if RouteGPS.needsAlways(status: locationManager.authorizationStatus, isMac: OnMac.isMac) {
+                    if RouteGPS.needsPrecise(status: locationManager.authorizationStatus,
+                                             accuracy: locationManager.accuracyAuthorization,
+                                             areasLimited: SiteMonitor.shared.accuracyLimited, isMac: OnMac.isMac) {
+                        preciseLocationNote
+                    } else if RouteGPS.needsAlways(status: locationManager.authorizationStatus, isMac: OnMac.isMac) {
                         alwaysLocationNote
                     }
                     VStack(spacing: PlowRLayout.space3) {
@@ -311,12 +329,10 @@ struct ActiveRouteView: View {
         // No GPS to fetch weather for (a Mac, location off): the stops' own.
         // Keyed by stop only to retry a fetch that failed.
         .task(id: currentStop?.id) { await fetchWeatherWithoutGPS() }
-        .onChange(of: SiteMonitor.shared.lastExit) { _, exit in
-            guard let exit,
-                  let stop = currentStop,
-                  stop.id.uuidString == exit.stopID else { return }
-            triggerNotifyPrompt()
-        }
+        // Leaving the stop's area only offers the text, once the phone has
+        // stayed out (ExitPrompt); it never completes the stop. A newer exit
+        // restarts the wait.
+        .task(id: SiteMonitor.shared.lastExit) { await offerTextAfterExit() }
         // Siri's "Notify next client", once nothing else is up.
         .onChange(of: RouteSessionManager.shared.textRequest) { _, _ in openRequestedText() }
         .onChange(of: isPresentingSomething) { _, _ in openRequestedText() }
@@ -724,6 +740,12 @@ struct ActiveRouteView: View {
                 }
             }
 
+            // The first route only, inline under the button it's about:
+            // never over Complete Stop (RouteTips).
+            if !stop.isCustomStop {
+                TipView(recordServicesTip)
+            }
+
             // A contract with a snow trigger in force today: less may have
             // fallen here than the forecast said.
             if belowTrigger(for: stop) != nil {
@@ -955,6 +977,26 @@ struct ActiveRouteView: View {
         }
     }
 
+    /// After the phone left the current stop's area: the text to the next
+    /// client, offered once it has stayed out (ExitPrompt). Opens the prompt
+    /// and nothing else: leaving never completes a stop.
+    private func offerTextAfterExit() async {
+        guard let exit = SiteMonitor.shared.lastExit else { return }
+        let wait = ExitPrompt.delay - Date().timeIntervalSince(exit.time)
+        if wait > 0 {
+            do { try await Task.sleep(for: .seconds(wait)) } catch { return }
+        }
+        // A next stop with no number can't be texted, as the first stop's prompt says.
+        let canText = !shouldSkipNextNotify && !(nextStop?.clientPhone.isEmpty ?? true)
+        guard ExitPrompt.shouldOffer(exitStopID: exit.stopID, exitedAt: exit.time,
+                                     currentStopID: currentStop?.id, site: store.site,
+                                     hasNextStop: nextStop != nil, canText: canText,
+                                     isPresentingSomething: isPresentingSomething, now: Date()) else { return }
+        openNotifyPrompt()
+    }
+
+    /// The Complete button only: a tap. Leaving the stop's area goes to
+    /// `openNotifyPrompt` instead, and never completes a stop.
     private func triggerNotifyPrompt() {
         // Nothing to notify on the last stop or once every stop is done (it
         // used to open an empty sheet then).

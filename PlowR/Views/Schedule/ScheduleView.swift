@@ -1,13 +1,17 @@
 import SwiftUI
 import SwiftData
+import TipKit
 import UIKit
 import CoreLocation
 
 struct ScheduleView: View {
     @Environment(AuthManager.self) private var authManager
     @Environment(\.access) private var access
+    @Environment(\.dynamicTypeSize) private var typeSize
     @Query private var allRoutes: [PlowRoute]
     @State private var gate: ProGate?
+    /// Create Route's tip, above a busy day.
+    @State private var dayTips = TipGroup(.firstAvailable) { RouteFromDayTip() }
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \ScheduledVisit.scheduledDate) private var allVisits: [ScheduledVisit]
     @Query private var allClients: [Client]
@@ -32,6 +36,18 @@ struct ScheduleView: View {
         myVisits
             .filter { Calendar.current.isDate($0.scheduledDate, inSameDayAs: selectedDate) }
             .sorted { $0.scheduledDate < $1.scheduledDate }
+    }
+
+    /// The chosen day's scheduled client visits, what Create Route turns into stops.
+    private var scheduledClientVisits: [ScheduledVisit] {
+        visitsForSelectedDate.filter { $0.status == .scheduled && !$0.clientID.isEmpty }
+    }
+
+    /// For Create Route's tip: the day's visits, or 0 when Create Route would
+    /// open the paywall.
+    private var routeFromDayCount: Int {
+        PlowRTips.routeFromDayCount(scheduledClientVisits.count, access: access, routes: allRoutes,
+                                    operatorID: authManager.userID)
     }
 
     private var overduePending: [ScheduledVisit] {
@@ -72,11 +88,24 @@ struct ScheduleView: View {
                 weatherSection
                 calendarSection
                 if Calendar.current.isDateInToday(selectedDate) { overdueSection }
+                if let tip = dayTips.currentTip {
+                    Section {
+                        TipView(tip)
+                    }
+                    .listRowBackground(PlowRColor.surface)
+                }
                 daySection
                 if !upcomingVisits.isEmpty { upcomingSection }
             }
             .plowRGrouped()
             .listStyle(.insetGrouped)
+            // Create Route's tip waits for a day with a few visits.
+            .onChange(of: routeFromDayCount, initial: true) { _, count in
+                PlowRTips.update { PlowRTips.dayVisitCount = count }
+            }
+            // Back from another tab or a visit: onChange doesn't fire again.
+            .onAppear { PlowRTips.update { PlowRTips.dayVisitCount = routeFromDayCount } }
+            .onDisappear { PlowRTips.update { PlowRTips.dayVisitCount = 0 } }
             .navigationTitle("Schedule")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
@@ -84,6 +113,9 @@ struct ScheduleView: View {
                     Button { showingAddVisit = true } label: {
                         Image(systemName: "plus")
                     }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    HelpToolbarButton(screen: .schedule)
                 }
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Today") { selectedDate = Date() }
@@ -201,13 +233,15 @@ struct ScheduleView: View {
                 }
             }
         } header: {
-            HStack {
+            // At accessibility sizes the day and Create Route stack: side by
+            // side they were squeezed to one letter a line.
+            (typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: PlowRLayout.space2))
+                                          : AnyLayout(HStackLayout())) {
                 Label(selectedDate.formatted(.dateTime.weekday(.wide).month(.wide).day()), systemImage: "calendar")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.primary)
                     .textCase(nil)
-                Spacer()
-                let scheduledClientVisits = visitsForSelectedDate.filter { $0.status == .scheduled && !$0.clientID.isEmpty }
+                if !typeSize.isAccessibilitySize { Spacer() }
                 if !scheduledClientVisits.isEmpty {
                     Button {
                         $gate.unless(ProGate.createRoute(access, routes: allRoutes, operatorID: authManager.userID)) {
@@ -279,9 +313,14 @@ struct ScheduleView: View {
     // MARK: - Row Views
 
     private func visitRow(_ visit: ScheduledVisit) -> some View {
-        HStack(spacing: 12) {
+        // At accessibility sizes the status chips go under the details: beside
+        // them the client's name was squeezed to one letter a line.
+        let stacked = typeSize.isAccessibilitySize
+        return HStack(spacing: 12) {
             AccentBar(status: visit.status.chipStatus)
 
+            (stacked ? AnyLayout(VStackLayout(alignment: .leading, spacing: PlowRLayout.space2))
+                     : AnyLayout(HStackLayout(spacing: 12))) {
             VStack(alignment: .leading, spacing: 3) {
                 Text(visit.clientName)
                     .font(.subheadline.weight(.semibold))
@@ -303,9 +342,9 @@ struct ScheduleView: View {
                 }
             }
 
-            Spacer()
+            if !stacked { Spacer() }
 
-            VStack(alignment: .trailing, spacing: 4) {
+            VStack(alignment: stacked ? .leading : .trailing, spacing: 4) {
                 StatusChip(visit.status.rawValue, systemImage: visit.status.systemImage,
                            status: visit.status.chipStatus)
                 if !visit.proposalID.isEmpty {
@@ -315,6 +354,7 @@ struct ScheduleView: View {
                     StatusChip("After Hours", systemImage: "moon.fill", status: .neutral)
                 }
             }
+            }
         }
         .padding(.vertical, 4)
     }
@@ -323,7 +363,8 @@ struct ScheduleView: View {
         Button {
             selectedDate = visit.scheduledDate
         } label: {
-            HStack(spacing: 12) {
+            (typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: PlowRLayout.space2))
+                                          : AnyLayout(HStackLayout(spacing: 12))) {
                 VStack(spacing: 1) {
                     Text(visit.scheduledDate.formatted(.dateTime.month(.abbreviated)))
                         .font(.caption2.weight(.semibold))
@@ -332,7 +373,7 @@ struct ScheduleView: View {
                         .font(.title3.weight(.bold))
                         .foregroundStyle(PlowRColor.brand)
                 }
-                .frame(width: 36)
+                .frame(minWidth: 36)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(visit.clientName)
@@ -352,7 +393,7 @@ struct ScheduleView: View {
                     }
                 }
 
-                Spacer()
+                if !typeSize.isAccessibilitySize { Spacer() }
 
                 if !visit.proposalID.isEmpty {
                     Image(systemName: "doc.text.fill")
@@ -360,9 +401,11 @@ struct ScheduleView: View {
                         .foregroundStyle(PlowRColor.Status.done.text)
                 }
 
-                Image(systemName: "chevron.right")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.tertiary)
+                if !typeSize.isAccessibilitySize {
+                    Image(systemName: "chevron.right")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                }
             }
             .foregroundStyle(.primary)
         }
@@ -395,6 +438,7 @@ struct ScheduleView: View {
         }
         createdRouteName = name
         showingRouteCreated = true
+        PlowRTips.done(RouteFromDayTip(), RouteFromDayTip.routeMade)
     }
 
     /// What Create Route did, including any visits it left off.
@@ -591,17 +635,18 @@ private struct WeatherBannerRow: View {
     private func forecastCell(_ day: DayForecast) -> some View {
         VStack(spacing: 3) {
             Text(day.date, format: .dateTime.weekday(.abbreviated))
-                .font(.system(size: 9, weight: .semibold))
+                .font(.caption2.weight(.semibold))
                 .foregroundStyle(.secondary)
             Image(systemName: day.symbolName)
                 .font(.subheadline)
                 .foregroundStyle(WeatherKind(day.description).iconColor)
             if day.hasSignificantPrecip {
                 Text(String(format: "%.1f\"", day.precipitationMm / 25.4))
-                    .font(.system(size: 8))
+                    .font(.caption2)
                     .foregroundStyle(PlowRColor.brand)
             } else {
-                Color.clear.frame(height: 10)
+                // As tall as the precipitation line, at any text size.
+                Text(verbatim: "0.0\"").font(.caption2).hidden()
             }
             Text("\(Int(day.maxTempF))°")
                 .font(.caption.weight(.semibold))
