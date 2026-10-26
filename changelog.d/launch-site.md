@@ -4,3 +4,4 @@
 ### Added
 - A "snow plow and snow removal business app" page on getplowr.app (`snow-removal.html`), in plain words, so a plow operator searching for one finds a page that answers them: what PlowR does before, during and after a storm, and what it doesn't (the storm card is a forecast, not a measurement at each property).
 - `robots.txt` and `sitemap.xml` for getplowr.app, and a description on every page that lacked one, so search engines can find and summarise the site. The request pages (`r/`, `lead/`) stay out of the sitemap and keep `noindex`: each holds one business's or one prospect's details.
+- The support page no longer has a "Does PlowR work on a Mac?" question, until the Mac version is ready to be advertised.
