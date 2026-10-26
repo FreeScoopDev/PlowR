@@ -5,3 +5,5 @@
   bare URL.
 - The support page's base rules moved into a shared stylesheet
   (`docs/assets/site.css`) instead of sitting inline.
+- The snow removal page has the same favicon and link-preview tags as the
+  homepage, so a shared link to it also shows PlowR's icon.
