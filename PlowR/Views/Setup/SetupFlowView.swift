@@ -6,8 +6,10 @@ import UserNotifications
 
 /// First-run setup for a new business (FirstRun): the business, what it
 /// does, its sales tax, alerts and location (each asked with why), then
-/// what's free and what PlowR Pro adds. Every step can be skipped; Finish or
-/// Skip on the last step saves what was given and opens the app.
+/// what's free and what PlowR Pro adds. Every step can be skipped except the
+/// alerts step: its Continue always goes on to the system's permission
+/// requests (App Review 5.1.1(iv)), and the answer to those is the user's.
+/// Finish or Skip on the last step saves what was given and opens the app.
 struct SetupFlowView: View {
     @Environment(AuthManager.self) private var authManager
     @Environment(\.modelContext) private var modelContext
@@ -26,6 +28,8 @@ struct SetupFlowView: View {
     /// (an earlier subscriber can't): decides the Pro step's wording.
     @State private var trialLength: String?
     @State private var showingPaywall = false
+    /// The alerts step is asking: Continue waits for the system's answers.
+    @State private var asking = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -160,17 +164,13 @@ struct SetupFlowView: View {
 
     private var alertsStep: some View {
         VStack(alignment: .leading, spacing: PlowRLayout.space4) {
-            heading("Stay a step ahead", "Two things PlowR can do for you. You can change either in the Settings app.")
+            heading("Stay a step ahead", "Two things PlowR can do for you. Continue asks for each; you can change either in the Settings app.")
             permissionRow(symbol: "bell.badge.fill", title: "Alerts",
                           detail: "A heads-up the evening before bad weather is forecast, and a reminder when an invoice goes overdue.",
-                          state: permissions?.notifications ?? .undecided) {
-                Task { await permissions?.askForNotifications() }
-            }
+                          state: permissions?.notifications ?? .undecided)
             permissionRow(symbol: "location.fill", title: "Your location",
                           detail: "Today's weather on Home, and arrival times to your stops when you run a route.",
-                          state: permissions?.location ?? .undecided) {
-                permissions?.askForLocation()
-            }
+                          state: permissions?.location ?? .undecided)
         }
     }
 
@@ -230,6 +230,20 @@ struct SetupFlowView: View {
                 Button("Not Now") { finish() }
                     .font(.body.weight(.semibold))
                     .frame(minHeight: PlowRLayout.minTapTarget)
+            } else if step == .alerts {
+                // No Skip here: this explains the requests that follow, and
+                // always goes on to them. Declining is the system dialog's.
+                Button {
+                    guard !asking else { return }
+                    asking = true
+                    Task {
+                        await permissions?.askForAll()
+                        asking = false
+                        advance()
+                    }
+                } label: { Text("Continue") }
+                    .buttonStyle(.plowRAction)
+                    .disabled(asking)
             } else {
                 Button { advance() } label: { Text("Continue") }
                     .buttonStyle(.plowRAction)
@@ -272,7 +286,7 @@ struct SetupFlowView: View {
     }
 
     private func permissionRow(symbol: String, title: String, detail: String,
-                               state: SetupPermissions.State, ask: @escaping () -> Void) -> some View {
+                               state: SetupPermissions.State) -> some View {
         PlowRCard {
             HStack(alignment: .top, spacing: PlowRLayout.space3) {
                 IconBadge(systemImage: symbol, size: 40)
@@ -284,7 +298,7 @@ struct SetupFlowView: View {
                         .fixedSize(horizontal: false, vertical: true)
                     switch state {
                     case .undecided:
-                        Button("Turn On", action: ask).plowRProminent()
+                        EmptyView()
                     case .allowed:
                         StatusChip("On", systemImage: PlowRSymbol.complete.name, status: .done)
                     case .declined:
@@ -332,6 +346,7 @@ final class SetupPermissions: NSObject, CLLocationManagerDelegate {
     var notifications: State = .undecided
     var location: State = .undecided
     private let manager = CLLocationManager()
+    private var answered: CheckedContinuation<Void, Never>?
 
     override init() {
         super.init()
@@ -350,13 +365,47 @@ final class SetupPermissions: NSObject, CLLocationManagerDelegate {
         await refresh()
     }
 
-    func askForLocation() {
-        manager.requestWhenInUseAuthorization()
+    /// Which requests Continue makes: what is still undecided, alerts first.
+    enum Request { case notifications, location }
+
+    nonisolated static func requests(notifications: State, location: State) -> [Request] {
+        (notifications == .undecided ? [.notifications] : [])
+            + (location == .undecided ? [.location] : [])
+    }
+
+    /// The alerts step's Continue: each system request still to be made, one
+    /// after the other, returning once the user has answered the last.
+    func askForAll() async {
+        await refresh()
+        for request in Self.requests(notifications: notifications, location: location) {
+            switch request {
+            case .notifications: await askForNotifications()
+            case .location: await askForLocation()
+            }
+        }
+    }
+
+    /// Returns once the system's dialog is answered.
+    func askForLocation() async {
+        // Nothing would answer if Location Services are off or the app isn't
+        // in front (iOS drops the request), and Continue would wait forever.
+        guard answered == nil, manager.authorizationStatus == .notDetermined,
+              UIApplication.shared.applicationState == .active,
+              await Task.detached(operation: { CLLocationManager.locationServicesEnabled() }).value
+        else { return }
+        guard manager.authorizationStatus == .notDetermined else { return }
+        await withCheckedContinuation { answered = $0; manager.requestWhenInUseAuthorization() }
     }
 
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         let status = manager.authorizationStatus
-        Task { @MainActor in self.location = Self.state(status) }
+        Task { @MainActor in
+            self.location = Self.state(status)
+            if status != .notDetermined {
+                self.answered?.resume()
+                self.answered = nil
+            }
+        }
     }
 
     nonisolated static func state(_ status: UNAuthorizationStatus) -> State {
