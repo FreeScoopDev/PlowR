@@ -5,8 +5,8 @@
 # cancelled before it started, so nothing could merge until the period
 # resets. The repository is public, so GitHub-hosted runners are free, macOS
 # included. Xcode Cloud keeps Release Flow (TestFlight and App Store builds).
-# This job reports alongside `CI Tests` first; it replaces it as the required
-# check only once its run time is known (docs/ci.md).
+# This job is the required check (`Unit tests (iOS)`) in place of `CI Tests`
+# since 2026-10-10 (docs/ci.md).
 #
 # What runs: the PlowR scheme's tests through the shared toolkit's
 # bin/test.sh at one pinned toolkit commit, so CI and a local scripts/test.sh

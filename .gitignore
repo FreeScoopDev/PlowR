@@ -89,3 +89,7 @@ Temporary Items
 # toolkit config (.claude/app.json) is the one tracked file.
 .claude/*
 !.claude/app.json
+
+# Python bytecode (a tracked one held a local account name and folder path)
+__pycache__/
+*.pyc

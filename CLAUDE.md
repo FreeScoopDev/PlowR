@@ -1,7 +1,7 @@
 # PlowR — project memory
 
 Read this first. It exists so each session doesn't re-derive the same facts.
-Written 2026-09-10, refreshed 2026-09-26. Correct it when it goes stale — a
+Written 2026-09-10, refreshed 2026-11-03. Correct it when it goes stale — a
 wrong note is worse than none.
 
 **This repo is public.** Nothing goes into a commit, a PR description or this
@@ -460,7 +460,6 @@ PlowR's specifics:
   runs. `docs/ci.md` has the workflow settings and setup steps.
 - **GitHub Pages** deploys `docs/` to getplowr.app on every push to `main`;
   `docs/_config.yml` keeps `ci.md` off the site.
-- **Tracking** lives in Notion (the PlowR app page in Joe's workspace).
 
 Run the tests locally before pushing:
 
