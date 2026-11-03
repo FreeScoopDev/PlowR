@@ -3,9 +3,10 @@
 Written 2026-09-26. Correct it when it goes stale.
 
 Xcode Cloud is configured in App Store Connect and **cannot be expressed as a
-file in this repo**. Xcode Cloud has no workflow-as-code format. Without this
-document, the definition of what gates `main` lives in one web UI and nowhere
-else.
+file in this repo**. Xcode Cloud has no workflow-as-code format, so this
+document records its settings. Since 2026-10-10 what gates `main` is GitHub
+Actions (`.github/workflows/`, see the Status table); Xcode Cloud keeps only
+`Release Flow`.
 
 This repo is public, so this file holds settings only. It has no account IDs,
 no links into App Store Connect, and no internal channel or tool references
@@ -52,7 +53,10 @@ Two workflows, both on `https://github.com/FreeScoopDev/PlowR.git` /
 app.** Keep PR runs to the unit tests (plus a short UI smoke suite once one
 exists) and keep one change per PR.
 
-### `CI Tests` — the workflow that will gate `main`
+### `CI Tests` — retired 2026-10-10
+
+Kept as a record, and for re-creating it if Xcode Cloud hours allow. It no
+longer gates `main`: GitHub Actions `Unit tests (iOS)` does.
 
 | | |
 | --- | --- |
