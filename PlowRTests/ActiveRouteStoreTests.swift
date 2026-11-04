@@ -82,10 +82,12 @@ struct ActiveRouteStoreTests {
 
         /// A store as the app would build one at launch: same defaults and data.
         func makeStore(_ surfaces: FakeRouteSurfaces = FakeRouteSurfaces(), sites: SiteWatching = NoSiteWatching(),
-                       fetchRoutes: ((ModelContext) throws -> [PlowRoute])? = nil) -> ActiveRouteStore {
+                       fetchRoutes: ((ModelContext) throws -> [PlowRoute])? = nil,
+                       save: ((ModelContext) throws -> Void)? = nil) -> ActiveRouteStore {
             let store = ActiveRouteStore(defaults: defaults, surfaces: surfaces, sites: sites,
                                          now: { [unowned self] in clock },
-                                         fetchRoutes: fetchRoutes ?? { try $0.fetch(FetchDescriptor<PlowRoute>()) })
+                                         fetchRoutes: fetchRoutes ?? { try $0.fetch(FetchDescriptor<PlowRoute>()) },
+                                         save: save ?? { try $0.save() })
             store.configure(context: context)
             return store
         }

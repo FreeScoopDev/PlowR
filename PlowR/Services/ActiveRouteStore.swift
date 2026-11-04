@@ -1,5 +1,6 @@
 import CoreData
 import Foundation
+import OSLog
 import SwiftData
 
 /// The one place an in-progress route lives.
@@ -102,19 +103,23 @@ final class ActiveRouteStore {
     private let sites: SiteWatching
     private let now: () -> Date
     private let fetchRoutes: (ModelContext) throws -> [PlowRoute]
+    private let save: (ModelContext) throws -> Void
+    private static let log = Logger(subsystem: "Scoops.PlowR", category: "ActiveRouteStore")
     static let checkpointKey = "activeRouteCheckpoint"
 
     init(defaults: UserDefaults = .standard,
          surfaces: RouteSurfaces = SystemRouteSurfaces(),
          sites: SiteWatching = NoSiteWatching(),
          now: @escaping () -> Date = Date.init,
-         fetchRoutes: @escaping (ModelContext) throws -> [PlowRoute] = { try $0.fetch(FetchDescriptor<PlowRoute>()) }) {
+         fetchRoutes: @escaping (ModelContext) throws -> [PlowRoute] = { try $0.fetch(FetchDescriptor<PlowRoute>()) },
+         save: @escaping (ModelContext) throws -> Void = { try $0.save() }) {
         self.defaults = defaults
         self.surfaces = surfaces
         self.sites = sites
         departures = SiteDepartures.load(from: defaults)
         self.now = now
         self.fetchRoutes = fetchRoutes
+        self.save = save
     }
 
     // MARK: - Derived
@@ -336,8 +341,12 @@ final class ActiveRouteStore {
         if time.timeIntervalSince(pending.completedAt) <= SiteDepartures.window, let context,
            let record = ServiceLog.runRecord(run: pending.runID, stop: pending.stopID, in: context) {
             record.leftAt = time
-            // Saved now: iOS woke the app in the background for this.
-            try? context.save()
+            // Saved now: iOS woke the app in the background for this. If it
+            // fails, the time stays on the record in memory for the next save
+            // (no second exit comes for this stop), and the failure is logged.
+            do { try save(context) } catch {
+                Self.log.error("Departure not saved: \(error.localizedDescription, privacy: .public)")
+            }
         }
         updateSites()
     }
