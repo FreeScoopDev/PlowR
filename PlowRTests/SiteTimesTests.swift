@@ -193,6 +193,24 @@ struct SiteTimesTests {
         #expect(other.departures.isEmpty)
     }
 
+    @Test func aDepartureWhoseSaveFailsStaysOnTheRecordForTheNextSave() throws {
+        struct SaveFailed: Error {}
+        let h = try Harness(stopCount: 1)
+        pin(h)
+        let store = h.makeStore(save: { _ in throw SaveFailed() })
+        store.start(h.route)
+        let run = try #require(store.runID)
+        let stop = h.route.sortedStops[0]
+        store.completeShownStop()
+        let completed = h.clock
+
+        // The save fails: the time is on the record in memory (the next
+        // save, or the context's own, writes it) and nothing is awaited.
+        store.siteExited(id(stop), at: completed + 120)
+        #expect(try #require(ServiceLog.runRecord(run: run, stop: stop.id, in: h.context)).leftAt == completed + 120)
+        #expect(store.departures.isEmpty)
+    }
+
     @Test func aWindowEndsTheWatchToo() throws {
         let h = try Harness(stopCount: 1)
         pin(h)
