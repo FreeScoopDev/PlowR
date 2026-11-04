@@ -39,7 +39,7 @@ struct AccountEraserTests {
                            "notifyIncludeLocation", "operatorName", ActiveRouteStore.checkpointKey,
                            CalendarSync.enabledKey, CalendarSync.seenKey, CalendarSync.removalOwedKey,
                            EventKitVisitCalendarStore.calendarIDKey, SiteEvents.placedKey,
-                           SiteEvents.accessKey]
+                           SiteEvents.accessKey, SiteDepartures.key]
 
         let container: ModelContainer
         let context: ModelContext
