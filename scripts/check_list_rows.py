@@ -3,7 +3,7 @@
 .plowRGrouped() (the page colour behind it), and every Section, and every
 ForEach sitting straight in a List, gets .listRowBackground(PlowRColor.surface)
 (the card colour). Sections in a Menu, Picker, context menu or dialog are
-skipped. A missed one only shows in dark mode, as a grey card among green.
+skipped. A missed one only shows in dark mode, as a system grey card among graphite ones.
 
   python3 scripts/check_list_rows.py --check FILES   # the guard: lists what's missing
   python3 scripts/check_list_rows.py FILES           # adds what's missing
