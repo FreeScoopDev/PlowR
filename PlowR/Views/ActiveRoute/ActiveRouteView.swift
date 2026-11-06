@@ -502,9 +502,9 @@ struct ActiveRouteView: View {
         }
     }
 
-    // The driver: forest green, the brand. The pins use the same colors as
+    // The driver: the brand. The pins use the same colors as
     // the rest of the route: copper for where you're going now, outlined
-    // green for what's ahead (RouteDetailView's pins follow in its own PR).
+    // brand for what's ahead (RouteDetailView's pins follow in its own PR).
     private var driverAnnotationView: some View {
         ZStack {
             Circle()

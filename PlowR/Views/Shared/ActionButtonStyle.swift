@@ -3,9 +3,9 @@ import SwiftUI
 // MARK: - 1.7 design (Evergreen & Copper)
 
 extension View {
-    /// Apple's prominent button in the brand green, its label in the colour
-    /// made for text on the brand (`onBrand`): white in light mode, deep
-    /// green on the pale sage of dark mode, where a white label was
+    /// Apple's prominent button in the brand colour, its label in the colour
+    /// made for text on the brand (`onBrand`): white in light mode, dark
+    /// graphite on the pale sage of dark mode, where a white label was
     /// unreadable (1.75:1). For a button that isn't the screen's one main
     /// action; that one is `.plowRAction`.
     func plowRProminent() -> some View {

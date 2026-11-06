@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// A symbol in a softly tinted rounded square: a row's or a tile's icon.
-/// Forest green (the brand), or a status's colours when the row is about
+/// The brand, or a status's colours when the row is about
 /// one (`PlowRColor.Status`: owed, overdue…). The client page's quick
 /// actions use the same look at 48 points.
 struct IconBadge: View {

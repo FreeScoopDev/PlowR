@@ -92,7 +92,7 @@ nonisolated extension PlowRColor {
     static let onBrandUIColor = adaptive(0xFFFFFF, 0x121416)
 
     /// Copper: the one main action on a screen (Complete Stop, Resume Route,
-    /// Invoice). Brighter in dark mode, so it stays the brightest thing there.
+    /// Invoice). Its filled, warm block is what stands out on a neutral dark screen.
     static let actionUIColor = adaptive(0xA85A22, 0xD98B47)
     static let onActionUIColor = adaptive(0xFFFFFF, 0x1C0E03)
     /// A copper-tinted background, and the text that goes on it.
