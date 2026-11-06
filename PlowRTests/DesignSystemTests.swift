@@ -28,10 +28,10 @@ struct DesignSystemTests {
         }
     }
 
-    // The app's tint is the brand forest green in both appearances (1.7).
+    // The app's tint is the brand: forest green in light, muted sage in dark.
     // Pinned by value, so a change to the tint of the whole app shows up here
     // instead of passing silently.
-    @Test func accentIsTheBrandGreen() {
+    @Test func accentIsTheBrand() {
         let light = PlowRColor.accentUIColor.resolvedColor(with: UITraitCollection(userInterfaceStyle: .light))
         let dark = PlowRColor.accentUIColor.resolvedColor(with: UITraitCollection(userInterfaceStyle: .dark))
         func rgb(_ color: UIColor) -> [CGFloat] {
@@ -42,7 +42,7 @@ struct DesignSystemTests {
         for (actual, want) in zip(rgb(light), [0x1F, 0x4D, 0x3A].map { CGFloat($0) / 255 }) {
             #expect(abs(actual - want) <= 0.001)
         }
-        for (actual, want) in zip(rgb(dark), [0x9C, 0xCF, 0xB3].map { CGFloat($0) / 255 }) {
+        for (actual, want) in zip(rgb(dark), [0xB2, 0xC8, 0xBA].map { CGFloat($0) / 255 }) {
             #expect(abs(actual - want) <= 0.001)
         }
     }

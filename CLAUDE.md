@@ -350,7 +350,7 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   path list, and without `-e` a grep that finds nothing hides a failure).
   Snow-only features go in their own files.
 - **Colours come from `PlowR/DesignSystem.swift`** (`PlowRColor`). The accent is
-  the brand forest green since 1.7 (`PlowRColor.accent` = `brand`, applied
+  the brand since 1.7: forest green in light mode, muted sage in dark (`PlowRColor.accent` = `brand`, applied
   once with `.tint()` in `PlowRApp`; the asset catalog's AccentColor holds the
   same two colours, so `Color.accentColor` matches). Navy remains only for a
   business's own documents: `navyUIColor` (PDFs), `navyHex`
@@ -368,7 +368,7 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   pipeline stages say theirs with `chipStatus`. Main buttons are
   `.plowRAction` (copper), `.plowRSecondary`, and `.plowRProminent()` (the
   system's prominent button with a label readable on the brand; never
-  `.white` on the accent, which is pale green in dark mode); cards are
+  `.white` on the accent, which is pale sage in dark mode); cards are
   `PlowRCard`. Every List and Form takes `.plowRGrouped()` and every
   Section (and ForEach straight in a List) `.listRowBackground(PlowRColor.surface)`:
   the guard step "List rows check" (`scripts/check_list_rows.py --check`)
@@ -380,7 +380,7 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   a Barlow screen heading goes in the content, as the route screen does.
   **1.7 design (Evergreen & Copper, Joe 2026-10-10):** the tokens screens move
   to are in the same file: surfaces (`ground`, `surface`, `raised`, `line`),
-  text (`ink`, `inkSecondary`), `brand` (forest green), `action` (copper, the
+  text (`ink`, `inkSecondary`), `brand` (forest green; muted sage in dark), `action` (copper, the
   one main action per screen), `PlowRColor.Status` (done, scheduled, owed,
   overdue, lead, void: fill, soft, text) and `PlowRColor.Service` (snow, lawn,
   landscaping); `PlowRFont` roles (Barlow headings, numbers and buttons,
@@ -388,6 +388,8 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   `space1`, `2`, `3`, `4`, `6` (4–24 pt, no 20) and tap targets; `PlowRSymbol`,
   one SF Symbol per idea (no snow symbol: snow-only icons stay with snow-only
   features; `check_symbols.py` checks its cases). `DesignTokensTests` checks
+  that dark surfaces stay neutral graphite (Joe, 2026-11-06: no green cast, and
+  the sage brand stays apart from the done green), and
   every text token on every surface at 4.5:1 in light and dark: a new token
   goes in its lists. Screens move over one PR at a
   time; until then they keep the older colors.
