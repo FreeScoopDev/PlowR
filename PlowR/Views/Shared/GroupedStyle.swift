@@ -37,7 +37,10 @@ extension Section where Parent == SectionTitle, Footer == EmptyView, Content: Vi
         self.init(content: content, header: { SectionTitle(title) })
     }
 
-    /// For a title that is a String variable rather than a literal.
+    /// For a title that is a String variable rather than a literal. Disfavoured,
+    /// as SwiftUI's own StringProtocol inits are, so a literal still takes the
+    /// LocalizedStringKey init above (localizable, markdown) instead of this one.
+    @_disfavoredOverload
     init<S: StringProtocol>(title: S, @ViewBuilder content: () -> Content) {
         self.init(content: content, header: { SectionTitle(verbatim: title) })
     }

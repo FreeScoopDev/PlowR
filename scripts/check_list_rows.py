@@ -190,9 +190,11 @@ def main(argv):
     if check:
         for line in missing: print(line)
         if missing:
-            print('A bare Section("...") gets iOS\'s pale grey title: write Section(title: "...") { } instead.')
-            print('Every List/Form needs .plowRGrouped(), and every Section (and every ForEach straight in a List) '
-                  '.listRowBackground(PlowRColor.surface): fix with python3 scripts/check_list_rows.py $(find PlowR/Views -name "*.swift")')
+            if any('without title:' in m for m in missing):
+                print('A bare Section("...") gets iOS\'s pale grey title: write Section(title: "...") { } instead.')
+            if any('without title:' not in m for m in missing):
+                print('Every List/Form needs .plowRGrouped(), and every Section (and every ForEach straight in a List) '
+                      '.listRowBackground(PlowRColor.surface): fix with python3 scripts/check_list_rows.py $(find PlowR/Views -name "*.swift")')
             return 1
         print('List rows check passed.')
     return 0
