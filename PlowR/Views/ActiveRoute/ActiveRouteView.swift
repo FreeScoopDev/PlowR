@@ -19,6 +19,7 @@ struct ActiveRouteView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.requestReview) private var requestReview
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     @Query private var allClients: [Client]
     @Query private var allServices: [ServiceItem]
@@ -451,11 +452,15 @@ struct ActiveRouteView: View {
     /// or a bar on a long route, where segments would be slivers.
     private var progressHeader: some View {
         VStack(alignment: .leading, spacing: PlowRLayout.space2) {
-            HStack(alignment: .firstTextBaseline) {
+            // Large text: "N done" goes under "Stop N of M", not beside it.
+            let headerLayout = typeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2))
+                : AnyLayout(HStackLayout(alignment: .firstTextBaseline))
+            headerLayout {
                 Text("Stop \(min(currentStopIndex + 1, sortedStops.count)) of \(sortedStops.count)")
                     .font(PlowRFont.number)
                     .monospacedDigit()
-                Spacer()
+                if !typeSize.isAccessibilitySize { Spacer() }
                 Text("\(min(currentStopIndex, sortedStops.count)) done")
                     .font(.subheadline)
                     .monospacedDigit()
@@ -512,7 +517,7 @@ struct ActiveRouteView: View {
                 }
             }
             .mapStyle(.standard(pointsOfInterest: .excludingAll))
-            .frame(height: 240)
+            .frame(height: typeSize.isAccessibilitySize ? 150 : 240)   // large text: the stop card starts higher
             .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
             // Frame the driver and the stop from the start: MapKit's
             // automatic framing put the stop's pin on the top edge.
@@ -674,7 +679,11 @@ struct ActiveRouteView: View {
     private func currentStopCard(_ stop: RouteStop) -> some View {
         VStack(alignment: .leading, spacing: PlowRLayout.space4) {
             // Who and where, with the time to get there as big as the name.
-            HStack(alignment: .top, spacing: PlowRLayout.space3) {
+            // Large text: the minutes away go under the name, not beside it.
+            let whoLayout = typeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: PlowRLayout.space3))
+                : AnyLayout(HStackLayout(alignment: .top, spacing: PlowRLayout.space3))
+            whoLayout {
                 VStack(alignment: .leading, spacing: PlowRLayout.space1) {
                     Text("NOW · STOP \(currentStopIndex + 1)")
                         .font(PlowRFont.label)
@@ -703,11 +712,12 @@ struct ActiveRouteView: View {
                         Text(stop.clientPhone)
                             .font(.subheadline)
                             .foregroundStyle(PlowRColor.inkSecondary)
+                            .wholeValue()
                     }
                 }
-                Spacer(minLength: 0)
+                if !typeSize.isAccessibilitySize { Spacer(minLength: 0) }
                 if let eta = etaMinutes {
-                    VStack(alignment: .trailing, spacing: 0) {
+                    VStack(alignment: typeSize.trailingColumnAlignment, spacing: 0) {
                         Text("\(eta)")
                             .font(PlowRFont.bigNumber)
                             .monospacedDigit()
@@ -822,13 +832,19 @@ struct ActiveRouteView: View {
     /// "Completed <client> · Undo", for `ActiveRouteStore.undoWindow` after a
     /// stop is completed. Undo takes back that stop only; a text already
     /// sent to the next client stays sent, so the bar says nothing about it.
+    @ViewBuilder
     private func undoBar(_ offer: ActiveRouteStore.UndoOffer) -> some View {
-        HStack(spacing: PlowRLayout.space3) {
+        // Large text: the words above the button, so the name has the full width.
+        let barLayout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 0))
+            : AnyLayout(HStackLayout(spacing: PlowRLayout.space3))
+        barLayout {
             Label("Completed \(offer.clientName)", systemImage: PlowRSymbol.complete.name)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(PlowRColor.onBrand)
-                .lineLimit(2)
+                .lineLimit(typeSize.isAccessibilitySize ? 3 : 2)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, typeSize.isAccessibilitySize ? PlowRLayout.space3 : 0)
             Button {
                 undo(offer)
             } label: {
@@ -841,6 +857,7 @@ struct ActiveRouteView: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Undo completing \(offer.clientName)")
+            .frame(maxWidth: typeSize.isAccessibilitySize ? .infinity : nil, alignment: .trailing)
         }
         .padding(.leading, PlowRLayout.space4)
         .padding(.trailing, PlowRLayout.space1)
@@ -928,13 +945,17 @@ struct ActiveRouteView: View {
 
     private var upcomingStopsSection: some View {
         VStack(alignment: .leading, spacing: PlowRLayout.space2) {
-            HStack {
+            // Large text: the Message All pill goes under the label.
+            let headerLayout = typeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: PlowRLayout.space2))
+                : AnyLayout(HStackLayout())
+            headerLayout {
                 Text("NEXT UP")
                     .font(PlowRFont.label)
                     .tracking(0.8)
                     .foregroundStyle(PlowRColor.inkSecondary)
                     .accessibilityAddTraits(.isHeader)
-                Spacer()
+                if !typeSize.isAccessibilitySize { Spacer() }
                 Button {
                     showingMassMessage = true
                 } label: {
@@ -944,33 +965,54 @@ struct ActiveRouteView: View {
                         .padding(.horizontal, PlowRLayout.space3)
                         .frame(minHeight: PlowRLayout.minTapTarget)
                         .background(PlowRColor.raised, in: Capsule())
+                        // Wraps at the space, never inside "Message".
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .buttonStyle(.plain)
             }
             ForEach(Array(upcomingStops.enumerated()), id: \.element.id) { index, stop in
-                HStack(spacing: PlowRLayout.space3) {
-                    StopNumberBadge(number: currentStopIndex + 2 + index)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(stop.clientName)
-                            .font(.body.weight(.semibold))
-                            .foregroundStyle(PlowRColor.ink)
-                        if !stop.clientAddress.isEmpty {
-                            Text(stop.clientAddress)
-                                .font(.subheadline)
-                                .foregroundStyle(PlowRColor.inkSecondary)
+                // Large text: the number and the navigate button on one line,
+                // the name and address under them at the full width.
+                let badge = StopNumberBadge(number: currentStopIndex + 2 + index)
+                let details = VStack(alignment: .leading, spacing: 2) {
+                    Text(stop.clientName)
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(PlowRColor.ink)
+                    if !stop.clientAddress.isEmpty {
+                        Text(stop.clientAddress)
+                            .font(.subheadline)
+                            .foregroundStyle(PlowRColor.inkSecondary)
+                    }
+                }
+                let navigate = Button { openNavigation(for: stop) } label: {
+                    Image(systemName: PlowRSymbol.navigate.name)
+                        .font(.title2)
+                        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)   // the glyph stays inside its tap target
+                        .foregroundStyle(PlowRColor.brand)
+                        .frame(width: PlowRLayout.minTapTarget, height: PlowRLayout.minTapTarget)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(stop.latitude == 0 && stop.clientAddress.isEmpty)
+                .accessibilityLabel("Directions to \(stop.clientName)")
+                Group {
+                    if typeSize.isAccessibilitySize {
+                        VStack(alignment: .leading, spacing: PlowRLayout.space1) {
+                            HStack {
+                                badge
+                                Spacer(minLength: 0)
+                                navigate
+                            }
+                            details
+                        }
+                    } else {
+                        HStack(spacing: PlowRLayout.space3) {
+                            badge
+                            details
+                            Spacer()
+                            navigate
                         }
                     }
-                    Spacer()
-                    Button { openNavigation(for: stop) } label: {
-                        Image(systemName: PlowRSymbol.navigate.name)
-                            .font(.title2)
-                            .foregroundStyle(PlowRColor.brand)
-                            .frame(width: PlowRLayout.minTapTarget, height: PlowRLayout.minTapTarget)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(stop.latitude == 0 && stop.clientAddress.isEmpty)
-                    .accessibilityLabel("Directions to \(stop.clientName)")
                 }
                 .padding(.vertical, PlowRLayout.space1)
                 .padding(.leading, PlowRLayout.space3)

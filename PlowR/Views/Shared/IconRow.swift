@@ -185,3 +185,32 @@ struct AdaptiveDetails<Content: View>: View {
         layout { content }
     }
 }
+
+/// A single-line text field that, at accessibility text sizes, grows to up
+/// to four lines instead of hiding its value behind "…". Below them it is
+/// the plain `TextField`. A line break (the Return key of a field that can
+/// grow) isn't kept: the value stays one line, as before.
+struct GrowingTextField: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
+    let title: String
+    @Binding var text: String
+
+    init(_ title: String, text: Binding<String>) {
+        self.title = title
+        self._text = text
+    }
+
+    var body: some View {
+        if typeSize.isAccessibilitySize {
+            TextField(title, text: $text, axis: .vertical)
+                .lineLimit(1...4)
+                .onChange(of: text) { _, value in
+                    if value.contains(where: \.isNewline) {
+                        text = String(value.filter { !$0.isNewline })
+                    }
+                }
+        } else {
+            TextField(title, text: $text)
+        }
+    }
+}

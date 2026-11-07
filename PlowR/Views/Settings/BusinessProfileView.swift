@@ -95,20 +95,20 @@ struct BusinessProfileView: View {
             .listRowBackground(PlowRColor.surface)
 
             Section(title: "Business Info") {
-                TextField("Company Name", text: $companyName)
-                TextField("Phone", text: $phone)
+                GrowingTextField("Company Name", text: $companyName)
+                GrowingTextField("Phone", text: $phone)
                     .keyboardType(.phonePad)
                     .textContentType(.telephoneNumber)
-                TextField("Email", text: $email)
+                GrowingTextField("Email", text: $email)
                     .keyboardType(.emailAddress)
                     .textContentType(.emailAddress)
                     .autocapitalization(.none)
-                TextField("Tagline (optional)", text: $tagline)
+                GrowingTextField("Tagline (optional)", text: $tagline)
             }
             .listRowBackground(PlowRColor.surface)
 
             Section(title: "Optional") {
-                TextField("License / Certification Number", text: $licenseNumber)
+                GrowingTextField("License / Certification Number", text: $licenseNumber)
             }
             .listRowBackground(PlowRColor.surface)
 
