@@ -481,6 +481,7 @@ extension ClientListView {
 // MARK: - Client Row
 
 struct ClientRowView: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
     let client: Client
     var outstandingBalance: Double = 0
     var isOverdue: Bool = false
@@ -496,13 +497,20 @@ struct ClientRowView: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
+        // Large text: the name, then its details, then the badges and the
+        // address under them (`AdaptiveRow`).
+        let large = typeSize.isAccessibilitySize
+        AdaptiveRow {
             AccentBar(status: accentStatus)
-
+        } main: {
             VStack(alignment: .leading, spacing: 3) {
                 Text(client.name)
                     .font(.subheadline.weight(.semibold))
-                    .lineLimit(1)
+                    .lineLimit(large ? nil : 1)
+                    // The list measures the row at a width where the name wraps
+                    // to two lines but lays it out where it fits on one, leaving
+                    // a blank line and a clipped name: take the height it needs.
+                    .fixedSize(horizontal: false, vertical: large)
                 if client.anyAddressNeedsFix {
                     AddressNotFoundLabel()
                         .font(.caption2)
@@ -511,42 +519,47 @@ struct ClientRowView: View {
                     Text(client.phone)
                         .font(.caption)
                         .foregroundStyle(PlowRColor.inkSecondary)
+                        .wholeValue()
                 }
                 if client.totalVisits > 0 {
                     Button {
                         onVisitTap?()
                     } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.caption2)
-                                .foregroundStyle(PlowRColor.Status.done.text)
-                            if let last = client.lastServiceDate {
-                                Text(last, format: .dateTime.month(.abbreviated).day())
+                        // Large text: the last visit's date, then the count
+                        // under it.
+                        AdaptiveDetails {
+                            HStack(spacing: 4) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.caption2)
+                                    .foregroundStyle(PlowRColor.Status.done.text)
+                                if let last = client.lastServiceDate {
+                                    Text(last, format: .dateTime.month(.abbreviated).day())
+                                        .font(.caption2)
+                                        .foregroundStyle(PlowRColor.inkSecondary)
+                                }
+                            }
+                            HStack(spacing: 4) {
+                                Text("\(typeSize.detailSeparator)\(client.totalVisits) visit\(client.totalVisits == 1 ? "" : "s")")
                                     .font(.caption2)
                                     .foregroundStyle(PlowRColor.inkSecondary)
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 8, weight: .semibold))
+                                    .foregroundStyle(.tertiary)
                             }
-                            Text("· \(client.totalVisits) visit\(client.totalVisits == 1 ? "" : "s")")
-                                .font(.caption2)
-                                .foregroundStyle(PlowRColor.inkSecondary)
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 8, weight: .semibold))
-                                .foregroundStyle(.tertiary)
                         }
                     }
                     .buttonStyle(.plain)
                 }
             }
-
-            Spacer()
-
-            VStack(alignment: .trailing, spacing: 4) {
+        } trailing: {
+            VStack(alignment: typeSize.trailingColumnAlignment, spacing: 4) {
                 badgeRow
                 if !client.address.isEmpty {
                     Text(client.address)
                         .font(.caption2)
                         .foregroundStyle(PlowRColor.inkSecondary)
-                        .lineLimit(1)
-                        .multilineTextAlignment(.trailing)
+                        .lineLimit(large ? nil : 1)
+                        .multilineTextAlignment(large ? .leading : .trailing)
                 }
             }
         }
@@ -555,7 +568,7 @@ struct ClientRowView: View {
 
     @ViewBuilder
     private var badgeRow: some View {
-        HStack(spacing: 4) {
+        AdaptiveDetails {
             if client.isComped {
                 badge("COMP", status: .neutral)
             }

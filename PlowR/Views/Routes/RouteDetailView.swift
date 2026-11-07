@@ -8,6 +8,7 @@ struct RouteDetailView: View {
     let route: PlowRoute
     @Environment(ActiveRouteStore.self) private var activeRoute
     @Environment(\.access) private var access
+    @Environment(\.dynamicTypeSize) private var typeSize
     @Query private var allClients: [Client]
     /// Every route, for PlowR Pro's free-tier route (this business's oldest).
     @Query private var allRoutes: [PlowRoute]
@@ -109,11 +110,19 @@ struct RouteDetailView: View {
                         // A stop opens its page: services, notes, equipment, target time.
                         Button { editingStop = stop } label: {
                             HStack {
-                                stopRow(stop: stop, index: index)
+                                // Large text: the skipped chip goes under the row.
+                                let row = stopRow(stop: stop, index: index)
                                     .opacity(isSkipped ? 0.4 : 1)
-                                if isSkipped {
-                                    StatusChip(belowTriggerToday.contains(stop.id) ? "Below Trigger" : "Skipped Today",
-                                               status: .neutral)
+                                let chip = StatusChip(belowTriggerToday.contains(stop.id) ? "Below Trigger" : "Skipped Today",
+                                                      status: .neutral)
+                                if typeSize.isAccessibilitySize {
+                                    VStack(alignment: .leading, spacing: PlowRLayout.space2) {
+                                        row
+                                        if isSkipped { chip }
+                                    }
+                                } else {
+                                    row
+                                    if isSkipped { chip }
                                 }
                                 Image(systemName: "chevron.right")
                                     .font(.caption.weight(.semibold))
@@ -349,9 +358,11 @@ struct RouteDetailView: View {
 
     @ViewBuilder
     private func stopRow(stop: RouteStop, index: Int) -> some View {
-        HStack(spacing: 12) {
+        // Large text: the name, then its details, then the done time or
+        // visit count under them (`AdaptiveRow`).
+        AdaptiveRow {
             stopBadge(number: index + 1, isDone: stop.actualMinutes > 0)
-
+        } main: {
             VStack(alignment: .leading, spacing: 3) {
                 Text(stop.clientName)
                     .font(.subheadline.weight(.semibold))
@@ -361,7 +372,7 @@ struct RouteDetailView: View {
                         .foregroundStyle(PlowRColor.inkSecondary)
                 }
                 if let client = clientFor(stop), client.totalVisits > 0 {
-                    HStack(spacing: 6) {
+                    AdaptiveDetails(spacing: 6) {
                         if let last = client.lastServiceDate {
                             Label(last.formatted(.dateTime.month(.abbreviated).day()),
                                   systemImage: "clock.arrow.circlepath")
@@ -369,7 +380,7 @@ struct RouteDetailView: View {
                                 .foregroundStyle(PlowRColor.inkSecondary)
                         }
                         if client.averageServiceMinutes > 0 {
-                            Text("· avg \(Int(client.averageServiceMinutes))m")
+                            Text("\(typeSize.detailSeparator)avg \(Int(client.averageServiceMinutes))m")
                                 .font(.caption2)
                                 .foregroundStyle(PlowRColor.inkSecondary)
                         }
@@ -395,7 +406,7 @@ struct RouteDetailView: View {
                 }
                 // Notes / equipment badges
                 if !stop.stopNotes.isEmpty || !stop.equipmentNotes.isEmpty {
-                    HStack(spacing: 6) {
+                    AdaptiveDetails(spacing: 6) {
                         if !stop.stopNotes.isEmpty {
                             Label("Notes", systemImage: "note.text")
                                 .font(.caption2)
@@ -409,10 +420,8 @@ struct RouteDetailView: View {
                     }
                 }
             }
-
-            Spacer()
-
-            VStack(alignment: .trailing, spacing: 4) {
+        } trailing: {
+            VStack(alignment: typeSize.trailingColumnAlignment, spacing: 4) {
                 if stop.actualMinutes > 0 {
                     Label("\(stop.actualMinutes)m", systemImage: "checkmark.circle.fill")
                         .font(.caption2.weight(.semibold))

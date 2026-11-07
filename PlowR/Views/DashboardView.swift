@@ -432,12 +432,14 @@ struct DashboardView: View {
                                              lastRun: lastRuns[route.id.uuidString], canStart: canStart(route),
                                              now: now)
         return VStack(alignment: .leading, spacing: PlowRLayout.space3) {
-            HStack(alignment: .firstTextBaseline) {
+            // Large text: the route's name takes the full width, its stop
+            // count and time under it (`AdaptiveRow`).
+            AdaptiveRow(alignment: .firstTextBaseline, spacing: nil, spacerMinLength: PlowRLayout.space2) {
                 Text(route.name)
                     .font(PlowRFont.title)
                     .foregroundStyle(PlowRColor.ink)
-                    .lineLimit(2)
-                Spacer(minLength: PlowRLayout.space2)
+                    .lineLimit(typeSize.isAccessibilitySize ? nil : 2)
+            } trailing: {
                 Text(run.total == 0 ? "No stops"
                      : "\(run.total) stop\(run.total == 1 ? "" : "s")" + (minutes > 0 ? " · \(RouteFacts.duration(minutes))" : ""))
                     .font(.subheadline)
@@ -517,14 +519,18 @@ struct DashboardView: View {
 
     /// Where a row's text starts (row padding, icon column, gap), so a
     /// separator lines up with it, as iOS lists do.
-    /// At accessibility sizes the icon is above the text (`IconRow`), so a
-    /// separator starts at the row's edge.
+    /// At accessibility sizes the icon is above the text (`IconRow`) and a
+    /// Coming Up row's date is inline, so a separator starts at the row's edge.
     private var rowTextInset: CGFloat {
         typeSize.isAccessibilitySize ? PlowRLayout.space4 : PlowRLayout.space4 + 36 + PlowRLayout.space3
     }
 
     private func visitRowContent(_ visit: ScheduledVisit) -> some View {
-        HStack(spacing: PlowRLayout.space3) {
+        // Large text: the time, then the minutes, under the name; the chevron
+        // stays at the trailing edge.
+        let large = typeSize.isAccessibilitySize
+        let minutes = Text("\(visit.estimatedMinutes)m").font(.caption).foregroundStyle(PlowRColor.inkSecondary)
+        return HStack(spacing: PlowRLayout.space3) {
             IconRow {
                 IconBadge(systemImage: PlowRSymbol.schedule.name, status: visit.status.chipStatus, size: 36)
             } content: {
@@ -532,16 +538,15 @@ struct DashboardView: View {
                     Text(visit.clientName)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(PlowRColor.ink)
-                        .lineLimit(1)
+                        .lineLimit(large ? nil : 1)
                     Text(visit.scheduledDate, style: .time)
                         .font(.caption)
                         .foregroundStyle(PlowRColor.inkSecondary)
+                    if large && visit.estimatedMinutes > 0 { minutes }
                 }
             }
             Spacer()
-            if visit.estimatedMinutes > 0 {
-                Text("\(visit.estimatedMinutes)m").font(.caption).foregroundStyle(PlowRColor.inkSecondary)
-            }
+            if !large && visit.estimatedMinutes > 0 { minutes }
             chevron
         }
         .padding(.horizontal, PlowRLayout.space4)
@@ -759,22 +764,31 @@ struct DashboardView: View {
     }
 
     private func upcomingVisitRow(_ visit: ScheduledVisit) -> some View {
-        HStack(spacing: PlowRLayout.space3) {
-            VStack(spacing: 0) {
-                Text(visit.scheduledDate, format: .dateTime.weekday(.abbreviated))
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(PlowRColor.inkSecondary)
-                    .textCase(.uppercase)
-                Text(visit.scheduledDate, format: .dateTime.day())
-                    .font(PlowRFont.number)
-                    .foregroundStyle(PlowRColor.ink)
+        // Large text: the date is a line of text ("Mon, Nov 9") under the
+        // name, not a 36 pt column beside it.
+        let large = typeSize.isAccessibilitySize
+        return HStack(spacing: PlowRLayout.space3) {
+            if !large {
+                VStack(spacing: 0) {
+                    Text(visit.scheduledDate, format: .dateTime.weekday(.abbreviated))
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(PlowRColor.inkSecondary)
+                        .textCase(.uppercase)
+                    Text(visit.scheduledDate, format: .dateTime.day())
+                        .font(PlowRFont.number)
+                        .foregroundStyle(PlowRColor.ink)
+                }
+                .frame(width: 36)
             }
-            .frame(width: 36)
             VStack(alignment: .leading, spacing: 2) {
                 Text(visit.clientName)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(PlowRColor.ink)
-                    .lineLimit(1)
+                    .lineLimit(large ? nil : 1)
+                if large {
+                    Text(visit.scheduledDate, format: .dateTime.weekday(.abbreviated).month(.abbreviated).day())
+                        .font(.caption).foregroundStyle(PlowRColor.inkSecondary)
+                }
                 Text(visit.scheduledDate, style: .time)
                     .font(.caption).foregroundStyle(PlowRColor.inkSecondary)
             }

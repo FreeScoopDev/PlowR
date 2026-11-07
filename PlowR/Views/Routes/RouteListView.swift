@@ -157,6 +157,7 @@ struct RouteRowView: View {
     let clients: [Client]
     let lastRun: Date?
     @Environment(ActiveRouteStore.self) private var activeRoute
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     private var run: RouteRunSummary {
         RouteRunSummary(route: route, store: activeRoute)
@@ -192,7 +193,7 @@ struct RouteRowView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(route.name)
                     .font(.subheadline.weight(.semibold))
-                    .lineLimit(1)
+                    .lineLimit(typeSize.isAccessibilitySize ? nil : 1)
                 Text(stopsText)
                     .font(.caption)
                     .foregroundStyle(PlowRColor.inkSecondary)

@@ -94,3 +94,94 @@ struct IconCardRow<Icon: View, Content: View, Trailing: View>: View {
         }
     }
 }
+
+extension DynamicTypeSize {
+    /// Where a row's trailing column (an amount, a status, a count) lines
+    /// up: the trailing edge beside the text, the leading edge once
+    /// `AdaptiveRow` stacks it under the text.
+    var trailingColumnAlignment: HorizontalAlignment {
+        isAccessibilitySize ? .leading : .trailing
+    }
+
+    /// The "· " that joins details on one line; stacked details have no
+    /// line to join, so it goes.
+    var detailSeparator: String {
+        isAccessibilitySize ? "" : "· "
+    }
+}
+
+private struct WholeValue: ViewModifier {
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    func body(content: Content) -> some View {
+        content
+            .lineLimit(typeSize.isAccessibilitySize ? 1 : nil)
+            .minimumScaleFactor(typeSize.isAccessibilitySize ? 0.6 : 1)
+    }
+}
+
+extension View {
+    /// A phone number or amount: at accessibility sizes it stays on one
+    /// line and scales down a little rather than break mid-value.
+    func wholeValue() -> some View { modifier(WholeValue()) }
+}
+
+/// A list row of a leading mark (an accent bar, a number), the main text
+/// and a trailing column (amount, status, count), or at accessibility text
+/// sizes the main text with the trailing column under it, full width and
+/// leading-aligned: a trailing column leaves the text a sliver otherwise.
+/// Put an accessory that stays at the trailing edge (a chevron, a pencil)
+/// outside it, in the `HStack` that holds it. Below accessibility sizes it
+/// is the plain `HStack` the rows had: mark, text, `Spacer`, trailing.
+struct AdaptiveRow<Leading: View, Main: View, Trailing: View>: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
+    var alignment: VerticalAlignment = .center
+    var spacing: CGFloat? = 12
+    var spacerMinLength: CGFloat?
+    @ViewBuilder let leading: Leading
+    @ViewBuilder let main: Main
+    @ViewBuilder let trailing: Trailing
+
+    var body: some View {
+        if typeSize.isAccessibilitySize {
+            HStack(alignment: .top, spacing: spacing) {
+                leading
+                VStack(alignment: .leading, spacing: PlowRLayout.space2) {
+                    main
+                    trailing
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        } else {
+            HStack(alignment: alignment, spacing: spacing) {
+                leading
+                main
+                Spacer(minLength: spacerMinLength)
+                trailing
+            }
+        }
+    }
+}
+
+extension AdaptiveRow where Leading == EmptyView {
+    init(alignment: VerticalAlignment = .center, spacing: CGFloat? = 12, spacerMinLength: CGFloat? = nil,
+         @ViewBuilder main: () -> Main, @ViewBuilder trailing: () -> Trailing) {
+        self.init(alignment: alignment, spacing: spacing, spacerMinLength: spacerMinLength,
+                  leading: { EmptyView() }, main: main, trailing: trailing)
+    }
+}
+
+/// A short run of details (a date and an average, two badges) that stacks
+/// at accessibility text sizes instead of squeezing each into a sliver.
+struct AdaptiveDetails<Content: View>: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
+    var spacing: CGFloat = 4
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2))
+            : AnyLayout(HStackLayout(spacing: spacing))
+        layout { content }
+    }
+}
