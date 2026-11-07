@@ -1,2 +1,2 @@
 ### Changed
-- Secondary text in Settings is easier to read: the iCloud backup status, payment method details, export descriptions, service catalog prices, client stats, the request link and its QR screen. It used the system's secondary grey, which is too faint on white in sun or at night; it now uses the app's own secondary text colour, as the other tabs do.
+- Secondary text on the Settings sub-screens is easier to read: the iCloud backup status, payment method details, export descriptions, service catalog prices, client stats, the request link and its QR screen, and the standard-services offer shown on client, proposal and stop forms. It used the system's secondary grey, which is too faint on white in sun or at night; it now uses the app's own secondary text colour.
