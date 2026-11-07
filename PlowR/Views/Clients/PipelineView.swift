@@ -90,7 +90,7 @@ struct PipelineView: View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text(entry.client.name)
-                Text(detail(entry)).font(.caption).foregroundStyle(.secondary)
+                Text(detail(entry)).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
             }
             Spacer()
             if let total = entry.quoteTotal {

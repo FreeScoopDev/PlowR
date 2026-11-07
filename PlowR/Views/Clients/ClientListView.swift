@@ -509,7 +509,7 @@ struct ClientRowView: View {
                 if !client.phone.isEmpty {
                     Text(client.phone)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
                 if client.totalVisits > 0 {
                     Button {
@@ -522,11 +522,11 @@ struct ClientRowView: View {
                             if let last = client.lastServiceDate {
                                 Text(last, format: .dateTime.month(.abbreviated).day())
                                     .font(.caption2)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(PlowRColor.inkSecondary)
                             }
                             Text("· \(client.totalVisits) visit\(client.totalVisits == 1 ? "" : "s")")
                                 .font(.caption2)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(PlowRColor.inkSecondary)
                             Image(systemName: "chevron.right")
                                 .font(.system(size: 8, weight: .semibold))
                                 .foregroundStyle(.tertiary)
@@ -543,7 +543,7 @@ struct ClientRowView: View {
                 if !client.address.isEmpty {
                     Text(client.address)
                         .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                         .lineLimit(1)
                         .multilineTextAlignment(.trailing)
                 }
@@ -564,7 +564,7 @@ struct ClientRowView: View {
             if client.skipNotificationPrompt {
                 Image(systemName: "bell.slash.fill")
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(PlowRColor.inkSecondary)
             }
             if isOverdue {
                 badge("Overdue", status: .overdue)

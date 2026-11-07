@@ -78,7 +78,7 @@ struct ContactScannerView: View {
             ProgressView().scaleEffect(1.4)
             Text("Reading contact info…")
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(PlowRColor.inkSecondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(PlowRColor.ground)

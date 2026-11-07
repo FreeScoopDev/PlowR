@@ -1,0 +1,2 @@
+### Changed
+- Client addresses and other secondary text on the Clients screens are easier to read. The grey the system uses for secondary text was too faint on white, and the client-list address was fainter still, which made addresses hard to read in sun or at night; they now use the app's own secondary text colour, which meets the same contrast standard as the rest of the app in light and dark. Text over the camera and map is unchanged.

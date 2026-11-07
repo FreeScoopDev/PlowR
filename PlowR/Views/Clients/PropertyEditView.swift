@@ -202,7 +202,7 @@ struct PropertyEditView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(completion.title).foregroundStyle(.primary)
                         if !completion.subtitle.isEmpty {
-                            Text(completion.subtitle).font(.caption).foregroundStyle(.secondary)
+                            Text(completion.subtitle).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
                         }
                     }
                 }
@@ -231,7 +231,7 @@ struct PropertyEditView: View {
                 } label: {
                     HStack(spacing: 12) {
                         Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                            .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+                            .foregroundStyle(isSelected ? Color.accentColor : PlowRColor.inkSecondary)
                         Text(service.name).foregroundStyle(.primary)
                     }
                 }

@@ -398,7 +398,7 @@ struct EditClientView: View {
                     Text("Skip arrival message prompt")
                     Text("Won't ask to notify when you arrive")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
             }
             Stepper(value: $draft.goalMinutes, in: 0...180, step: 5) {
@@ -406,7 +406,7 @@ struct EditClientView: View {
                     Text("Stop goal time")
                     Spacer()
                     Text(draft.goalMinutes == 0 ? "Not set" : "\(draft.goalMinutes) min")
-                        .foregroundStyle(draft.goalMinutes == 0 ? .secondary : .primary)
+                        .foregroundStyle(draft.goalMinutes == 0 ? PlowRColor.inkSecondary : Color.primary)
                 }
             }
             Toggle(isOn: $draft.isActive) {
@@ -414,7 +414,7 @@ struct EditClientView: View {
                     Text("Active client")
                     Text("Inactive clients are listed separately and taken off their routes")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
             }
         }
@@ -476,7 +476,7 @@ struct EditClientView: View {
                                     .padding(.horizontal, 10)
                                     .padding(.vertical, 4)
                                     .background(PlowRColor.raised)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(PlowRColor.inkSecondary)
                                     .clipShape(Capsule())
                             }
                             .buttonStyle(.plain)
@@ -537,7 +537,7 @@ struct EditClientView: View {
                         Text("Expected Services")
                         Spacer()
                         Text(draft.expectedServiceIDs.isEmpty ? "None" : "\(draft.expectedServiceIDs.count) selected")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(PlowRColor.inkSecondary)
                     }
                 }
             }
@@ -560,11 +560,11 @@ struct EditClientView: View {
                 } label: {
                     HStack(spacing: 12) {
                         Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                            .foregroundStyle(isSelected ? PlowRColor.brand : .secondary)
+                            .foregroundStyle(isSelected ? PlowRColor.brand : PlowRColor.inkSecondary)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(service.name).foregroundStyle(.primary)
                             Text(service.category.capitalized)
-                                .font(.caption).foregroundStyle(.secondary)
+                                .font(.caption).foregroundStyle(PlowRColor.inkSecondary)
                         }
                     }
                 }
@@ -595,7 +595,7 @@ struct EditClientView: View {
                     Text("Tax Exempt")
                     Text("New invoices and proposals start at 0% tax instead of your rate in Business Profile")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
             }
 
@@ -666,7 +666,7 @@ struct EditClientView: View {
                             if !completion.subtitle.isEmpty {
                                 Text(completion.subtitle)
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(PlowRColor.inkSecondary)
                             }
                         }
                     }
@@ -700,7 +700,7 @@ struct EditClientView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(Place.of(property).label).foregroundStyle(.primary)
                             if !property.label.isEmpty {
-                                Text(property.address).font(.caption).foregroundStyle(.secondary)
+                                Text(property.address).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
                             }
                         }
                         Spacer()
@@ -770,7 +770,7 @@ struct EditClientView: View {
             }
             if client.totalVisits == 0 {
                 Text("No route visits recorded yet")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(PlowRColor.inkSecondary)
                     .font(.subheadline)
             } else {
                 LabeledContent("Total Visits", value: "\(client.totalVisits) visit\(client.totalVisits == 1 ? "" : "s")")
@@ -824,7 +824,7 @@ struct EditClientView: View {
                             .foregroundStyle(awaitingResponse ? PlowRColor.Status.owed.text : PlowRColor.Status.done.text)
                         Text("Invoice or proposal sent \(sent, format: .relative(presentation: .named))")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(PlowRColor.inkSecondary)
                     }
                     Spacer()
                     if awaitingResponse {
@@ -867,7 +867,7 @@ struct EditClientView: View {
         Section("Documents") {
             if clientDocuments.isEmpty {
                 Text("No documents yet")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(PlowRColor.inkSecondary)
                     .font(.subheadline)
             } else {
                 ForEach(clientDocuments) { doc in
@@ -953,7 +953,7 @@ struct EditClientView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(zone.label).font(.subheadline)
                             Text("\(Int(zone.areaSquareFeet)) sq ft · \(zone.terrainLabel)")
-                                .font(.caption).foregroundStyle(.secondary)
+                                .font(.caption).foregroundStyle(PlowRColor.inkSecondary)
                         }
                         Spacer()
                     }
@@ -979,7 +979,7 @@ struct EditClientView: View {
             if upcomingClientVisits.isEmpty {
                 Text("No upcoming visits scheduled")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(PlowRColor.inkSecondary)
             } else {
                 ForEach(upcomingClientVisits) { visit in
                     HStack(spacing: 10) {
@@ -991,7 +991,7 @@ struct EditClientView: View {
                                 .font(.subheadline)
                             Text(visit.scheduledDate, style: .time)
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(PlowRColor.inkSecondary)
                         }
                         Spacer()
                         Label(visit.status.rawValue, systemImage: visit.status.systemImage)
@@ -1070,7 +1070,7 @@ struct EditClientView: View {
                 if document.isInvoice, let due = document.invoiceDueDate {
                     Text("Due \(due.formatted(date: .abbreviated, time: .omitted))")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
             }
             Spacer()

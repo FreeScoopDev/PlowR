@@ -149,7 +149,7 @@ struct ImportClientsView: View {
     private func hint(_ app: String, _ how: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(app).font(.subheadline)
-            Text(how).font(.caption).foregroundStyle(.secondary)
+            Text(how).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
         }
     }
 
@@ -390,7 +390,7 @@ struct ImportClientsView: View {
                         .font(.headline)
                     if undone == nil {
                         Text("Tagged \u{201C}\(result.tag)\u{201D}")
-                            .font(.caption).foregroundStyle(.secondary)
+                            .font(.caption).foregroundStyle(PlowRColor.inkSecondary)
                     }
                 }
             } icon: {
@@ -399,7 +399,7 @@ struct ImportClientsView: View {
             }
             if result.propertiesSkipped > 0 {
                 Text("\(count(result.propertiesSkipped, "property wasn't", "properties weren't")) added: the client was deleted meanwhile.")
-                    .font(.footnote).foregroundStyle(.secondary)
+                    .font(.footnote).foregroundStyle(PlowRColor.inkSecondary)
             }
         }
         .listRowBackground(PlowRColor.surface)
@@ -442,7 +442,7 @@ struct ImportClientsView: View {
             ForEach(pins.notFound) { missed in
                 VStack(alignment: .leading, spacing: 2) {
                     Text(missed.name).font(.subheadline)
-                    Text(missed.address).font(.caption).foregroundStyle(.secondary)
+                    Text(missed.address).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
                 }
             }
         } header: {
@@ -571,7 +571,7 @@ struct ImportPreviewList: View {
                     ForEach(group.rows) { row in
                         VStack(alignment: .leading, spacing: 2) {
                             Text(row.title).font(.subheadline)
-                            Text(row.detail).font(.caption).foregroundStyle(.secondary)
+                            Text(row.detail).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
                             if let note = row.note {
                                 Text(note).font(.caption).foregroundStyle(PlowRColor.Status.owed.text)
                             }
