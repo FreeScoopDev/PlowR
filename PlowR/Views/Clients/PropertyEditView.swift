@@ -72,6 +72,7 @@ struct PropertyEditView: View {
                         .textInputAutocapitalization(.words)
                 } header: {
                     Text("Name")
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 } footer: {
                     Text("How it shows on routes and the schedule, after \(client.name)'s name.")
                 }
@@ -86,6 +87,7 @@ struct PropertyEditView: View {
                     }
                 } header: {
                     Text("Route")
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 } footer: {
                     Text("Copied to new route stops here, as a client's own are.")
                 }
@@ -212,6 +214,7 @@ struct PropertyEditView: View {
             }
         } header: {
             Text("Address")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
             if property?.needsAddressFix == true, !draft.hasPin {
                 AddressNotFoundLabel(detail: "The map couldn't find this address, so this property has no pin and isn't on route maps. Correct the address, or set the pin on the map.")
@@ -238,6 +241,7 @@ struct PropertyEditView: View {
             }
         } header: {
             Text("Default Services")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
             Text("Services this property typically needs. Its route stops expect these, except a stop given its own services on its route.")
         }

@@ -34,7 +34,7 @@ struct MoneyOwedView: View {
                     Text("Late counts from each invoice's due date. Drafts, and invoices with no due date, aren't late.")
                 }
                 .listRowBackground(PlowRColor.surface)
-                Section("By Client") {
+                Section(title: "By Client") {
                     ForEach(summary.clients) { client in
                         NavigationLink {
                             List(client.invoices) { invoice in

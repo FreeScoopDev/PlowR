@@ -84,7 +84,7 @@ struct RouteRecapView: View {
 
                 if !completedStops.isEmpty {
                     let onSite = timesOnSite
-                    Section("Completed Stops") {
+                    Section(title: "Completed Stops") {
                         ForEach(Array(completedStops.enumerated()), id: \.element.id) { idx, stop in
                             stopRow(stop, index: idx + 1, completed: true, onSite: onSite)
                         }
@@ -93,7 +93,7 @@ struct RouteRecapView: View {
                 }
 
                 if !skippedStops.isEmpty {
-                    Section("Not Serviced") {
+                    Section(title: "Not Serviced") {
                         ForEach(Array(skippedStops.enumerated()), id: \.element.id) { idx, stop in
                             stopRow(stop, index: completedStops.count + idx + 1, completed: false)
                         }

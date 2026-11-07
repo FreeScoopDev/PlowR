@@ -44,6 +44,7 @@ struct ServiceLinesSections: View {
             }
         } header: {
             Text("Services Performed")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
             if let footer { Text(footer) }
         }
@@ -63,6 +64,7 @@ struct ServiceLinesSections: View {
                 }
             } header: {
                 Text("Also Recorded")
+                    .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
                 Text("No longer in your active services, so kept as recorded.")
             }
@@ -70,7 +72,7 @@ struct ServiceLinesSections: View {
             .disabled(locked)
         }
 
-        Section("Custom Services") {
+        Section(title: "Custom Services") {
             ForEach($customItems) { $item in
                 HStack(spacing: 8) {
                     TextField("Service name", text: $item.name)

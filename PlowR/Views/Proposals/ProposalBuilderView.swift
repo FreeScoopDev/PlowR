@@ -153,7 +153,7 @@ struct ProposalBuilderView: View {
     // MARK: - Sections
 
     private var clientSection: some View {
-        Section("Client") {
+        Section(title: "Client") {
             LabeledContent("Name", value: client.name)
             LabeledContent("Address", value: client.address)
             if zones.isEmpty {
@@ -257,6 +257,7 @@ struct ProposalBuilderView: View {
             }
         } header: {
             Text("Services")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
             if !selections.isEmpty {
                 Text("Estimated total: \(estimatedTotalString)")
@@ -321,13 +322,14 @@ struct ProposalBuilderView: View {
             }
         } header: {
             Text("Custom Line Items")
+                .foregroundStyle(PlowRColor.inkSecondary)
         }
         .listRowBackground(PlowRColor.surface)
     }
 
     private var optionsSection: some View {
         Group {
-            Section("Options") {
+            Section(title: "Options") {
                 Toggle("Group line items by service", isOn: $grouped)
                 if isInvoiceMode {
                     DatePicker("Due Date", selection: $invoiceDueDate, displayedComponents: .date)
@@ -354,19 +356,20 @@ struct ProposalBuilderView: View {
                 }
             } header: {
                 Text("Discount & Tax")
+                    .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
                 if clientDiscountPercent > 0 {
                     Text("\(Proposal.percentText(clientDiscountPercent))% client discount while the field is empty. Type an amount, or 0, to change it.")
                 }
             }
             .listRowBackground(PlowRColor.surface)
-            Section("Disclaimer") {
+            Section(title: "Disclaimer") {
                 TextEditor(text: $disclaimer)
                     .frame(minHeight: 60)
                     .foregroundStyle(disclaimer.isEmpty ? PlowRColor.inkSecondary : Color.primary)
             }
             .listRowBackground(PlowRColor.surface)
-            Section("Notes") {
+            Section(title: "Notes") {
                 TextEditor(text: $notes)
                     .frame(minHeight: 80)
             }

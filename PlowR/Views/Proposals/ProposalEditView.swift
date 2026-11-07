@@ -55,7 +55,7 @@ struct ProposalEditView: View {
     // MARK: - Sections
 
     private var clientSection: some View {
-        Section("Client") {
+        Section(title: "Client") {
             LabeledContent("Name", value: proposal.clientName)
             if !proposal.clientAddress.isEmpty {
                 LabeledContent("Address", value: proposal.clientAddress)
@@ -98,6 +98,7 @@ struct ProposalEditView: View {
             }
         } header: {
             Text("Line Items")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
             Text("Tap an amount to edit it.")
         }
@@ -130,6 +131,7 @@ struct ProposalEditView: View {
                 .lineLimit(3...)
         } header: {
             Text("Invoice")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
             if !edits.unreadableFields.isEmpty {
                 Text(DocumentDraft.unreadableMessage(edits.unreadableFields, taxUnreadable: edits.taxUnreadable)

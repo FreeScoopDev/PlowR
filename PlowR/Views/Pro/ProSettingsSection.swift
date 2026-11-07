@@ -51,6 +51,7 @@ struct ProSettingsSection: View {
             .disabled(restoring)
         } header: {
             Text("PlowR Pro")
+                .foregroundStyle(PlowRColor.inkSecondary)
         }
         .listRowBackground(PlowRColor.surface)
     }

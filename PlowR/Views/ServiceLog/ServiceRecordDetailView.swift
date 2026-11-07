@@ -122,7 +122,7 @@ struct ServiceRecordDetailView: View {
                 customItems: $customItems, keptLines: $keptLines, locked: locked,
                 footer: locked ? "On an invoice, so these are fixed. To change them, edit the invoice." : nil)
 
-            Section("Notes") {
+            Section(title: "Notes") {
                 TextField("Optional notes", text: $notes, axis: .vertical)
                     .lineLimit(3...)
             }
@@ -134,7 +134,7 @@ struct ServiceRecordDetailView: View {
 
             siteSection
 
-            Section("Details") {
+            Section(title: "Details") {
                 LabeledContent("Recorded From", value: sourceText)
                 if !record.propertyAddress.isEmpty {
                     LabeledContent("Address", value: record.propertyAddress)
@@ -184,7 +184,7 @@ struct ServiceRecordDetailView: View {
     @ViewBuilder
     private var photosSection: some View {
         if !photos.isEmpty {
-            Section("Photos") {
+            Section(title: "Photos") {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         ForEach(photos) { photo in
@@ -217,6 +217,7 @@ struct ServiceRecordDetailView: View {
                 }
             } header: {
                 Text("Job Site (GPS)")
+                    .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
                 Text(ProofOfService.siteFooter)
             }

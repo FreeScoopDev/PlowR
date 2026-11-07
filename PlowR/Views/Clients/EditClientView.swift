@@ -360,7 +360,7 @@ struct EditClientView: View {
     // MARK: - Contact Section
 
     private var contactSection: some View {
-        Section("Contact") {
+        Section(title: "Contact") {
             TextField("Full Name", text: $draft.name)
                 .textContentType(.name)
             HStack {
@@ -488,6 +488,7 @@ struct EditClientView: View {
             }
         } header: {
             Text("Tags")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
             Text("Group clients for bulk messaging — e.g. Residential, Priority, Seasonal.")
                 .font(.caption)
@@ -510,6 +511,7 @@ struct EditClientView: View {
                 .lineLimit(3...8)
         } header: {
             Text("Notes")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
             Text("Private notes about this client — not shown on route or documents.")
                 .font(.caption)
@@ -543,6 +545,7 @@ struct EditClientView: View {
             }
         } header: {
             Text("Default Services")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
             Text("Services this client typically needs. Their route stops expect these, except a stop given its own services on its route (tap the stop on the route).")
                 .font(.caption)
@@ -579,7 +582,7 @@ struct EditClientView: View {
     // MARK: - Billing Section
 
     private var billingSection: some View {
-        Section("Billing & Preferences") {
+        Section(title: "Billing & Preferences") {
             Picker("Preferred Payment", selection: $draft.preferredPayment) {
                 Text("Not set").tag("")
                 Text("Cash").tag("cash")
@@ -627,6 +630,7 @@ struct EditClientView: View {
                 .lineLimit(3)
         } header: {
             Text("Route Notes")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
             Text("Automatically copied to new route stops for this client.")
                 .font(.caption)
@@ -674,6 +678,7 @@ struct EditClientView: View {
             }
         } header: {
             Text("Service Address")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
             if client.needsAddressFix {
                 AddressNotFoundLabel(detail: "The map couldn't find this address, so this client has no pin and isn't on route maps. Correct the address, or set the pin with Set Pin on the Map, under Main Property.")
@@ -718,6 +723,7 @@ struct EditClientView: View {
             }
         } header: {
             Text("Other Properties")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
             Text("Other places you work for this client, like a rental or a second lot. Each can go on routes and the schedule by itself.")
                 .font(.caption)
@@ -739,6 +745,7 @@ struct EditClientView: View {
             }
         } header: {
             Text("Contracts")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
             Text("An agreement for a period: a season price, a price per visit, or a monthly amount.")
                 .font(.caption)
@@ -749,7 +756,7 @@ struct EditClientView: View {
     // MARK: - History Section
 
     private var historySection: some View {
-        Section("Service History") {
+        Section(title: "Service History") {
             // Every job, from routes, visits or logged by hand (the Service Log).
             NavigationLink {
                 ClientServiceHistoryView(client: client)
@@ -864,7 +871,7 @@ struct EditClientView: View {
     // MARK: - Documents Section
 
     private var documentsSection: some View {
-        Section("Documents") {
+        Section(title: "Documents") {
             if clientDocuments.isEmpty {
                 Text("No documents yet")
                     .foregroundStyle(PlowRColor.inkSecondary)
@@ -900,7 +907,7 @@ struct EditClientView: View {
     // MARK: - Property Section
 
     private var propertySection: some View {
-        Section("Main Property") {
+        Section(title: "Main Property") {
             let zones = client.sortedZones
             if !zones.isEmpty {
                 zoneMapPreview(zones: zones)
@@ -975,7 +982,7 @@ struct EditClientView: View {
     }
 
     private var scheduleSection: some View {
-        Section("Upcoming Visits") {
+        Section(title: "Upcoming Visits") {
             if upcomingClientVisits.isEmpty {
                 Text("No upcoming visits scheduled")
                     .font(.subheadline)
@@ -1013,7 +1020,7 @@ struct EditClientView: View {
     // MARK: - Photos Section
 
     private var photosSection: some View {
-        Section("Photos") {
+        Section(title: "Photos") {
             NavigationLink {
                 ClientPhotoGalleryView(client: client)
             } label: {

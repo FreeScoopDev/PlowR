@@ -25,6 +25,7 @@ struct HelpGuideView: View {
                     }
                 } header: {
                     Text(section.title)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 } footer: {
                     let footer = [section.intro, section.outro].compactMap { $0 }
                     if !footer.isEmpty {
@@ -91,7 +92,7 @@ struct HelpTopicView: View {
             .listRowBackground(PlowRColor.surface)
 
             if !topic.steps.isEmpty {
-                Section("Steps") {
+                Section(title: "Steps") {
                     ForEach(Array(topic.steps.enumerated()), id: \.offset) { index, step in
                         HStack(alignment: .firstTextBaseline, spacing: PlowRLayout.space3) {
                             Text("\(index + 1)")

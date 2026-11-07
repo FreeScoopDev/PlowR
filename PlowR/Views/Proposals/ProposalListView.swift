@@ -122,7 +122,7 @@ struct ProposalListView: View {
                     }
                     .listRowBackground(PlowRColor.surface)
                     if !archivedProposals.isEmpty {
-                        Section("Archived — Paid") {
+                        Section(title: "Archived — Paid") {
                             ForEach(archivedProposals) { proposal in
                                 proposalRow(proposal)
                             }

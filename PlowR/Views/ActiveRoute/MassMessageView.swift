@@ -169,6 +169,7 @@ struct MassMessageView: View {
             .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
         } header: {
             Text("Quick Presets").textCase(nil)
+                .foregroundStyle(PlowRColor.inkSecondary)
         }
         .listRowBackground(PlowRColor.surface)
     }
@@ -179,6 +180,7 @@ struct MassMessageView: View {
                 .lineLimit(3...8)
         } header: {
             Text("Message").textCase(nil)
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
             Text("\(selectedStops.count) of \(stops.count) clients selected.")
         }
@@ -207,6 +209,7 @@ struct MassMessageView: View {
             }
         } header: {
             Text("Recipients").textCase(nil)
+                .foregroundStyle(PlowRColor.inkSecondary)
         }
         .listRowBackground(PlowRColor.surface)
     }
@@ -260,6 +263,7 @@ struct MassMessageView: View {
                 .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
             } header: {
                 Text("Filter by Tag").textCase(nil)
+                    .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
                 Text("Tap a tag to select or deselect all clients with that tag.")
                     .font(.caption)

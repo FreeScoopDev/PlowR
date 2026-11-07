@@ -50,13 +50,13 @@ struct ContractDetailView: View {
                 }
             }
             .listRowBackground(PlowRColor.surface)
-            Section("Applies To") {
+            Section(title: "Applies To") {
                 ForEach(places, id: \.id) { place in
                     LabeledContent(place.isMain ? "Main Address" : place.label, value: place.address)
                 }
             }
             .listRowBackground(PlowRColor.surface)
-            Section("Services Covered") {
+            Section(title: "Services Covered") {
                 if serviceNames.isEmpty {
                     Text("None chosen").foregroundStyle(PlowRColor.inkSecondary)
                 }
@@ -73,7 +73,7 @@ struct ContractDetailView: View {
                 .listRowBackground(PlowRColor.surface)
             }
             if !contract.notes.isEmpty {
-                Section("Notes") { Text(contract.notes) }
+                Section(title: "Notes") { Text(contract.notes) }
                 .listRowBackground(PlowRColor.surface)
             }
             actions
@@ -192,6 +192,7 @@ struct ContractDetailView: View {
                 }
             } header: {
                 Text("Visits")
+                    .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
                 Text(visitsNote(ahead: ahead))
             }
@@ -227,6 +228,7 @@ struct ContractDetailView: View {
                 }
             } header: {
                 Text("Payments")
+                    .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
                 Text(paymentsNote)
             }

@@ -147,6 +147,7 @@ struct ContractTriggerChecksSection: View {
             }
         } header: {
             Text("Snow Trigger")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
             Text(range == nil
                  ? "Days below the trigger can be marked once the contract starts."

@@ -108,7 +108,7 @@ struct BusinessSearchView: View {
         } else {
             List {
                 if !businesses.isEmpty {
-                    Section("\(businesses.count) results near \(locationQuery)") {
+                    Section(title: "\(businesses.count) results near \(locationQuery)") {
                         ForEach(businesses) { business in
                             Button {
                                 onSelect(business)

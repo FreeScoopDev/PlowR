@@ -103,7 +103,7 @@ struct RouteDetailView: View {
                     }
                     .listRowBackground(PlowRColor.surface)
                 }
-                Section("Stops") {
+                Section(title: "Stops") {
                     ForEach(Array(route.sortedStops.enumerated()), id: \.element.id) { index, stop in
                         let isSkipped = !todaysRun.isIncluded(stop.id)
                         // A stop opens its page: services, notes, equipment, target time.
@@ -301,6 +301,7 @@ struct RouteDetailView: View {
             }
         } header: {
             Text("Load-Out")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
             if lines.isEmpty {
                 Text("Tap a stop to set the services it needs.")

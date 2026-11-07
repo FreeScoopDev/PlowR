@@ -18,7 +18,7 @@ struct CreateRouteView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Route Name") {
+                Section(title: "Route Name") {
                     TextField("e.g. Monday North Side", text: $routeName)
                 }
                 .listRowBackground(PlowRColor.surface)
@@ -55,6 +55,7 @@ struct CreateRouteView: View {
                     }
                 } header: {
                     Text("Stops")
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 } footer: {
                     if selectedStops.count > 1 {
                         Text("Drag to reorder stops.")

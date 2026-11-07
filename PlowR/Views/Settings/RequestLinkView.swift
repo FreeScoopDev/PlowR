@@ -131,6 +131,7 @@ struct RequestLinkView: View {
             }
         } header: {
             Text("Your Link")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
             Text("Put it in a text, on social media or your website, or print the QR code on a flyer or your truck. Whoever opens it fills in a short form, and the request comes to \(profile.phone) as a text from their own phone\(RequestLink.validEmail(profile.email).isEmpty ? "" : " (or, from a computer, an email to \(RequestLink.validEmail(profile.email)))"), ending in Add to PlowR: tap that to add them as a lead. Nothing goes through a server, and no app is needed to send a request.")
         }
@@ -161,6 +162,7 @@ struct RequestLinkView: View {
             }
         } header: {
             Text("Services on the Form")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
             Text((fromCatalog ? "Up to \(RequestLink.Limit.services), from your Service Catalog." : "Tick what you do. Add services to your Service Catalog to offer your own.")
                  + (chosen.isEmpty ? " With none ticked, the form asks only for their details and notes."
