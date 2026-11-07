@@ -188,10 +188,12 @@ struct AdaptiveDetails<Content: View>: View {
 
 /// A single-line text field that, at accessibility text sizes, grows to up
 /// to four lines instead of hiding its value behind "…". Below them it is
-/// the plain `TextField`. A line break (the Return key of a field that can
-/// grow) isn't kept: the value stays one line, as before.
+/// the plain `TextField`. The value stays one line: Return ends editing as
+/// it does in a plain field, and line breaks pasted or autofilled (an
+/// address) become ", " rather than being dropped.
 struct GrowingTextField: View {
     @Environment(\.dynamicTypeSize) private var typeSize
+    @FocusState private var focused: Bool
     let title: String
     @Binding var text: String
 
@@ -200,14 +202,31 @@ struct GrowingTextField: View {
         self._text = text
     }
 
+    /// `value` with each run of line breaks (and the spaces around it)
+    /// turned into ", "; breaks at either end are dropped.
+    static func singleLine(_ value: String) -> String {
+        guard value.contains(where: \.isNewline) else { return value }
+        let lines = value.split(omittingEmptySubsequences: true, whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        return lines.joined(separator: ", ")
+    }
+
+    /// Return was pressed: the only line break is the one just typed at the end.
+    static func isReturn(_ value: String) -> Bool {
+        value.hasSuffix("\n") && !value.dropLast().contains(where: \.isNewline)
+    }
+
     var body: some View {
         if typeSize.isAccessibilitySize {
             TextField(title, text: $text, axis: .vertical)
                 .lineLimit(1...4)
+                .focused($focused)
                 .onChange(of: text) { _, value in
-                    if value.contains(where: \.isNewline) {
-                        text = String(value.filter { !$0.isNewline })
-                    }
+                    guard value.contains(where: \.isNewline) else { return }
+                    let returned = Self.isReturn(value)
+                    text = Self.singleLine(value)
+                    if returned { focused = false }
                 }
         } else {
             TextField(title, text: $text)

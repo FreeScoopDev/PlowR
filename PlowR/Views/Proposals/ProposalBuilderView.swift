@@ -410,11 +410,13 @@ struct ProposalBuilderView: View {
             VStack(alignment: .leading, spacing: PlowRLayout.space2) {
                 Text(title)
                 HStack {
-                    price()
+                    price().wholeValue()
                     Spacer(minLength: PlowRLayout.space3)
                     Toggle(title, isOn: isOn).labelsHidden()
                 }
             }
+            // One element, as at default size: the name, the price, the switch.
+            .accessibilityElement(children: .combine)
         } else {
             Toggle(isOn: isOn) {
                 HStack {
