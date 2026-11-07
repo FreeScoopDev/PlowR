@@ -33,7 +33,7 @@ struct PaymentMethodsView: View {
                                 .font(.subheadline.weight(.medium))
                             Text(method.displayValue)
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(PlowRColor.inkSecondary)
                                 .lineLimit(1)
                         }
                         Spacer()

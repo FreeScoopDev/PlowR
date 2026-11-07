@@ -104,7 +104,7 @@ struct ServiceRowView: View {
                     .font(.headline)
                 Text(priceLabel)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(PlowRColor.inkSecondary)
             }
             Spacer()
             Toggle("", isOn: Binding(
@@ -181,7 +181,7 @@ struct ServiceItemEditView: View {
                         TextField(pricePlaceholder, text: $price)
                             .keyboardType(.decimalPad)
                         if !priceSuffix.isEmpty {
-                            Text(priceSuffix).foregroundStyle(.secondary)
+                            Text(priceSuffix).foregroundStyle(PlowRColor.inkSecondary)
                         }
                     }
                     if !price.isEmpty, ServiceCatalog.price(typed: price) == nil {
