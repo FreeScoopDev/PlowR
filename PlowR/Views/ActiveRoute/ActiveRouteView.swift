@@ -172,15 +172,18 @@ struct ActiveRouteView: View {
         } message: {
             Text("This route was changed on another device, so that stop wasn't marked complete. Check the current stop and try again.")
         }
-        .alert("Location Access Required", isPresented: $showingLocationDeniedAlert) {
+        // Location off used to offer only Open Settings or End Route, which
+        // threw away the run. The route works without it, by hand, so
+        // carrying on is the default; the note on the screen says what's missing.
+        .alert("Location Is Off", isPresented: $showingLocationDeniedAlert) {
             Button("Open Settings") {
                 if let url = URL(string: UIApplication.openSettingsURLString) {
                     UIApplication.shared.open(url)
                 }
             }
-            Button("End Route", role: .cancel) { store.end() }
+            Button("Continue Without Location", role: .cancel) {}
         } message: {
-            Text("PlowR needs location access to track your route. Enable it in Settings > Privacy > Location Services.")
+            Text("Without location, PlowR can't show ETAs or record when you arrive at and leave each stop. You can still complete stops by hand. To turn it on: Settings > Privacy & Security > Location Services > PlowR.")
         }
         .confirmationDialog("Open in Maps", isPresented: $showingNavPicker, titleVisibility: .visible) {
             if let stop = navStop {
@@ -207,6 +210,12 @@ struct ActiveRouteView: View {
     private var preciseLocationNote: some View {
         locationNote("Arrival and departure times aren't recorded: Precise Location is off for PlowR. Turn it on in Settings to record them.",
                      settingsLabel: "Open Settings to turn on Precise Location")
+    }
+
+    /// Location off (RouteGPS.isOff): the route carries on, by hand.
+    private var locationOffNote: some View {
+        locationNote("Location is off: no ETAs, arrival or departure times. Complete each stop by hand.",
+                     settingsLabel: "Open Settings to turn on Location")
     }
 
     private func locationNote(_ text: String, settingsLabel: String) -> some View {
@@ -247,7 +256,9 @@ struct ActiveRouteView: View {
                             .padding(.horizontal)
                             .padding(.vertical, 8)
                     }
-                    if RouteGPS.needsPrecise(status: locationManager.authorizationStatus,
+                    if RouteGPS.isOff(status: locationManager.authorizationStatus, isMac: OnMac.isMac) {
+                        locationOffNote
+                    } else if RouteGPS.needsPrecise(status: locationManager.authorizationStatus,
                                              accuracy: locationManager.accuracyAuthorization,
                                              areasLimited: SiteMonitor.shared.accuracyLimited, isMac: OnMac.isMac) {
                         preciseLocationNote
@@ -286,6 +297,10 @@ struct ActiveRouteView: View {
             }
         }
         .onAppear {
+            // The screen stays on while a route is up: a crew glancing at the
+            // next stop shouldn't have to unlock the phone in gloves. iOS
+            // ignores this while the app isn't in front; Lock still locks.
+            UIApplication.shared.isIdleTimerDisabled = true
             beginTracking()
             // Built with the app in the background (a location relaunch), it
             // hasn't been seen: that waits for the app to come to the front.
@@ -293,6 +308,7 @@ struct ActiveRouteView: View {
             openRequestedText()
         }
         .onDisappear {
+            UIApplication.shared.isIdleTimerDisabled = false
             // Stops GPS for this screen only. The route itself carries on: only
             // End Route (store.end()) finishes it.
             locationManager.stopTracking()
@@ -705,59 +721,8 @@ struct ActiveRouteView: View {
                 .background(PlowRColor.raised, in: RoundedRectangle(cornerRadius: PlowRLayout.cornerMedium, style: .continuous))
             }
 
-            // Getting there, and the record of the work: the quieter choices.
-            HStack(spacing: PlowRLayout.space2) {
-                Button { openNavigation(for: stop) } label: {
-                    Label("Navigate", systemImage: PlowRSymbol.navigate.name)
-                }
-                .buttonStyle(.plowRSecondary)
-                .disabled(stop.latitude == 0 && stop.clientAddress.isEmpty)
-                if !stop.isCustomStop {
-                    // Keeps its name once work is recorded: it's still the
-                    // way back in to add a service or a photo.
-                    let recorded = stop.completedServiceIDs.count
-                    // The count sits in the icon's place, so the title
-                    // doesn't wrap at half the card's width.
-                    Button { recorderStop = stop } label: {
-                        Label {
-                            Text("Record Services")
-                        } icon: {
-                            if recorded == 0 {
-                                Image(systemName: "doc.badge.plus")
-                            } else {
-                                Text("\(recorded)")
-                                    .font(PlowRFont.label)
-                                    .monospacedDigit()
-                                    .foregroundStyle(PlowRColor.onBrand)
-                                    .frame(minWidth: 20, minHeight: 20)
-                                    .background(PlowRColor.brand, in: Circle())
-                            }
-                        }
-                    }
-                    .buttonStyle(.plowRSecondary)
-                    .accessibilityLabel("Record Services")
-                    .accessibilityValue(recorded == 0 ? "" : "\(recorded) recorded")
-                }
-            }
-
-            // The first route only, inline under the button it's about:
-            // never over Complete Stop (RouteTips).
-            if !stop.isCustomStop {
-                TipView(recordServicesTip)
-            }
-
-            // A contract with a snow trigger in force today: less may have
-            // fallen here than the forecast said.
-            if belowTrigger(for: stop) != nil {
-                Button {
-                    $gate.unless(ProGate.proFeature("Marking below trigger", access)) { belowTriggerStop = stop }
-                } label: {
-                    Label("Below Trigger", systemImage: "arrow.down.circle")
-                }
-                .buttonStyle(.plowRSecondary)
-            }
-
-            // The one main action, in copper, glove-sized.
+            // The one main action, in copper, glove-sized, first: it stays near the
+            // top when the buttons below stack or a location note shows (Joe, 2026-11-07).
             if isLastStop {
                 Button {
                     switch store.completeCurrentStop(expecting: stop.id) {
@@ -784,11 +749,73 @@ struct ActiveRouteView: View {
                 }
                 .buttonStyle(.plowRAction)
             }
+
+            // Instead of completing it: a contract with a snow trigger in force today, where less may have
+            // fallen here than the forecast said.
+            if belowTrigger(for: stop) != nil {
+                Button {
+                    $gate.unless(ProGate.proFeature("Marking below trigger", access)) { belowTriggerStop = stop }
+                } label: {
+                    Label("Below Trigger", systemImage: "arrow.down.circle")
+                }
+                .buttonStyle(.plowRSecondary)
+            }
+
+            // Getting there, and the record of the work: the quieter choices.
+            // Side by side, in equal halves, while the wider label fits on one
+            // line in half the row; stacked, full width, when it doesn't (a
+            // narrow phone, large text), so a label never wraps inside its button.
+            ViewThatFits(in: .horizontal) {
+                EqualWidthRow(spacing: PlowRLayout.space2) { stopActionButtons(stop) }
+                VStack(spacing: PlowRLayout.space2) { stopActionButtons(stop) }
+            }
+
+            // The first route only, inline under the button it's about:
+            // never over Complete Stop (RouteTips).
+            if !stop.isCustomStop {
+                TipView(recordServicesTip)
+            }
         }
         .padding(PlowRLayout.space4)
         .background(PlowRColor.surface, in: RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous)
             .stroke(PlowRColor.line, lineWidth: 1))
+    }
+
+    /// Navigate and Record Services, for the current stop card's row.
+    @ViewBuilder
+    private func stopActionButtons(_ stop: RouteStop) -> some View {
+        Button { openNavigation(for: stop) } label: {
+            Label("Navigate", systemImage: PlowRSymbol.navigate.name)
+        }
+        .buttonStyle(.plowRSecondary)
+        .disabled(stop.latitude == 0 && stop.clientAddress.isEmpty)
+        if !stop.isCustomStop {
+            // Keeps its name once work is recorded: it's still the
+            // way back in to add a service or a photo.
+            let recorded = stop.completedServiceIDs.count
+            // The count sits in the icon's place, so the label stays
+            // as short as it can.
+            Button { recorderStop = stop } label: {
+                Label {
+                    Text("Record Services")
+                } icon: {
+                    if recorded == 0 {
+                        Image(systemName: "doc.badge.plus")
+                    } else {
+                        Text("\(recorded)")
+                            .font(PlowRFont.label)
+                            .monospacedDigit()
+                            .foregroundStyle(PlowRColor.onBrand)
+                            .frame(minWidth: 20, minHeight: 20)
+                            .background(PlowRColor.brand, in: Circle())
+                    }
+                }
+            }
+            .buttonStyle(.plowRSecondary)
+            .accessibilityLabel("Record Services")
+            .accessibilityValue(recorded == 0 ? "" : "\(recorded) recorded")
+        }
     }
 
     private var routeCompleteCard: some View {
@@ -1103,5 +1130,35 @@ struct ActiveRouteView: View {
     /// also moves when Siri or Control Center completes a stop.
     private func didAdvance() {
         haptic()
+    }
+}
+
+/// Children side by side in equal widths. Its ideal width is the widest
+/// child's ideal width times the count (plus spacing), not the sum, so
+/// `ViewThatFits` takes it only when every child fits its share on one line.
+private struct EqualWidthRow: Layout {
+    var spacing: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard !subviews.isEmpty else { return .zero }
+        let gaps = spacing * CGFloat(subviews.count - 1)
+        let ideal = subviews.map { $0.sizeThatFits(.unspecified) }
+        let widest = ideal.map(\.width).max() ?? 0
+        let width = proposal.width ?? widest * CGFloat(subviews.count) + gaps
+        let share = (width - gaps) / CGFloat(subviews.count)
+        let height = subviews.map { $0.sizeThatFits(ProposedViewSize(width: share, height: nil)).height }.max() ?? 0
+        return CGSize(width: width, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard !subviews.isEmpty else { return }
+        let gaps = spacing * CGFloat(subviews.count - 1)
+        let share = (bounds.width - gaps) / CGFloat(subviews.count)
+        var x = bounds.minX
+        for subview in subviews {
+            subview.place(at: CGPoint(x: x, y: bounds.minY), anchor: .topLeading,
+                          proposal: ProposedViewSize(width: share, height: bounds.height))
+            x += share + spacing
+        }
     }
 }
