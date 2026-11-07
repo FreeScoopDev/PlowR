@@ -5,12 +5,18 @@ import SwiftUI
 /// (`PlowRColor.Status`), or the brand with nothing to flag. One size
 /// everywhere: the Schedule's used to be shorter than the others.
 struct AccentBar: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
     let status: PlowRColor.Status?
 
+    /// At accessibility text sizes the row is taller than 48 pt (its text
+    /// wraps, its trailing column stacks below): the bar runs the row's height.
     var body: some View {
-        Capsule()
-            .fill(status?.fill ?? PlowRColor.brand)
-            .frame(width: 4, height: 48)
+        let bar = Capsule().fill(status?.fill ?? PlowRColor.brand)
+        if typeSize.isAccessibilitySize {
+            bar.frame(width: 4).frame(minHeight: 48, maxHeight: .infinity)
+        } else {
+            bar.frame(width: 4, height: 48)
+        }
     }
 }
 
