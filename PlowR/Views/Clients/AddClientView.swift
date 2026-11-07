@@ -59,7 +59,7 @@ struct AddClientView: View {
                                     if !completion.subtitle.isEmpty {
                                         Text(completion.subtitle)
                                             .font(.caption)
-                                            .foregroundStyle(.secondary)
+                                            .foregroundStyle(PlowRColor.inkSecondary)
                                     }
                                 }
                             }

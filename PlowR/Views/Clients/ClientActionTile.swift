@@ -19,7 +19,7 @@ struct ClientActionTile: View {
                 .background(color.opacity(0.12), in: RoundedRectangle(cornerRadius: PlowRLayout.cornerMedium, style: .continuous))
             Text(title)
                 .font(.caption.weight(.medium))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(PlowRColor.inkSecondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
         }
