@@ -139,7 +139,9 @@ enum RouteGPS {
     /// route carries on without it: stops are completed by hand, with no ETAs
     /// or arrival times. The route screen says so, ahead of the other notes
     /// (not on a Mac, which follows no route).
-    static func isOff(status: CLAuthorizationStatus, isMac: Bool) -> Bool {
+    /// The one place "off" is decided: RouteWeatherSpot's stop-weather fallback
+    /// uses it too, so the note and the weather can't disagree.
+    nonisolated static func isOff(status: CLAuthorizationStatus, isMac: Bool) -> Bool {
         !isMac && (status == .denied || status == .restricted)
     }
 

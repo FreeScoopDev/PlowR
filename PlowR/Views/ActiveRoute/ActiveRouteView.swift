@@ -214,7 +214,7 @@ struct ActiveRouteView: View {
 
     /// Location off (RouteGPS.isOff): the route carries on, by hand.
     private var locationOffNote: some View {
-        locationNote("Location is off for PlowR: no ETAs or arrival times. Complete each stop by hand, or turn Location on in Settings.",
+        locationNote("Location is off: no ETAs, arrival or departure times. Complete each stop by hand.",
                      settingsLabel: "Open Settings to turn on Location")
     }
 
