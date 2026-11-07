@@ -21,10 +21,16 @@ struct GrowingTextFieldTests {
         #expect(GrowingTextField.singleLine("  spaced ") == "  spaced ")
     }
 
-    @Test func returnIsOnlyATrailingBreak() {
-        #expect(GrowingTextField.isReturn("abc\n"))
-        #expect(!GrowingTextField.isReturn("a\nb"))
-        #expect(!GrowingTextField.isReturn("a\nb\n"))
-        #expect(!GrowingTextField.isReturn("abc"))
+    // Return is one break typed into the text, wherever the cursor was;
+    // the field then keeps the old text and ends editing.
+    @Test func returnIsOneTypedBreak() {
+        #expect(GrowingTextField.isReturn(old: "abc", new: "abc\n"))
+        #expect(GrowingTextField.isReturn(old: "123 Main St", new: "123 Main\n St"))
+        #expect(GrowingTextField.isReturn(old: "", new: "\n"))
+        // A paste, even one ending in a break, isn't Return.
+        #expect(!GrowingTextField.isReturn(old: "abc", new: "abcx\n"))
+        #expect(!GrowingTextField.isReturn(old: "", new: "a\nb"))
+        // One extra character that isn't a break isn't Return.
+        #expect(!GrowingTextField.isReturn(old: "abc", new: "abcd"))
     }
 }

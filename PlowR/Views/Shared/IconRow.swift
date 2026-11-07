@@ -212,9 +212,16 @@ struct GrowingTextField: View {
         return lines.joined(separator: ", ")
     }
 
-    /// Return was pressed: the only line break is the one just typed at the end.
-    static func isReturn(_ value: String) -> Bool {
-        value.hasSuffix("\n") && !value.dropLast().contains(where: \.isNewline)
+    /// Return was pressed: `new` is `old` with one line break typed into
+    /// it, wherever the cursor was. Anything bigger (a paste, AutoFill) isn't.
+    static func isReturn(old: String, new: String) -> Bool {
+        guard new.count == old.count + 1 else { return false }
+        guard let at = zip(old.indices, new.indices).first(where: { old[$0.0] != new[$0.1] })?.1
+            ?? new.indices.last else { return false }
+        guard new[at].isNewline else { return false }
+        var without = new
+        without.remove(at: at)
+        return without == old
     }
 
     var body: some View {
@@ -222,11 +229,16 @@ struct GrowingTextField: View {
             TextField(title, text: $text, axis: .vertical)
                 .lineLimit(1...4)
                 .focused($focused)
-                .onChange(of: text) { _, value in
+                .onChange(of: text) { previous, value in
                     guard value.contains(where: \.isNewline) else { return }
-                    let returned = Self.isReturn(value)
-                    text = Self.singleLine(value)
-                    if returned { focused = false }
+                    // Return ends editing and changes nothing, as it does in a
+                    // one-line field; a pasted break becomes ", ".
+                    if Self.isReturn(old: previous, new: value) {
+                        text = previous
+                        focused = false
+                    } else {
+                        text = Self.singleLine(value)
+                    }
                 }
         } else {
             TextField(title, text: $text)

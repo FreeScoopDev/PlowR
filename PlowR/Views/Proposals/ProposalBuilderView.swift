@@ -408,7 +408,8 @@ struct ProposalBuilderView: View {
         )
         if typeSize.isAccessibilitySize {
             VStack(alignment: .leading, spacing: PlowRLayout.space2) {
-                Text(title)
+                // The switch already carries the name for VoiceOver.
+                Text(title).accessibilityHidden(true)
                 HStack {
                     price().wholeValue()
                     Spacer(minLength: PlowRLayout.space3)
