@@ -73,7 +73,7 @@ struct StopDetailView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(stop.clientName).font(.headline)
                         if !stop.clientAddress.isEmpty {
-                            Text(stop.clientAddress).font(.subheadline).foregroundStyle(.secondary)
+                            Text(stop.clientAddress).font(.subheadline).foregroundStyle(PlowRColor.inkSecondary)
                         }
                     }
                     contactRow

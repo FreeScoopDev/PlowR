@@ -81,11 +81,11 @@ struct ClientPickerView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(place.title(for: client.name))
                         .font(.headline)
-                        .foregroundStyle(isAdded ? .secondary : .primary)
+                        .foregroundStyle(isAdded ? PlowRColor.inkSecondary : Color.primary)
                     if !place.address.isEmpty {
                         Text(place.address)
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(PlowRColor.inkSecondary)
                     }
                 }
                 Spacer()
@@ -125,7 +125,7 @@ struct CustomStopFormView: View {
                 Section {
                     Text("Use this for gas stations, supply pickups, one-time customers, or any stop that isn't saved as a client.")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
                 .listRowBackground(PlowRColor.surface)
             }

@@ -290,7 +290,7 @@ struct RouteDetailView: View {
                     Image(systemName: "wrench.and.screwdriver").foregroundStyle(PlowRColor.inkSecondary)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(stop.equipmentNotes).font(.subheadline)
-                        Text("Stop \(index + 1) · \(stop.clientName)").font(.caption).foregroundStyle(.secondary)
+                        Text("Stop \(index + 1) · \(stop.clientName)").font(.caption).foregroundStyle(PlowRColor.inkSecondary)
                     }
                 }
             }
@@ -357,7 +357,7 @@ struct RouteDetailView: View {
                 if !stop.clientAddress.isEmpty {
                     Text(stop.clientAddress)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
                 if let client = clientFor(stop), client.totalVisits > 0 {
                     HStack(spacing: 6) {
@@ -365,12 +365,12 @@ struct RouteDetailView: View {
                             Label(last.formatted(.dateTime.month(.abbreviated).day()),
                                   systemImage: "clock.arrow.circlepath")
                                 .font(.caption2)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(PlowRColor.inkSecondary)
                         }
                         if client.averageServiceMinutes > 0 {
                             Text("· avg \(Int(client.averageServiceMinutes))m")
                                 .font(.caption2)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(PlowRColor.inkSecondary)
                         }
                     }
                 }
@@ -422,7 +422,7 @@ struct RouteDetailView: View {
                 if stop.latitude == 0 {
                     Image(systemName: "location.slash")
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
             }
         }
