@@ -84,7 +84,7 @@ struct ProPitch: View {
             }
             Text("Cancel any time. Your records stay, and you can always export them.")
                 .font(.footnote)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(PlowRColor.inkSecondary)
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)

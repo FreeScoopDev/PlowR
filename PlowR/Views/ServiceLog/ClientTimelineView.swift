@@ -55,7 +55,7 @@ struct ClientTimelineView: View {
             IconBadge(systemImage: symbol(event.kind), status: status(event.kind), size: 32)
             VStack(alignment: .leading, spacing: 2) {
                 Text(event.title).font(.subheadline.weight(.semibold)).lineLimit(2)
-                Text(subtitle(event)).font(.caption).foregroundStyle(.secondary)
+                Text(subtitle(event)).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
             }
             Spacer()
             if let amount = event.amount {

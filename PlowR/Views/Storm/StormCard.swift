@@ -82,7 +82,7 @@ struct StormCard: View {
                 .font(.headline)
             Text("Forecast for your area over the whole day (a weather model's estimate), not a measurement at each property.")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(PlowRColor.inkSecondary)
         }
     }
 
@@ -106,7 +106,7 @@ struct StormCard: View {
                 } label: {
                     Label("\(count(storm.notMet)) not reached", systemImage: "circle")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
             }
             if !storm.markedBelow.isEmpty {
@@ -116,12 +116,12 @@ struct StormCard: View {
                     Label("\(storm.markedBelow.count) marked below trigger at the property",
                           systemImage: "arrow.down.circle")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
             }
             Text("Less fell at a client's place than forecast? Mark them below trigger: they're left out of the text, and their stops start skipped on the route.")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(PlowRColor.inkSecondary)
         }
     }
 
@@ -135,7 +135,7 @@ struct StormCard: View {
                 HStack {
                     Text(trigger.clientName.isEmpty ? "Client" : trigger.clientName)
                     Spacer()
-                    Text(trigger.label).foregroundStyle(.secondary)
+                    Text(trigger.label).foregroundStyle(PlowRColor.inkSecondary)
                     Menu {
                         if marked && storm.checkedAtStop.contains(trigger.clientID) {
                             // The crew's record, with its photos: removed only on the contract's page.
@@ -165,12 +165,12 @@ struct StormCard: View {
         if routes.isEmpty {
             Text("No routes yet.")
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(PlowRColor.inkSecondary)
                 .padding(14)
         } else {
             Text("Open a route to message its clients and start it.")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(PlowRColor.inkSecondary)
                 .padding(.horizontal, 14)
                 .padding(.top, 10)
             ForEach(routes) { route in

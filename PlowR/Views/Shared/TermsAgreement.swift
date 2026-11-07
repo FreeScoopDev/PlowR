@@ -12,7 +12,7 @@ struct TermsAgreement: View {
     var body: some View {
         Text("By continuing, you agree to PlowR's [Terms of Service](https://getplowr.app/terms-of-service.html) and [Privacy Policy](https://getplowr.app/privacy-policy.html).")
             .font(.caption)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(PlowRColor.inkSecondary)
             .multilineTextAlignment(.center)
     }
 }

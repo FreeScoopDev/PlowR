@@ -213,7 +213,7 @@ struct ActiveRouteView: View {
         HStack(alignment: .top, spacing: 8) {
             Label(text, systemImage: "location.circle")
                 .font(.footnote)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(PlowRColor.inkSecondary)
             Spacer(minLength: 0)
             Button {
                 if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
@@ -242,7 +242,7 @@ struct ActiveRouteView: View {
                         Label("On a Mac, GPS arrival times and texting aren't available. Run routes on your iPhone.",
                               systemImage: "laptopcomputer")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(PlowRColor.inkSecondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal)
                             .padding(.vertical, 8)

@@ -26,7 +26,7 @@ struct ProSettingsSection: View {
                     .font(.headline)
                 Text(Self.message(for: access))
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(PlowRColor.inkSecondary)
             }
             .padding(.vertical, 2)
             if access.tier != .pro {

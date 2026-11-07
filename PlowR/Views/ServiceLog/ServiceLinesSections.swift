@@ -75,7 +75,7 @@ struct ServiceLinesSections: View {
                 HStack(spacing: 8) {
                     TextField("Service name", text: $item.name)
                     Divider()
-                    Text("$").foregroundStyle(.secondary)
+                    Text("$").foregroundStyle(PlowRColor.inkSecondary)
                     TextField("0.00", text: $item.price)
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.trailing)
@@ -136,7 +136,7 @@ struct ServiceLinesSections: View {
             .disabled(locked)
             if isOn {
                 HStack(spacing: 4) {
-                    Text("Price: $").font(.caption).foregroundStyle(.secondary)
+                    Text("Price: $").font(.caption).foregroundStyle(PlowRColor.inkSecondary)
                     TextField("0.00", text: Binding(
                         get: { typedPrices[key] ?? StopRecording.money(defaultPrice(for: service)) },
                         set: { typedPrices[key] = $0 }
@@ -147,7 +147,7 @@ struct ServiceLinesSections: View {
                     .disabled(locked)
                     if service.unitType == "perSqFt", case let area = InvoiceLines.totalArea(zones), area > 0 {
                         Text("(\(Int(area)) sqft)")
-                            .font(.caption2).foregroundStyle(.tertiary)
+                            .font(.caption2).foregroundStyle(PlowRColor.inkSecondary)
                     }
                 }
                 .padding(.leading, 48)
