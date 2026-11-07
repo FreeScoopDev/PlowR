@@ -68,7 +68,7 @@ struct MassMessageView: View {
                 if !MFMessageComposeViewController.canSendText() {
                     Section {
                         Label("Texting isn't available on this device.", systemImage: "message.badge")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(PlowRColor.inkSecondary)
                     }
                     .listRowBackground(PlowRColor.surface)
                 }
@@ -200,7 +200,7 @@ struct MassMessageView: View {
                         if !stop.clientPhone.isEmpty {
                             Text(stop.clientPhone)
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(PlowRColor.inkSecondary)
                         }
                     }
                 }

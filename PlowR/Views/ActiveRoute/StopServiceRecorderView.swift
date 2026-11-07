@@ -150,7 +150,7 @@ struct StopServiceRecorderView: View {
                             LabeledContent("Contract", value: contract.name)
                             Text(contractNote(contract))
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(PlowRColor.inkSecondary)
                         }
                     }
                     .listRowBackground(PlowRColor.surface)

@@ -38,11 +38,11 @@ struct WorkOrderRequestView: View {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(zone.label).font(.subheadline)
-                            Text(zoneDetail(zone)).font(.caption).foregroundStyle(.secondary)
+                            Text(zoneDetail(zone)).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
                         }
                         Spacer()
                         Text(zone.rateType == "flat" ? "Flat rate" : "Per sq ft")
-                            .font(.caption).foregroundStyle(.secondary)
+                            .font(.caption).foregroundStyle(PlowRColor.inkSecondary)
                     }
                 }
                 LabeledContent("Total Area", value: "\(Int(totalArea)) sq ft")

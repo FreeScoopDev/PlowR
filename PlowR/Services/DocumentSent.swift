@@ -208,7 +208,7 @@ struct DocumentShareView: View {
                         Text("Mark as Sent")
                         Text(DocumentSent.shareNote(status: status, clientName: clientName, toClient: toClient))
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(PlowRColor.inkSecondary)
                     }
                 }
                 .padding(.horizontal, 20)

@@ -177,12 +177,12 @@ struct BusinessRow: View {
                 if !business.address.isEmpty {
                     Text(business.address)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
                 if !business.phone.isEmpty {
                     Text(business.phone)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
             }
             Spacer()

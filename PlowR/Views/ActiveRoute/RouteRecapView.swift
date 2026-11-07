@@ -225,7 +225,7 @@ struct RouteRecapView: View {
                     if !stop.clientAddress.isEmpty {
                         Text(stop.clientAddress)
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(PlowRColor.inkSecondary)
                             .lineLimit(1)
                     }
                 }
@@ -240,19 +240,19 @@ struct RouteRecapView: View {
                     } else {
                         Text("No services")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(PlowRColor.inkSecondary)
                     }
                     if stop.actualMinutes > 0 {
                         Text("\(stop.actualMinutes) min")
                             .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(PlowRColor.inkSecondary)
                     }
                     // GPS's time at the job site, once it has seen the crew
                     // arrive and leave (a departure seen later shows then).
                     if completed, let onSite = onSite[stop.id] {
                         Text(ProofOfService.onSiteListText(onSite))
                             .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(PlowRColor.inkSecondary)
                     }
                 }
 
