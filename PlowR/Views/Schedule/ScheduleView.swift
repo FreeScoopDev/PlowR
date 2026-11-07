@@ -304,7 +304,7 @@ struct ScheduleView: View {
         } header: {
             Label("Upcoming", systemImage: "calendar.badge.clock")
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.primary)
+                .foregroundStyle(PlowRColor.ink)
                 .textCase(nil)
         }
         .listRowBackground(PlowRColor.surface)
