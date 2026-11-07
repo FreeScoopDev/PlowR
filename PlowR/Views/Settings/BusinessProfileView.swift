@@ -80,7 +80,7 @@ struct BusinessProfileView: View {
                                 .overlay {
                                     Image(systemName: "building.2")
                                         .font(.title)
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(PlowRColor.inkSecondary)
                                 }
                         }
                         PhotosPicker(selection: $logoItem, matching: .images) {
@@ -131,7 +131,7 @@ struct BusinessProfileView: View {
                         TextField("0", text: $defaultTaxRate)
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
-                        Text("%").foregroundStyle(.secondary)
+                        Text("%").foregroundStyle(PlowRColor.inkSecondary)
                     }
                 }
                 if Proposal.readTaxRate(defaultTaxRate) == nil {

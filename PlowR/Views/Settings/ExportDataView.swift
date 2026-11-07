@@ -37,10 +37,10 @@ struct ExportDataView: View {
                             IconBadge(systemImage: export.systemImage, size: 36)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(export.title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
-                                Text(export.detail).font(.caption).foregroundStyle(.secondary)
+                                Text(export.detail).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
                             }
                             Spacer()
-                            Image(systemName: "square.and.arrow.up").foregroundStyle(.secondary)
+                            Image(systemName: "square.and.arrow.up").foregroundStyle(PlowRColor.inkSecondary)
                         }
                     }
                 }

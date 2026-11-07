@@ -99,7 +99,7 @@ struct RequestLinkView: View {
         Section {
             Text(link.absoluteString)
                 .font(.caption.monospaced())
-                .foregroundStyle(.secondary)
+                .foregroundStyle(PlowRColor.inkSecondary)
                 .lineLimit(2)
                 .truncationMode(.middle)
                 .textSelection(.enabled)
@@ -209,7 +209,7 @@ struct RequestLinkQRView: View {
             VStack(spacing: 20) {
                 Spacer()
                 Text(businessName).font(.title2.weight(.semibold)).multilineTextAlignment(.center)
-                Text("Scan to request service").foregroundStyle(.secondary)
+                Text("Scan to request service").foregroundStyle(PlowRColor.inkSecondary)
                 if let image {
                     Image(uiImage: image)
                         .interpolation(.none)
@@ -223,12 +223,12 @@ struct RequestLinkQRView: View {
                     }
                     .plowRProminent()
                     Text("Save Image puts it in Photos, for a flyer, a sign or your truck. The bigger it's printed, the farther away it scans.")
-                        .font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                        .font(.footnote).foregroundStyle(PlowRColor.inkSecondary).multilineTextAlignment(.center)
                 } else if made {
                     Text(link == nil ? "Your link isn't available right now."
                          : "This link is too long for a QR code. Shorten your business name or welcome line, or offer fewer services.")
                         .multilineTextAlignment(.center)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
                 Spacer()
             }

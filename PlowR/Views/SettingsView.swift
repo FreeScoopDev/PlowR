@@ -45,7 +45,7 @@ struct SettingsView: View {
     private var iCloudTint: Color {
         switch iCloud.summary.kind {
         case .backedUp: return PlowRColor.Status.done.text
-        case .unknown: return .secondary
+        case .unknown: return PlowRColor.inkSecondary
         case .problem: return PlowRColor.Status.owed.text
         }
     }
@@ -134,7 +134,7 @@ struct SettingsView: View {
                             .font(.subheadline.weight(.semibold))
                         Text(iCloud.summary.message)
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(PlowRColor.inkSecondary)
                     }
                 }
                 .padding(.vertical, 4)
