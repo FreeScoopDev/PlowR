@@ -129,9 +129,9 @@ struct ContractTriggerChecksSection: View {
                          ? "Checked on a route\(check.routeName.isEmpty ? "" : " (\(check.routeName))")"
                          : "Marked by hand")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                     if !check.note.isEmpty {
-                        Text(check.note).font(.caption).foregroundStyle(.secondary)
+                        Text(check.note).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
                     }
                 }
                 .swipeActions {

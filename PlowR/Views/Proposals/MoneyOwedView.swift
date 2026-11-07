@@ -52,7 +52,7 @@ struct MoneyOwedView: View {
                                     Text(client.name)
                                     Text(client.invoices.count == 1 ? "1 invoice" : "\(client.invoices.count) invoices")
                                         .font(.caption)
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(PlowRColor.inkSecondary)
                                 }
                                 Spacer()
                                 VStack(alignment: .trailing, spacing: 2) {

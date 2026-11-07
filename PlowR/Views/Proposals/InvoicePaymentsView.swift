@@ -82,7 +82,7 @@ struct InvoicePaymentsView: View {
                             Text(payment.receivedAt, format: .dateTime.month(.abbreviated).day().year())
                             let detail = [payment.method, payment.note].filter { !$0.isEmpty }.joined(separator: " · ")
                             if !detail.isEmpty {
-                                Text(detail).font(.caption).foregroundStyle(.secondary)
+                                Text(detail).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
                             }
                         }
                         Spacer()
