@@ -141,6 +141,7 @@ struct ClientListView: View {
                         let leads = entries.filter { $0.stage == .lead }.count
                         let quoted = entries.filter { $0.stage == .quoted }.count
                         Text("\(leads) \(leads == 1 ? "lead" : "leads") · \(quoted) quoted")
+                            .foregroundStyle(PlowRColor.inkSecondary)
                     }
                 }
             }

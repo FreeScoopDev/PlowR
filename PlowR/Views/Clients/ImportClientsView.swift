@@ -135,6 +135,7 @@ struct ImportClientsView: View {
                     } label: {
                         Text(when)
                         Text(count(imported.clients, "client", "clients") + " still tagged")
+                            .foregroundStyle(PlowRColor.inkSecondary)
                     }
                 }
             } header: {
