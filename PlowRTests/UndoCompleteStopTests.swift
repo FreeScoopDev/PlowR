@@ -76,17 +76,23 @@ struct UndoCompleteStopTests {
         return item
     }
 
-    /// What Record Services saves: Clear at a typed $55, and a note.
+    /// What Record Services shows: `service` at a typed price.
+    private func screen(_ service: ServiceItem, price: String = "55") -> StopRecording {
+        StopRecording(services: [.init(id: service.id.uuidString, name: service.name,
+                                       unitType: service.unitType, pricePerUnit: service.pricePerUnit)],
+                      zones: [], selectedIDs: [service.id.uuidString], typedPrices: [service.id.uuidString: price])
+    }
+
+    /// What Record Services saves: Clear at a typed $55 (or `price`), and a
+    /// note. As the sheet does, for a stop already completed it dates the
+    /// work by the run's start (StopServiceRecorderView).
     private func recordServices(_ h: Harness, _ store: ActiveRouteStore, at stop: RouteStop, client: Client,
-                                service: ServiceItem) throws -> ServiceRecord {
-        let screen = StopRecording(services: [.init(id: service.id.uuidString, name: service.name,
-                                                     unitType: service.unitType, pricePerUnit: service.pricePerUnit)],
-                                   zones: [], selectedIDs: [service.id.uuidString],
-                                   typedPrices: [service.id.uuidString: "55"])
+                                service: ServiceItem, price: String = "55",
+                                notes: String = "Icy drive") throws -> ServiceRecord {
         let run = try #require(store.runID)
-        let startedAt = try #require(store.stopStartedAt)
-        return ServiceLog.saveRecording(screen, notes: "Icy drive", for: stop, of: client, run: run, operatorID: "op",
-                                        startedAt: startedAt, in: h.context)
+        let startedAt = try #require(stop.id == store.currentStopID ? store.stopStartedAt : store.runStartedAt)
+        return ServiceLog.saveRecording(screen(service, price: price), notes: notes, for: stop, of: client, run: run,
+                                        operatorID: "op", startedAt: startedAt, in: h.context)
     }
 
     // A plain completion, undone: the route, the stop, the client, the record
@@ -206,8 +212,10 @@ struct UndoCompleteStopTests {
 
     // Money: work recorded at $55, then the visit was invoiced (Schedule →
     // Invoice, another device) before the stop was completed. Completing
-    // bills the record on that invoice; undo puts it back unbilled at the
-    // same $55, as it was.
+    // bills the record on that invoice (its invoiceID: the one money field
+    // completing changes here; its lines stand, Record Services made them);
+    // undo puts it back unbilled. The amounts are checked to show they
+    // didn't move either way.
     @Test func undoPutsAVisitBilledRecordBackToItsExactAmounts() throws {
         let h = try Harness()
         let service = clear(h)
@@ -236,12 +244,14 @@ struct UndoCompleteStopTests {
 
         #expect(store.undoLastCompletion(expecting: stop.id) == .undone)
         #expect(RecordValues(record) == before)
+        // The real check: unbilled again.
         #expect(record.invoiceID.isEmpty)
+        #expect(ServiceLog.billingStatus(of: record, in: h.context) == .notBilled)
+        #expect(!ServiceLog.isVisitBilled(visit, in: h.context))
+        // Unchanged by completing, so unchanged by undo.
         #expect(record.isBillable)
         #expect(record.lines.map(\.price) == [55])
         #expect(ServiceLog.total(of: record) == 55)
-        #expect(ServiceLog.billingStatus(of: record, in: h.context) == .notBilled)
-        #expect(!ServiceLog.isVisitBilled(visit, in: h.context))
     }
 
     // MARK: - Refused
@@ -361,7 +371,8 @@ struct UndoCompleteStopTests {
         #expect(store.undoLastCompletion(expecting: first) == .nothingToUndo)
     }
 
-    // Not kept across a relaunch: the completion stands.
+    // Documents the design: the chance to undo is in memory only, never in
+    // the checkpoint, so after a relaunch the completion stands.
     @Test func aRelaunchKeepsTheCompletion() throws {
         let h = try Harness()
         let before = h.makeClosedAppStore()
@@ -373,5 +384,244 @@ struct UndoCompleteStopTests {
         #expect(after.undoOffer == nil)
         #expect(after.undoLastCompletion(expecting: first) == .nothingToUndo)
         #expect(after.currentStopIndex == 1)
+    }
+
+    // MARK: - Work saved after completing
+
+    // Record Services left open on a stop Siri or Control Center completed:
+    // services saved and invoiced in it after. Undo would delete an invoiced
+    // record, so it's refused and the bar closes.
+    @Test func undoIsRefusedOnceTheRecordWasInvoicedAfterCompleting() throws {
+        let h = try Harness()
+        let service = clear(h)
+        let store = h.makeStore()
+        store.start(h.route)
+        let stop = try #require(store.currentStop)
+        h.clock += 600
+        store.completeShownStop()
+        #expect(store.undoOffer != nil)
+        let record = try recordServices(h, store, at: stop, client: h.client, service: service)
+        #expect(store.undoOffer == nil)                          // the bar closes on the save
+        let invoice = ServiceLog.invoice(record, lines: screen(service).invoiceLines, contractCharge: 0,
+                                         client: h.client, operatorID: "op", notes: "", now: h.clock, in: h.context)
+        try h.context.save()
+
+        #expect(store.undoLastCompletion(expecting: stop.id) == .recordChanged)
+        #expect(try records(h).map(\.id) == [record.id])
+        #expect(record.invoiceID == invoice.id.uuidString)
+        #expect(ServiceLog.billingStatus(of: record, in: h.context) == .invoiced)
+        #expect(record.lines.map(\.price) == [55])
+        #expect(store.currentStopIndex == 1)
+        #expect(h.client.totalVisits == 1)
+        #expect(store.undoLastCompletion(expecting: stop.id) == .nothingToUndo)
+    }
+
+    // The same with a record Record Services made before completing: the
+    // services saved after completing survive.
+    @Test func servicesSavedAfterCompletingSurviveARefusedUndo() throws {
+        let h = try Harness()
+        let service = clear(h)
+        let store = h.makeStore()
+        store.start(h.route)
+        let stop = try #require(store.currentStop)
+        let record = try recordServices(h, store, at: stop, client: h.client, service: service)
+        h.clock += 600
+        store.completeShownStop()
+        _ = try recordServices(h, store, at: stop, client: h.client, service: service, price: "70",
+                               notes: "Second pass")
+        #expect(store.undoLastCompletion(expecting: stop.id) == .recordChanged)
+        #expect(record.lines.map(\.price) == [70])
+        #expect(record.notes == "Second pass")
+        #expect(record.minutes == 10)                            // completing's times stand too
+        #expect(store.currentStopIndex == 1)
+    }
+
+    // A photo taken for the record after completing: refused, photo kept on it.
+    @Test func undoIsRefusedOnceAPhotoWasTakenForTheRecord() throws {
+        let h = try Harness()
+        let store = h.makeStore()
+        store.start(h.route)
+        let stop = try #require(store.currentStop)
+        store.completeShownStop()
+        let record = try #require(try records(h).first)
+        let photo = StopPhoto(operatorID: "op", clientID: h.client.id.uuidString, routeID: h.route.id.uuidString,
+                              isBefore: false, imageData: Data())
+        photo.recordID = record.id.uuidString
+        h.context.insert(photo)
+        try h.context.save()
+        #expect(store.undoLastCompletion(expecting: stop.id) == .recordChanged)
+        #expect(photo.recordID == record.id.uuidString)
+        #expect(try records(h).count == 1)
+    }
+
+    // Seen leaving after completing (GPS writes the departure on the record):
+    // still undoable, and the departure goes with it.
+    @Test func aDepartureAfterCompletingDoesntBlockUndo() throws {
+        let h = try Harness()
+        pin(h)
+        let store = h.makeStore()
+        store.start(h.route)
+        let stop = try #require(store.currentStop)
+        h.clock += 600
+        store.completeShownStop()
+        h.clock += 10
+        store.siteExited(stop.id.uuidString, at: h.clock)
+        #expect(try records(h).first?.leftAt == h.clock)
+        #expect(store.undoOffer != nil)
+        #expect(store.undoLastCompletion(expecting: stop.id) == .undone)
+        #expect(try records(h).isEmpty)
+    }
+
+    // MARK: - Client totals
+
+    // A change synced from another device inside the window stands: undo
+    // takes back only what this completion added.
+    @Test func undoTakesBackOnlyWhatCompletingAddedToTheClient() throws {
+        let h = try Harness()
+        h.client.totalVisits = 4
+        h.client.totalServiceMinutes = 10
+        try h.context.save()
+        let store = h.makeStore()
+        store.start(h.route)
+        let first = try #require(store.currentStopID)
+        h.clock += 15 * 60
+        store.completeShownStop()
+        #expect(h.client.totalVisits == 5)
+        #expect(h.client.totalServiceMinutes == 25)
+        // Another device's visit, synced in.
+        let synced = h.clock + 5
+        h.client.totalVisits += 1
+        h.client.totalServiceMinutes += 20
+        h.client.lastServiceDate = synced
+        #expect(store.undoLastCompletion(expecting: first) == .undone)
+        #expect(h.client.totalVisits == 5)
+        #expect(h.client.totalServiceMinutes == 30)
+        #expect(h.client.lastServiceDate == synced)
+    }
+
+    // MARK: - A record completing made and billed
+
+    // The visit was invoiced before the work (Schedule → Invoice): completing
+    // makes the record and bills it on that invoice (billFromVisit). Undo
+    // deletes the record and leaves the invoice and the visit's link to it;
+    // completing again bills the new record on it again.
+    @Test func undoDeletesARecordCompletingMadeAndBilledAndCompletingAgainRebillsIt() throws {
+        let h = try Harness()
+        let visit = ScheduledVisit(operatorID: "op", clientID: h.client.id.uuidString, clientName: h.client.name,
+                                   clientAddress: h.client.address, scheduledDate: h.clock)
+        h.context.insert(visit)
+        let invoice = Proposal(operatorID: "op", client: h.client)
+        invoice.invoiceNumber = "INV-0009"
+        h.context.insert(invoice)
+        visit.proposalID = invoice.id.uuidString
+        try h.context.save()
+        let store = h.makeStore()
+        store.start(h.route)
+        let stop = try #require(store.currentStop)
+        h.clock += 600
+        store.completeShownStop()
+        let made = try #require(try records(h).first)
+        #expect(made.invoiceID == invoice.id.uuidString)
+
+        #expect(store.undoLastCompletion(expecting: stop.id) == .undone)
+        #expect(try records(h).isEmpty)
+        #expect(visit.proposalID == invoice.id.uuidString)
+        #expect(try h.context.fetch(FetchDescriptor<Proposal>()).map(\.id) == [invoice.id])
+        #expect(invoice.invoiceNumber == "INV-0009")
+
+        h.clock += 60
+        store.completeShownStop()
+        let again = try #require(try records(h).first)
+        #expect(again.id != made.id)
+        #expect(again.invoiceID == invoice.id.uuidString)
+    }
+}
+
+// From the test audit (2026-11-07).
+extension UndoCompleteStopTests {
+    @Test func gapScheduleMadeRecordFilledByRouteIsPutBack() throws {
+        let h = try Harness()
+        pin(h)
+        let service = clear(h)
+        let visit = ScheduledVisit(operatorID: "op", clientID: h.client.id.uuidString, clientName: h.client.name,
+                                   clientAddress: "9 Other St", scheduledDate: h.clock)
+        h.context.insert(visit)
+        let ticked = try #require(ServiceLog.complete(visit, among: [visit], in: h.context, now: h.clock))
+        h.client.name = "Renamed"
+        try h.context.save()
+        let before = RecordValues(ticked)
+        #expect(before.runID.isEmpty && before.stopID.isEmpty && before.routeID.isEmpty && before.lines.isEmpty
+                && before.notes.isEmpty && before.arrivedAt == nil && before.leftAt == nil)
+        let store = h.makeStore()
+        store.start(h.route)
+        let stop = try #require(store.currentStop)
+        stop.completedServiceIDs = [service.id.uuidString]
+        stop.completedNotes = "Icy drive"
+        h.clock += 120
+        store.siteEntered(stop.id.uuidString, at: h.clock)
+        h.clock += 600
+        store.siteExited(stop.id.uuidString, at: h.clock)
+        store.completeShownStop()
+        let after = RecordValues(ticked)
+        #expect(after.runID == store.runID?.uuidString && after.stopID == stop.id.uuidString)
+        #expect(!after.lines.isEmpty && after.notes == "Icy drive" && after.arrivedAt != nil && after.leftAt != nil)
+        #expect(try records(h).count == 1)
+        #expect(store.undoLastCompletion(expecting: stop.id) == .undone)
+        #expect(RecordValues(ticked) == before)
+    }
+
+    @Test func gapUnseenChangeFlagComesBack() throws {
+        let h = try Harness()
+        let store = h.makeStore()
+        store.start(h.route)
+        h.context.delete(h.route.sortedStops[0])    // the current stop deleted elsewhere
+        try h.context.save()
+        #expect(store.stopChangedUnseen)
+        let stop = try #require(store.currentStop)
+        store.completeShownStop()
+        #expect(!store.stopChangedUnseen)
+        #expect(store.undoLastCompletion(expecting: stop.id) == .undone)
+        #expect(store.stopChangedUnseen)
+    }
+
+    @Test func gapWindowIsThirtySecondsNotTheConstant() throws {
+        let a = try Harness()
+        let sa = a.makeStore()
+        sa.start(a.route)
+        let fa = try #require(sa.currentStopID)
+        sa.completeShownStop()
+        a.clock += 29.9
+        #expect(sa.undoLastCompletion(expecting: fa) == .undone)
+        let b = try Harness()
+        let sb = b.makeStore()
+        sb.start(b.route)
+        let fb = try #require(sb.currentStopID)
+        sb.completeShownStop()
+        b.clock += 30.1
+        #expect(sb.undoLastCompletion(expecting: fb) == .expired)
+    }
+
+    @Test func gapUndoLeavesTheInvoiceItself() throws {
+        let h = try Harness()
+        let service = clear(h)
+        let visit = ScheduledVisit(operatorID: "op", clientID: h.client.id.uuidString, clientName: h.client.name,
+                                   clientAddress: h.client.address, scheduledDate: h.clock)
+        h.context.insert(visit)
+        try h.context.save()
+        let store = h.makeStore()
+        store.start(h.route)
+        let stop = try #require(store.currentStop)
+        _ = try recordServices(h, store, at: stop, client: h.client, service: service)
+        let invoice = Proposal(operatorID: "op", client: h.client)
+        invoice.invoiceNumber = "INV-0007"
+        h.context.insert(invoice)
+        visit.proposalID = invoice.id.uuidString
+        try h.context.save()
+        store.completeShownStop()
+        #expect(store.undoLastCompletion(expecting: stop.id) == .undone)
+        let invoices = try h.context.fetch(FetchDescriptor<Proposal>())
+        #expect(invoices.map(\.id) == [invoice.id])
+        #expect(invoices.first?.invoiceNumber == "INV-0007")
+        #expect(visit.proposalID == invoice.id.uuidString)
     }
 }

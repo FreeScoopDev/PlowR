@@ -68,6 +68,11 @@ final class ActiveRouteStore {
         case stopChanged
         /// More than `undoWindow` since it was completed. Nothing was changed.
         case expired
+        /// Work was saved on the stop's record since it was completed (Record
+        /// Services left open while Siri or Control Center completed the
+        /// stop: services, notes, photos, an invoice). Undoing would delete
+        /// or overwrite it, so nothing was changed.
+        case recordChanged
     }
 
     /// How long a completed stop can be undone.
@@ -101,22 +106,31 @@ final class ActiveRouteStore {
         var actualMinutes: Int
         var departures: [PendingDeparture]
         var client: UndoClientTotals?
-        /// The record completing filled in, with its fields before. nil with
-        /// `madeRecord` nil: no record was written (a custom stop).
-        var filledRecord: (record: ServiceRecord, before: ServiceRecord.Fields)?
-        /// The record completing made, deleted by Undo.
-        var madeRecord: ServiceRecord?
+        /// The record completing wrote to; nil when it wrote none (a custom
+        /// stop, a client not found).
+        var record: ServiceRecord?
+        /// Its fields before, when it existed already (Record Services, the
+        /// Schedule): put back by Undo. nil when completing made it: deleted.
+        var recordBefore: ServiceRecord.Fields?
+        /// Its fields and photos as completing left them. Anything written to
+        /// it since (but its departure, `leftAt`, which Undo takes back too)
+        /// refuses the undo: `.recordChanged`.
+        var recordAfter: ServiceRecord.Fields?
+        var photosAfter: Set<UUID> = []
         var visit: UndoVisitState?
         /// The next visit of a repeating series, added when the visit was completed.
         var addedVisits: [ScheduledVisit] = []
     }
 
-    /// A client's totals before a completion added to them.
+    /// What a completion added to a client's totals, and the last service
+    /// date before it. Undo takes back only what it added: a change synced
+    /// from another device in the meantime stands.
     struct UndoClientTotals {
         var client: Client
-        var totalVisits: Int
         var totalServiceMinutes: Double
+        var addedMinutes: Double
         var lastServiceDate: Date?
+        var finishedAt: Date
     }
 
     /// A day's visit before a completion completed it.
@@ -213,13 +227,34 @@ final class ActiveRouteStore {
     }
 
     var isLastStop: Bool { currentStopIndex == sortedStops.count - 1 }
+    var allStopsDone: Bool { isActive && currentStopIndex >= sortedStops.count }
 
     /// The completion the route screen can offer to undo, until `expiresAt`.
+    /// None once its record has been written to since (Record Services
+    /// saved), so the bar closes then; reading the record here makes the
+    /// screen follow it.
     var undoOffer: UndoOffer? {
-        lastCompletion.map { UndoOffer(stopID: $0.stopID, clientName: $0.clientName,
-                                       expiresAt: $0.completedAt.addingTimeInterval(Self.undoWindow)) }
+        guard let undo = lastCompletion, !recordFieldsChanged(since: undo) else { return nil }
+        return UndoOffer(stopID: undo.stopID, clientName: undo.clientName,
+                         expiresAt: undo.completedAt.addingTimeInterval(Self.undoWindow))
     }
-    var allStopsDone: Bool { isActive && currentStopIndex >= sortedStops.count }
+
+    /// Whether the completion's record was deleted or a field of it written
+    /// since completing, leaving out its departure time.
+    private func recordFieldsChanged(since undo: UndoableCompletion) -> Bool {
+        guard let record = undo.record, let after = undo.recordAfter else { return false }
+        if record.isDeleted { return true }
+        var now = ServiceRecord.Fields(of: record)
+        now.leftAt = after.leftAt
+        return now != after
+    }
+
+    /// Fields, or photos taken for it since completing.
+    private func recordChanged(since undo: UndoableCompletion) -> Bool {
+        if recordFieldsChanged(since: undo) { return true }
+        guard let record = undo.record, let context else { return false }
+        return !Set(ServiceLog.photos(of: record, in: context).map(\.id)).isSubset(of: undo.photosAfter)
+    }
 
     // MARK: - Lifecycle
 
@@ -370,7 +405,9 @@ final class ActiveRouteStore {
     /// day's visit it completed, its time, and the route goes back to it,
     /// with its timer, arrival and the departures being watched as they were.
     /// Refused, changing nothing, once the route has moved on in any other
-    /// way or `undoWindow` has passed. A text already sent stays sent.
+    /// way, `undoWindow` has passed, or work was saved on the stop's record
+    /// since (`.recordChanged`). A text already sent stays sent. The
+    /// client's totals lose only what this completion added.
     @discardableResult
     func undoLastCompletion(expecting stopID: UUID) -> UndoResult {
         validate()
@@ -387,22 +424,33 @@ final class ActiveRouteStore {
             lastCompletion = nil
             return .expired
         }
+        guard !recordChanged(since: undo) else {
+            lastCompletion = nil
+            return .recordChanged
+        }
         lastCompletion = nil
         let stop = stops[undo.stopIndex]
         stop.actualMinutes = undo.actualMinutes
         if let totals = undo.client, !totals.client.isDeleted {
-            totals.client.totalVisits = totals.totalVisits
-            totals.client.totalServiceMinutes = totals.totalServiceMinutes
-            totals.client.lastServiceDate = totals.lastServiceDate
+            let client = totals.client
+            client.totalVisits = max(0, client.totalVisits - 1)
+            // Exactly as before when nothing else added since; else less
+            // what this completion added.
+            if client.totalServiceMinutes == totals.totalServiceMinutes + totals.addedMinutes {
+                client.totalServiceMinutes = totals.totalServiceMinutes
+            } else {
+                client.totalServiceMinutes = max(0, client.totalServiceMinutes - totals.addedMinutes)
+            }
+            if client.lastServiceDate == totals.finishedAt { client.lastServiceDate = totals.lastServiceDate }
         }
-        if let made = undo.madeRecord, !made.isDeleted, let context {
-            // As ServiceLog.deleteRecord, less its invoice check: the visit's
-            // invoice it was billed on (billFromVisit) was made before it.
-            for photo in ServiceLog.photos(of: made, in: context) { photo.recordID = "" }
-            context.delete(made)
-        }
-        if let filled = undo.filledRecord, !filled.record.isDeleted {
-            filled.before.restore(to: filled.record)
+        if let record = undo.record, !record.isDeleted, let context {
+            if let before = undo.recordBefore {
+                before.restore(to: record)
+            } else {
+                // Billed only on the invoice already made for its visit
+                // (billFromVisit), which stays: nothing was billed since.
+                ServiceLog.deleteRecord(record, in: context, evenIfInvoiced: true)
+            }
         }
         if let state = undo.visit, !state.visit.isDeleted {
             state.visit.status = state.status
@@ -646,16 +694,16 @@ final class ActiveRouteStore {
         let clientID = stop.clientID
         // Fetch and match by UUID: a #Predicate on `id` clashes with SwiftData's own id.
         guard let client = try? context.fetch(FetchDescriptor<Client>()).first(where: { $0.id == clientID }) else { return }
-        undo.client = .init(client: client, totalVisits: client.totalVisits,
-                            totalServiceMinutes: client.totalServiceMinutes, lastServiceDate: client.lastServiceDate)
+        undo.client = .init(client: client, totalServiceMinutes: client.totalServiceMinutes, addedMinutes: minutes,
+                            lastServiceDate: client.lastServiceDate, finishedAt: finishedAt)
         client.totalVisits += 1
         client.totalServiceMinutes += minutes
         client.lastServiceDate = finishedAt
         guard let runID else { return }
         // What the record and visit were before, read the way recordStop finds them.
         let target = ServiceLog.targetForStop(stop, of: client, run: runID, startedAt: startedAt, in: context)
-        if let existing = target.record { undo.filledRecord = (existing, ServiceRecord.Fields(of: existing)) }
-        let seriesBefore = target.visit.map { Set(series(of: $0, in: context).map(\.id)) }
+        undo.recordBefore = target.record.map { ServiceRecord.Fields(of: $0) }
+        let seriesBefore = target.visit.map { Set(ServiceLog.series(of: $0, in: context).map(\.id)) }
         if let visit = target.visit {
             undo.visit = .init(visit: visit, status: visit.status, completedAt: visit.completedAt,
                                serviceLogged: visit.serviceLogged)
@@ -664,12 +712,14 @@ final class ActiveRouteStore {
                                            operatorID: route?.operatorID ?? client.operatorID,
                                            startedAt: startedAt, finishedAt: finishedAt, minutes: minutes,
                                            in: context)
-        if target.record == nil { undo.madeRecord = record }
+        undo.record = record
         if let visit = target.visit, let seriesBefore {
-            undo.addedVisits = series(of: visit, in: context).filter { !seriesBefore.contains($0.id) }
+            undo.addedVisits = ServiceLog.series(of: visit, in: context).filter { !seriesBefore.contains($0.id) }
         }
         record.arrivedAt = site.arrivedAt
         record.leftAt = site.leftAt
+        undo.recordAfter = ServiceRecord.Fields(of: record)
+        undo.photosAfter = Set(ServiceLog.photos(of: record, in: context).map(\.id))
         // Not seen leaving yet: still there, or never seen there at all.
         // Watched for its departure (SiteDepartures says for how long).
         if site.leftAt == nil, stop.latitude != 0 || stop.longitude != 0 {
@@ -678,13 +728,6 @@ final class ActiveRouteStore {
                                                latitude: stop.latitude, longitude: stop.longitude))
             SiteDepartures.save(departures, to: defaults)
         }
-    }
-
-    /// The visits of `visit`'s repeating series (its own included).
-    private func series(of visit: ScheduledVisit, in context: ModelContext) -> [ScheduledVisit] {
-        let seriesID = visit.seriesID
-        let descriptor = FetchDescriptor<ScheduledVisit>(predicate: #Predicate { $0.seriesID == seriesID })
-        return (try? context.fetch(descriptor)) ?? []
     }
 
     private func clearState() {

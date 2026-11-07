@@ -658,9 +658,12 @@ enum ServiceLog {
     /// Deletes `record`, unless it's on an invoice: delete the invoice first,
     /// or the bill would name work the log no longer has. Its photos stay in
     /// the client's gallery. True if it was deleted.
+    /// `evenIfInvoiced`: for Undo after Complete Stop only, taking back a
+    /// record completing made and billed on the invoice already made for its
+    /// visit (billFromVisit): the invoice is the visit's, and stays.
     @discardableResult
-    static func deleteRecord(_ record: ServiceRecord, in context: ModelContext) -> Bool {
-        guard invoice(of: record, in: context) == nil else { return false }
+    static func deleteRecord(_ record: ServiceRecord, in context: ModelContext, evenIfInvoiced: Bool = false) -> Bool {
+        guard evenIfInvoiced || invoice(of: record, in: context) == nil else { return false }
         for photo in photos(of: record, in: context) { photo.recordID = "" }
         context.delete(record)
         return true
@@ -903,10 +906,14 @@ enum ServiceLog {
                                       among visits: [ScheduledVisit]? = nil, in context: ModelContext) {
         visit.status = .completed
         visit.completedAt = date
+        ClientVisits.addNext(after: visit, among: visits ?? series(of: visit, in: context), in: context)
+    }
+
+    /// The visits of `visit`'s repeating series, its own included.
+    static func series(of visit: ScheduledVisit, in context: ModelContext) -> [ScheduledVisit] {
         let seriesID = visit.seriesID
-        let series = visits ?? ((try? context.fetch(FetchDescriptor<ScheduledVisit>(
-            predicate: #Predicate { $0.seriesID == seriesID }))) ?? [])
-        ClientVisits.addNext(after: visit, among: series, in: context)
+        return (try? context.fetch(FetchDescriptor<ScheduledVisit>(
+            predicate: #Predicate { $0.seriesID == seriesID }))) ?? []
     }
 
     // MARK: - Services

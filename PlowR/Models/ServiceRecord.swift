@@ -98,8 +98,12 @@ enum ServiceRecordSource: String {
 extension ServiceRecord {
     /// Every stored field of a record but its ID, as it was at one moment:
     /// what Undo after Complete Stop puts back on a record completing filled
-    /// in (ActiveRouteStore.undoLastCompletion). A field added to the model
-    /// must be added here too, or an undo leaves completing's value in it.
+    /// in (ActiveRouteStore.undoLastCompletion), and what it compares to see
+    /// whether anything wrote to the record after completing. A field added
+    /// to the model must be added here too. Every field, including ones
+    /// completing never writes (`isBillable`, and `visitID`, which it only
+    /// ever sets to the value it had): Record Services' invoice writes
+    /// `isBillable` after completing, and that must be seen.
     struct Fields: Equatable {
         var operatorID, sourceKey, sourceRaw, clientID, propertyID, clientName, propertyAddress: String
         var startedAt: Date?
