@@ -42,15 +42,18 @@ struct RoleSelectionView: View {
     private func roleCard(icon: String, title: String, description: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: PlowRLayout.space4) {
-                IconBadge(systemImage: icon, size: 48)
-                VStack(alignment: .leading, spacing: PlowRLayout.space1) {
-                    Text(title)
-                        .font(.headline)
-                        .foregroundStyle(PlowRColor.ink)
-                    Text(description)
-                        .font(.caption)
-                        .foregroundStyle(PlowRColor.inkSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                IconRow(spacing: PlowRLayout.space4) {
+                    IconBadge(systemImage: icon, size: 48)
+                } content: {
+                    VStack(alignment: .leading, spacing: PlowRLayout.space1) {
+                        Text(title)
+                            .font(.headline)
+                            .foregroundStyle(PlowRColor.ink)
+                        Text(description)
+                            .font(.caption)
+                            .foregroundStyle(PlowRColor.inkSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
                 Spacer()
                 Image(systemName: "chevron.right")

@@ -38,18 +38,21 @@ struct ProStatusBanner: View {
         // note above it: this was the system's grouped grey with larger text.
         PlowRCard {
             HStack(alignment: .top, spacing: PlowRLayout.space3) {
-                IconBadge(systemImage: icon, size: 36)
-                VStack(alignment: .leading, spacing: PlowRLayout.space1) {
-                    Text(title)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(PlowRColor.ink)
-                    Text(message)
-                        .font(.caption)
-                        .foregroundStyle(PlowRColor.inkSecondary)
-                    Button(closable ? "See PlowR Pro" : "Subscribe Again") { showingPaywall = true }
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(PlowRColor.brand)
-                        .padding(.top, PlowRLayout.space1)
+                IconRow(alignment: .top) {
+                    IconBadge(systemImage: icon, size: 36)
+                } content: {
+                    VStack(alignment: .leading, spacing: PlowRLayout.space1) {
+                        Text(title)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(PlowRColor.ink)
+                        Text(message)
+                            .font(.caption)
+                            .foregroundStyle(PlowRColor.inkSecondary)
+                        Button(closable ? "See PlowR Pro" : "Subscribe Again") { showingPaywall = true }
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(PlowRColor.brand)
+                            .padding(.top, PlowRLayout.space1)
+                    }
                 }
                 Spacer(minLength: 0)
                 if closable {

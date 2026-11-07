@@ -59,6 +59,7 @@ private struct PolicyLinks: ViewModifier {
 struct ProPitch: View {
     /// Wide enough for the widest icon at the user's text size, so the text
     /// lines start at one place without an icon running into them.
+    @Environment(\.dynamicTypeSize) private var typeSize
     @ScaledMetric(relativeTo: .body) private var iconWidth: CGFloat = 40
     static let features: [(icon: String, text: String)] = [
         ("person.3.fill", "Unlimited clients and routes"),
@@ -74,12 +75,22 @@ struct ProPitch: View {
             Text("PlowR Pro")
                 .font(.largeTitle.bold())
             ForEach(Self.features, id: \.text) { feature in
-                Label {
-                    Text(feature.text)
-                } icon: {
-                    Image(systemName: feature.icon)
-                        .foregroundStyle(PlowRColor.accent)
-                        .frame(width: iconWidth)
+                if typeSize.isAccessibilitySize {
+                    // The icon above its text: beside it, the text had a
+                    // sliver of the width.
+                    VStack(alignment: .leading, spacing: 8) {
+                        Image(systemName: feature.icon)
+                            .foregroundStyle(PlowRColor.accent)
+                        Text(feature.text)
+                    }
+                } else {
+                    Label {
+                        Text(feature.text)
+                    } icon: {
+                        Image(systemName: feature.icon)
+                            .foregroundStyle(PlowRColor.accent)
+                            .frame(width: iconWidth)
+                    }
                 }
             }
             Text("Cancel any time. Your records stay, and you can always export them.")

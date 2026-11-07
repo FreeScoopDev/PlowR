@@ -186,8 +186,9 @@ struct RouteRowView: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
+        IconRow(spacing: 12) {
             IconBadge(systemImage: run.isRunning ? "map.fill" : "map", status: status)
+        } content: {
             VStack(alignment: .leading, spacing: 2) {
                 Text(route.name)
                     .font(.subheadline.weight(.semibold))

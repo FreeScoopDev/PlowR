@@ -8,6 +8,7 @@ struct DashboardView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AuthManager.self) private var authManager
     @Environment(\.access) private var access
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     @Query private var allProfiles: [BusinessProfile]
     @Query private var allClients: [Client]
@@ -328,14 +329,17 @@ struct DashboardView: View {
         if let banner = iCloud.banner {
             PlowRCard {
                 HStack(alignment: .top, spacing: PlowRLayout.space3) {
-                    IconBadge(systemImage: "icloud.slash", status: .owed, size: 36)
-                    VStack(alignment: .leading, spacing: PlowRLayout.space1) {
-                        Text(banner.title)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(PlowRColor.ink)
-                        Text(banner.message)
-                            .font(.caption)
-                            .foregroundStyle(PlowRColor.inkSecondary)
+                    IconRow(alignment: .top) {
+                        IconBadge(systemImage: "icloud.slash", status: .owed, size: 36)
+                    } content: {
+                        VStack(alignment: .leading, spacing: PlowRLayout.space1) {
+                            Text(banner.title)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(PlowRColor.ink)
+                            Text(banner.message)
+                                .font(.caption)
+                                .foregroundStyle(PlowRColor.inkSecondary)
+                        }
                     }
                     Spacer(minLength: 0)
                     Button {
@@ -519,15 +523,18 @@ struct DashboardView: View {
 
     private func visitRowContent(_ visit: ScheduledVisit) -> some View {
         HStack(spacing: PlowRLayout.space3) {
-            IconBadge(systemImage: PlowRSymbol.schedule.name, status: visit.status.chipStatus, size: 36)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(visit.clientName)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(PlowRColor.ink)
-                    .lineLimit(1)
-                Text(visit.scheduledDate, style: .time)
-                    .font(.caption)
-                    .foregroundStyle(PlowRColor.inkSecondary)
+            IconRow {
+                IconBadge(systemImage: PlowRSymbol.schedule.name, status: visit.status.chipStatus, size: 36)
+            } content: {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(visit.clientName)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(PlowRColor.ink)
+                        .lineLimit(1)
+                    Text(visit.scheduledDate, style: .time)
+                        .font(.caption)
+                        .foregroundStyle(PlowRColor.inkSecondary)
+                }
             }
             Spacer()
             if visit.estimatedMinutes > 0 {
@@ -553,10 +560,13 @@ struct DashboardView: View {
                 let items = waiting.items
                 if items.isEmpty {
                     HStack(spacing: PlowRLayout.space3) {
-                        IconBadge(systemImage: PlowRSymbol.complete.name, status: .done, size: 36)
-                        Text("All caught up")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(PlowRColor.ink)
+                        IconRow {
+                            IconBadge(systemImage: PlowRSymbol.complete.name, status: .done, size: 36)
+                        } content: {
+                            Text("All caught up")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(PlowRColor.ink)
+                        }
                         Spacer()
                     }
                     .padding(PlowRLayout.space4)
@@ -647,17 +657,20 @@ struct DashboardView: View {
     private func attentionText(_ item: DashboardAttention, symbol: String, status: PlowRColor.Status?,
                                detail: String? = nil) -> some View {
         HStack(spacing: PlowRLayout.space3) {
-            IconBadge(systemImage: symbol, status: status, size: 36)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(item.title)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(PlowRColor.ink)
-                if let detail {
-                    Text(detail).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
-                } else if let amount = item.amount, amount > 0 {
-                    Text(Money.text(amount))
-                        .font(.caption)
-                        .foregroundStyle(status?.text ?? PlowRColor.inkSecondary)
+            IconRow {
+                IconBadge(systemImage: symbol, status: status, size: 36)
+            } content: {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(item.title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(PlowRColor.ink)
+                    if let detail {
+                        Text(detail).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
+                    } else if let amount = item.amount, amount > 0 {
+                        Text(Money.text(amount))
+                            .font(.caption)
+                            .foregroundStyle(status?.text ?? PlowRColor.inkSecondary)
+                    }
                 }
             }
             Spacer(minLength: 0)
@@ -781,8 +794,10 @@ struct DashboardView: View {
         VStack(alignment: .leading, spacing: PlowRLayout.space2) {
             sectionLabel("Quick Actions")
             // Four actions, a full 2 × 2. Settings is the gear at the top.
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: PlowRLayout.tileSpacing),
-                                GridItem(.flexible(), spacing: PlowRLayout.tileSpacing)],
+            LazyVGrid(columns: typeSize.isAccessibilitySize
+                        ? [GridItem(.flexible())]
+                        : [GridItem(.flexible(), spacing: PlowRLayout.tileSpacing),
+                           GridItem(.flexible(), spacing: PlowRLayout.tileSpacing)],
                       spacing: PlowRLayout.tileSpacing) {
                 Menu {
                     Button { $gate.unless(ProGate.addClient(access)) { showingAddClient = true } } label: {
@@ -811,12 +826,15 @@ struct DashboardView: View {
 
     private func quickActionLabel(_ title: String, icon: String) -> some View {
         HStack(spacing: PlowRLayout.space3) {
-            IconBadge(systemImage: icon, size: 32)
-            Text(title)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(PlowRColor.ink)
-                .lineLimit(1)
-                .minimumScaleFactor(0.85)
+            IconRow {
+                IconBadge(systemImage: icon, size: 32)
+            } content: {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(PlowRColor.ink)
+                    .lineLimit(typeSize.isAccessibilitySize ? 3 : 1)
+                    .minimumScaleFactor(typeSize.isAccessibilitySize ? 1 : 0.85)
+            }
             Spacer(minLength: 0)
         }
         .padding(PlowRLayout.space3)

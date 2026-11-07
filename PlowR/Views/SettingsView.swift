@@ -140,10 +140,11 @@ struct SettingsView: View {
 
             Section {
                 // It said "Backed Up" whatever iCloud's state (ICloudStatus).
-                HStack(alignment: .top, spacing: 12) {
+                IconRow(alignment: .top, spacing: 12) {
                     Image(systemName: iCloudSymbol)
                         .font(.title2)
                         .foregroundStyle(iCloudTint)
+                } content: {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(iCloud.summary.title)
                             .font(.subheadline.weight(.semibold))
