@@ -169,11 +169,26 @@ def bare_sections(s):
         out.append(k)
     return out
 
+def code_only(s):
+    """s without comments and string literals, so a word in either can't satisfy a check."""
+    out = []; j = 0
+    while j < len(s):
+        if s.startswith('//', j):
+            k = s.find('\n', j); j = len(s) if k < 0 else k; continue
+        if s.startswith('/*', j):
+            j = s.index('*/', j) + 2; continue
+        if s[j] == '"':
+            j = skip_string(s, j); out.append('""'); continue
+        out.append(s[j]); j += 1
+    return ''.join(out)
+
 def bare_footers(s):
-    """Positions of footer: { closures with no SectionNote and no .foregroundStyle."""
+    """Positions of footer: { closures with no SectionNote and no .foregroundStyle
+    in their code (comments and strings don't count). Known limit: one coloured
+    view anywhere in the footer passes the whole footer."""
     out = []
     for m in code_positions(s, r'(?<![\w.])footer\s*:\s*(?=\{)'):
-        body = s[m.end():match(s, m.end(), '{', '}')]
+        body = code_only(s[m.end():match(s, m.end(), '{', '}')])
         if not re.search(r'SectionNote|\.foregroundStyle|AddressNotFoundLabel', body):
             out.append(m.start())
     return out
