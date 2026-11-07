@@ -289,20 +289,23 @@ struct SetupFlowView: View {
                                state: SetupPermissions.State) -> some View {
         PlowRCard {
             HStack(alignment: .top, spacing: PlowRLayout.space3) {
-                IconBadge(systemImage: symbol, size: 40)
-                VStack(alignment: .leading, spacing: PlowRLayout.space2) {
-                    Text(title).font(.body.weight(.semibold)).foregroundStyle(PlowRColor.ink)
-                    Text(detail)
-                        .font(.subheadline)
-                        .foregroundStyle(PlowRColor.inkSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                    switch state {
-                    case .undecided:
-                        EmptyView()
-                    case .allowed:
-                        StatusChip("On", systemImage: PlowRSymbol.complete.name, status: .done)
-                    case .declined:
-                        StatusChip("Off: change it in the Settings app", status: .neutral)
+                IconRow(alignment: .top) {
+                    IconBadge(systemImage: symbol, size: 40)
+                } content: {
+                    VStack(alignment: .leading, spacing: PlowRLayout.space2) {
+                        Text(title).font(.body.weight(.semibold)).foregroundStyle(PlowRColor.ink)
+                        Text(detail)
+                            .font(.subheadline)
+                            .foregroundStyle(PlowRColor.inkSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        switch state {
+                        case .undecided:
+                            EmptyView()
+                        case .allowed:
+                            StatusChip("On", systemImage: PlowRSymbol.complete.name, status: .done)
+                        case .declined:
+                            StatusChip("Off: change it in the Settings app", status: .neutral)
+                        }
                     }
                 }
                 Spacer(minLength: 0)

@@ -37,8 +37,9 @@ struct ProStatusBanner: View {
         // The Dashboard's card (surface, hairline) and type, like the iCloud
         // note above it: this was the system's grouped grey with larger text.
         PlowRCard {
-            HStack(alignment: .top, spacing: PlowRLayout.space3) {
+            IconCardRow {
                 IconBadge(systemImage: icon, size: 36)
+            } content: {
                 VStack(alignment: .leading, spacing: PlowRLayout.space1) {
                     Text(title)
                         .font(.subheadline.weight(.semibold))
@@ -51,7 +52,7 @@ struct ProStatusBanner: View {
                         .foregroundStyle(PlowRColor.brand)
                         .padding(.top, PlowRLayout.space1)
                 }
-                Spacer(minLength: 0)
+            } trailing: {
                 if closable {
                     Button {
                         closed = true

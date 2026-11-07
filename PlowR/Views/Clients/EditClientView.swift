@@ -11,6 +11,7 @@ struct EditClientView: View {
     @Environment(\.openURL) private var openURL
     @Environment(AuthManager.self) private var authManager
     @Environment(\.access) private var access
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var gate: ProGate?
 
     let client: Client
@@ -292,7 +293,11 @@ struct EditClientView: View {
             // scroll view doesn't scroll: it keeps the list from treating the
             // row as one tappable cell with a disclosure arrow.
             ScrollView(.horizontal) {
-                HStack(spacing: 8) {
+                // 2 × 2 at accessibility text sizes: four in a row cut the names.
+                let layout = typeSize.isAccessibilitySize
+                    ? AnyLayout(EqualColumnsLayout(columns: 2, spacing: 8))
+                    : AnyLayout(HStackLayout(spacing: 8))
+                layout {
                     Menu {
                         if !draft.phone.isEmpty {
                             Button {

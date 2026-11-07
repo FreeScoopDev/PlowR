@@ -76,14 +76,17 @@ struct GetStartedCard: View {
 
     private func row(_ title: String, detail: String, symbol: String, done: Bool) -> some View {
         HStack(spacing: PlowRLayout.space3) {
-            IconBadge(systemImage: done ? PlowRSymbol.complete.name : symbol, status: done ? .done : nil, size: 36)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(done ? PlowRColor.inkSecondary : PlowRColor.ink)
-                    .strikethrough(done)
-                if !done {
-                    Text(detail).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
+            IconRow {
+                IconBadge(systemImage: done ? PlowRSymbol.complete.name : symbol, status: done ? .done : nil, size: 36)
+            } content: {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(done ? PlowRColor.inkSecondary : PlowRColor.ink)
+                        .strikethrough(done)
+                    if !done {
+                        Text(detail).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
+                    }
                 }
             }
             Spacer(minLength: 0)
