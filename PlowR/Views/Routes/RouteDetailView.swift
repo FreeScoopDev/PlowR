@@ -111,16 +111,18 @@ struct RouteDetailView: View {
                         Button { editingStop = stop } label: {
                             HStack {
                                 // Large text: the skipped chip goes under the row.
-                                let layout = typeSize.isAccessibilitySize
-                                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: PlowRLayout.space2))
-                                    : AnyLayout(HStackLayout())
-                                layout {
-                                    stopRow(stop: stop, index: index)
-                                        .opacity(isSkipped ? 0.4 : 1)
-                                    if isSkipped {
-                                        StatusChip(belowTriggerToday.contains(stop.id) ? "Below Trigger" : "Skipped Today",
-                                                   status: .neutral)
+                                let row = stopRow(stop: stop, index: index)
+                                    .opacity(isSkipped ? 0.4 : 1)
+                                let chip = StatusChip(belowTriggerToday.contains(stop.id) ? "Below Trigger" : "Skipped Today",
+                                                      status: .neutral)
+                                if typeSize.isAccessibilitySize {
+                                    VStack(alignment: .leading, spacing: PlowRLayout.space2) {
+                                        row
+                                        if isSkipped { chip }
                                     }
+                                } else {
+                                    row
+                                    if isSkipped { chip }
                                 }
                                 Image(systemName: "chevron.right")
                                     .font(.caption.weight(.semibold))
