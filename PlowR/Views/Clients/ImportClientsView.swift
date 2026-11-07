@@ -101,7 +101,7 @@ struct ImportClientsView: View {
                 Label("Choose a CSV File", systemImage: "doc.badge.plus")
             }
         } footer: {
-            Text("A spreadsheet of your clients saved as CSV, with the first row naming the columns: Name, Phone, Email, Address and so on. PlowR matches the columns, shows what it will add, and skips clients you already have.")
+            SectionNote("A spreadsheet of your clients saved as CSV, with the first row naming the columns: Name, Phone, Email, Address and so on. PlowR matches the columns, shows what it will add, and skips clients you already have.")
         }
         .listRowBackground(PlowRColor.surface)
         if let fileProblem {
@@ -142,7 +142,7 @@ struct ImportClientsView: View {
                 Text("Recent Imports")
                     .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
-                Text("Undo removes the clients an import added that haven't been used since. Taking the import's tag off a client keeps them.")
+                SectionNote("Undo removes the clients an import added that haven't been used since. Taking the import's tag off a client keeps them.")
             }
             .listRowBackground(PlowRColor.surface)
         }
@@ -234,9 +234,9 @@ struct ImportClientsView: View {
             Text("Who Are They?")
                 .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
-            Text(kind == .customers
+            SectionNote(Text(kind == .customers
                  ? "Clients you work for now. They're counted as customers, not listed in the Pipeline."
-                 : "People you hope to work for. They're listed in the Pipeline as leads.")
+                 : "People you hope to work for. They're listed in the Pipeline as leads."))
         }
         .listRowBackground(PlowRColor.surface)
 
@@ -266,7 +266,7 @@ struct ImportClientsView: View {
         Section {
             Toggle("Extra Addresses as Properties", isOn: $asProperties)
         } footer: {
-            Text("When a client is listed again (same name and phone) at another address, add that address as one of their properties. Off, those rows are skipped.")
+            SectionNote("When a client is listed again (same name and phone) at another address, add that address as one of their properties. Off, those rows are skipped.")
         }
         .listRowBackground(PlowRColor.surface)
 
@@ -317,10 +317,10 @@ struct ImportClientsView: View {
             Text("What Will Happen")
                 .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
-            Text("Duplicates are clients already in PlowR, or listed twice in the file: same name and phone, or same name and address."
+            SectionNote(Text("Duplicates are clients already in PlowR, or listed twice in the file: same name and phone, or same name and address."
                  + (preview.samePhones > 0
                     ? " A row with another client's phone under a different name is skipped too; if it's someone else (a household, an office line), add them by hand. After the import, What Was Skipped lists every row left out."
-                    : ""))
+                    : "")))
         }
         .listRowBackground(PlowRColor.surface)
 
@@ -343,7 +343,7 @@ struct ImportClientsView: View {
                 Text("The clients couldn't be saved, and nothing was imported. Make sure there's free space on this device, then try again.")
                     .foregroundStyle(PlowRColor.Status.owed.text)
             } else {
-                Text("Each client is tagged with the import, so you can find them under Clients and undo it.")
+                SectionNote("Each client is tagged with the import, so you can find them under Clients and undo it.")
             }
         }
         .listRowBackground(PlowRColor.surface)
@@ -419,14 +419,14 @@ struct ImportClientsView: View {
                         LabeledContent("What Was Skipped", value: "\(preview.skipped)")
                     }
                 } footer: {
-                    Text("Rows left out of the import, each with its row in the spreadsheet and why. Add any you want by hand.")
+                    SectionNote("Rows left out of the import, each with its row in the spreadsheet and why. Add any you want by hand.")
                 }
                 .listRowBackground(PlowRColor.surface)
             }
             Section {
                 Button("Undo This Import", role: .destructive) { askToUndo(result) }
             } footer: {
-                Text("Removes the clients this import added, unless they've been used since. You can also undo it later from Import Clients.")
+                SectionNote("Removes the clients this import added, unless they've been used since. You can also undo it later from Import Clients.")
             }
             .listRowBackground(PlowRColor.surface)
         }
@@ -455,9 +455,9 @@ struct ImportClientsView: View {
                 .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
             if !pins.notFound.isEmpty {
-                Text("The map couldn't find \(count(pins.notFound.count, "address", "addresses")). Those clients have no pin, so they aren't on route maps. They're marked in your client list, and PlowR won't look them up again: open each one to correct the address or set the pin.")
+                SectionNote("The map couldn't find \(count(pins.notFound.count, "address", "addresses")). Those clients have no pin, so they aren't on route maps. They're marked in your client list, and PlowR won't look them up again: open each one to correct the address or set the pin.")
             } else if pins.isRunning {
-                Text("Apple's map limits lookups, so PlowR places about 30 a minute. This carries on in the background; keep PlowR open to finish sooner.")
+                SectionNote("Apple's map limits lookups, so PlowR places about 30 a minute. This carries on in the background; keep PlowR open to finish sooner.")
             }
         }
         .listRowBackground(PlowRColor.surface)

@@ -39,7 +39,7 @@ struct ServiceCatalogView: View {
                 Text("Add Standard Services")
                     .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
-                Text("Common services with typical prices, to edit or delete as you like.")
+                SectionNote("Common services with typical prices, to edit or delete as you like.")
             }
             .listRowBackground(PlowRColor.surface)
         }

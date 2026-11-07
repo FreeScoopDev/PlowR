@@ -195,14 +195,14 @@ private struct AddPaymentMethodSheet: View {
                     Section {
                         EmptyView()
                     } footer: {
-                        Text("The name clients should write on the check.")
+                        SectionNote("The name clients should write on the check.")
                     }
                     .listRowBackground(PlowRColor.surface)
                 } else if preset.methodType == "link" {
                     Section {
                         EmptyView()
                     } footer: {
-                        Text("Paste the payment link from your provider. Appears as a tappable link and QR code on invoices.")
+                        SectionNote("Paste the payment link from your provider. Appears as a tappable link and QR code on invoices.")
                     }
                     .listRowBackground(PlowRColor.surface)
                 }

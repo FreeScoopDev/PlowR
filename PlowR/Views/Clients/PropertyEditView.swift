@@ -74,7 +74,7 @@ struct PropertyEditView: View {
                     Text("Name")
                         .foregroundStyle(PlowRColor.inkSecondary)
                 } footer: {
-                    Text("How it shows on routes and the schedule, after \(client.name)'s name.")
+                    SectionNote("How it shows on routes and the schedule, after \(client.name)'s name.")
                 }
                 .listRowBackground(PlowRColor.surface)
                 addressSection
@@ -89,14 +89,14 @@ struct PropertyEditView: View {
                     Text("Route")
                         .foregroundStyle(PlowRColor.inkSecondary)
                 } footer: {
-                    Text("Copied to new route stops here, as a client's own are.")
+                    SectionNote("Copied to new route stops here, as a client's own are.")
                 }
                 .listRowBackground(PlowRColor.surface)
                 if !services.isEmpty { servicesSection }
                 Section {
                     Toggle("Active", isOn: $draft.isActive)
                 } footer: {
-                    Text("An inactive property comes off its routes and isn't offered for new stops and visits. Visits already booked there stay.")
+                    SectionNote("An inactive property comes off its routes and isn't offered for new stops and visits. Visits already booked there stay.")
                 }
                 .listRowBackground(PlowRColor.surface)
                 }
@@ -243,7 +243,7 @@ struct PropertyEditView: View {
             Text("Default Services")
                 .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
-            Text("Services this property typically needs. Its route stops expect these, except a stop given its own services on its route.")
+            SectionNote("Services this property typically needs. Its route stops expect these, except a stop given its own services on its route.")
         }
         .listRowBackground(PlowRColor.surface)
     }

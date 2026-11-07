@@ -158,7 +158,7 @@ struct ContractDetailView: View {
                 Button("Mark Signed") { $gate.unless(ProGate.edit(access)) { confirmingSign = true } }
                 Button("Delete Draft", role: .destructive) { confirmingDelete = true }
             } footer: {
-                Text("Mark it signed once the client has agreed. From then it counts: they're a customer, what was agreed is locked, and it can be cancelled but not deleted.")
+                SectionNote("Mark it signed once the client has agreed. From then it counts: they're a customer, what was agreed is locked, and it can be cancelled but not deleted.")
             }
             .listRowBackground(PlowRColor.surface)
         case .upcoming, .active:
@@ -194,7 +194,7 @@ struct ContractDetailView: View {
                 Text("Visits")
                     .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
-                Text(visitsNote(ahead: ahead))
+                SectionNote(Text(visitsNote(ahead: ahead)))
             }
             .listRowBackground(PlowRColor.surface)
         }
@@ -230,7 +230,7 @@ struct ContractDetailView: View {
                 Text("Payments")
                     .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
-                Text(paymentsNote)
+                SectionNote(verbatim: paymentsNote)
             }
             .listRowBackground(PlowRColor.surface)
         }

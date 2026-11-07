@@ -61,9 +61,9 @@ struct ContractEditView: View {
                     Text("Contract")
                         .foregroundStyle(PlowRColor.inkSecondary)
                 } footer: {
-                    Text(draft.isSigned
+                    SectionNote(Text(draft.isSigned
                          ? "Signed: what was agreed (where, what, the price) is locked. To change it, cancel it and make a new one."
-                         : "Left blank, it's named for its dates.")
+                         : "Left blank, it's named for its dates."))
                 }
                 .listRowBackground(PlowRColor.surface)
                 if draft.isSigned {
@@ -130,7 +130,7 @@ struct ContractEditView: View {
                     Text("Services Covered")
                         .foregroundStyle(PlowRColor.inkSecondary)
                 } footer: {
-                    Text("Services it doesn't cover are billed as extras, as usual.")
+                    SectionNote("Services it doesn't cover are billed as extras, as usual.")
                 }
                 .listRowBackground(PlowRColor.surface)
                 pricingSection
@@ -155,7 +155,7 @@ struct ContractEditView: View {
             Text("Visits")
                 .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
-            Text(scheduleNote)
+            SectionNote(verbatim: scheduleNote)
         }
         .listRowBackground(PlowRColor.surface)
     }
@@ -190,7 +190,7 @@ struct ContractEditView: View {
             Text("Price")
                 .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
-            Text(draft.problem() ?? pricingNote)
+            SectionNote(Text(draft.problem() ?? pricingNote))
         }
         .listRowBackground(PlowRColor.surface)
     }

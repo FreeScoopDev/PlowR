@@ -112,7 +112,7 @@ struct EditClientView: View {
                         save()
                     }
                 } footer: {
-                    Text("Inactive clients don't count toward the free tier's \(Access.freeClientLimit). They come off their routes.")
+                    SectionNote("Inactive clients don't count toward the free tier's \(Access.freeClientLimit). They come off their routes.")
                 }
                 .listRowBackground(PlowRColor.surface)
             }
@@ -490,7 +490,7 @@ struct EditClientView: View {
             Text("Tags")
                 .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
-            Text("Group clients for bulk messaging — e.g. Residential, Priority, Seasonal.")
+            SectionNote("Group clients for bulk messaging — e.g. Residential, Priority, Seasonal.")
                 .font(.caption)
         }
         .listRowBackground(PlowRColor.surface)
@@ -513,7 +513,7 @@ struct EditClientView: View {
             Text("Notes")
                 .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
-            Text("Private notes about this client — not shown on route or documents.")
+            SectionNote("Private notes about this client — not shown on route or documents.")
                 .font(.caption)
         }
         .listRowBackground(PlowRColor.surface)
@@ -547,7 +547,7 @@ struct EditClientView: View {
             Text("Default Services")
                 .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
-            Text("Services this client typically needs. Their route stops expect these, except a stop given its own services on its route (tap the stop on the route).")
+            SectionNote("Services this client typically needs. Their route stops expect these, except a stop given its own services on its route (tap the stop on the route).")
                 .font(.caption)
         }
         .listRowBackground(PlowRColor.surface)
@@ -632,7 +632,7 @@ struct EditClientView: View {
             Text("Route Notes")
                 .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
-            Text("Automatically copied to new route stops for this client.")
+            SectionNote("Automatically copied to new route stops for this client.")
                 .font(.caption)
         }
         .listRowBackground(PlowRColor.surface)
@@ -725,7 +725,7 @@ struct EditClientView: View {
             Text("Other Properties")
                 .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
-            Text("Other places you work for this client, like a rental or a second lot. Each can go on routes and the schedule by itself.")
+            SectionNote("Other places you work for this client, like a rental or a second lot. Each can go on routes and the schedule by itself.")
                 .font(.caption)
         }
         .listRowBackground(PlowRColor.surface)
@@ -747,7 +747,7 @@ struct EditClientView: View {
             Text("Contracts")
                 .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
-            Text("An agreement for a period: a season price, a price per visit, or a monthly amount.")
+            SectionNote("An agreement for a period: a season price, a price per visit, or a monthly amount.")
                 .font(.caption)
         }
         .listRowBackground(PlowRColor.surface)

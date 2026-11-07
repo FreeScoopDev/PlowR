@@ -11,6 +11,12 @@ GroupedStyle.swift), which draws it in PlowRColor.inkSecondary. Sections in a
 Menu, Picker, context menu or dialog are skipped, as above. Section(header:)
 and Section { } are not flagged: style a custom header's text by hand.
 
+--check also fails a `footer: {` closure whose body has neither SectionNote nor
+a .foregroundStyle: iOS draws a note in the same pale grey, so write
+SectionNote("...") (GroupedStyle.swift), which draws it in
+PlowRColor.inkSecondary. A footer that holds a control (Button, Link, Toggle)
+styles its text only. AddressNotFoundLabel colours itself, so it counts too.
+
   python3 scripts/check_list_rows.py --check FILES   # the guard: lists what's missing
   python3 scripts/check_list_rows.py FILES           # adds what's missing
 
@@ -163,6 +169,15 @@ def bare_sections(s):
         out.append(k)
     return out
 
+def bare_footers(s):
+    """Positions of footer: { closures with no SectionNote and no .foregroundStyle."""
+    out = []
+    for m in code_positions(s, r'(?<![\w.])footer\s*:\s*(?=\{)'):
+        body = s[m.end():match(s, m.end(), '{', '}')]
+        if not re.search(r'SectionNote|\.foregroundStyle|AddressNotFoundLabel', body):
+            out.append(m.start())
+    return out
+
 SKIPPED = {'Menu', 'Picker', 'contextMenu', 'confirmationDialog'}
 
 RULES = [('Section', '.listRowBackground(PlowRColor.surface)'),
@@ -184,6 +199,10 @@ def main(argv):
             n = len(bare_sections(s))
             if n:
                 missing.append(f'{path}: {n} Section(...) without title: (write Section(title: ...))')
+        if check:
+            n = len(bare_footers(s))
+            if n:
+                missing.append(f'{path}: {n} footer without SectionNote or .foregroundStyle (write SectionNote(...))')
         if not check and out != s:
             open(path, 'w').write(out)
             print(f'fixed {path}')
@@ -192,7 +211,10 @@ def main(argv):
         if missing:
             if any('without title:' in m for m in missing):
                 print('A bare Section("...") gets iOS\'s pale grey title: write Section(title: "...") { } instead.')
-            if any('without title:' not in m for m in missing):
+            if any('without SectionNote' in m for m in missing):
+                print('A footer note gets iOS\'s pale grey: write SectionNote("...") in the footer: closure '
+                      '(or SectionNote(Text(...)) for a built Text, SectionNote(verbatim: string) for a String).')
+            if any('without title:' not in m and 'without SectionNote' not in m for m in missing):
                 print('Every List/Form needs .plowRGrouped(), and every Section (and every ForEach straight in a List) '
                       '.listRowBackground(PlowRColor.surface): fix with python3 scripts/check_list_rows.py $(find PlowR/Views -name "*.swift")')
             return 1

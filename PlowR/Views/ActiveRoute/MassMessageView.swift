@@ -182,7 +182,7 @@ struct MassMessageView: View {
             Text("Message").textCase(nil)
                 .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
-            Text("\(selectedStops.count) of \(stops.count) clients selected.")
+            SectionNote("\(selectedStops.count) of \(stops.count) clients selected.")
         }
         .listRowBackground(PlowRColor.surface)
     }
@@ -265,7 +265,7 @@ struct MassMessageView: View {
                 Text("Filter by Tag").textCase(nil)
                     .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
-                Text("Tap a tag to select or deselect all clients with that tag.")
+                SectionNote("Tap a tag to select or deselect all clients with that tag.")
                     .font(.caption)
             }
             .listRowBackground(PlowRColor.surface)

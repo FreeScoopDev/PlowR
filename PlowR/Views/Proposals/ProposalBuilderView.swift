@@ -260,7 +260,7 @@ struct ProposalBuilderView: View {
                 .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
             if !selections.isEmpty {
-                Text("Estimated total: \(estimatedTotalString)")
+                SectionNote("Estimated total: \(estimatedTotalString)")
             }
         }
         .listRowBackground(PlowRColor.surface)
@@ -359,7 +359,7 @@ struct ProposalBuilderView: View {
                     .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
                 if clientDiscountPercent > 0 {
-                    Text("\(Proposal.percentText(clientDiscountPercent))% client discount while the field is empty. Type an amount, or 0, to change it.")
+                    SectionNote("\(Proposal.percentText(clientDiscountPercent))% client discount while the field is empty. Type an amount, or 0, to change it.")
                 }
             }
             .listRowBackground(PlowRColor.surface)

@@ -122,7 +122,7 @@ struct BusinessProfileView: View {
                 Text("PDF Appearance")
                     .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
-                Text("Compact header uses a smaller document title — useful when a wide logo fills the header.")
+                SectionNote("Compact header uses a smaller document title — useful when a wide logo fills the header.")
             }
             .listRowBackground(PlowRColor.surface)
 
@@ -144,7 +144,7 @@ struct BusinessProfileView: View {
                 Text("Tax")
                     .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
-                Text("Put on every new invoice and proposal, and you can change it on any one. Leave it at 0 if you don't charge sales tax. Whether your services are taxed, and at what rate, depends on your state: check with your state or an accountant.")
+                SectionNote("Put on every new invoice and proposal, and you can change it on any one. Leave it at 0 if you don't charge sales tax. Whether your services are taxed, and at what rate, depends on your state: check with your state or an accountant.")
             }
             .listRowBackground(PlowRColor.surface)
 

@@ -31,7 +31,7 @@ struct MoneyOwedView: View {
                         }
                     }
                 } footer: {
-                    Text("Late counts from each invoice's due date. Drafts, and invoices with no due date, aren't late.")
+                    SectionNote("Late counts from each invoice's due date. Drafts, and invoices with no due date, aren't late.")
                 }
                 .listRowBackground(PlowRColor.surface)
                 Section(title: "By Client") {

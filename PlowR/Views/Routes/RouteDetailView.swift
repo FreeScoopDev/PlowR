@@ -304,7 +304,7 @@ struct RouteDetailView: View {
                 .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
             if lines.isEmpty {
-                Text("Tap a stop to set the services it needs.")
+                SectionNote("Tap a stop to set the services it needs.")
             }
         }
         .listRowBackground(PlowRColor.surface)

@@ -62,7 +62,7 @@ struct BillWorkView: View {
                             clientRow(work, isOn: !leftOut.contains(work.id))
                         }
                     } footer: {
-                        Text("One draft invoice per client ticked, a line per service done with its day. Check and send them from Documents.")
+                        SectionNote("One draft invoice per client ticked, a line per service done with its day. Check and send them from Documents.")
                     }
                     .listRowBackground(PlowRColor.surface)
                 }

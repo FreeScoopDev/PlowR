@@ -52,7 +52,7 @@ struct ClientPropertyScanView: View {
                 Text("Your Property Address")
                     .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
-                Text("We'll show a satellite view so you can outline the areas needing service.")
+                SectionNote("We'll show a satellite view so you can outline the areas needing service.")
             }
             .listRowBackground(PlowRColor.surface)
 

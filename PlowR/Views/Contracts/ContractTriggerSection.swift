@@ -30,7 +30,7 @@ struct ContractTriggerSection: View {
                 }
             }
         } footer: {
-            Text("Snow clearing starts at this depth. The Dashboard shows a storm card when the forecast reaches it.")
+            SectionNote("Snow clearing starts at this depth. The Dashboard shows a storm card when the forecast reaches it.")
         }
         .listRowBackground(PlowRColor.surface)
     }
@@ -149,9 +149,9 @@ struct ContractTriggerChecksSection: View {
             Text("Snow Trigger")
                 .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
-            Text(range == nil
+            SectionNote(Text(range == nil
                  ? "Days below the trigger can be marked once the contract starts."
-                 : "Less fell at the property than the trigger? Mark the day: the storm card and route leave the client out, and the Service Report lists it.")
+                 : "Less fell at the property than the trigger? Mark the day: the storm card and route leave the client out, and the Service Report lists it."))
         }
         .listRowBackground(PlowRColor.surface)
     }

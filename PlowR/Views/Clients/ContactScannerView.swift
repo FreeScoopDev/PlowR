@@ -129,7 +129,7 @@ struct ContactScannerView: View {
                     Text("Other Detected Text")
                         .foregroundStyle(PlowRColor.inkSecondary)
                 } footer: {
-                    Text("Text that didn't match a contact field — saved as client notes.")
+                    SectionNote("Text that didn't match a contact field — saved as client notes.")
                         .font(.caption)
                 }
                 .listRowBackground(PlowRColor.surface)

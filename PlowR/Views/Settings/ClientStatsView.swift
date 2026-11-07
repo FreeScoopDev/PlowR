@@ -124,7 +124,7 @@ struct ClientStatsView: View {
             Text("Season Summary")
                 .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
-            Text("Stats are recorded automatically when route stops are completed.")
+            SectionNote("Stats are recorded automatically when route stops are completed.")
                 .font(.caption)
         }
         .listRowBackground(PlowRColor.surface)
