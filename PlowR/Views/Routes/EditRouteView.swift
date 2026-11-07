@@ -46,7 +46,7 @@ struct EditRouteView: View {
                                 if !stop.clientAddress.isEmpty {
                                     Text(stop.clientAddress)
                                         .font(.caption)
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(PlowRColor.inkSecondary)
                                 }
                             }
                         }

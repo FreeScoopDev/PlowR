@@ -194,7 +194,7 @@ struct RouteRowView: View {
                     .lineLimit(1)
                 Text(stopsText)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(PlowRColor.inkSecondary)
                 Text(statusText)
                     .font(.caption)
                     .foregroundStyle(run.isRunning ? PlowRColor.brand : PlowRColor.inkSecondary)
