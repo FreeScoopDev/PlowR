@@ -60,7 +60,7 @@ struct NewLeadFromRequestView: View {
                     Label("\(existing.name) already has this phone number.", systemImage: "person.crop.circle.badge.checkmark")
                     NavigationLink("Open \(existing.name)") { EditClientView(client: existing) }
                 } footer: {
-                    Text("A returning client, or someone who asked before. Save Lead adds a new lead anyway.")
+                    SectionNote("A returning client, or someone who asked before. Save Lead adds a new lead anyway.")
                 }
                 .listRowBackground(PlowRColor.surface)
             }

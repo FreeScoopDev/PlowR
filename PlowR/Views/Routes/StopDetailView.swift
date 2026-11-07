@@ -96,7 +96,7 @@ struct StopDetailView: View {
                     Text("Expected Services")
                         .foregroundStyle(PlowRColor.inkSecondary)
                 } footer: {
-                    Text(servicesFooter)
+                    SectionNote(verbatim: servicesFooter)
                 }
                 .listRowBackground(PlowRColor.surface)
 
@@ -126,7 +126,7 @@ struct StopDetailView: View {
                 } footer: {
                     // The client's average is over all their places: said only at their own address.
                     if let client, client.averageServiceMinutes > 0, Place.isMain(stop.propertyID, of: client) {
-                        Text("Usually about \(RouteFacts.duration(Int(client.averageServiceMinutes.rounded()))) here.")
+                        SectionNote("Usually about \(RouteFacts.duration(Int(client.averageServiceMinutes.rounded()))) here.")
                     }
                 }
                 .listRowBackground(PlowRColor.surface)

@@ -68,7 +68,7 @@ struct EditRouteView: View {
                     Text("Stops")
                         .foregroundStyle(PlowRColor.inkSecondary)
                 } footer: {
-                    if stops.count > 1 { Text("Drag to reorder stops.") }
+                    if stops.count > 1 { SectionNote("Drag to reorder stops.") }
                 }
                 .listRowBackground(PlowRColor.surface)
             }

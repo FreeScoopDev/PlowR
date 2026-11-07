@@ -46,7 +46,7 @@ struct ServiceLinesSections: View {
             Text("Services Performed")
                 .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
-            if let footer { Text(footer) }
+            if let footer { SectionNote(verbatim: footer) }
         }
         .listRowBackground(PlowRColor.surface)
 
@@ -66,7 +66,7 @@ struct ServiceLinesSections: View {
                 Text("Also Recorded")
                     .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
-                Text("No longer in your active services, so kept as recorded.")
+                SectionNote("No longer in your active services, so kept as recorded.")
             }
             .listRowBackground(PlowRColor.surface)
             .disabled(locked)

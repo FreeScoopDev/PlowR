@@ -80,7 +80,7 @@ struct ProofOfServiceView: View {
                         LabeledContent("Days Below Trigger", value: "\(checks.count)")
                     }
                 } footer: {
-                    Text("What PlowR recorded (route stops' times, including travel to them, where each record came from, the services, notes and photos), and each visit day's estimated weather, looked up when it's made.")
+                    SectionNote("What PlowR recorded (route stops' times, including travel to them, where each record came from, the services, notes and photos), and each visit day's estimated weather, looked up when it's made.")
                 }
                 .listRowBackground(PlowRColor.surface)
                 Section {
@@ -101,7 +101,7 @@ struct ProofOfServiceView: View {
                         .disabled(isMaking)
                     }
                 } footer: {
-                    Text("Every visit at the property in the period: for an insurer, a lawyer, or a client who asks.")
+                    SectionNote("Every visit at the property in the period: for an insurer, a lawyer, or a client who asks.")
                 }
                 .listRowBackground(PlowRColor.surface)
             }

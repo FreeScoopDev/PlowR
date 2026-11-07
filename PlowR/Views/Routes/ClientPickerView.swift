@@ -35,7 +35,7 @@ struct ClientPickerView: View {
                             .foregroundStyle(.primary)
                     }
                 } footer: {
-                    Text("For one-time customers or stops that aren't set up as clients.")
+                    SectionNote("For one-time customers or stops that aren't set up as clients.")
                 }
                 .listRowBackground(PlowRColor.surface)
 

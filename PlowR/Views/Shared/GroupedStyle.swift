@@ -29,6 +29,30 @@ struct SectionTitle: View {
     }
 }
 
+/// A note under a grouped section (a `footer:`) in `PlowRColor.inkSecondary`.
+/// iOS draws these in the same pale grey as the titles, and a List-wide
+/// `.foregroundStyle` would again recolour tinted row buttons, so each note is
+/// styled where it is written; the system footer font is kept. A footer that
+/// holds a Button, Link or Toggle styles only its text, never the container.
+/// A markdown link in a literal keeps its tint.
+struct SectionNote: View {
+    private let text: Text
+
+    init(_ key: LocalizedStringKey) { text = Text(key) }
+
+    /// For notes that are data (a String built elsewhere), not a localizable key.
+    /// Disfavoured, so a literal takes the LocalizedStringKey init above.
+    @_disfavoredOverload
+    init<S: StringProtocol>(verbatim note: S) { text = Text(verbatim: String(note)) }
+
+    /// For notes built by concatenation, a ternary or an AttributedString.
+    init(_ text: Text) { self.text = text }
+
+    var body: some View {
+        text.foregroundStyle(PlowRColor.inkSecondary)
+    }
+}
+
 extension Section where Parent == SectionTitle, Footer == EmptyView, Content: View {
     /// A Section whose title is drawn by `SectionTitle`. Use this instead of
     /// `Section("…")` in a List or Form (scripts/check_list_rows.py checks).

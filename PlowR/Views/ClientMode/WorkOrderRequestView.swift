@@ -78,7 +78,7 @@ struct WorkOrderRequestView: View {
                 .disabled(clientName.isEmpty || clientPhone.isEmpty)
             } footer: {
                 if clientName.isEmpty || clientPhone.isEmpty {
-                    Text("Add your name and phone number to send.")
+                    SectionNote("Add your name and phone number to send.")
                 }
             }
             .listRowBackground(PlowRColor.surface)

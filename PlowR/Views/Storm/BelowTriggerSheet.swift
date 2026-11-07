@@ -24,7 +24,7 @@ struct BelowTriggerSheet: View {
                     LabeledContent("Client", value: clientName)
                     LabeledContent("Contract trigger", value: triggerLabel)
                 } footer: {
-                    Text("Less fell here than the trigger. PlowR keeps this check (the time, and the GPS arrival if it caught one) for the Service Report, and moves on to the next stop. No visit is credited or billed.")
+                    SectionNote("Less fell here than the trigger. PlowR keeps this check (the time, and the GPS arrival if it caught one) for the Service Report, and moves on to the next stop. No visit is credited or billed.")
                 }
                 .listRowBackground(PlowRColor.surface)
                 Section(title: "Note") {
@@ -70,7 +70,7 @@ struct BelowTriggerSheet: View {
                     Text("Photos")
                         .foregroundStyle(PlowRColor.inkSecondary)
                 } footer: {
-                    Text("A photo of what's on the ground shows the trigger wasn't reached.")
+                    SectionNote("A photo of what's on the ground shows the trigger wasn't reached.")
                 }
                 .listRowBackground(PlowRColor.surface)
             }

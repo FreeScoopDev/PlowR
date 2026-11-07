@@ -29,7 +29,7 @@ struct HelpGuideView: View {
                 } footer: {
                     let footer = [section.intro, section.outro].compactMap { $0 }
                     if !footer.isEmpty {
-                        Text(HelpText.attributed(footer.joined(separator: " ")))
+                        SectionNote(Text(HelpText.attributed(footer.joined(separator: " "))))
                     }
                 }
                 .listRowBackground(PlowRColor.surface)
@@ -41,7 +41,7 @@ struct HelpGuideView: View {
                     Label("Help on the Web", systemImage: "safari")
                 }
             } footer: {
-                Text("The same guide on getplowr.app, with screenshots.")
+                SectionNote("The same guide on getplowr.app, with screenshots.")
             }
             .listRowBackground(PlowRColor.surface)
         }

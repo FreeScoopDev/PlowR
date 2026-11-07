@@ -100,7 +100,7 @@ struct ProposalEditView: View {
             Text("Line Items")
                 .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
-            Text("Tap an amount to edit it.")
+            SectionNote("Tap an amount to edit it.")
         }
         .listRowBackground(PlowRColor.surface)
     }
@@ -159,7 +159,7 @@ struct ProposalEditView: View {
             }
             .disabled(!edits.unreadableFields.isEmpty)
         } footer: {
-            Text("Records the send date and starts the due date countdown.")
+            SectionNote("Records the send date and starts the due date countdown.")
         }
         .listRowBackground(PlowRColor.surface)
     }

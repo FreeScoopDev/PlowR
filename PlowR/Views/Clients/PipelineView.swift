@@ -81,7 +81,7 @@ struct PipelineView: View {
                 Text("\(title) (\(entries.count))")
                     .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
-                Text(footer)
+                SectionNote(verbatim: footer)
             }
             .listRowBackground(PlowRColor.surface)
         }
