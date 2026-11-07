@@ -162,7 +162,7 @@ struct ProposalBuilderView: View {
                         .foregroundStyle(PlowRColor.Status.owed.text)
                     Text("No measured area: services priced by the square foot need a price entered.")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
             }
             if afterHoursMultiplier > 1.0 {
@@ -170,7 +170,7 @@ struct ProposalBuilderView: View {
                     Image(systemName: "moon.fill").foregroundStyle(PlowRColor.inkSecondary)
                     Text("After hours — \(Money.multiplier(afterHoursMultiplier)) multiplier applied to service prices.")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
             }
         }
@@ -204,7 +204,7 @@ struct ProposalBuilderView: View {
                                         Text(zone.label)
                                         Spacer()
                                         Text(Money.text(defaultAmt))
-                                            .foregroundStyle(.secondary)
+                                            .foregroundStyle(PlowRColor.inkSecondary)
                                     }
                                 }
                                 if selections.contains(key) {
@@ -268,7 +268,7 @@ struct ProposalBuilderView: View {
     @ViewBuilder
     private func itemEditFields(key: String, defaultAmount: Double) -> some View {
         HStack(spacing: 6) {
-            Text("$").foregroundStyle(.secondary)
+            Text("$").foregroundStyle(PlowRColor.inkSecondary)
             TextField("Amount", text: Binding(
                 get: { amounts[key] ?? String(format: "%.2f", defaultAmount) },
                 set: { amounts[key] = $0 }
@@ -284,7 +284,7 @@ struct ProposalBuilderView: View {
             set: { lineNotes[key] = $0 }
         ))
         .font(.caption)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(PlowRColor.inkSecondary)
         .padding(.leading, 8)
         .padding(.top, 4)
         .padding(.bottom, 6)
@@ -297,7 +297,7 @@ struct ProposalBuilderView: View {
                     HStack(spacing: 8) {
                         TextField("Description", text: $item.name)
                         Spacer()
-                        Text("$").foregroundStyle(.secondary)
+                        Text("$").foregroundStyle(PlowRColor.inkSecondary)
                         TextField("0.00", text: $item.amount)
                             .keyboardType(.decimalPad)
                             .frame(width: 70)
@@ -311,7 +311,7 @@ struct ProposalBuilderView: View {
                     }
                     TextField("Note for this line (optional)", text: $item.notes)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
             }
             Button {
@@ -363,7 +363,7 @@ struct ProposalBuilderView: View {
             Section("Disclaimer") {
                 TextEditor(text: $disclaimer)
                     .frame(minHeight: 60)
-                    .foregroundStyle(disclaimer.isEmpty ? .secondary : .primary)
+                    .foregroundStyle(disclaimer.isEmpty ? PlowRColor.inkSecondary : Color.primary)
             }
             .listRowBackground(PlowRColor.surface)
             Section("Notes") {
@@ -384,7 +384,7 @@ struct ProposalBuilderView: View {
                  ? Money.text(service.pricePerUnit)
                  : Money.rate(service.pricePerUnit) + "/sqft")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(PlowRColor.inkSecondary)
         }
     }
 

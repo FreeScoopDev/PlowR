@@ -75,12 +75,12 @@ struct ProposalEditView: View {
                         if !item.zoneLabel.isEmpty {
                             Text(item.zoneLabel)
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(PlowRColor.inkSecondary)
                         }
                     }
                     Spacer()
                     HStack(spacing: 2) {
-                        Text("$").foregroundStyle(.secondary).font(.subheadline)
+                        Text("$").foregroundStyle(PlowRColor.inkSecondary).font(.subheadline)
                         // Shown and kept to the cent it's billed and printed at.
                         TextField("0.00", value: Binding(get: { InvoiceLines.roundedToCent(item.lineTotal) },
                                                          set: { item.lineTotal = InvoiceLines.lineAmount($0) }),
@@ -124,7 +124,7 @@ struct ProposalEditView: View {
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 60)
-                Text("%").foregroundStyle(.secondary)
+                Text("%").foregroundStyle(PlowRColor.inkSecondary)
             }
             TextField("Notes", text: $proposal.notes, axis: .vertical)
                 .lineLimit(3...)
