@@ -282,7 +282,7 @@ struct AddVisitView: View {
         Section("Client") {
             if myClients.isEmpty {
                 Text("No clients yet")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(PlowRColor.inkSecondary)
             } else {
                 Picker("Client", selection: $selectedClient) {
                     Text("Select a client").tag(Optional<Client>.none)
@@ -290,7 +290,7 @@ struct AddVisitView: View {
                         VStack(alignment: .leading) {
                             Text(client.name)
                             if !client.address.isEmpty {
-                                Text(client.address).font(.caption).foregroundStyle(.secondary)
+                                Text(client.address).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
                             }
                         }
                         .tag(Optional(client))
@@ -306,7 +306,7 @@ struct AddVisitView: View {
                             ForEach(places, id: \.id) { place in
                                 VStack(alignment: .leading) {
                                     Text(place.isMain ? "Main Address" : place.label)
-                                    Text(place.address).font(.caption).foregroundStyle(.secondary)
+                                    Text(place.address).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
                                 }
                                 .tag(place.storedID)
                             }
@@ -398,10 +398,10 @@ struct AddVisitView: View {
                         Spacer()
                         if selectedServiceIDs.isEmpty {
                             Text("None")
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(PlowRColor.inkSecondary)
                         } else {
                             Text("\(selectedServiceIDs.count) selected")
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(PlowRColor.inkSecondary)
                         }
                     }
                 }
@@ -423,13 +423,13 @@ struct AddVisitView: View {
                 } label: {
                     HStack {
                         Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                            .foregroundStyle(isSelected ? PlowRColor.brand : .secondary)
+                            .foregroundStyle(isSelected ? PlowRColor.brand : PlowRColor.inkSecondary)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(service.name)
                                 .foregroundStyle(.primary)
                             Text(service.category.capitalized)
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(PlowRColor.inkSecondary)
                         }
                     }
                 }
