@@ -721,33 +721,8 @@ struct ActiveRouteView: View {
                 .background(PlowRColor.raised, in: RoundedRectangle(cornerRadius: PlowRLayout.cornerMedium, style: .continuous))
             }
 
-            // Getting there, and the record of the work: the quieter choices.
-            // Side by side, in equal halves, while the wider label fits on one
-            // line in half the row; stacked, full width, when it doesn't (a
-            // narrow phone, large text), so a label never wraps inside its button.
-            ViewThatFits(in: .horizontal) {
-                EqualWidthRow(spacing: PlowRLayout.space2) { stopActionButtons(stop) }
-                VStack(spacing: PlowRLayout.space2) { stopActionButtons(stop) }
-            }
-
-            // The first route only, inline under the button it's about:
-            // never over Complete Stop (RouteTips).
-            if !stop.isCustomStop {
-                TipView(recordServicesTip)
-            }
-
-            // A contract with a snow trigger in force today: less may have
-            // fallen here than the forecast said.
-            if belowTrigger(for: stop) != nil {
-                Button {
-                    $gate.unless(ProGate.proFeature("Marking below trigger", access)) { belowTriggerStop = stop }
-                } label: {
-                    Label("Below Trigger", systemImage: "arrow.down.circle")
-                }
-                .buttonStyle(.plowRSecondary)
-            }
-
-            // The one main action, in copper, glove-sized.
+            // The one main action, in copper, glove-sized, first: it stays near the
+            // top when the buttons below stack or a location note shows (Joe, 2026-11-07).
             if isLastStop {
                 Button {
                     switch store.completeCurrentStop(expecting: stop.id) {
@@ -773,6 +748,32 @@ struct ActiveRouteView: View {
                     )
                 }
                 .buttonStyle(.plowRAction)
+            }
+
+            // Instead of completing it: a contract with a snow trigger in force today, where less may have
+            // fallen here than the forecast said.
+            if belowTrigger(for: stop) != nil {
+                Button {
+                    $gate.unless(ProGate.proFeature("Marking below trigger", access)) { belowTriggerStop = stop }
+                } label: {
+                    Label("Below Trigger", systemImage: "arrow.down.circle")
+                }
+                .buttonStyle(.plowRSecondary)
+            }
+
+            // Getting there, and the record of the work: the quieter choices.
+            // Side by side, in equal halves, while the wider label fits on one
+            // line in half the row; stacked, full width, when it doesn't (a
+            // narrow phone, large text), so a label never wraps inside its button.
+            ViewThatFits(in: .horizontal) {
+                EqualWidthRow(spacing: PlowRLayout.space2) { stopActionButtons(stop) }
+                VStack(spacing: PlowRLayout.space2) { stopActionButtons(stop) }
+            }
+
+            // The first route only, inline under the button it's about:
+            // never over Complete Stop (RouteTips).
+            if !stop.isCustomStop {
+                TipView(recordServicesTip)
             }
         }
         .padding(PlowRLayout.space4)
