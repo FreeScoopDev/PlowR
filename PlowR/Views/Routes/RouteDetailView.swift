@@ -358,7 +358,6 @@ struct RouteDetailView: View {
     private func stopRow(stop: RouteStop, index: Int) -> some View {
         // Large text: the name, then its details, then the done time or
         // visit count under them (`AdaptiveRow`).
-        let large = typeSize.isAccessibilitySize
         AdaptiveRow {
             stopBadge(number: index + 1, isDone: stop.actualMinutes > 0)
         } main: {
@@ -379,7 +378,7 @@ struct RouteDetailView: View {
                                 .foregroundStyle(PlowRColor.inkSecondary)
                         }
                         if client.averageServiceMinutes > 0 {
-                            Text("\(large ? "" : "· ")avg \(Int(client.averageServiceMinutes))m")
+                            Text("\(typeSize.detailSeparator)avg \(Int(client.averageServiceMinutes))m")
                                 .font(.caption2)
                                 .foregroundStyle(PlowRColor.inkSecondary)
                         }

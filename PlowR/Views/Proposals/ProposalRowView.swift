@@ -32,7 +32,7 @@ struct ProposalRowView: View {
                             .foregroundStyle(PlowRColor.inkSecondary)
                     }
                     if let due = proposal.invoiceDueDate {
-                        Text(proposal.isInvoice ? "\(large ? "" : "· ")Due \(due.formatted(.dateTime.month(.abbreviated).day()))" : "")
+                        Text(proposal.isInvoice ? "\(typeSize.detailSeparator)Due \(due.formatted(.dateTime.month(.abbreviated).day()))" : "")
                             .font(.caption2)
                             .foregroundStyle(status == .overdue ? PlowRColor.Status.overdue.text : PlowRColor.inkSecondary)
                     } else {
@@ -47,10 +47,7 @@ struct ProposalRowView: View {
                 Text(Money.text(proposal.total))
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(.primary)
-                    // An amount stays on one line; at the largest sizes it scales
-                    // down a little rather than break.
-                    .lineLimit(large ? 1 : nil)
-                    .minimumScaleFactor(large ? 0.6 : 1)
+                    .wholeValue()
 
                 StatusChip(status.rawValue, systemImage: status.systemImage, status: status.chipStatus)
 

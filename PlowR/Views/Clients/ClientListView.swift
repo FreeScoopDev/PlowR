@@ -507,6 +507,10 @@ struct ClientRowView: View {
                 Text(client.name)
                     .font(.subheadline.weight(.semibold))
                     .lineLimit(large ? nil : 1)
+                    // The list measures the row at a width where the name wraps
+                    // to two lines but lays it out where it fits on one, leaving
+                    // a blank line and a clipped name: take the height it needs.
+                    .fixedSize(horizontal: false, vertical: large)
                 if client.anyAddressNeedsFix {
                     AddressNotFoundLabel()
                         .font(.caption2)
@@ -515,10 +519,7 @@ struct ClientRowView: View {
                     Text(client.phone)
                         .font(.caption)
                         .foregroundStyle(PlowRColor.inkSecondary)
-                        // A number stays on one line; at the largest sizes it
-                        // scales down a little rather than break or overflow.
-                        .lineLimit(large ? 1 : nil)
-                        .minimumScaleFactor(large ? 0.6 : 1)
+                        .wholeValue()
                 }
                 if client.totalVisits > 0 {
                     Button {
@@ -538,7 +539,7 @@ struct ClientRowView: View {
                                 }
                             }
                             HStack(spacing: 4) {
-                                Text("\(large ? "" : "· ")\(client.totalVisits) visit\(client.totalVisits == 1 ? "" : "s")")
+                                Text("\(typeSize.detailSeparator)\(client.totalVisits) visit\(client.totalVisits == 1 ? "" : "s")")
                                     .font(.caption2)
                                     .foregroundStyle(PlowRColor.inkSecondary)
                                 Image(systemName: "chevron.right")

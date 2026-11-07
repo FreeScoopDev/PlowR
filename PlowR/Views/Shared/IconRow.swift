@@ -102,6 +102,28 @@ extension DynamicTypeSize {
     var trailingColumnAlignment: HorizontalAlignment {
         isAccessibilitySize ? .leading : .trailing
     }
+
+    /// The "· " that joins details on one line; stacked details have no
+    /// line to join, so it goes.
+    var detailSeparator: String {
+        isAccessibilitySize ? "" : "· "
+    }
+}
+
+private struct WholeValue: ViewModifier {
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    func body(content: Content) -> some View {
+        content
+            .lineLimit(typeSize.isAccessibilitySize ? 1 : nil)
+            .minimumScaleFactor(typeSize.isAccessibilitySize ? 0.6 : 1)
+    }
+}
+
+extension View {
+    /// A phone number or amount: at accessibility sizes it stays on one
+    /// line and scales down a little rather than break mid-value.
+    func wholeValue() -> some View { modifier(WholeValue()) }
 }
 
 /// A list row of a leading mark (an accent bar, a number), the main text
