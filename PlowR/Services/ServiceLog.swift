@@ -131,6 +131,17 @@ enum ServiceLog {
         return record(forKey: found.key, in: context)
     }
 
+    /// What completing `stop` would write to, as it is now: the record it
+    /// would fill (nil: it would make one) and the day's visit it would
+    /// share. Nothing is made or changed. Undo after Complete Stop reads it
+    /// first, to know what to put back.
+    static func targetForStop(_ stop: RouteStop, of client: Client, run: UUID, startedAt: Date,
+                              in context: ModelContext,
+                              calendar: Calendar = .current) -> (record: ServiceRecord?, visit: ScheduledVisit?) {
+        let found = lookup(stop, of: client, run: run, startedAt: startedAt, in: context, calendar: calendar)
+        return (record(forKey: found.key, in: context), found.visit)
+    }
+
     /// The invoice the work at `stop` is already on: its record's, or, before
     /// there's a record, the one made for the day's visit it will share.
     static func invoiceForStop(_ stop: RouteStop, of client: Client, run: UUID, startedAt: Date,

@@ -94,3 +94,77 @@ enum ServiceRecordSource: String {
     /// wasn't tracked, so it's never counted as owed.
     case beforeLog
 }
+
+extension ServiceRecord {
+    /// Every stored field of a record but its ID, as it was at one moment:
+    /// what Undo after Complete Stop puts back on a record completing filled
+    /// in (ActiveRouteStore.undoLastCompletion). A field added to the model
+    /// must be added here too, or an undo leaves completing's value in it.
+    struct Fields: Equatable {
+        var operatorID, sourceKey, sourceRaw, clientID, propertyID, clientName, propertyAddress: String
+        var startedAt: Date?
+        var performedAt: Date
+        var arrivedAt, leftAt: Date?
+        var minutes: Double
+        var servicesData: Data
+        var notes, routeID, routeName, runID, stopID, visitID: String
+        var isBillable: Bool
+        var invoiceID: String
+        var createdAt: Date
+
+        init(of record: ServiceRecord) {
+            operatorID = record.operatorID
+            sourceKey = record.sourceKey
+            sourceRaw = record.sourceRaw
+            clientID = record.clientID
+            propertyID = record.propertyID
+            clientName = record.clientName
+            propertyAddress = record.propertyAddress
+            startedAt = record.startedAt
+            performedAt = record.performedAt
+            arrivedAt = record.arrivedAt
+            leftAt = record.leftAt
+            minutes = record.minutes
+            servicesData = record.servicesData
+            notes = record.notes
+            routeID = record.routeID
+            routeName = record.routeName
+            runID = record.runID
+            stopID = record.stopID
+            visitID = record.visitID
+            isBillable = record.isBillable
+            invoiceID = record.invoiceID
+            createdAt = record.createdAt
+        }
+
+        /// Puts these values back on `record`, writing only the ones that
+        /// differ: an unchanged field isn't sent to iCloud again.
+        func restore(to record: ServiceRecord) {
+            func put<T: Equatable>(_ path: ReferenceWritableKeyPath<ServiceRecord, T>, _ value: T) {
+                if record[keyPath: path] != value { record[keyPath: path] = value }
+            }
+            put(\.operatorID, operatorID)
+            put(\.sourceKey, sourceKey)
+            put(\.sourceRaw, sourceRaw)
+            put(\.clientID, clientID)
+            put(\.propertyID, propertyID)
+            put(\.clientName, clientName)
+            put(\.propertyAddress, propertyAddress)
+            put(\.startedAt, startedAt)
+            put(\.performedAt, performedAt)
+            put(\.arrivedAt, arrivedAt)
+            put(\.leftAt, leftAt)
+            put(\.minutes, minutes)
+            put(\.servicesData, servicesData)
+            put(\.notes, notes)
+            put(\.routeID, routeID)
+            put(\.routeName, routeName)
+            put(\.runID, runID)
+            put(\.stopID, stopID)
+            put(\.visitID, visitID)
+            put(\.isBillable, isBillable)
+            put(\.invoiceID, invoiceID)
+            put(\.createdAt, createdAt)
+        }
+    }
+}

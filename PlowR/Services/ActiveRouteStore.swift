@@ -56,6 +56,77 @@ final class ActiveRouteStore {
         case stopChanged
     }
 
+    /// What `undoLastCompletion(expecting:)` did.
+    enum UndoResult: Equatable {
+        case undone
+        /// No completion to undo: none yet, already undone, the last stop
+        /// (the recap opens instead), passed below trigger, or the route ended.
+        case nothingToUndo
+        /// The stop the caller meant isn't the one last completed, or the
+        /// route moved on since (another stop completed, a change from
+        /// another device). Nothing was changed.
+        case stopChanged
+        /// More than `undoWindow` since it was completed. Nothing was changed.
+        case expired
+    }
+
+    /// How long a completed stop can be undone.
+    static let undoWindow: TimeInterval = 30
+
+    /// What the route screen's Undo bar shows: the stop last completed, and
+    /// when the chance to undo it ends.
+    struct UndoOffer: Equatable {
+        var stopID: UUID
+        var clientName: String
+        var expiresAt: Date
+    }
+
+    /// What completing a stop changed, each value as it was before, so Undo
+    /// can put it back exactly. In memory only: if iOS ends the app inside
+    /// the window, the completion stands (nothing new to erase, either).
+    struct UndoableCompletion {
+        var routeID: UUID
+        var runID: UUID?
+        var stopID: UUID
+        var stopIndex: Int
+        var clientName: String
+        var completedAt: Date
+        /// The run's stops then: any change to them (sync) ends the window.
+        var stopIDs: [UUID]
+        /// The stop that became current; set once the route has moved on.
+        var nextStopID: UUID?
+        var stopStartedAt: Date?
+        var site: SiteTimes
+        var stopChangedUnseen: Bool
+        var actualMinutes: Int
+        var departures: [PendingDeparture]
+        var client: UndoClientTotals?
+        /// The record completing filled in, with its fields before. nil with
+        /// `madeRecord` nil: no record was written (a custom stop).
+        var filledRecord: (record: ServiceRecord, before: ServiceRecord.Fields)?
+        /// The record completing made, deleted by Undo.
+        var madeRecord: ServiceRecord?
+        var visit: UndoVisitState?
+        /// The next visit of a repeating series, added when the visit was completed.
+        var addedVisits: [ScheduledVisit] = []
+    }
+
+    /// A client's totals before a completion added to them.
+    struct UndoClientTotals {
+        var client: Client
+        var totalVisits: Int
+        var totalServiceMinutes: Double
+        var lastServiceDate: Date?
+    }
+
+    /// A day's visit before a completion completed it.
+    struct UndoVisitState {
+        var visit: ScheduledVisit
+        var status: VisitStatus
+        var completedAt: Date?
+        var serviceLogged: Bool
+    }
+
     private(set) var route: PlowRoute?
     /// Copied at start/restore so ending a route never has to read a model
     /// that iCloud sync may already have deleted.
@@ -96,6 +167,9 @@ final class ActiveRouteStore {
     /// Completed stops still waiting on GPS to see the crew leave. Not the
     /// route's: they outlive End Route.
     private(set) var departures: [PendingDeparture]
+    /// The last completion, while it can still be undone. Cleared by the
+    /// next completion or pass, `end()`, and a route change `validate()` finds.
+    private var lastCompletion: UndoableCompletion?
 
     private var context: ModelContext?
     private let defaults: UserDefaults
@@ -139,6 +213,12 @@ final class ActiveRouteStore {
     }
 
     var isLastStop: Bool { currentStopIndex == sortedStops.count - 1 }
+
+    /// The completion the route screen can offer to undo, until `expiresAt`.
+    var undoOffer: UndoOffer? {
+        lastCompletion.map { UndoOffer(stopID: $0.stopID, clientName: $0.clientName,
+                                       expiresAt: $0.completedAt.addingTimeInterval(Self.undoWindow)) }
+    }
     var allStopsDone: Bool { isActive && currentStopIndex >= sortedStops.count }
 
     // MARK: - Lifecycle
@@ -199,6 +279,7 @@ final class ActiveRouteStore {
         site = SiteTimes()
         isFirstStopPromptPending = true
         stopChangedUnseen = false
+        lastCompletion = nil
         saveCheckpoint()
         lastProgress = progress
         surfaces.start(progress)
@@ -237,13 +318,20 @@ final class ActiveRouteStore {
             return sortedStops.contains { $0.id == stopID } ? .allStopsAlreadyDone : .stopChanged
         }
         guard stopID == stop.id else { return .stopChanged }
+        // Taken before anything changes: Undo puts back exactly this. A pass
+        // (no recording) can't be undone, and ends the last one's chance.
+        lastCompletion = nil
+        var undo = recording ? beforeCompleting(stop) : nil
         // The crew was at this stop: an earlier stop's exit seen from now on
         // isn't when they left it (the areas overlap, or it came too late).
         if !departures.isEmpty {
             departures = []
             SiteDepartures.save(departures, to: defaults)
         }
-        if recording { recordVisit(for: stop) }
+        if var completion = undo {
+            recordVisit(for: stop, undo: &completion)
+            undo = completion
+        }
         currentStopIndex += 1
         currentStopID = currentStop?.id
         stopStartedAt = now()
@@ -256,7 +344,85 @@ final class ActiveRouteStore {
         // Saved now, not left to autosave: Siri completes stops with the app
         // in the background, which may be suspended before autosave runs.
         try? context?.save()
-        return currentStop == nil ? .finishedLastStop : .advanced(nextStopIndex: currentStopIndex)
+        guard let next = currentStop else { return .finishedLastStop }
+        // Not after the last stop: the recap opens, and edits a stop itself.
+        if var completion = undo {
+            completion.nextStopID = next.id
+            lastCompletion = completion
+        }
+        return .advanced(nextStopIndex: currentStopIndex)
+    }
+
+    /// The route's side of `stop` before it's completed (its record, visit
+    /// and client are added by `recordVisit`, which reads them first).
+    private func beforeCompleting(_ stop: RouteStop) -> UndoableCompletion? {
+        guard let routeID else { return nil }
+        return UndoableCompletion(routeID: routeID, runID: runID, stopID: stop.id, stopIndex: currentStopIndex,
+                                  clientName: stop.clientName, completedAt: now(),
+                                  stopIDs: sortedStops.map(\.id), stopStartedAt: stopStartedAt, site: site,
+                                  stopChangedUnseen: stopChangedUnseen, actualMinutes: stop.actualMinutes,
+                                  departures: departures)
+    }
+
+    /// Takes back the stop just completed (`expecting`, the one the Undo bar
+    /// named): its visit on the client, its Service Log record (deleted if
+    /// completing made it, its fields put back if Record Services had), the
+    /// day's visit it completed, its time, and the route goes back to it,
+    /// with its timer, arrival and the departures being watched as they were.
+    /// Refused, changing nothing, once the route has moved on in any other
+    /// way or `undoWindow` has passed. A text already sent stays sent.
+    @discardableResult
+    func undoLastCompletion(expecting stopID: UUID) -> UndoResult {
+        validate()
+        guard let undo = lastCompletion, isActive else { return .nothingToUndo }
+        guard undo.stopID == stopID else { return .stopChanged }
+        let stops = sortedStops
+        guard routeID == undo.routeID, runID == undo.runID, currentStopIndex == undo.stopIndex + 1,
+              currentStopID == undo.nextStopID, stops.map(\.id) == undo.stopIDs,
+              stops.indices.contains(undo.stopIndex) else {
+            lastCompletion = nil
+            return .stopChanged
+        }
+        guard now().timeIntervalSince(undo.completedAt) <= Self.undoWindow else {
+            lastCompletion = nil
+            return .expired
+        }
+        lastCompletion = nil
+        let stop = stops[undo.stopIndex]
+        stop.actualMinutes = undo.actualMinutes
+        if let totals = undo.client, !totals.client.isDeleted {
+            totals.client.totalVisits = totals.totalVisits
+            totals.client.totalServiceMinutes = totals.totalServiceMinutes
+            totals.client.lastServiceDate = totals.lastServiceDate
+        }
+        if let made = undo.madeRecord, !made.isDeleted, let context {
+            // As ServiceLog.deleteRecord, less its invoice check: the visit's
+            // invoice it was billed on (billFromVisit) was made before it.
+            for photo in ServiceLog.photos(of: made, in: context) { photo.recordID = "" }
+            context.delete(made)
+        }
+        if let filled = undo.filledRecord, !filled.record.isDeleted {
+            filled.before.restore(to: filled.record)
+        }
+        if let state = undo.visit, !state.visit.isDeleted {
+            state.visit.status = state.status
+            state.visit.completedAt = state.completedAt
+            state.visit.serviceLogged = state.serviceLogged
+        }
+        for added in undo.addedVisits where !added.isDeleted { context?.delete(added) }
+        departures = undo.departures
+        SiteDepartures.save(departures, to: defaults)
+        currentStopIndex = undo.stopIndex
+        currentStopID = stop.id
+        stopStartedAt = undo.stopStartedAt
+        site = undo.site
+        stopChangedUnseen = undo.stopChangedUnseen
+        saveCheckpoint()
+        lastProgress = progress
+        surfaces.update(progress)
+        updateSites()
+        try? context?.save()
+        return .undone
     }
 
     /// The route screen showed the current stop, with the app in front.
@@ -403,6 +569,11 @@ final class ActiveRouteStore {
         }
         let beforeProgress = lastProgress
         let stopChanged = reconcile(stopID: currentStopID, index: currentStopIndex)
+        // The route changed under the last completion: undoing it now could
+        // put back the wrong stop.
+        if let undo = lastCompletion, stopChanged || sortedStops.map(\.id) != undo.stopIDs {
+            lastCompletion = nil
+        }
         if stopChanged {
             stopStartedAt = now()
             site = SiteTimes()
@@ -438,6 +609,7 @@ final class ActiveRouteStore {
     /// (checkpoint, Live Activities, the widget's saved route), active or not.
     func eraseAll() {
         end()
+        lastCompletion = nil
         defaults.removeObject(forKey: Self.checkpointKey)
         surfaces.clear()
         departures = []
@@ -462,7 +634,7 @@ final class ActiveRouteStore {
 
     // MARK: - Private
 
-    private func recordVisit(for stop: RouteStop) {
+    private func recordVisit(for stop: RouteStop, undo: inout UndoableCompletion) {
         guard let startedAt = stopStartedAt else { return }
         let finishedAt = now()
         let minutes = max(0, finishedAt.timeIntervalSince(startedAt) / 60)
@@ -474,14 +646,28 @@ final class ActiveRouteStore {
         let clientID = stop.clientID
         // Fetch and match by UUID: a #Predicate on `id` clashes with SwiftData's own id.
         guard let client = try? context.fetch(FetchDescriptor<Client>()).first(where: { $0.id == clientID }) else { return }
+        undo.client = .init(client: client, totalVisits: client.totalVisits,
+                            totalServiceMinutes: client.totalServiceMinutes, lastServiceDate: client.lastServiceDate)
         client.totalVisits += 1
         client.totalServiceMinutes += minutes
         client.lastServiceDate = finishedAt
         guard let runID else { return }
+        // What the record and visit were before, read the way recordStop finds them.
+        let target = ServiceLog.targetForStop(stop, of: client, run: runID, startedAt: startedAt, in: context)
+        if let existing = target.record { undo.filledRecord = (existing, ServiceRecord.Fields(of: existing)) }
+        let seriesBefore = target.visit.map { Set(series(of: $0, in: context).map(\.id)) }
+        if let visit = target.visit {
+            undo.visit = .init(visit: visit, status: visit.status, completedAt: visit.completedAt,
+                               serviceLogged: visit.serviceLogged)
+        }
         let record = ServiceLog.recordStop(stop, of: client, run: runID,
                                            operatorID: route?.operatorID ?? client.operatorID,
                                            startedAt: startedAt, finishedAt: finishedAt, minutes: minutes,
                                            in: context)
+        if target.record == nil { undo.madeRecord = record }
+        if let visit = target.visit, let seriesBefore {
+            undo.addedVisits = series(of: visit, in: context).filter { !seriesBefore.contains($0.id) }
+        }
         record.arrivedAt = site.arrivedAt
         record.leftAt = site.leftAt
         // Not seen leaving yet: still there, or never seen there at all.
@@ -494,7 +680,15 @@ final class ActiveRouteStore {
         }
     }
 
+    /// The visits of `visit`'s repeating series (its own included).
+    private func series(of visit: ScheduledVisit, in context: ModelContext) -> [ScheduledVisit] {
+        let seriesID = visit.seriesID
+        let descriptor = FetchDescriptor<ScheduledVisit>(predicate: #Predicate { $0.seriesID == seriesID })
+        return (try? context.fetch(descriptor)) ?? []
+    }
+
     private func clearState() {
+        lastCompletion = nil
         route = nil
         routeID = nil
         routeName = ""

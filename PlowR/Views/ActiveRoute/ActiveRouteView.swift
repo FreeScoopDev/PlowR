@@ -66,6 +66,9 @@ struct ActiveRouteView: View {
     @State private var routeChangedAfterSheet = false
 
     @AppStorage("completedRoutesCount") private var completedRoutesCount = 0
+    /// The completion the Undo bar offers, while its window is open
+    /// (ActiveRouteStore.undoOffer); cleared when the window ends.
+    @State private var shownUndo: ActiveRouteStore.UndoOffer?
 
     // Map camera state
     @State private var mapCameraPosition: MapCameraPosition = .automatic
@@ -280,6 +283,28 @@ struct ActiveRouteView: View {
                     .padding(.horizontal, PlowRLayout.space4)
                     .padding(.bottom, PlowRLayout.space6)
                 }
+            }
+            // Below the content, not over it: the stop card stays tappable.
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if let offer = shownUndo { undoBar(offer) }
+            }
+            .animation(.easeInOut(duration: 0.2), value: shownUndo)
+            // Shown for as long as the store allows an undo, from this
+            // screen's Complete, the notify sheet, Siri or Control Center.
+            // The task ends with the offer or the screen: no timer is left.
+            .task(id: store.undoOffer) {
+                guard let offer = store.undoOffer else {
+                    shownUndo = nil
+                    return
+                }
+                let wait = offer.expiresAt.timeIntervalSinceNow
+                guard wait > 0 else {
+                    shownUndo = nil
+                    return
+                }
+                shownUndo = offer
+                do { try await Task.sleep(for: .seconds(wait)) } catch { return }
+                if shownUndo == offer { shownUndo = nil }
             }
             // On this screen's content only: a tint here reached the sheets
             // it opens, which aren't in the new design yet.
@@ -780,6 +805,43 @@ struct ActiveRouteView: View {
         .background(PlowRColor.surface, in: RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous)
             .stroke(PlowRColor.line, lineWidth: 1))
+    }
+
+    /// "Completed <client> · Undo", for `ActiveRouteStore.undoWindow` after a
+    /// stop is completed. Undo takes back that stop only; a text already
+    /// sent to the next client stays sent, so the bar says nothing about it.
+    private func undoBar(_ offer: ActiveRouteStore.UndoOffer) -> some View {
+        HStack(spacing: PlowRLayout.space3) {
+            Label("Completed \(offer.clientName)", systemImage: PlowRSymbol.complete.name)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(PlowRColor.onBrand)
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Button {
+                undo(offer)
+            } label: {
+                Text("Undo")
+                    .font(PlowRFont.button)
+                    .foregroundStyle(PlowRColor.onBrand)
+                    .padding(.horizontal, PlowRLayout.space4)
+                    .frame(minWidth: PlowRLayout.gloveTapTarget, minHeight: PlowRLayout.gloveTapTarget)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Undo completing \(offer.clientName)")
+        }
+        .padding(.leading, PlowRLayout.space4)
+        .padding(.trailing, PlowRLayout.space1)
+        .background(PlowRColor.brand, in: RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
+        .padding(.horizontal, PlowRLayout.space4)
+        .padding(.bottom, PlowRLayout.space2)
+        .transition(.move(edge: .bottom).combined(with: .opacity))
+    }
+
+    /// The Undo bar's button: the stop it named goes back to being current.
+    private func undo(_ offer: ActiveRouteStore.UndoOffer) {
+        shownUndo = nil
+        if store.undoLastCompletion(expecting: offer.stopID) == .undone { haptic() }
     }
 
     /// Navigate and Record Services, for the current stop card's row.
