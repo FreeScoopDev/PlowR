@@ -18,23 +18,23 @@ struct ProposalRowView: View {
                 if !proposal.clientAddress.isEmpty {
                     Text(proposal.clientAddress)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                         .lineLimit(1)
                 }
                 HStack(spacing: 4) {
                     if proposal.isInvoice && !proposal.invoiceNumber.isEmpty {
                         Text(proposal.invoiceNumber)
                             .font(.caption2)
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(PlowRColor.inkSecondary)
                     }
                     if let due = proposal.invoiceDueDate {
                         Text(proposal.isInvoice ? "· Due \(due.formatted(.dateTime.month(.abbreviated).day()))" : "")
                             .font(.caption2)
-                            .foregroundStyle(status == .overdue ? PlowRColor.Status.overdue.text : Color(.tertiaryLabel))
+                            .foregroundStyle(status == .overdue ? PlowRColor.Status.overdue.text : PlowRColor.inkSecondary)
                     } else {
                         Text(proposal.createdAt.formatted(.dateTime.month(.abbreviated).day().year()))
                             .font(.caption2)
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(PlowRColor.inkSecondary)
                     }
                 }
             }

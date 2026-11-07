@@ -117,14 +117,14 @@ struct BillWorkView: View {
             HStack(spacing: 12) {
                 Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
                     .font(.title3)
-                    .foregroundStyle(isOn ? Color.accentColor : Color.secondary)
+                    .foregroundStyle(isOn ? Color.accentColor : PlowRColor.inkSecondary)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(work.client.name).font(.subheadline.weight(.semibold))
                     Text("\(work.records.count) job\(work.records.count == 1 ? "" : "s") · since "
                          + (work.records.first.map { WorkBilling.day($0.performedAt, now: .now) } ?? ""))
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                     if case let unpriced = work.jobsNeedingAPrice, unpriced > 0 {
                         Text(unpriced == 1 ? "1 job has a service at $0: set its price on the job's page (All Work)"
                                            : "\(unpriced) jobs have a service at $0: set their price on each job's page (All Work)")

@@ -58,7 +58,7 @@ struct ContractDetailView: View {
             .listRowBackground(PlowRColor.surface)
             Section("Services Covered") {
                 if serviceNames.isEmpty {
-                    Text("None chosen").foregroundStyle(.secondary)
+                    Text("None chosen").foregroundStyle(PlowRColor.inkSecondary)
                 }
                 ForEach(serviceNames, id: \.self) { Text($0) }
             }
@@ -239,7 +239,7 @@ struct ContractDetailView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(installment.date.formatted(.dateTime.month(.abbreviated).day().year()))
                 Text(invoice.map { $0.invoiceNumber } ?? paymentNote(installment))
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.caption).foregroundStyle(PlowRColor.inkSecondary)
             }
             Spacer()
             // Once invoiced, the bill (with its tax); before, the price
@@ -331,7 +331,7 @@ struct ContractRow: View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text(contract.name)
-                Text(Contracts.priceSummary(of: contract)).font(.caption).foregroundStyle(.secondary)
+                Text(Contracts.priceSummary(of: contract)).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
             }
             Spacer()
             StatusChip(status.title, status: status.chipStatus)

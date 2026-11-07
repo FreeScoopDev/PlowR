@@ -203,11 +203,11 @@ struct ContractEditView: View {
         Button(action: action) {
             HStack(spacing: 12) {
                 Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(isOn ? Color.accentColor : .secondary)
+                    .foregroundStyle(isOn ? Color.accentColor : PlowRColor.inkSecondary)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title).foregroundStyle(.primary)
                     if let detail, !detail.isEmpty {
-                        Text(detail).font(.caption).foregroundStyle(.secondary)
+                        Text(detail).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
                     }
                 }
             }
