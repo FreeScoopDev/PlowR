@@ -41,7 +41,7 @@ struct BusinessSearchView: View {
     private var searchBar: some View {
         HStack(spacing: 12) {
             Image(systemName: "location.circle")
-                .foregroundStyle(PlowRColor.inkSecondary)
+                .foregroundStyle(.secondary)
             TextField("Town, city, or ZIP code", text: $locationQuery)
                 .autocorrectionDisabled()
                 .submitLabel(.search)
@@ -80,7 +80,7 @@ struct BusinessSearchView: View {
                             if !completion.subtitle.isEmpty {
                                 Text(completion.subtitle)
                                     .font(.caption)
-                                    .foregroundStyle(PlowRColor.inkSecondary)
+                                    .foregroundStyle(.secondary)
                             }
                         }
                         Spacer()
