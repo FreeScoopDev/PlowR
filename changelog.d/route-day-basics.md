@@ -1,0 +1,4 @@
+### Changed
+- The screen stays on while the route screen is up, so the next stop is there at a glance without unlocking the phone in gloves. Lock still locks it.
+- With Location off, the route carries on: the alert now offers **Continue Without Location** instead of ending the route, and the route screen says what's missing (ETAs, arrival and departure times) while stops are completed by hand. Before, the only choices were Settings or End Route, which threw the run away.
+- Navigate and Record Services sit side by side only when both labels fit on one line; otherwise they stack, full width, instead of "Record Services" wrapping onto two lines inside a half-width button.

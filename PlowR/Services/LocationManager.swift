@@ -135,6 +135,14 @@ enum RouteGPS {
         !isMac && status == .authorizedWhenInUse
     }
 
+    /// Location is off for PlowR (denied, or restricted by the device). The
+    /// route carries on without it: stops are completed by hand, with no ETAs
+    /// or arrival times. The route screen says so, ahead of the other notes
+    /// (not on a Mac, which follows no route).
+    static func isOff(status: CLAuthorizationStatus, isMac: Bool) -> Bool {
+        !isMac && (status == .denied || status == .restricted)
+    }
+
     /// Arrival and departure times need Precise Location: with approximate
     /// location iOS watches no job-site areas, on screen or off. The route
     /// screen says so, in place of the Always note (not on a Mac).
