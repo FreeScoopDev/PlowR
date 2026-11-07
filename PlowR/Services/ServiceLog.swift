@@ -131,6 +131,17 @@ enum ServiceLog {
         return record(forKey: found.key, in: context)
     }
 
+    /// What completing `stop` would write to, as it is now: the record it
+    /// would fill (nil: it would make one) and the day's visit it would
+    /// share. Nothing is made or changed. Undo after Complete Stop reads it
+    /// first, to know what to put back.
+    static func targetForStop(_ stop: RouteStop, of client: Client, run: UUID, startedAt: Date,
+                              in context: ModelContext,
+                              calendar: Calendar = .current) -> (record: ServiceRecord?, visit: ScheduledVisit?) {
+        let found = lookup(stop, of: client, run: run, startedAt: startedAt, in: context, calendar: calendar)
+        return (record(forKey: found.key, in: context), found.visit)
+    }
+
     /// The invoice the work at `stop` is already on: its record's, or, before
     /// there's a record, the one made for the day's visit it will share.
     static func invoiceForStop(_ stop: RouteStop, of client: Client, run: UUID, startedAt: Date,
@@ -647,9 +658,12 @@ enum ServiceLog {
     /// Deletes `record`, unless it's on an invoice: delete the invoice first,
     /// or the bill would name work the log no longer has. Its photos stay in
     /// the client's gallery. True if it was deleted.
+    /// `evenIfInvoiced`: for Undo after Complete Stop only, taking back a
+    /// record completing made and billed on the invoice already made for its
+    /// visit (billFromVisit): the invoice is the visit's, and stays.
     @discardableResult
-    static func deleteRecord(_ record: ServiceRecord, in context: ModelContext) -> Bool {
-        guard invoice(of: record, in: context) == nil else { return false }
+    static func deleteRecord(_ record: ServiceRecord, in context: ModelContext, evenIfInvoiced: Bool = false) -> Bool {
+        guard evenIfInvoiced || invoice(of: record, in: context) == nil else { return false }
         for photo in photos(of: record, in: context) { photo.recordID = "" }
         context.delete(record)
         return true
@@ -892,10 +906,14 @@ enum ServiceLog {
                                       among visits: [ScheduledVisit]? = nil, in context: ModelContext) {
         visit.status = .completed
         visit.completedAt = date
+        ClientVisits.addNext(after: visit, among: visits ?? series(of: visit, in: context), in: context)
+    }
+
+    /// The visits of `visit`'s repeating series, its own included.
+    static func series(of visit: ScheduledVisit, in context: ModelContext) -> [ScheduledVisit] {
         let seriesID = visit.seriesID
-        let series = visits ?? ((try? context.fetch(FetchDescriptor<ScheduledVisit>(
-            predicate: #Predicate { $0.seriesID == seriesID }))) ?? [])
-        ClientVisits.addNext(after: visit, among: series, in: context)
+        return (try? context.fetch(FetchDescriptor<ScheduledVisit>(
+            predicate: #Predicate { $0.seriesID == seriesID }))) ?? []
     }
 
     // MARK: - Services

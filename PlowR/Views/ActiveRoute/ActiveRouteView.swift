@@ -66,6 +66,9 @@ struct ActiveRouteView: View {
     @State private var routeChangedAfterSheet = false
 
     @AppStorage("completedRoutesCount") private var completedRoutesCount = 0
+    /// The completion the Undo bar offers, while its window is open
+    /// (ActiveRouteStore.undoOffer); cleared when the window ends.
+    @State private var shownUndo: ActiveRouteStore.UndoOffer?
 
     // Map camera state
     @State private var mapCameraPosition: MapCameraPosition = .automatic
@@ -243,43 +246,70 @@ struct ActiveRouteView: View {
     /// chain of all the screen's modifiers grew too long to type-check.
     private var screenWithSheets: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 0) {
-                    progressHeader
-                    if OnMac.isMac {
-                        // No GPS route-following or texting on a Mac (OnMac).
-                        Label("On a Mac, GPS arrival times and texting aren't available. Run routes on your iPhone.",
-                              systemImage: "laptopcomputer")
-                            .font(.caption)
-                            .foregroundStyle(PlowRColor.inkSecondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal)
-                            .padding(.vertical, 8)
-                    }
-                    if RouteGPS.isOff(status: locationManager.authorizationStatus, isMac: OnMac.isMac) {
-                        locationOffNote
-                    } else if RouteGPS.needsPrecise(status: locationManager.authorizationStatus,
-                                             accuracy: locationManager.accuracyAuthorization,
-                                             areasLimited: SiteMonitor.shared.accuracyLimited, isMac: OnMac.isMac) {
-                        preciseLocationNote
-                    } else if RouteGPS.needsAlways(status: locationManager.authorizationStatus, isMac: OnMac.isMac) {
-                        alwaysLocationNote
-                    }
-                    VStack(spacing: PlowRLayout.space3) {
-                        routeMap
-                        weatherStrip
-                        if let stop = currentStop {
-                            currentStopCard(stop)
-                        } else {
-                            routeCompleteCard
+            // The Undo bar under the scrolling content, not over it: nothing on
+            // the screen is hidden or hard to reach while it shows.
+            VStack(spacing: 0) {
+                ScrollView {
+                    VStack(spacing: 0) {
+                        progressHeader
+                        if OnMac.isMac {
+                            // No GPS route-following or texting on a Mac (OnMac).
+                            Label("On a Mac, GPS arrival times and texting aren't available. Run routes on your iPhone.",
+                                  systemImage: "laptopcomputer")
+                                .font(.caption)
+                                .foregroundStyle(PlowRColor.inkSecondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal)
+                                .padding(.vertical, 8)
                         }
-                        if !upcomingStops.isEmpty {
-                            upcomingStopsSection
+                        if RouteGPS.isOff(status: locationManager.authorizationStatus, isMac: OnMac.isMac) {
+                            locationOffNote
+                        } else if RouteGPS.needsPrecise(status: locationManager.authorizationStatus,
+                                                 accuracy: locationManager.accuracyAuthorization,
+                                                 areasLimited: SiteMonitor.shared.accuracyLimited, isMac: OnMac.isMac) {
+                            preciseLocationNote
+                        } else if RouteGPS.needsAlways(status: locationManager.authorizationStatus, isMac: OnMac.isMac) {
+                            alwaysLocationNote
                         }
+                        VStack(spacing: PlowRLayout.space3) {
+                            routeMap
+                            weatherStrip
+                            if let stop = currentStop {
+                                currentStopCard(stop)
+                            } else {
+                                routeCompleteCard
+                            }
+                            if !upcomingStops.isEmpty {
+                                upcomingStopsSection
+                            }
+                        }
+                        .padding(.horizontal, PlowRLayout.space4)
+                        .padding(.bottom, PlowRLayout.space6)
                     }
-                    .padding(.horizontal, PlowRLayout.space4)
-                    .padding(.bottom, PlowRLayout.space6)
                 }
+                if let offer = shownUndo { undoBar(offer) }
+            }
+            .animation(.easeInOut(duration: 0.2), value: shownUndo)
+            // Shown for as long as the store allows an undo (its window, the
+            // same with VoiceOver), from this screen's Complete, the notify
+            // sheet, Siri or Control Center. The task ends with the offer or
+            // the screen: no timer is left.
+            .task(id: store.undoOffer) {
+                guard let offer = store.undoOffer else {
+                    shownUndo = nil
+                    return
+                }
+                let wait = offer.expiresAt.timeIntervalSinceNow
+                guard wait > 0 else {
+                    shownUndo = nil
+                    return
+                }
+                if shownUndo != offer {
+                    AccessibilityNotification.Announcement("Completed \(offer.clientName). Undo available.").post()
+                }
+                shownUndo = offer
+                do { try await Task.sleep(for: .seconds(wait)) } catch { return }
+                if shownUndo == offer { shownUndo = nil }
             }
             // On this screen's content only: a tint here reached the sheets
             // it opens, which aren't in the new design yet.
@@ -657,6 +687,13 @@ struct ActiveRouteView: View {
                         .font(PlowRFont.stopName)
                         .foregroundStyle(PlowRColor.ink)
                         .fixedSize(horizontal: false, vertical: true)
+                        // While the Undo bar shows, VoiceOver can undo from
+                        // the stop's name too, without finding the bar.
+                        .accessibilityActions {
+                            if let offer = shownUndo {
+                                Button("Undo completing \(offer.clientName)") { undo(offer) }
+                            }
+                        }
                     if !stop.clientAddress.isEmpty {
                         Text(stop.clientAddress)
                             .font(.body)
@@ -780,6 +817,56 @@ struct ActiveRouteView: View {
         .background(PlowRColor.surface, in: RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous)
             .stroke(PlowRColor.line, lineWidth: 1))
+    }
+
+    /// "Completed <client> · Undo", for `ActiveRouteStore.undoWindow` after a
+    /// stop is completed. Undo takes back that stop only; a text already
+    /// sent to the next client stays sent, so the bar says nothing about it.
+    private func undoBar(_ offer: ActiveRouteStore.UndoOffer) -> some View {
+        HStack(spacing: PlowRLayout.space3) {
+            Label("Completed \(offer.clientName)", systemImage: PlowRSymbol.complete.name)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(PlowRColor.onBrand)
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Button {
+                undo(offer)
+            } label: {
+                Text("Undo")
+                    .font(PlowRFont.button)
+                    .foregroundStyle(PlowRColor.onBrand)
+                    .padding(.horizontal, PlowRLayout.space4)
+                    .frame(minWidth: PlowRLayout.gloveTapTarget, minHeight: PlowRLayout.gloveTapTarget)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Undo completing \(offer.clientName)")
+        }
+        .padding(.leading, PlowRLayout.space4)
+        .padding(.trailing, PlowRLayout.space1)
+        .background(PlowRColor.brand, in: RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
+        .padding(.horizontal, PlowRLayout.space4)
+        .padding(.top, PlowRLayout.space2)
+        .padding(.bottom, PlowRLayout.space2)
+        .transition(.move(edge: .bottom).combined(with: .opacity))
+    }
+
+    /// The Undo bar's button (or the stop card's VoiceOver action): the stop
+    /// it named goes back to being current. Refused, the bar just closes,
+    /// with a word for VoiceOver.
+    private func undo(_ offer: ActiveRouteStore.UndoOffer) {
+        shownUndo = nil
+        let refusal: String
+        switch store.undoLastCompletion(expecting: offer.stopID) {
+        case .undone:
+            haptic()
+            return
+        case .expired: refusal = "Too late to undo."
+        case .recordChanged: refusal = "Can't undo: work was saved on that stop since."
+        case .stopChanged, .nothingToUndo: refusal = "Can't undo: the route has moved on."
+        }
+        UINotificationFeedbackGenerator().notificationOccurred(.warning)
+        AccessibilityNotification.Announcement(refusal).post()
     }
 
     /// Navigate and Record Services, for the current stop card's row.
