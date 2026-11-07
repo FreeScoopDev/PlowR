@@ -78,11 +78,13 @@ struct ProPitch: View {
                 if typeSize.isAccessibilitySize {
                     // The icon above its text: beside it, the text had a
                     // sliver of the width.
-                    VStack(alignment: .leading, spacing: 8) {
+                    Label {
+                        Text(feature.text)
+                    } icon: {
                         Image(systemName: feature.icon)
                             .foregroundStyle(PlowRColor.accent)
-                        Text(feature.text)
                     }
+                    .labelStyle(IconAboveTitleLabelStyle())
                 } else {
                     Label {
                         Text(feature.text)
@@ -99,5 +101,16 @@ struct ProPitch: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// A label's icon above its title, for accessibility text sizes (a Label
+/// keeps its accessibility: the icon isn't a stop of its own).
+struct IconAboveTitleLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            configuration.icon
+            configuration.title
+        }
     }
 }

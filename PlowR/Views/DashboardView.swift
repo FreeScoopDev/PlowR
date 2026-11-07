@@ -328,20 +328,18 @@ struct DashboardView: View {
     private var iCloudBanner: some View {
         if let banner = iCloud.banner {
             PlowRCard {
-                HStack(alignment: .top, spacing: PlowRLayout.space3) {
-                    IconRow(alignment: .top) {
-                        IconBadge(systemImage: "icloud.slash", status: .owed, size: 36)
-                    } content: {
-                        VStack(alignment: .leading, spacing: PlowRLayout.space1) {
-                            Text(banner.title)
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(PlowRColor.ink)
-                            Text(banner.message)
-                                .font(.caption)
-                                .foregroundStyle(PlowRColor.inkSecondary)
-                        }
+                IconCardRow {
+                    IconBadge(systemImage: "icloud.slash", status: .owed, size: 36)
+                } content: {
+                    VStack(alignment: .leading, spacing: PlowRLayout.space1) {
+                        Text(banner.title)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(PlowRColor.ink)
+                        Text(banner.message)
+                            .font(.caption)
+                            .foregroundStyle(PlowRColor.inkSecondary)
                     }
-                    Spacer(minLength: 0)
+                } trailing: {
                     Button {
                         iCloud.dismissBanner()
                     } label: {
@@ -407,7 +405,7 @@ struct DashboardView: View {
                 if !todayVisits.isEmpty {
                     if leadRoute != nil { Divider().overlay(PlowRColor.line) }
                     ForEach(Array(todayVisits.prefix(5).enumerated()), id: \.element.id) { i, visit in
-                        if i > 0 { Divider().overlay(PlowRColor.line).padding(.leading, Self.rowTextInset) }
+                        if i > 0 { Divider().overlay(PlowRColor.line).padding(.leading, rowTextInset) }
                         visitRow(visit)
                     }
                     if todayVisits.count > 5 {
@@ -519,7 +517,11 @@ struct DashboardView: View {
 
     /// Where a row's text starts (row padding, icon column, gap), so a
     /// separator lines up with it, as iOS lists do.
-    private static let rowTextInset: CGFloat = PlowRLayout.space4 + 36 + PlowRLayout.space3
+    /// At accessibility sizes the icon is above the text (`IconRow`), so a
+    /// separator starts at the row's edge.
+    private var rowTextInset: CGFloat {
+        typeSize.isAccessibilitySize ? PlowRLayout.space4 : PlowRLayout.space4 + 36 + PlowRLayout.space3
+    }
 
     private func visitRowContent(_ visit: ScheduledVisit) -> some View {
         HStack(spacing: PlowRLayout.space3) {
@@ -572,7 +574,7 @@ struct DashboardView: View {
                     .padding(PlowRLayout.space4)
                 } else {
                     ForEach(Array(items.enumerated()), id: \.element.id) { i, item in
-                        if i > 0 { Divider().overlay(PlowRColor.line).padding(.leading, Self.rowTextInset) }
+                        if i > 0 { Divider().overlay(PlowRColor.line).padding(.leading, rowTextInset) }
                         attentionRow(item, waiting: waiting)
                     }
                 }
@@ -742,7 +744,7 @@ struct DashboardView: View {
             sectionLabel("Coming Up")
             PlowRCard {
                 ForEach(Array(upcomingVisits.enumerated()), id: \.element.id) { i, visit in
-                    if i > 0 { Divider().overlay(PlowRColor.line).padding(.leading, Self.rowTextInset) }
+                    if i > 0 { Divider().overlay(PlowRColor.line).padding(.leading, rowTextInset) }
                     let client = allClients.first { $0.id.uuidString == visit.clientID }
                     let rowContent = upcomingVisitRow(visit)
                     if let client {

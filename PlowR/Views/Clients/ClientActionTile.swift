@@ -11,8 +11,8 @@ struct ClientActionTile: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     @ScaledMetric(relativeTo: .body) private var scaledSide: CGFloat = 48
 
-    /// Grows with the text at accessibility sizes, by at most half again.
-    private var side: CGFloat { typeSize.isAccessibilitySize ? min(scaledSide, 72) : 48 }
+    /// The same size rule as `IconBadge`'s (a step at the first accessibility size).
+    private var side: CGFloat { IconBadge.side(base: 48, scaled: scaledSide, typeSize: typeSize) }
 
     var body: some View {
         VStack(spacing: 6) {

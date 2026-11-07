@@ -64,3 +64,33 @@ struct EqualColumnsLayout: Layout {
         }
     }
 }
+
+/// `IconRow` with a trailing control (a close button). At accessibility
+/// sizes the control sits on the icon's line, so the text has the full width.
+struct IconCardRow<Icon: View, Content: View, Trailing: View>: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
+    var spacing: CGFloat = PlowRLayout.space3
+    @ViewBuilder let icon: Icon
+    @ViewBuilder let content: Content
+    @ViewBuilder let trailing: Trailing
+
+    var body: some View {
+        if typeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: PlowRLayout.space2) {
+                HStack(alignment: .top) {
+                    icon
+                    Spacer(minLength: 0)
+                    trailing
+                }
+                content
+            }
+        } else {
+            HStack(alignment: .top, spacing: spacing) {
+                icon
+                content
+                Spacer(minLength: 0)
+                trailing
+            }
+        }
+    }
+}

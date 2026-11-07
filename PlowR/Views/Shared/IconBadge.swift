@@ -21,8 +21,13 @@ struct IconBadge: View {
     /// Grows with the text at accessibility sizes, to at most half again
     /// its size, so it doesn't dwarf the text it sits by. Other sizes keep
     /// the size it was given.
-    private var side: CGFloat {
-        typeSize.isAccessibilitySize ? min(scaledSize, size * 1.5) : size
+    private var side: CGFloat { Self.side(base: size, scaled: scaledSize, typeSize: typeSize) }
+
+    /// The size at a text size: `base` below accessibility sizes, else the
+    /// scaled size to at most half again `base`. The cap is reached at the
+    /// first accessibility size, so this is a step, not a smooth scale.
+    static func side(base: CGFloat, scaled: CGFloat, typeSize: DynamicTypeSize) -> CGFloat {
+        typeSize.isAccessibilitySize ? min(scaled, base * 1.5) : base
     }
 
     var body: some View {
