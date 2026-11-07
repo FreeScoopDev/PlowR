@@ -279,7 +279,7 @@ struct AddVisitView: View {
     // MARK: - Sections
 
     private var clientSection: some View {
-        Section("Client") {
+        Section(title: "Client") {
             if myClients.isEmpty {
                 Text("No clients yet")
                     .foregroundStyle(PlowRColor.inkSecondary)
@@ -329,7 +329,7 @@ struct AddVisitView: View {
     }
 
     private var dateSection: some View {
-        Section("Date & Time") {
+        Section(title: "Date & Time") {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     timeButton("6 AM",  hour: 6)
@@ -369,7 +369,7 @@ struct AddVisitView: View {
     }
 
     private var visitInfoSection: some View {
-        Section("Visit Info") {
+        Section(title: "Visit Info") {
             Picker("Reason", selection: $selectedReasonPreset) {
                 Text("None").tag("")
                 ForEach(allReasonPresets, id: \.self) { preset in
@@ -442,7 +442,7 @@ struct AddVisitView: View {
     }
 
     private var detailsSection: some View {
-        Section("Details") {
+        Section(title: "Details") {
             HStack {
                 Text("Est. Duration")
                 Spacer()
@@ -476,7 +476,7 @@ struct AddVisitView: View {
     }
 
     private var recurrenceSection: some View {
-        Section("Recurrence") {
+        Section(title: "Recurrence") {
             Toggle("Repeat", isOn: $isRecurring.animation())
 
             if isRecurring {

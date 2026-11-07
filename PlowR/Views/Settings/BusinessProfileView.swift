@@ -94,7 +94,7 @@ struct BusinessProfileView: View {
             }
             .listRowBackground(PlowRColor.surface)
 
-            Section("Business Info") {
+            Section(title: "Business Info") {
                 TextField("Company Name", text: $companyName)
                 TextField("Phone", text: $phone)
                     .keyboardType(.phonePad)
@@ -107,7 +107,7 @@ struct BusinessProfileView: View {
             }
             .listRowBackground(PlowRColor.surface)
 
-            Section("Optional") {
+            Section(title: "Optional") {
                 TextField("License / Certification Number", text: $licenseNumber)
             }
             .listRowBackground(PlowRColor.surface)
@@ -120,6 +120,7 @@ struct BusinessProfileView: View {
                 Toggle("Compact header", isOn: $compactHeader)
             } header: {
                 Text("PDF Appearance")
+                    .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
                 Text("Compact header uses a smaller document title — useful when a wide logo fills the header.")
             }
@@ -141,12 +142,13 @@ struct BusinessProfileView: View {
                 }
             } header: {
                 Text("Tax")
+                    .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
                 Text("Put on every new invoice and proposal, and you can change it on any one. Leave it at 0 if you don't charge sales tax. Whether your services are taxed, and at what rate, depends on your state: check with your state or an accountant.")
             }
             .listRowBackground(PlowRColor.surface)
 
-            Section("Default Proposal Disclaimer") {
+            Section(title: "Default Proposal Disclaimer") {
                 TextEditor(text: $defaultDisclaimer)
                     .frame(minHeight: 80)
             }

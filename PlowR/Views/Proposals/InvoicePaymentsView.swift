@@ -95,12 +95,13 @@ struct InvoicePaymentsView: View {
                 }
             } header: {
                 Text("Received")
+                    .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
                 Text("Swipe left to remove a payment recorded by mistake. What it paid is owed again.")
             }
             .listRowBackground(PlowRColor.surface)
         } else if let paidAt = invoice.invoicePaidAt {
-            Section("Received") {
+            Section(title: "Received") {
                 LabeledContent("Marked paid", value: paidAt.formatted(.dateTime.month(.abbreviated).day().year()))
             }
             .listRowBackground(PlowRColor.surface)
@@ -124,6 +125,7 @@ struct InvoicePaymentsView: View {
                 .disabled(typedAmount == nil)
         } header: {
             Text("Record a Payment")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
             Text(recordFooter)
         }

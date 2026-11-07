@@ -18,7 +18,7 @@ struct ClientTimelineView: View {
                     .listRowBackground(Color.clear)   // the empty state sits on the page
                 } else {
                     ForEach(months(of: events), id: \.month) { group in
-                        Section(group.month.formatted(.dateTime.month(.wide).year())) {
+                        Section(title: group.month.formatted(.dateTime.month(.wide).year())) {
                             ForEach(group.events) { row($0) }
                         }
                         .listRowBackground(PlowRColor.surface)

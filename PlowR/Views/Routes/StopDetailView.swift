@@ -94,6 +94,7 @@ struct StopDetailView: View {
                     }
                 } header: {
                     Text("Expected Services")
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 } footer: {
                     Text(servicesFooter)
                 }
@@ -104,6 +105,7 @@ struct StopDetailView: View {
                         .lineLimit(2...)
                 } header: {
                     Label("Stop Notes", systemImage: "note.text")
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
                 .listRowBackground(PlowRColor.surface)
 
@@ -112,6 +114,7 @@ struct StopDetailView: View {
                         .lineLimit(2...)
                 } header: {
                     Label("Equipment", systemImage: "wrench.and.screwdriver")
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
                 .listRowBackground(PlowRColor.surface)
 

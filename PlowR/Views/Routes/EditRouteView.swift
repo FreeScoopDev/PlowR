@@ -31,7 +31,7 @@ struct EditRouteView: View {
     @ViewBuilder private var editor: some View {
         NavigationStack {
             Form {
-                Section("Route Name") {
+                Section(title: "Route Name") {
                     TextField("Route name", text: $routeName)
                 }
                 .listRowBackground(PlowRColor.surface)
@@ -66,6 +66,7 @@ struct EditRouteView: View {
                     }
                 } header: {
                     Text("Stops")
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 } footer: {
                     if stops.count > 1 { Text("Drag to reorder stops.") }
                 }

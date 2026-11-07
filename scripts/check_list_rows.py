@@ -5,6 +5,12 @@ ForEach sitting straight in a List, gets .listRowBackground(PlowRColor.surface)
 (the card colour). Sections in a Menu, Picker, context menu or dialog are
 skipped. A missed one only shows in dark mode, as a system grey card among graphite ones.
 
+--check also fails a bare Section("...") or Section(expr) { in a List or Form:
+iOS draws its title in its own pale grey, so write Section(title: ...) (see
+GroupedStyle.swift), which draws it in PlowRColor.inkSecondary. Sections in a
+Menu, Picker, context menu or dialog are skipped, as above. Section(header:)
+and Section { } are not flagged: style a custom header's text by hand.
+
   python3 scripts/check_list_rows.py --check FILES   # the guard: lists what's missing
   python3 scripts/check_list_rows.py FILES           # adds what's missing
 
@@ -123,7 +129,7 @@ def apply(s, keyword, modifier):
     inserts = []
     for m in code_positions(s, r'(?<![\w.])' + keyword + r'(?=\s*[({])'):
         enclosing = enclosing_keywords(s, m.start())
-        if keyword == 'Section' and set(enclosing) & {'Menu', 'Picker', 'contextMenu', 'confirmationDialog'}:
+        if keyword == 'Section' and set(enclosing) & SKIPPED:
             continue
         # A ForEach's rows need the colour only when they sit straight in a List.
         if keyword == 'ForEach' and (not enclosing or enclosing[0] != 'List'):
@@ -143,6 +149,21 @@ def apply(s, keyword, modifier):
         s = s[:pos] + text + s[pos:]
     return s, len(inserts)
 
+def bare_sections(s):
+    """Positions of Section(<unlabelled title>) { outside Menu/Picker/etc."""
+    out = []
+    for m in code_positions(s, r'(?<![\w.])Section(?=\s*\()'):
+        if set(enclosing_keywords(s, m.start())) & SKIPPED:
+            continue
+        k = s.index('(', m.end() - 1 if s[m.end()-1:m.end()] == '(' else m.end())
+        end = match(s, k, '(', ')')
+        args = s[k+1:end-1].strip()
+        if not args or re.match(r'\w+\s*:', args): continue
+        if not re.match(r'\s*\{', s[end:]): continue
+        out.append(k)
+    return out
+
+SKIPPED = {'Menu', 'Picker', 'contextMenu', 'confirmationDialog'}
 
 RULES = [('Section', '.listRowBackground(PlowRColor.surface)'),
          ('ForEach', '.listRowBackground(PlowRColor.surface)'),
@@ -159,12 +180,17 @@ def main(argv):
             out, n = apply(out, keyword, modifier)
             if n and check:
                 missing.append(f'{path}: {n} {keyword.strip("(?:)")} without {modifier}')
+        if check:
+            n = len(bare_sections(s))
+            if n:
+                missing.append(f'{path}: {n} Section(...) without title: (write Section(title: ...))')
         if not check and out != s:
             open(path, 'w').write(out)
             print(f'fixed {path}')
     if check:
         for line in missing: print(line)
         if missing:
+            print('A bare Section("...") gets iOS\'s pale grey title: write Section(title: "...") { } instead.')
             print('Every List/Form needs .plowRGrouped(), and every Section (and every ForEach straight in a List) '
                   '.listRowBackground(PlowRColor.surface): fix with python3 scripts/check_list_rows.py $(find PlowR/Views -name "*.swift")')
             return 1

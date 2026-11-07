@@ -18,7 +18,7 @@ struct WorkOrderRequestView: View {
 
     var body: some View {
         Form {
-            Section("Your Contact Info") {
+            Section(title: "Your Contact Info") {
                 TextField("Full Name", text: $clientName)
                     .textContentType(.name)
                 TextField("Phone Number", text: $clientPhone)
@@ -31,7 +31,7 @@ struct WorkOrderRequestView: View {
             }
             .listRowBackground(PlowRColor.surface)
 
-            Section("Property & Service") {
+            Section(title: "Property & Service") {
                 LabeledContent("Address", value: propertyAddress)
                 LabeledContent("Service", value: category)
                 ForEach(zones) { zone in
@@ -49,7 +49,7 @@ struct WorkOrderRequestView: View {
             }
             .listRowBackground(PlowRColor.surface)
 
-            Section("Notes") {
+            Section(title: "Notes") {
                 TextField("Special instructions, access codes, obstacles...", text: $notes, axis: .vertical)
                     .lineLimit(4...)
             }

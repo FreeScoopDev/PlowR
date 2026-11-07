@@ -117,7 +117,7 @@ struct ImportClientsView: View {
             }
             .listRowBackground(PlowRColor.surface)
         }
-        Section("Getting a CSV File") {
+        Section(title: "Getting a CSV File") {
             hint("Numbers", "File > Export To > CSV.")
             hint("Excel", "File > Save As, then CSV UTF-8.")
             hint("Google Sheets", "File > Download > Comma-separated values.")
@@ -140,6 +140,7 @@ struct ImportClientsView: View {
                 }
             } header: {
                 Text("Recent Imports")
+                    .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
                 Text("Undo removes the clients an import added that haven't been used since. Taking the import's tag off a client keeps them.")
             }
@@ -231,6 +232,7 @@ struct ImportClientsView: View {
             .pickerStyle(.segmented)
         } header: {
             Text("Who Are They?")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
             Text(kind == .customers
                  ? "Clients you work for now. They're counted as customers, not listed in the Pipeline."
@@ -253,6 +255,7 @@ struct ImportClientsView: View {
             }
         } header: {
             Text("Columns")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
             Text(hasName ? "PlowR guessed what each column holds from its name. Change any that's wrong; columns set to Don't Import are left out."
                  : "Choose which column holds the client's name (or first and last name, or company).")
@@ -312,6 +315,7 @@ struct ImportClientsView: View {
             }
         } header: {
             Text("What Will Happen")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
             Text("Duplicates are clients already in PlowR, or listed twice in the file: same name and phone, or same name and address."
                  + (preview.samePhones > 0
@@ -448,6 +452,7 @@ struct ImportClientsView: View {
             }
         } header: {
             Text("Map Pins")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
             if !pins.notFound.isEmpty {
                 Text("The map couldn't find \(count(pins.notFound.count, "address", "addresses")). Those clients have no pin, so they aren't on route maps. They're marked in your client list, and PlowR won't look them up again: open each one to correct the address or set the pin.")
@@ -568,7 +573,7 @@ struct ImportPreviewList: View {
     var body: some View {
         List {
             ForEach(groups, id: \.title) { group in
-                Section("\(group.title) (\(group.rows.count))") {
+                Section(title: "\(group.title) (\(group.rows.count))") {
                     ForEach(group.rows) { row in
                         VStack(alignment: .leading, spacing: 2) {
                             Text(row.title).font(.subheadline)

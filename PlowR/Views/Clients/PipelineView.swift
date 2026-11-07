@@ -79,6 +79,7 @@ struct PipelineView: View {
                 }
             } header: {
                 Text("\(title) (\(entries.count))")
+                    .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
                 Text(footer)
             }

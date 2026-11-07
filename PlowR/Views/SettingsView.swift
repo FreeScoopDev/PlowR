@@ -65,7 +65,7 @@ struct SettingsView: View {
                 .listRowBackground(PlowRColor.surface)
             }
 
-            Section("Business") {
+            Section(title: "Business") {
                 NavigationLink(destination: BusinessProfileView()) {
                     Label("Business Profile", systemImage: "building.2")
                 }
@@ -109,12 +109,13 @@ struct SettingsView: View {
                 }
             } header: {
                 Text("Calendar")
+                    .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
                 calendarFooter
             }
             .listRowBackground(PlowRColor.surface)
 
-            Section("Discover") {
+            Section(title: "Discover") {
                 Button {
                     showingFindService = true
                 } label: {
@@ -151,6 +152,7 @@ struct SettingsView: View {
 
             } header: {
                 Text("Data & Backup")
+                    .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
                 Text("Your data syncs through your private iCloud to every device signed in to your Apple ID. To take PlowR's data off one device and leave the others alone, use Delete Account & Data → Remove from This Device: that also turns sync off on that device until you turn it back on here. Export Data (under Business) keeps a copy as spreadsheets.")
                     .font(.caption)
@@ -182,6 +184,7 @@ struct SettingsView: View {
                 .disabled(tipsComeBack)
             } header: {
                 Text("Help")
+                    .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
                 if tipsComeBack {
                     Text("Tips come back the next time you open PlowR.")
@@ -196,11 +199,12 @@ struct SettingsView: View {
                     }
                 } header: {
                     Text("On a Mac")
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
                 .listRowBackground(PlowRColor.surface)
             }
 
-            Section("Account") {
+            Section(title: "Account") {
                 if !authManager.operatorName.isEmpty {
                     LabeledContent("Name", value: authManager.operatorName)
                 }
@@ -242,7 +246,7 @@ struct SettingsView: View {
             }
             .listRowBackground(PlowRColor.surface)
 
-            Section("Legal") {
+            Section(title: "Legal") {
                 if let url = URL(string: "https://getplowr.app/privacy-policy.html") {
                     Link("Privacy Policy", destination: url)
                 }
@@ -273,6 +277,7 @@ struct SettingsView: View {
                 .disabled(schemaStatus == "Setting Up…")
             } header: {
                 Text("Developer")
+                    .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
                 Text("Populate adds sample Claremont, NH clients for testing. Set Up iCloud Schema puts every record type and field into iCloud's Development database, to deploy to Production before a release (CloudKitSchemaSetup).")
             }

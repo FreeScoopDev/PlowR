@@ -74,7 +74,7 @@ struct LogWorkView: View {
                     selectedIDs: $selectedIDs, typedPrices: $typedPrices,
                     customItems: $customItems, keptLines: $keptLines)
 
-                Section("Notes") {
+                Section(title: "Notes") {
                     TextField("Optional notes", text: $notes, axis: .vertical)
                         .lineLimit(3...)
                 }

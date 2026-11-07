@@ -165,7 +165,7 @@ private struct AddPaymentMethodSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Type") {
+                Section(title: "Type") {
                     Picker("Payment Type", selection: $preset) {
                         ForEach(MethodPreset.allCases, id: \.self) { p in
                             Label(p.rawValue, systemImage: p.systemImage).tag(p)
@@ -179,7 +179,7 @@ private struct AddPaymentMethodSheet: View {
                 }
                 .listRowBackground(PlowRColor.surface)
 
-                Section("Details") {
+                Section(title: "Details") {
                     TextField("Label", text: $label)
                     if preset.requiresValue {
                         TextField(preset.valuePlaceholder, text: $value)

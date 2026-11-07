@@ -634,7 +634,7 @@ struct ZoneLabelSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Zone Label") {
+                Section(title: "Zone Label") {
                     TextField("e.g. Driveway", text: $pendingLabel)
                 }
                 .listRowBackground(PlowRColor.surface)
@@ -645,6 +645,7 @@ struct ZoneLabelSheet: View {
                     }
                 } header: {
                     Text("Suggestions")
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
                 .listRowBackground(PlowRColor.surface)
             }

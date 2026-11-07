@@ -184,7 +184,7 @@ struct ClientListView: View {
                     }
                     .listRowBackground(PlowRColor.surface)
                     if !inactiveClients.isEmpty {
-                        Section("Inactive") {
+                        Section(title: "Inactive") {
                             ForEach(inactiveClients) { client in
                                 clientRow(client)
                             }

@@ -185,7 +185,7 @@ struct StopServiceRecorderView: View {
                             : "Invoice \(number) was already made for this visit."
                     })
 
-                Section("Notes") {
+                Section(title: "Notes") {
                     TextField("Optional notes for this stop…", text: $notes, axis: .vertical)
                         .lineLimit(3...)
                 }
@@ -266,7 +266,7 @@ struct StopServiceRecorderView: View {
         let status: PlowRColor.Status = isBefore ? .neutral : .done
         let labelColor = isBefore ? PlowRColor.ink : status.text
 
-        Section(label) {
+        Section(title: label) {
             if !images.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
