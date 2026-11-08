@@ -19,6 +19,7 @@ struct StopServiceRecorderView: View {
     @State private var stopStartedAt: Date
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.modelContext) private var modelContext
     @Query private var allServices: [ServiceItem]
 
@@ -296,7 +297,11 @@ struct StopServiceRecorderView: View {
                 .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
             }
 
-            HStack(spacing: 12) {
+            // Large text: Camera over Library, each at the full width.
+            let photoButtons = typeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(spacing: 12))
+                : AnyLayout(HStackLayout(spacing: 12))
+            photoButtons {
                 // No camera (an iPad without one, a Mac): asking for it crashes.
                 if CameraPicker.isAvailable {
                     Button {

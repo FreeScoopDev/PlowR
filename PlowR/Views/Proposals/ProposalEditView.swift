@@ -4,6 +4,7 @@ import SwiftData
 struct ProposalEditView: View {
     @Bindable var proposal: Proposal
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.modelContext) private var modelContext
 
     /// The discount, tax and due date typed here. Only the ones changed are saved.
@@ -68,7 +69,11 @@ struct ProposalEditView: View {
         Section {
             ForEach(proposal.sortedLineItems) { item in
                 @Bindable var item = item
-                HStack {
+                // Large text: the amount under the service name, not beside it.
+                let lineLayout = typeSize.isAccessibilitySize
+                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+                    : AnyLayout(HStackLayout())
+                lineLayout {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(item.serviceName)
                             .font(.subheadline)
@@ -78,7 +83,7 @@ struct ProposalEditView: View {
                                 .foregroundStyle(PlowRColor.inkSecondary)
                         }
                     }
-                    Spacer()
+                    if !typeSize.isAccessibilitySize { Spacer() }
                     HStack(spacing: 2) {
                         Text("$").foregroundStyle(PlowRColor.inkSecondary).font(.subheadline)
                         // Shown and kept to the cent it's billed and printed at.
@@ -86,8 +91,8 @@ struct ProposalEditView: View {
                                                          set: { item.lineTotal = InvoiceLines.lineAmount($0) }),
                                   format: .number.precision(.fractionLength(2)))
                             .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: 72)
+                            .multilineTextAlignment(typeSize.isAccessibilitySize ? .leading : .trailing)
+                            .frame(width: typeSize.isAccessibilitySize ? nil : 72)
                             .font(.subheadline.weight(.semibold))
                     }
                 }

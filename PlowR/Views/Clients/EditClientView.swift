@@ -366,10 +366,10 @@ struct EditClientView: View {
 
     private var contactSection: some View {
         Section(title: "Contact") {
-            TextField("Full Name", text: $draft.name)
+            GrowingTextField("Full Name", text: $draft.name)
                 .textContentType(.name)
             HStack {
-                TextField("Phone Number", text: $draft.phone)
+                GrowingTextField("Phone Number", text: $draft.phone)
                     .textContentType(.telephoneNumber)
                     .keyboardType(.phonePad)
                 if !draft.phone.isEmpty,
@@ -384,7 +384,7 @@ struct EditClientView: View {
                 }
             }
             HStack {
-                TextField("Email (optional)", text: $draft.email)
+                GrowingTextField("Email (optional)", text: $draft.email)
                     .textContentType(.emailAddress)
                     .keyboardType(.emailAddress)
                     .textInputAutocapitalization(.never)
@@ -632,7 +632,7 @@ struct EditClientView: View {
     private var stopNotesSection: some View {
         Section {
             TextField("Notes shown during active route (gate codes, special instructions…)", text: $draft.defaultStopNotes, axis: .vertical)
-                .lineLimit(3)
+                .lineLimit(typeSize.isAccessibilitySize ? 8 : 3)
         } header: {
             Text("Route Notes")
                 .foregroundStyle(PlowRColor.inkSecondary)
@@ -647,7 +647,7 @@ struct EditClientView: View {
 
     private var serviceAddressSection: some View {
         Section {
-            TextField("Street Address", text: $draft.address)
+            GrowingTextField("Street Address", text: $draft.address)
                 .textContentType(.fullStreetAddress)
                 .onChange(of: draft.address) { _, v in
                     // Not typed: the address a new pin brought.

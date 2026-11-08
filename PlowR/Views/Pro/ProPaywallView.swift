@@ -12,13 +12,41 @@ struct ProPaywallView: View {
     static let termsURL = URL(string: "https://getplowr.app/terms-of-service.html")
     static let privacyURL = URL(string: "https://getplowr.app/privacy-policy.html")
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+
     var body: some View {
+        VStack(spacing: 0) {
+            // Large text: the store's own close button floats over its
+            // scrolled text. Hidden, and a close button of ours on a line above.
+            if typeSize.isAccessibilitySize {
+                HStack {
+                    Spacer()
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark")
+                            .font(.body.weight(.semibold))
+                            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)   // the mark stays inside its circle
+                            .foregroundStyle(PlowRColor.ink)
+                            .frame(width: PlowRLayout.minTapTarget, height: PlowRLayout.minTapTarget)
+                            .background(PlowRColor.raised, in: Circle())
+                            .contentShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Close")
+                }
+                .padding(.horizontal, PlowRLayout.space4)
+                .padding(.top, PlowRLayout.space3)
+            }
+            store
+        }
+    }
+
+    private var store: some View {
         SubscriptionStoreView(productIDs: [Subscription.productID]) {
             ProPitch()
         }
         .storeButton(.visible, for: .restorePurchases)
         .storeButton(.visible, for: .policies)
-        .storeButton(.visible, for: .cancellation)
+        .storeButton(typeSize.isAccessibilitySize ? .hidden : .visible, for: .cancellation)
         .modifier(PolicyLinks())
         .onInAppPurchaseCompletion { _, result in
             guard case .success(.success(let verification)) = result else {

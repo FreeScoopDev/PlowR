@@ -82,6 +82,16 @@ struct RouteDetailView: View {
 
     var body: some View {
         List {
+            // Large text: the name wraps here; a large title cuts it to "Monday Nort…".
+            if typeSize.isAccessibilitySize {
+                Text(route.name)
+                    .font(.largeTitle.bold())
+                    .foregroundStyle(PlowRColor.ink)
+                    .accessibilityAddTraits(.isHeader)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 0, leading: PlowRLayout.space4, bottom: 0, trailing: PlowRLayout.space4))
+            }
             if !geocodedStops.isEmpty {
                 mapSection
             }
@@ -110,19 +120,19 @@ struct RouteDetailView: View {
                         // A stop opens its page: services, notes, equipment, target time.
                         Button { editingStop = stop } label: {
                             HStack {
-                                // Large text: the skipped chip goes under the row.
+                                // The skipped chip goes under the row: beside it (it
+                                // never shrinks) the row's details got a one-letter column.
                                 let row = stopRow(stop: stop, index: index)
                                     .opacity(isSkipped ? 0.4 : 1)
                                 let chip = StatusChip(belowTriggerToday.contains(stop.id) ? "Below Trigger" : "Skipped Today",
                                                       status: .neutral)
-                                if typeSize.isAccessibilitySize {
+                                if isSkipped {
                                     VStack(alignment: .leading, spacing: PlowRLayout.space2) {
                                         row
-                                        if isSkipped { chip }
+                                        chip
                                     }
                                 } else {
                                     row
-                                    if isSkipped { chip }
                                 }
                                 Image(systemName: "chevron.right")
                                     .font(.caption.weight(.semibold))
@@ -155,9 +165,9 @@ struct RouteDetailView: View {
             }
         }
         .plowRGrouped()
-        .navigationTitle(route.name)
+        .navigationTitle(typeSize.isAccessibilitySize ? "" : route.name)
         .proGateSheet($gate)
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarTitleDisplayMode(typeSize.isAccessibilitySize ? .inline : .large)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {

@@ -185,3 +185,63 @@ struct AdaptiveDetails<Content: View>: View {
         layout { content }
     }
 }
+
+/// A single-line text field that, at accessibility text sizes, grows to up
+/// to four lines instead of hiding its value behind "…". Below them it is
+/// the plain `TextField`. The value stays one line: Return ends editing as
+/// it does in a plain field, and line breaks pasted or autofilled (an
+/// address) become ", " rather than being dropped.
+struct GrowingTextField: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @FocusState private var focused: Bool
+    let title: String
+    @Binding var text: String
+
+    init(_ title: String, text: Binding<String>) {
+        self.title = title
+        self._text = text
+    }
+
+    /// `value` with each run of line breaks (and the spaces around it)
+    /// turned into ", "; breaks at either end are dropped.
+    static func singleLine(_ value: String) -> String {
+        guard value.contains(where: \.isNewline) else { return value }
+        let lines = value.split(omittingEmptySubsequences: true, whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        return lines.joined(separator: ", ")
+    }
+
+    /// Return was pressed: `new` is `old` with one line break typed into
+    /// it, wherever the cursor was. Anything bigger (a paste, AutoFill) isn't.
+    static func isReturn(old: String, new: String) -> Bool {
+        guard new.count == old.count + 1 else { return false }
+        guard let at = zip(old.indices, new.indices).first(where: { old[$0.0] != new[$0.1] })?.1
+            ?? new.indices.last else { return false }
+        guard new[at].isNewline else { return false }
+        var without = new
+        without.remove(at: at)
+        return without == old
+    }
+
+    var body: some View {
+        if typeSize.isAccessibilitySize {
+            TextField(title, text: $text, axis: .vertical)
+                .lineLimit(1...4)
+                .focused($focused)
+                .onChange(of: text) { previous, value in
+                    guard value.contains(where: \.isNewline) else { return }
+                    // Return ends editing and changes nothing, as it does in a
+                    // one-line field; a pasted break becomes ", ".
+                    if Self.isReturn(old: previous, new: value) {
+                        text = previous
+                        focused = false
+                    } else {
+                        text = Self.singleLine(value)
+                    }
+                }
+        } else {
+            TextField(title, text: $text)
+        }
+    }
+}
