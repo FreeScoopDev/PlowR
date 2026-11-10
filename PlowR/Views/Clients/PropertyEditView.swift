@@ -43,7 +43,7 @@ struct PropertyEditView: View {
     private var services: [ServiceItem] {
         allServiceItems
             .filter { $0.operatorID == client.operatorID && $0.isActive }
-            .sorted { $0.sortOrder < $1.sortOrder }
+            .sorted { ServiceLog.catalogOrder($0, $1) }
     }
 
     @Environment(\.access) private var access

@@ -50,6 +50,18 @@ struct ContractScheduleTests {
                 == "Every 2 weeks on Tuesday and Friday")
     }
 
+    /// Pins the sentence with a French calendar's day names joined in
+    /// English. It does NOT prove the device's language is ignored: the
+    /// test host formats lists in English whatever language it's given, so
+    /// putting `.formatted(.list)` back passes too.
+    @Test func itsDaysAreJoinedInEnglishOnAFrenchDevice() throws {
+        let h = try Harness(stopCount: 0)
+        var french = Calendar(identifier: .gregorian)
+        french.locale = Locale(identifier: "fr_FR")
+        let sentence = ContractSchedule.summary(of: mowing(h, weekdays: [6, 3], every: 2), calendar: french)
+        #expect(sentence == "Every 2 weeks on mardi and vendredi")
+    }
+
     @Test func itsVisitsAreOnItsDaysThroughItsLastDay() throws {
         let h = try Harness(stopCount: 0)
         let tuesdays = ContractSchedule.dates(of: mowing(h), now: date(2027, 3, 20), calendar: calendar)
