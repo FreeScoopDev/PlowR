@@ -299,7 +299,8 @@ struct EditClientView: View {
                     : AnyLayout(HStackLayout(spacing: 8))
                 layout {
                     Menu {
-                        if !draft.phone.isEmpty {
+                        // Only a number with something to dial: "n/a" has none.
+                        if MapLinks.callLink(draft.phone) != nil {
                             Button {
                                 if let url = MapLinks.callLink(draft.phone) { openURL(url) }
                             } label: { Label("Call", systemImage: "phone.fill") }
@@ -872,23 +873,48 @@ struct EditClientView: View {
     }
 
     /// Where they stand before they're a customer (Pipeline): Lead or
-    /// Quoted, with Mark Lost; or Lost, with Reopen. Nothing for a customer.
+    /// Quoted, with Mark as Customer and Mark Lost; or Lost, with Reopen; or
+    /// Customer, with Mark as Lead, when only `customerSince` makes them one.
+    /// Nothing for a customer by what happened. Buttons stack when they
+    /// don't fit.
     @ViewBuilder
     private var pipelineStageRow: some View {
         // This client's records only: the page redraws with each key typed.
-        let stage = Pipeline.stage(of: client, facts: Pipeline.Facts(of: client, in: modelContext))
-        if stage != .customer, client.isActive {
-            LabeledContent {
-                Button(stage == .lost ? "Reopen" : "Mark Lost") {
-                    $gate.unless(ProGate.edit(access)) { Pipeline.setLost(stage != .lost, for: client, in: modelContext) }
+        let facts = Pipeline.Facts(of: client, in: modelContext)
+        let stage = Pipeline.stage(of: client, facts: facts)
+        let canMarkCustomer = Pipeline.canMarkAsCustomer(client, facts: facts)
+        let canMarkLead = Pipeline.canMarkAsLead(client, facts: facts)
+        if client.isActive, canMarkCustomer || canMarkLead || stage == .lost {
+            let chip = StatusChip(stage.title, status: stage.chipStatus)
+            let buttons = Group {
+                if canMarkCustomer {
+                    stageButton("Mark as Customer") { Pipeline.markAsCustomer(client, in: modelContext) }
                 }
-                .font(.caption)
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-            } label: {
-                StatusChip(stage.title, status: stage.chipStatus)
+                if canMarkLead {
+                    stageButton("Mark as Lead") { Pipeline.markAsLead(client, in: modelContext) }
+                }
+                if stage != .lost, !canMarkLead {
+                    stageButton("Mark Lost") { Pipeline.setLost(true, for: client, in: modelContext) }
+                }
+                if stage == .lost {
+                    stageButton("Reopen") { Pipeline.setLost(false, for: client, in: modelContext) }
+                }
+            }
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) { chip; Spacer(); buttons }
+                VStack(alignment: .leading, spacing: 8) { chip; HStack(spacing: 8) { buttons } }
+                VStack(alignment: .leading, spacing: 8) { chip; buttons }
             }
         }
+    }
+
+    private func stageButton(_ title: String, _ action: @escaping () -> Void) -> some View {
+        Button(title) { $gate.unless(ProGate.edit(access)) { action() } }
+            .font(.caption)
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
     }
 
     // MARK: - Documents Section
