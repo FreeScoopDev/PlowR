@@ -44,7 +44,7 @@
         {
           "id": "add-client",
           "title": "Add a client",
-          "summary": "Name, phone and address; the rest goes on the client's page.",
+          "summary": "Name and address; phone, email and notes are optional.",
           "screens": ["clients"],
           "shots": [
             { "file": "clients-clients-tab-menu.jpg", "alt": "Clients tab, + menu" },
@@ -53,7 +53,7 @@
           ],
           "steps": [
             "Open the **Clients** tab, tap **+**, and choose **Add Manually**.",
-            "Enter their **Full Name** and **Phone Number**, and an email if you have one. Or tap **Import Contact** to fill it in from your Contacts.",
+            "Choose **Existing Customer** (someone you already work for) or **New Lead** (someone you hope to win). Enter their **Full Name**; a phone number, email and **Notes** (a gate code, say) are optional. Or tap **Import Contact** to fill it in from your Contacts.",
             "Type the **Street Address** and pick the match. PlowR pins it on the map.",
             "Tap **Save**.",
             "On the client's page, add the rest: tags, notes, **Expected Services**, billing preferences, **Tax Exempt**, route notes, and other properties."
