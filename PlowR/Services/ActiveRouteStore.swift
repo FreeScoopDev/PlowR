@@ -304,6 +304,8 @@ final class ActiveRouteStore {
             stop.actualMinutes = 0
             stop.completedServiceIDs = []
             stop.completedNotes = ""
+            stop.cantServiceReason = ""
+            stop.cantServiceAt = nil
         }
         self.route = route
         routeID = route.id
@@ -355,7 +357,30 @@ final class ActiveRouteStore {
         moveOn(expecting: stopID, recording: false, services: [])
     }
 
-    private func moveOn(expecting stopID: UUID, recording: Bool, services: [String]) -> CompletionResult {
+    /// Can't Service: moves past the current stop as `passCurrentStop` does
+    /// (no visit, time, services or Service Log record; can't be undone, and
+    /// ends the last completion's Undo), and keeps `reason` and the time on
+    /// the stop, only when the route really moved past it. On `.stopChanged`
+    /// or a stop already behind, nothing is written.
+    @discardableResult
+    func skipCurrentStop(expecting stopID: UUID, reason: String) -> CompletionResult {
+        // The crew may never have gone there (the client cancelled by phone),
+        // so the stop before is still watched for its departure.
+        let result = moveOn(expecting: stopID, recording: false, services: [], crewWasThere: false)
+        switch result {
+        case .advanced, .finishedLastStop:
+            guard let stop = sortedStops.first(where: { $0.id == stopID }) else { return result }
+            stop.cantServiceReason = reason
+            stop.cantServiceAt = now()
+            // Saved now, as moveOn saves: not left to autosave.
+            try? context?.save()
+        case .noActiveRoute, .allStopsAlreadyDone, .stopChanged: break
+        }
+        return result
+    }
+
+    private func moveOn(expecting stopID: UUID, recording: Bool, services: [String],
+                        crewWasThere: Bool = true) -> CompletionResult {
         validate()
         guard isActive else { return .noActiveRoute }
         guard let stop = currentStop else {
@@ -370,7 +395,9 @@ final class ActiveRouteStore {
         var undo = recording ? beforeCompleting(stop) : nil
         // The crew was at this stop: an earlier stop's exit seen from now on
         // isn't when they left it (the areas overlap, or it came too late).
-        if !departures.isEmpty {
+        // Not after Can't Service: an entry at that stop, if there is one,
+        // ends the wait as it always does.
+        if crewWasThere, !departures.isEmpty {
             departures = []
             SiteDepartures.save(departures, to: defaults)
         }

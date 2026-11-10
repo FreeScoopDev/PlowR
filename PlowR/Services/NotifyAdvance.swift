@@ -49,6 +49,14 @@ enum NotifyAdvance {
         private(set) var serviceNames: [String] = []
         private(set) var clientName = ""
 
+        /// Whether Send or the other button completes a stop.
+        var completesStop: Bool { stopID != nil }
+
+        /// The sheet's button that doesn't text: it completes the stop, or
+        /// (the heads-up, a text only) nothing. Never "Skip": that read as
+        /// skipping the stop.
+        var skipLabel: String { completesStop ? "Complete Without Text" : "No Text" }
+
         /// Nothing to complete: no sheet open, or one cancelled.
         static let nothing = Completion(stopID: nil, serviceIDs: [])
 

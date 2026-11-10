@@ -27,6 +27,17 @@ struct NotifyAdvanceTests {
         #expect(try h.context.fetch(FetchDescriptor<ServiceRecord>()).isEmpty)
     }
 
+    // The button beside Send Message says what it does: "Skip" read as
+    // skipping the stop, when it completes it.
+    @Test func theOtherButtonSaysWhetherItCompletes() {
+        let stop = UUID()
+        #expect(NotifyAdvance.Completion.button(drawnStop: stop, recording: []).skipLabel == "Complete Without Text")
+        #expect(NotifyAdvance.Completion.exitOffer(leftStop: stop, clientName: "Pat", main: .completeAndText).skipLabel
+                == "Complete Without Text")
+        #expect(NotifyAdvance.Completion.headsUp.skipLabel == "No Text")
+        #expect(NotifyAdvance.Completion.nothing.skipLabel == "No Text")
+    }
+
     @Test func afterDoneItCompletesTheStopShownOrSaysWhatHappened() throws {
         let h = try Harness(stopCount: 3)
         let store = h.makeStore()
