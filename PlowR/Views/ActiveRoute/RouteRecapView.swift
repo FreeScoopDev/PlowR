@@ -25,6 +25,14 @@ struct RouteRecapView: View {
     /// This run's Service Log records, live: a departure GPS catches while
     /// the recap is open shows.
     @Query private var runRecords: [ServiceRecord]
+    @Environment(\.modelContext) private var modelContext
+    /// The catalog, for Record Expected Services (RecapServiceRecorder).
+    @Query private var allServices: [ServiceItem]
+    /// Record Expected Services' confirmation, with the stops it names.
+    @State private var confirmingExpected: ExpectedServicesPlan?
+    /// What Confirm left to say, shown once its sheet has closed.
+    @State private var expectedNote: String?
+    @State private var shownExpectedNote: String?
 
     init(route: PlowRoute, stops: [RouteStop], allClients: [Client], onEndRoute: @escaping () -> Void,
          runID: UUID? = nil, runStartedAt: Date? = nil) {
@@ -93,6 +101,25 @@ struct RouteRecapView: View {
                     .listRowBackground(PlowRColor.surface)
                 }
 
+                // Not gated: Record Services here isn't (a running route never is).
+                let expectedPlan = RecapServiceRecorder.plan(stops: stops, catalog: allServices,
+                                                             operatorID: route.operatorID, run: runID,
+                                                             in: modelContext)
+                if !expectedPlan.isEmpty {
+                    Section {
+                        Button {
+                            confirmingExpected = ExpectedServicesPlan(stops: expectedPlan)
+                        } label: {
+                            Label(RecapServices.buttonTitle(count: expectedPlan.count), systemImage: "checklist")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.plowRSecondary)
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+                    }
+                    .listRowBackground(PlowRColor.surface)
+                }
+
                 if !skippedStops.isEmpty {
                     Section(title: "Not Serviced") {
                         ForEach(Array(skippedStops.enumerated()), id: \.element.id) { idx, stop in
@@ -136,6 +163,32 @@ struct RouteRecapView: View {
                 stopStartedAt: runStartedAt
             )
         }
+        .sheet(item: $confirmingExpected, onDismiss: showExpectedNote) { plan in
+            RecordExpectedServicesSheet(planned: plan.stops) {
+                let outcome = RecapServiceRecorder.record(plan.stops, stops: stops, catalog: allServices,
+                                                          operatorID: route.operatorID, run: runID, in: modelContext)
+                expectedNote = RecapServices.afterConfirm(saveFailed: outcome.saveFailed,
+                                                          notRecorded: outcome.notRecorded)
+            }
+        }
+        .alert("Not Recorded", isPresented: Binding(get: { shownExpectedNote != nil },
+                                                    set: { if !$0 { shownExpectedNote = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(shownExpectedNote ?? "")
+        }
+    }
+
+    /// Once the confirmation has closed: an alert can't show over a closing sheet.
+    private func showExpectedNote() {
+        shownExpectedNote = expectedNote
+        expectedNote = nil
+    }
+
+    /// Record Expected Services' confirmation, as a sheet item.
+    private struct ExpectedServicesPlan: Identifiable {
+        let id = UUID()
+        let stops: [RecapServices.Planned]
     }
 
     // MARK: - Summary

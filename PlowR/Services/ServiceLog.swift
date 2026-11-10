@@ -81,14 +81,20 @@ enum ServiceLog {
         record.startedAt = startedAt
         record.performedAt = finishedAt
         record.minutes = max(0, minutes)
-        // Record Services' own lines (typed prices, custom items) stand; the
-        // catalog prices only fill a record that has none.
-        if record.lines.isEmpty, !stop.completedServiceIDs.isEmpty {
-            record.lines = lines(for: stop.completedServiceIDs, client: client, propertyID: stop.propertyID,
-                                 in: context)
-        }
+        fillLines(of: record, from: stop, client: client, in: context)
         if record.notes.isEmpty, !stop.completedNotes.isEmpty { record.notes = stop.completedNotes }
         return record
+    }
+
+    /// The stop's services (`completedServiceIDs`) put on `record` at the
+    /// catalog's prices for the stop's place (`lines(for:)`), only when the
+    /// record has no lines: Record Services' own lines (typed prices, custom
+    /// items) stand. Writes the lines and nothing else. Completing a stop
+    /// and the recap's Record Expected Services (RecapServiceRecorder) both
+    /// write through here, so the two price a stop the same way.
+    static func fillLines(of record: ServiceRecord, from stop: RouteStop, client: Client, in context: ModelContext) {
+        guard record.lines.isEmpty, !stop.completedServiceIDs.isEmpty else { return }
+        record.lines = lines(for: stop.completedServiceIDs, client: client, propertyID: stop.propertyID, in: context)
     }
 
     /// The record for the work at `stop` on run `run`, made if there's none

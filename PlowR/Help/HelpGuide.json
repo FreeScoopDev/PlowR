@@ -201,7 +201,7 @@
             "Tap **Complete · Text Next Client** to finish the stop and move on. (It says **Complete Stop** when there's no one to text.)",
             "When a stop has expected services and nothing is recorded for it yet, the button names them instead, like **Done: Mow, Trim**. One tap completes the stop and records those services at your catalog prices, as **Add Expected** and **Save** would. Did something else? Tap **Complete Without Services**, or record the work in **Record Services** first. Tapped it by mistake? On any stop but the last, tap **Undo** in the bar at the bottom: the services come off with it. After the last stop, change them from the **Route Recap**.",
             "Couldn't do a stop (a vehicle in the way, a locked gate)? Tap **Can't Service**, pick a reason and tap **Save & Move On**. PlowR moves on without recording a visit, time or services, and the reason shows in the **Route Recap** and on the route's page until its next run.",
-            "After the last stop, tap **Review & End Route** to see the **Route Recap**, then **End Route**."
+            "After the last stop, tap **Review & End Route** to see the **Route Recap**, then **End Route**. Stops completed with nothing recorded, from Siri or Control Center, say, can get their expected services there: tap **Record Expected Services**, check the stops and services it lists, and confirm. Nothing already recorded or invoiced is changed."
           ],
           "note": "Set Location to **Always** so PlowR records arrival and departure times even when the app is closed."
         },
