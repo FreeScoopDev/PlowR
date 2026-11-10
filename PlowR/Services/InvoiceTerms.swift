@@ -65,14 +65,21 @@ nonisolated enum InvoiceTerms {
     /// 7, 15, 30, 45 or 60 days after, "Net N"; anything else, nil (a date
     /// picked by hand states no terms).
     ///
-    /// Counted from the day it was sent when that states terms, else from
-    /// the day it's dated. A due date is often set at Mark Sent, later than
-    /// the document's date (a contract's payment, or a due-on-receipt draft
-    /// moved to its send day): counted from the date alone, a Net 30
-    /// payment drafted 15 days before it went out read "Net 45".
+    /// A due date is set either when the document is made or when it's
+    /// sent (a contract's payment; a due-on-receipt draft moved to its send
+    /// day), and the dates alone can't always say which: made Nov 1, sent
+    /// Nov 16, due Dec 16 is Net 30 from sending and Net 45 from its date.
+    /// So terms are stated only when they're unambiguous: when just one of
+    /// the two counts (from its date, from its send day) states terms, or
+    /// both state the same. When they differ, none: the due date alone,
+    /// never terms the page's own dates contradict.
     static func statedTerms(issued: Date, sent: Date?, due: Date, calendar: Calendar = .current) -> String? {
-        if let sent, let fromSent = statedTerms(issued: sent, due: due, calendar: calendar) { return fromSent }
-        return statedTerms(issued: issued, due: due, calendar: calendar)
+        let fromDate = statedTerms(issued: issued, due: due, calendar: calendar)
+        guard let sent else { return fromDate }
+        let fromSent = statedTerms(issued: sent, due: due, calendar: calendar)
+        guard let fromDate else { return fromSent }
+        guard let fromSent else { return fromDate }
+        return fromDate == fromSent ? fromDate : nil
     }
 
     static func statedTerms(issued: Date, due: Date, calendar: Calendar = .current) -> String? {
