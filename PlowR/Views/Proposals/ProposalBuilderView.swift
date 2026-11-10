@@ -62,7 +62,7 @@ struct ProposalBuilderView: View {
         var seen = Set<String>()
         return allServices
             .filter { $0.operatorID == authManager.userID && $0.isActive }
-            .sorted { $0.sortOrder < $1.sortOrder }
+            .sorted { ServiceLog.catalogOrder($0, $1) }
             .filter { seen.insert($0.id.uuidString).inserted }
     }
 

@@ -52,6 +52,12 @@ struct ActiveRouteView: View {
     /// The stop Below Trigger moved past, for the heads-up offered after it.
     @State private var belowTriggerPassedID: UUID?
     @State private var showingBelowTriggerChangedAlert = false
+    /// The stop Can't Service opened for, pinned like Below Trigger's.
+    @State private var cantServiceStop: RouteStop?
+    /// What Can't Service did, acted on once its sheet has closed.
+    @State private var cantServiceResult: ActiveRouteStore.CompletionResult?
+    /// The stop Can't Service moved past, for the heads-up offered after it.
+    @State private var cantServicePassedID: UUID?
     @State private var showingMassMessage = false
     @State private var showingFirstStopPrompt = false
     /// Siri's "Notify next client": a text to this stop's client, completing
@@ -106,7 +112,7 @@ struct ActiveRouteView: View {
     /// added here, or Control Center's message can try to show over it.
     private var isPresentingSomething: Bool {
         showingFirstStopPrompt || showingNotifyPrompt || textOnlyStop != nil || recorderStop != nil || showingMassMessage
-            || belowTriggerStop != nil || showingBelowTriggerChangedAlert
+            || belowTriggerStop != nil || showingBelowTriggerChangedAlert || cantServiceStop != nil
             || showingRouteRecap || showingNavPicker || showingRouteChangedAlert || showingLocationDeniedAlert
             || showingNotRecordedAlert
             || gate != nil
@@ -209,7 +215,7 @@ struct ActiveRouteView: View {
         .alert("Route Changed", isPresented: $showingRouteChangedAlert) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text("This route was changed on another device, so that stop wasn't marked complete. Check the current stop and try again.")
+            Text("This route was changed on another device, so the route didn't move on and nothing was recorded for that stop. Check the current stop and try again.")
         }
         // Location off used to offer only Open Settings or End Route, which
         // threw away the run. The route works without it, by hand, so
@@ -428,7 +434,7 @@ struct ActiveRouteView: View {
         .onChange(of: isPresentingSomething) { _, _ in openRequestedText() }
         // Each sheet, dialog and alert on this screen is in isPresentingSomething.
         .sheet(item: $textOnlyStop) { stop in
-            // A text only: Send, Skip and Cancel complete nothing.
+            // A text only: Send, No Text and Cancel complete nothing.
             NotifyPromptView(stop: stop, locationManager: locationManager, onAdvance: {},
                              promptTitle: "Text Current Stop?")
         }
@@ -457,7 +463,7 @@ struct ActiveRouteView: View {
                 // (promptCompletion.notice); from a button, nothing more.
                 NotifyPromptView(stop: next, locationManager: locationManager, onAdvance: {
                     advance(promptCompletion)
-                }, completionNotice: promptCompletion.notice)
+                }, skipLabel: promptCompletion.skipLabel, completionNotice: promptCompletion.notice)
             }
         }
         .background(
@@ -479,6 +485,9 @@ struct ActiveRouteView: View {
         .sheet(item: $belowTriggerStop, onDismiss: belowTriggerDismissed) { stop in
             BelowTriggerSheet(clientName: stop.clientName, triggerLabel: belowTrigger(for: stop)?.label ?? "",
                               save: { passBelowTrigger(stop, note: $0, photos: $1) })
+        }
+        .sheet(item: $cantServiceStop, onDismiss: cantServiceDismissed) { stop in
+            CantServiceSheet(clientName: stop.clientName, save: { skip(stop, reason: $0) })
         }
         .alert("Route Changed", isPresented: $showingBelowTriggerChangedAlert) {
             Button("OK", role: .cancel) {}
@@ -877,6 +886,16 @@ struct ActiveRouteView: View {
                     Label("Below Trigger", systemImage: "arrow.down.circle")
                 }
                 .buttonStyle(.plowRSecondary)
+            }
+
+            // Couldn't do it at all (a vehicle in the way, a locked gate): moves on
+            // with nothing recorded. Not beside work already recorded here.
+            if !isWorkRecorded(at: stop) {
+                Button { cantServiceStop = stop } label: {
+                    Label("Can't Service", systemImage: PlowRSymbol.cantService.name)
+                }
+                .buttonStyle(.plowRSecondary)
+                .accessibilityHint("Moves on without recording a visit, time or services.")
             }
 
             // Calling the client (about a locked gate, say): only with a number
@@ -1335,13 +1354,50 @@ struct ActiveRouteView: View {
     /// Record Services already saved work there this run: that record (and
     /// any invoice) would stand beside a "not cleared" check.
     private func belowTrigger(for stop: RouteStop) -> StormWatch.Trigger? {
-        guard let client = client(for: stop), stop.completedServiceIDs.isEmpty else { return nil }
-        if let run = store.runID,
-           ServiceLog.existingRecordForStop(stop, of: client, run: run,
-                                            startedAt: store.stopStartedAt ?? store.runStartedAt ?? .now,
-                                            in: modelContext) != nil { return nil }
+        guard let client = client(for: stop), !isWorkRecorded(at: stop) else { return nil }
         return TriggerChecks.trigger(for: stop, client: client, on: store.runStartedAt ?? .now,
                                      contracts: allContracts, services: allServices)
+    }
+
+    /// Whether Record Services already saved work at `stop` this run (services
+    /// on the stop, or its Service Log record): then neither Below Trigger nor
+    /// Can't Service is offered (CantService.isWorkRecorded).
+    private func isWorkRecorded(at stop: RouteStop) -> Bool {
+        var hasRecord = false
+        if let client = client(for: stop), let run = store.runID {
+            hasRecord = ServiceLog.existingRecordForStop(stop, of: client, run: run,
+                                                         startedAt: store.stopStartedAt ?? store.runStartedAt ?? .now,
+                                                         in: modelContext) != nil
+        }
+        return CantService.isWorkRecorded(completedServiceIDs: stop.completedServiceIDs, hasRunRecord: hasRecord)
+    }
+
+    /// Can't Service, saved: the store skips the stop the sheet opened for,
+    /// if it's still the current one. A stop already behind (a double tap,
+    /// Siri) changes nothing. What follows waits for the sheet to close.
+    private func skip(_ stop: RouteStop, reason: String) {
+        guard !store.isBehindCurrentStop(stop.id) else { return }
+        cantServicePassedID = stop.id
+        cantServiceResult = store.skipCurrentStop(expecting: stop.id, reason: reason)
+    }
+
+    private func cantServiceDismissed() {
+        let passed = cantServicePassedID
+        defer {
+            cantServiceResult = nil
+            cantServicePassedID = nil
+        }
+        switch cantServiceResult {
+        case .advanced:
+            // As after Below Trigger: a heads-up that completes nothing.
+            if let passed, offerHeadsUp(after: passed) { break }
+            didAdvance()
+        case .finishedLastStop:
+            hapticSuccess()
+            showingRouteRecap = true
+        case .stopChanged: showingRouteChangedAlert = true
+        case .noActiveRoute, .allStopsAlreadyDone, nil: break
+        }
     }
 
     /// Below Trigger, saved (TriggerChecks.passBelowTrigger). What follows

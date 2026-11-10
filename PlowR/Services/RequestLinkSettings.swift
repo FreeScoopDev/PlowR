@@ -21,7 +21,7 @@ enum RequestLinkSettings {
     static func catalogNames(_ catalog: [ServiceItem], operatorID: String) -> [String] {
         var seen = Set<String>()
         return catalog.filter { $0.operatorID == operatorID && $0.isActive }
-            .sorted { $0.sortOrder < $1.sortOrder }
+            .sorted { ServiceLog.catalogOrder($0, $1) }
             .map { $0.name.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty && seen.insert($0.lowercased()).inserted }
     }

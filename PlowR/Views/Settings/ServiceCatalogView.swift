@@ -13,7 +13,7 @@ struct ServiceCatalogView: View {
     private var myServices: [ServiceItem] {
         allServices
             .filter { $0.operatorID == authManager.userID }
-            .sorted { $0.sortOrder < $1.sortOrder }
+            .sorted { ServiceLog.catalogOrder($0, $1) }
     }
 
     private var grouped: [(category: String, label: String, items: [ServiceItem])] {

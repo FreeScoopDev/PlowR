@@ -1,0 +1,2 @@
+### Fixed
+- The app's built-in category (`LSApplicationCategoryType`) is Business, as App Store Connect lists PlowR, not Utilities. The App Store goes by App Store Connect's setting, so the two only disagreed inside the app's own Info.plist, where macOS reads it. The app and its widget also carry a copyright line, "© 2026 Scoops Dev LLC" (`NSHumanReadableCopyright`), which was empty in the widget and missing from the app.

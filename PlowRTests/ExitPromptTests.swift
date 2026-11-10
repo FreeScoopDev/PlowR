@@ -75,9 +75,12 @@ struct ExitPromptTests {
         // only Send or Skip there completes it.
         #expect(handler.contains("openNotifyPrompt(.exitOffer(leftStop: left.id, clientName: left.clientName,"))
         #expect(handler.components(separatedBy: "openNotifyPrompt(").count == 2)
+        // That button is worked out afresh (`memoized: false`): the card's memo
+        // may not have seen a save made a moment ago.
+        #expect(handler.contains("main: mainButton(for: left, memoized: false)"))
         // Nothing that runs a completion either: since the exit offer
         // records services, one run here would record them with no tap.
-        for call in ["advance(", "triggerNotifyPrompt(", "completeCurrentStop", "passCurrentStop", ".button(",
+        for call in ["advance(", "triggerNotifyPrompt(", "completeCurrentStop", "passCurrentStop", "skipCurrentStop", ".button(",
                      ".run(", "runNotingUnrecorded", "NotifyAdvance.run", "CompleteStopAction", "completeShownStop",
                      "undoLastCompletion"] {
             #expect(!handler.contains(call), "exit handler calls \(call)")
