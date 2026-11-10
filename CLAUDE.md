@@ -400,11 +400,17 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   time; until then they keep the older colors.
 - **Help copy has one source: `PlowR/Help/HelpGuide.json`** (since 1.8).
   The app bundles it (`HelpGuide`: Settings → Help, each screen's Help
-  item via `HelpScreen`, and the tips), and `scripts/help_guide.py` makes
-  `docs/help.html` from it. Edit the JSON and run the script, never the
-  page: `HelpGuideTests` checks the hashes the page records, and holds
-  topics not marked `snowOnly` to the service-language rule (the guard
-  reads only Swift). Markup: `**UI label**`, `[text](https://…)`, `[PRO]`.
+  item via `HelpScreen`, and the tips). The website describes the version
+  on the App Store, not `main`: `scripts/help_guide.py` makes
+  `docs/help.html` from `scripts/help_guide_published.json`, a copy of the
+  JSON as the newest release shipped (its `version` key). **The release PR
+  moves the pin:** copy `HelpGuide.json` over it, set `version`, run the
+  script. `HelpGuideTests` fails until `version` is the newest `## [x.y.z]`
+  in `CHANGELOG.md`, and checks the hashes the page records. Between
+  releases, edit the copy only to fix what the live version's page says
+  wrong. Never edit the page. Both files are held to the service-language
+  rule outside `snowOnly` topics (the guard reads only Swift). Markup:
+  `**UI label**`, `[text](https://…)`, `[PRO]`.
 - **Tips (TipKit, since 1.8) live in `Services/Tips`**: `PlowRTips` sets
   TipKit up in `PlowRApp.init` (never under tests; `.applicationDefault`
   store; demo launches hide tips, Debug `-PlowRShowTips YES` shows all) and
