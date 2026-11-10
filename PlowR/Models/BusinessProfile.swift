@@ -10,6 +10,13 @@ final class BusinessProfile {
     var email: String = ""
     var tagline: String = ""
     var licenseNumber: String = ""
+    /// Where the business takes mail: printed on its documents, and beside
+    /// "Make check payable to" on an invoice. Free text, one or more lines.
+    var address: String = ""
+    /// Days a new invoice gives to pay (InvoiceTerms.choices; 0 is due on
+    /// receipt). nil: never chosen, which reads as 30, the rule before
+    /// there was a choice, so a record from an older build behaves as it did.
+    var paymentTermsDays: Int?
     var logoData: Data?
     var defaultDisclaimer: String = ""
     /// Sales tax, percent, put on every new invoice and proposal (0 = none);
