@@ -85,6 +85,12 @@ struct MapLinksTests {
         #expect(MapLinks.callLink("+") == nil)
     }
 
+    /// Only 0 to 9 can be dialed: other number characters made a link that rang nobody.
+    @Test func onlyPlainDigitsAreDialed() {
+        #expect(MapLinks.callLink("５５５ ０１００") == nil)
+        #expect(MapLinks.callLink("555 0100 ½")?.absoluteString == "tel:5550100")
+    }
+
     @Test func aLabelBeforeTheNumberStillDials() {
         #expect(MapLinks.callLink("Cell: 555-0100")?.absoluteString == "tel:5550100")
         #expect(MapLinks.callLink("office +1 555 010 0123")?.absoluteString == "tel:+15550100123")
