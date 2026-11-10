@@ -82,6 +82,11 @@ struct SetupFlowView: View {
                     .textContentType(.organizationName)
                     .submitLabel(.done)
             }
+            field("Mailing address (optional)") {
+                TextField("Where clients mail a check", text: $answers.address, axis: .vertical)
+                    .lineLimit(2...4)
+                    .textContentType(.fullStreetAddress)
+            }
             PhotosPicker(selection: $logoItem, matching: .images) {
                 HStack(spacing: PlowRLayout.space3) {
                     Group {
@@ -324,7 +329,7 @@ struct SetupFlowView: View {
     /// A step skipped leaves its part as it was.
     private func skip() {
         switch step {
-        case .business: answers.companyName = ""; answers.logoData = nil
+        case .business: answers.companyName = ""; answers.address = ""; answers.logoData = nil
         case .services: answers.categories = []
         case .tax: answers.taxRate = ""
         case .alerts, .pro: break
@@ -344,7 +349,9 @@ struct SetupFlowView: View {
 /// route needs it, and says why there (RouteGPS).
 @MainActor @Observable
 final class SetupPermissions: NSObject, CLLocationManagerDelegate {
-    enum State { case undecided, allowed, declined }
+    /// `nonisolated`: `requests` compares states off the main actor, where a
+    /// main-actor Equatable conformance can't be used (a Release build warned).
+    nonisolated enum State { case undecided, allowed, declined }
 
     var notifications: State = .undecided
     var location: State = .undecided
@@ -369,7 +376,7 @@ final class SetupPermissions: NSObject, CLLocationManagerDelegate {
     }
 
     /// Which requests Continue makes: what is still undecided, alerts first.
-    enum Request { case notifications, location }
+    nonisolated enum Request { case notifications, location }
 
     nonisolated static func requests(notifications: State, location: State) -> [Request] {
         (notifications == .undecided ? [.notifications] : [])

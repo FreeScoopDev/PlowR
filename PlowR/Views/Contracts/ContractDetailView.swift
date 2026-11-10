@@ -320,7 +320,7 @@ struct ContractDetailView: View {
 
     private var serviceNames: [String] {
         allServiceItems.filter { contract.serviceIDs.contains($0.id.uuidString) }
-            .sorted { $0.sortOrder < $1.sortOrder }.map(\.name)
+            .sorted { ServiceLog.catalogOrder($0, $1) }.map(\.name)
     }
 }
 

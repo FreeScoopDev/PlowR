@@ -16,7 +16,15 @@ final class RouteStop {
     var actualMinutes: Int = 0
     var completedServiceIDs: [String] = []
     var completedNotes: String = ""
+    /// Can't Service on the route's latest run (CantService): the reason
+    /// and when. Cleared, like the run's times, when the route next starts.
+    var cantServiceReason: String = ""
+    var cantServiceAt: Date? = nil
     var stopNotes: String = ""       // persistent operator reminders shown during route
+    /// The stop's copy of its place's Route Notes (gate codes, where to
+    /// start): the client's own or their property's. It follows the place
+    /// (ClientStops), as the address does; `stopNotes` are this stop's own.
+    var placeNotes: String = ""
     var equipmentNotes: String = ""  // equipment/blade flags shown during route
     /// The services this stop needs on this route, when it has its own list
     /// (`hasOwnServices`). Otherwise it follows its client's usual services.
@@ -36,6 +44,7 @@ final class RouteStop {
         self.clientAddress = client.address
         self.latitude = client.latitude
         self.longitude = client.longitude
+        self.placeNotes = client.defaultStopNotes
         self.isCustomStop = false
     }
 
@@ -46,9 +55,11 @@ final class RouteStop {
         clientAddress = place.address
         latitude = place.latitude
         longitude = place.longitude
-        // A new stop starts with the place's route notes (gate codes and the
-        // like), whichever screen makes it.
-        stopNotes = place.stopNotes
+        // The place's route notes (gate codes and the like) are shown from
+        // the stop's copy, which follows the place; the stop starts with no
+        // note of its own. Copying them into `stopNotes` left a changed gate
+        // code behind on every route already made.
+        placeNotes = place.stopNotes
     }
 
     /// Which of its client's places it's at, as the client picker keys them.

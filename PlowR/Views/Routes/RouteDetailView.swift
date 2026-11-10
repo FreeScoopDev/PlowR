@@ -126,10 +126,18 @@ struct RouteDetailView: View {
                                     .opacity(isSkipped ? 0.4 : 1)
                                 let chip = StatusChip(belowTriggerToday.contains(stop.id) ? "Below Trigger" : "Skipped Today",
                                                       status: .neutral)
-                                if isSkipped {
+                                // Can't Service on the latest run, until the next one clears it.
+                                let cantService = CantService.routeLine(reason: stop.cantServiceReason,
+                                                                        at: stop.cantServiceAt)
+                                if isSkipped || cantService != nil {
                                     VStack(alignment: .leading, spacing: PlowRLayout.space2) {
                                         row
-                                        chip
+                                        if let cantService {
+                                            Text(cantService)
+                                                .font(.caption)
+                                                .foregroundStyle(PlowRColor.inkSecondary)
+                                        }
+                                        if isSkipped { chip }
                                     }
                                 } else {
                                     row
@@ -415,9 +423,9 @@ struct RouteDetailView: View {
                     }
                 }
                 // Notes / equipment badges
-                if !stop.stopNotes.isEmpty || !stop.equipmentNotes.isEmpty {
+                if stop.hasNotesToShow || !stop.equipmentNotes.isEmpty {
                     AdaptiveDetails(spacing: 6) {
-                        if !stop.stopNotes.isEmpty {
+                        if stop.hasNotesToShow {
                             Label("Notes", systemImage: "note.text")
                                 .font(.caption2)
                                 .foregroundStyle(PlowRColor.inkSecondary)

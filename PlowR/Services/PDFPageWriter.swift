@@ -94,7 +94,11 @@ final class PDFPageWriter {
         if !subtitle.isEmpty { text(subtitle, .systemFont(ofSize: 14, weight: .semibold), gap: 10) }
         text(Self.businessName(profile), .systemFont(ofSize: 12, weight: .semibold), gap: 2)
         let contact = [profile?.phone ?? "", profile?.email ?? "", profile?.licenseNumber ?? ""].filter { !$0.isEmpty }
-        if !contact.isEmpty { text(contact.joined(separator: " · "), .systemFont(ofSize: 10), PDFGenerator.inkMid, gap: 14) }
+        let address = PDFGenerator.addressLine(profile?.address ?? "")
+        if !contact.isEmpty {
+            text(contact.joined(separator: " · "), .systemFont(ofSize: 10), PDFGenerator.inkMid, gap: address.isEmpty ? 14 : 2)
+        }
+        if !address.isEmpty { text(address, .systemFont(ofSize: 10), PDFGenerator.inkMid, gap: 14) }
     }
 
     static func businessName(_ profile: BusinessProfile?) -> String {

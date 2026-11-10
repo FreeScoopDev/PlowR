@@ -23,7 +23,7 @@ struct AddVisitView: View {
     /// the Expected Services list.
     static func activeServices(_ services: [ServiceItem], operatorID: String) -> [ServiceItem] {
         services.filter { $0.operatorID == operatorID && $0.isActive }
-            .sorted { $0.sortOrder < $1.sortOrder }
+            .sorted { ServiceLog.catalogOrder($0, $1) }
     }
 
     /// The reasons to offer: this business's active services, then the

@@ -20,7 +20,7 @@ final class Client {
     // Route behavior preferences
     var skipNotificationPrompt: Bool = false
     var goalMinutes: Int = 0
-    var defaultStopNotes: String = ""  // auto-copied to RouteStop on route creation
+    var defaultStopNotes: String = ""  // Route Notes: shown at every stop here (RouteStop.placeNotes)
 
     // Client badges / billing preferences
     var preferredPayment: String = ""   // "cash", "check", "zelle", "card", or ""

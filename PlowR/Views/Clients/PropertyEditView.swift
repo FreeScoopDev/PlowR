@@ -43,7 +43,7 @@ struct PropertyEditView: View {
     private var services: [ServiceItem] {
         allServiceItems
             .filter { $0.operatorID == client.operatorID && $0.isActive }
-            .sorted { $0.sortOrder < $1.sortOrder }
+            .sorted { ServiceLog.catalogOrder($0, $1) }
     }
 
     @Environment(\.access) private var access
@@ -89,7 +89,7 @@ struct PropertyEditView: View {
                     Text("Route")
                         .foregroundStyle(PlowRColor.inkSecondary)
                 } footer: {
-                    SectionNote("Copied to new route stops here, as a client's own are.")
+                    SectionNote("The notes show at every stop here, on every route, and changes reach those stops too.")
                 }
                 .listRowBackground(PlowRColor.surface)
                 if !services.isEmpty { servicesSection }

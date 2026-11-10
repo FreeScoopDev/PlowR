@@ -45,6 +45,10 @@ struct BusinessProfileView: View {
     @State private var email = ""
     @State private var tagline = ""
     @State private var licenseNumber = ""
+    @State private var address = ""
+    /// The terms picked; nil while the profile never chose and the picker
+    /// wasn't touched, so saving doesn't turn "never chosen" into a choice.
+    @State private var paymentTerms: Int?
     @State private var defaultDisclaimer = ""
     @State private var defaultTaxRate = ""
     @State private var accentColor: Color = Self.accent(for: nil)
@@ -104,6 +108,32 @@ struct BusinessProfileView: View {
                     .textContentType(.emailAddress)
                     .autocapitalization(.none)
                 GrowingTextField("Tagline (optional)", text: $tagline)
+            }
+            .listRowBackground(PlowRColor.surface)
+
+            Section {
+                TextField("Mailing Address", text: $address, axis: .vertical)
+                    .lineLimit(2...3)
+                    .textContentType(.fullStreetAddress)
+            } header: {
+                SectionTitle("Mailing Address")
+            } footer: {
+                SectionNote("Printed on your proposals and invoices, and under Make check payable to, so clients know where to mail a check. Up to three lines are printed.")
+            }
+            .listRowBackground(PlowRColor.surface)
+
+            Section {
+                Picker("Payment Terms", selection: Binding(
+                    get: { InvoiceTerms.days(stored: paymentTerms) },
+                    set: { paymentTerms = $0 })) {
+                    ForEach(InvoiceTerms.choices, id: \.self) { days in
+                        Text(InvoiceTerms.name(days: days)).tag(days)
+                    }
+                }
+            } header: {
+                SectionTitle("Invoices")
+            } footer: {
+                SectionNote("New invoices are due this many days after they're made, and their PDFs say so. You can still change the due date on any invoice. Invoices already made keep theirs.")
             }
             .listRowBackground(PlowRColor.surface)
 
@@ -184,6 +214,8 @@ struct BusinessProfileView: View {
         email = p.email
         tagline = p.tagline
         licenseNumber = p.licenseNumber
+        address = p.address
+        paymentTerms = p.paymentTermsDays
         defaultDisclaimer = p.defaultDisclaimer
         defaultTaxRate = p.defaultTaxRate > 0 ? Proposal.percentText(p.defaultTaxRate) : ""
         colorPDFs = p.colorPDFs
@@ -206,6 +238,8 @@ struct BusinessProfileView: View {
         p.email = email
         p.tagline = tagline
         p.licenseNumber = licenseNumber
+        p.address = address.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let paymentTerms { p.paymentTermsDays = paymentTerms }
         p.defaultDisclaimer = defaultDisclaimer
         p.defaultTaxRate = Proposal.taxRate(typed: defaultTaxRate)
         p.colorPDFs = colorPDFs

@@ -34,7 +34,7 @@ enum ContractPDF {
             if !places.isEmpty { sections.append(Section(heading: places.count == 1 ? "Property" : "Properties", lines: places)) }
         }
         let services = catalog.filter { contract.serviceIDs.contains($0.id.uuidString) }
-            .sorted { $0.sortOrder < $1.sortOrder }.map(\.name)
+            .sorted { ServiceLog.catalogOrder($0, $1) }.map(\.name)
         sections.append(Section(heading: "Services Covered", lines: services.isEmpty ? ["As agreed"] : services))
         let rate = Contracts.taxRate(of: contract, defaultRate: defaultTaxRate)
         func amount(_ value: Double) -> String {

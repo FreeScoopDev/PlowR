@@ -68,6 +68,23 @@ struct ClientTimelineTests {
         #expect(jobEvent.amount == 40)
     }
 
+    /// Pins a job's title as English copy writes a list. It does NOT prove
+    /// the device's language is ignored: the test host formats lists in
+    /// English whatever language it's given (tried `-testLanguage fr` and a
+    /// French simulator), so putting `.formatted(.list)` back passes too.
+    @Test func aJobWithSeveralServicesIsTitledInEnglish() throws {
+        let h = try Harness(stopCount: 1)
+        let job = ServiceRecord(operatorID: "op", sourceKey: "a", source: .route)
+        job.clientID = h.client.id.uuidString
+        job.performedAt = h.clock.addingTimeInterval(-3_600)
+        job.lines = ["Mow", "Trim", "Edge"].map { .init(serviceID: $0, name: $0, unitType: "flat", price: 10) }
+        h.context.insert(job)
+        let events = ClientTimeline.events(for: h.client, now: h.clock, in: h.context)
+        let jobKind = ClientTimelineKind.job(recordID: job.id)
+        let jobEvent = try #require(events.first { $0.kind == jobKind })
+        #expect(jobEvent.title == "Mow, Trim, and Edge")
+    }
+
     // Photos on one day are one event.
     @Test func aDaysPhotosAreOneEvent() throws {
         let h = try Harness(stopCount: 1)

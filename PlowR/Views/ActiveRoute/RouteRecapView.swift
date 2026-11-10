@@ -283,6 +283,13 @@ struct RouteRecapView: View {
                         .foregroundStyle(PlowRColor.inkSecondary)
                         .lineLimit(large ? nil : 1)
                 }
+                // Can't Service on this run only, never an older run's reason.
+                if !completed, let line = CantService.recapLine(reason: stop.cantServiceReason,
+                                                                at: stop.cantServiceAt, runStartedAt: runStartedAt) {
+                    Text(line)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(PlowRColor.Status.owed.text)
+                }
             }
             let details = VStack(alignment: typeSize.trailingColumnAlignment, spacing: 2) {
                 if !stop.completedServiceIDs.isEmpty {

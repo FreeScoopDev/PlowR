@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 
 /// When an invoice is due, and when it's late, in calendar days (Joe,
 /// 2026-10-18).
@@ -10,10 +11,83 @@ import Foundation
 /// said "overdue"; one sent at 00:30 printed Nov 15, 29 days. Now a due date
 /// is a day, and an invoice is late from the start of the day after it.
 ///
+/// How long a new invoice gives is the business's choice (Business Profile,
+/// Payment Terms, 1.9 review): due on receipt, or net 7 to 60 days. Never
+/// chosen, it's 30, the rule before there was a choice. The choice sets the
+/// due date of an invoice when it's made; a saved invoice keeps the date it
+/// has, whatever the profile says later, and its PDF states the terms from
+/// its own dates (`statedTerms`).
+///
 /// `nonisolated`: plain date arithmetic, used by the model and from tests.
 nonisolated enum InvoiceTerms {
-    /// How many days a new invoice gives to pay.
+    /// How many days a new invoice gives to pay when the business never chose.
     static let days = 30
+
+    /// The terms a business can choose, in days: 0 is due on receipt.
+    static let choices = [0, 7, 15, 30, 45, 60]
+
+    /// The days a stored choice gives: 30 for none (never chosen, or a
+    /// record from an older build) and for a value below 0.
+    static func days(stored: Int?) -> Int {
+        guard let stored, stored >= 0 else { return days }
+        return stored
+    }
+
+    /// The business's terms, in days.
+    @MainActor
+    static func days(for profile: BusinessProfile?) -> Int {
+        days(stored: profile?.paymentTermsDays)
+    }
+
+    /// "Due on receipt" for 0 days, "Net 15" for 15.
+    static func name(days: Int) -> String {
+        days <= 0 ? "Due on receipt" : "Net \(days)"
+    }
+
+    /// A new invoice's due date, made `now`, on `profile`'s terms.
+    @MainActor
+    static func dueDate(from now: Date, profile: BusinessProfile?, calendar: Calendar = .current) -> Date {
+        dueDate(from: now, days: days(for: profile), calendar: calendar)
+    }
+
+    /// A new invoice's due date, made `now`, on the terms of the business
+    /// `operatorID` (its profile found by BusinessProfiles.current). Every
+    /// place a new invoice gets a due date comes here.
+    @MainActor
+    static func dueDate(from now: Date, operatorID: String, in context: ModelContext) -> Date {
+        let profiles = (try? context.fetch(FetchDescriptor<BusinessProfile>())) ?? []
+        return dueDate(from: now, profile: BusinessProfiles.current(profiles, operatorID: operatorID))
+    }
+
+    /// The terms a document states beside its due date, from its own dates
+    /// (never the profile's choice now, which may have changed since it was
+    /// made): due on or before the day it's dated, "Due on receipt"; exactly
+    /// 7, 15, 30, 45 or 60 days after, "Net N"; anything else, nil (a date
+    /// picked by hand states no terms).
+    ///
+    /// A due date is set either when the document is made or when it's
+    /// sent (a contract's payment; a due-on-receipt draft moved to its send
+    /// day), and the dates alone can't always say which: made Nov 1, sent
+    /// Nov 16, due Dec 16 is Net 30 from sending and Net 45 from its date.
+    /// So terms are stated only when they're unambiguous: when just one of
+    /// the two counts (from its date, from its send day) states terms, or
+    /// both state the same. When they differ, none: the due date alone,
+    /// never terms the page's own dates contradict.
+    static func statedTerms(issued: Date, sent: Date?, due: Date, calendar: Calendar = .current) -> String? {
+        let fromDate = statedTerms(issued: issued, due: due, calendar: calendar)
+        guard let sent else { return fromDate }
+        let fromSent = statedTerms(issued: sent, due: due, calendar: calendar)
+        guard let fromDate else { return fromSent }
+        guard let fromSent else { return fromDate }
+        return fromDate == fromSent ? fromDate : nil
+    }
+
+    static func statedTerms(issued: Date, due: Date, calendar: Calendar = .current) -> String? {
+        let gap = calendar.dateComponents([.day], from: calendar.startOfDay(for: issued),
+                                          to: calendar.startOfDay(for: due)).day ?? 0
+        if gap <= 0 { return name(days: 0) }
+        return choices.contains(gap) ? name(days: gap) : nil
+    }
 
     /// The day `days` calendar days after `now`'s, at noon. Noon, not
     /// midnight: the same day still reads as that day a few time zones away.

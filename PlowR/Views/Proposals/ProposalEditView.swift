@@ -12,8 +12,7 @@ struct ProposalEditView: View {
 
     init(proposal: Proposal) {
         self.proposal = proposal
-        _edits = State(initialValue: DocumentEdits(discount: proposal.discountAmount, taxRate: proposal.taxRate,
-                                                   dueDate: proposal.invoiceDueDate))
+        _edits = State(initialValue: DocumentEdits(editing: proposal))
     }
 
     // Done, Mark as Sent and a swipe down all save, so the total shown is the

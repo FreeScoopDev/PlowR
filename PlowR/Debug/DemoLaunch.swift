@@ -78,6 +78,7 @@ enum DemoLaunch {
         let profile = BusinessProfile(operatorID: operatorID)
         profile.companyName = "Summit Ridge Grounds"
         profile.tagline = "Snow · Lawn · Landscaping"
+        profile.address = "PO Box 120\nSummit Ridge"   // invented, for screenshots
         profile.defaultTaxRate = 6
         context.insert(profile)
         ServiceCatalog.addStandard(ServiceCatalog.standardCategories[0], operatorID: operatorID, existing: [], to: context)

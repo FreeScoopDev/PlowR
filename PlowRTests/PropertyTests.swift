@@ -395,12 +395,54 @@ struct PropertyTests {
         #expect(atHome.propertyAddress == h.client.address)
     }
 
-    // Every screen that makes a stop at a place starts it with the place's notes.
+    // Every screen that makes a stop at a place shows the place's notes from
+    // the stop's copy of them, and the stop starts with no note of its own:
+    // a copy in its own note was left behind when the place's notes changed.
     @Test func aNewStopStartsWithItsPlacesNotes() throws {
         let h = try Harness(stopCount: 1)
         let rental = property(h, "Rental", address: "9 Elm St")
         rental.stopNotes = "Key under mat"
-        #expect(RouteStop(order: 0, client: h.client, place: Place.of(rental)).stopNotes == "Key under mat")
+        let stop = RouteStop(order: 0, client: h.client, place: Place.of(rental))
+        #expect(stop.placeNotes == "Key under mat")
+        #expect(stop.stopNotes.isEmpty)
+        h.client.defaultStopNotes = "Gate 1234"
+        let home = RouteStop(order: 1, client: h.client, place: Place.main(of: h.client))
+        #expect(home.placeNotes == "Gate 1234")
+        #expect(home.stopNotes.isEmpty)
+        #expect(RouteStop(order: 2, client: h.client).placeNotes == "Gate 1234")
+        #expect(RouteStop(order: 3, customName: "Depot").placeNotes.isEmpty)     // a custom stop has none
+    }
+
+    // A property's changed notes reach its stops (PropertyEditing.save calls
+    // ClientStops.update), and only its stops.
+    @Test func aPropertysNotesFollowToItsStops() throws {
+        let h = try Harness(stopCount: 1)
+        let rental = property(h, "Rental", address: "9 Elm St")
+        rental.stopNotes = "Key under mat"
+        let stop = RouteStop(order: 1, client: h.client, place: Place.of(rental))
+        stop.route = h.route
+        h.context.insert(stop)
+        let home = try #require(h.route.sortedStops.first { $0.propertyID.isEmpty })
+        try h.context.save()
+
+        var draft = PropertyEditing.Draft(rental)
+        draft.stopNotes = "Key in lockbox 77"
+        PropertyEditing.save(draft, to: rental, of: h.client, in: h.context)
+        #expect(stop.placeNotes == "Key in lockbox 77")
+        #expect(home.placeNotes.isEmpty)
+        #expect(!h.context.hasChanges)                                            // saved
+    }
+
+    // A stop whose property is missing (removed, or not synced yet) keeps the
+    // notes it has: never the main house's.
+    @Test func aMissingPlacesStopKeepsItsNotes() throws {
+        let h = try Harness(stopCount: 1)
+        h.client.defaultStopNotes = "Main gate 1111"
+        let stop = try #require(h.route.sortedStops.first)
+        stop.propertyID = UUID().uuidString
+        stop.placeNotes = "Side gate 2222"
+        ClientStops.follow(stop, h.client)
+        #expect(stop.placeNotes == "Side gate 2222")
     }
 
     // MARK: - Inactive properties (Joe's call: off their routes, as clients)

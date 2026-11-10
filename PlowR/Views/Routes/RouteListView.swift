@@ -143,7 +143,8 @@ struct RouteListView: View {
                 // A copy is a new route: inactive clients and properties, and
                 // places since removed, stay off it, as off every new route.
                 let stopCopy = RouteStop(order: index, client: client, place: place)
-                stopCopy.stopNotes = stop.stopNotes
+                // Its own note only: the place's notes come with the place.
+                stopCopy.stopNotes = stop.shownOwnNotes
                 stopCopy.equipmentNotes = stop.equipmentNotes
                 stopCopy.targetMinutes = stop.targetMinutes
                 stopCopy.expectedServiceIDs = stop.expectedServiceIDs

@@ -1,14 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- Made by scripts/help_guide.py from PlowR/Help/HelpGuide.json. Don't edit
-     this page: edit the JSON, then run python3 scripts/help_guide.py. -->
+<!-- Made by scripts/help_guide.py from scripts/help_guide_published.json, the help as PlowR 1.8.0 shipped.
+     Don't edit this page: edit the JSON, then run python3 scripts/help_guide.py. -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="How to use PlowR: setting up your business, adding clients, building routes with expected services, running a route and texting clients, tips and common questions.">
-    <meta name="plowr-help-source" content="c3ea92e8e958299bf670d9adf396879067b31d7e6358000cb1a8edf1d5bffcf4">
-    <meta name="plowr-help-script" content="609382c417da98b10933b6601d80b465d03af053584744b0f4d9f1aea90ef4fc">
-    <meta name="plowr-help-page" content="9832f083bc1828550371d3f4cd7da25eb4554dc580e20600afb63291762727bf">
+    <meta name="plowr-help-version" content="1.8.0">
+    <meta name="plowr-help-source" content="a7e1327828c8f15e1e9fff88ea5d25c7225fe157d89b7521e62329de51151727">
+    <meta name="plowr-help-script" content="b1e2c8973aab8b3475f69ade97e15b6bc539146793a27e47d202ed8a0db3e222">
+    <meta name="plowr-help-page" content="6ba58ed593cb91d9fe554a17f86a7d8922efeb7d79dce80e5f288423182fb4c1">
     <title>PlowR Help — Tips &amp; Tricks</title>
     <style>
         :root { color-scheme: light dark; --text: #1c1c1e; --muted: #6e6e73; --link: #0071e3; --card: #f2f2f7; --bg: #ffffff; --shot: #e5e5ea; --shot2: #dedee3; --line: #c7c7cc; --warn: #b25000; }
@@ -101,10 +102,10 @@
         </div>
         <ol class="steps">
             <li>Open the <span class="ui">Clients</span> tab, tap <span class="ui">+</span>, and choose <span class="ui">Add Manually</span>.</li>
-            <li>Choose <span class="ui">Existing Customer</span> (someone you already work for) or <span class="ui">New Lead</span> (someone you hope to win). Enter their <span class="ui">Full Name</span>; a phone number, email and <span class="ui">Notes</span> (a gate code, say) are optional. Or tap <span class="ui">Import Contact</span> to fill it in from your Contacts.</li>
+            <li>Enter their <span class="ui">Full Name</span> and <span class="ui">Phone Number</span>, and an email if you have one. Or tap <span class="ui">Import Contact</span> to fill it in from your Contacts.</li>
             <li>Type the <span class="ui">Street Address</span> and pick the match. PlowR pins it on the map.</li>
             <li>Tap <span class="ui">Save</span>.</li>
-            <li>On the client's page, add the rest: tags, <span class="ui">Expected Services</span>, billing preferences, <span class="ui">Tax Exempt</span>, route notes, and other properties.</li>
+            <li>On the client's page, add the rest: tags, notes, <span class="ui">Expected Services</span>, billing preferences, <span class="ui">Tax Exempt</span>, route notes, and other properties.</li>
         </ol>
         <div class="note">Tip: set a client's <span class="ui">Expected Services</span> once and every route they're on starts with them.</div>
     </div>
@@ -204,8 +205,7 @@
             <li>Tap <span class="ui">Navigate</span> to get directions in Apple Maps, Google Maps or Waze.</li>
             <li>At the stop, tap <span class="ui">Record Services</span> to add before and after photos, the services done (<span class="ui">Add Expected</span> fills them in), and notes. Then <span class="ui">Save</span>.</li>
             <li>Tap <span class="ui">Complete · Text Next Client</span> to finish the stop and move on. (It says <span class="ui">Complete Stop</span> when there's no one to text.)</li>
-            <li>When a stop has expected services and nothing is recorded for it yet, the button names them instead, like <span class="ui">Done: Mow, Trim</span>. One tap completes the stop and records those services at your catalog prices, as <span class="ui">Add Expected</span> and <span class="ui">Save</span> would. Did something else? Tap <span class="ui">Complete Without Services</span>, or record the work in <span class="ui">Record Services</span> first. Tapped it by mistake? On any stop but the last, tap <span class="ui">Undo</span> in the bar at the bottom: the services come off with it. After the last stop, change them from the <span class="ui">Route Recap</span>.</li>
-            <li>After the last stop, tap <span class="ui">Review &amp; End Route</span> to see the <span class="ui">Route Recap</span>, then <span class="ui">End Route</span>. Stops completed with nothing recorded, from Siri or Control Center, say, can get their expected services there: tap <span class="ui">Record Expected Services</span>, check the stops and services it lists, and confirm. Nothing already recorded or invoiced is changed.</li>
+            <li>After the last stop, tap <span class="ui">Review &amp; End Route</span> to see the <span class="ui">Route Recap</span>, then <span class="ui">End Route</span>.</li>
         </ol>
         <div class="note">Set Location to <span class="ui">Always</span> so PlowR records arrival and departure times even when the app is closed.</div>
     </div>
@@ -221,7 +221,6 @@
             <li>Add a quick note if you need one, like Running Late, Weather Delay or Gate / Access, or type your own.</li>
             <li>Turn on <span class="ui">Include my location link</span> if you want them to see where you are.</li>
             <li>Tap <span class="ui">Send Message</span>. It goes from your own Messages app. Or tap <span class="ui">Skip</span>.</li>
-            <li>Drove off without completing the stop? Shortly after you leave its area, PlowR offers the same text. It says what <span class="ui">Send Message</span> or <span class="ui">Skip</span> will do: complete the stop you left and record the services it names, the same ones as the <span class="ui">Done:</span> button. To complete it without them, tap <span class="ui">Cancel</span>, then <span class="ui">Complete Without Services</span> on the stop. If something was recorded there meanwhile, PlowR says which of those services aren't recorded.</li>
         </ol>
         <div class="note">Client doesn't want texts? Turn on <span class="ui">Skip arrival message prompt</span> on their page.</div>
     </div>
@@ -272,12 +271,12 @@
 <section id="tips">
     <h2>Quick tips</h2>
     <div class="tips">
-        <div class="tip" id="siri"><strong>🗣️ Hands-free with Siri</strong><span>"Complete current stop in PlowR" or "Notify next client in PlowR". Completing with Siri records the visit, not services: add them in <span class="ui">Record Services</span>.</span></div>
-        <div class="tip" id="control-center"><strong>🎛️ Control Center</strong><span>Add Complete Current Stop to Control Center to finish a stop in one tap. It records the visit, not services: add them in <span class="ui">Record Services</span>.</span></div>
+        <div class="tip" id="siri"><strong>🗣️ Hands-free with Siri</strong><span>"Complete current stop in PlowR" or "Notify next client in PlowR".</span></div>
+        <div class="tip" id="control-center"><strong>🎛️ Control Center</strong><span>Add Complete Current Stop to Control Center to finish a stop in one tap.</span></div>
         <div class="tip" id="widget"><strong>📱 Today's Route widget</strong><span>See your progress and next stop on your Home Screen.</span></div>
         <div class="tip" id="lock-screen"><strong>🔒 Lock Screen</strong><span>Your route's progress shows on the Lock Screen while it runs.</span></div>
         <div class="tip" id="storm-card"><strong>❄️ Storm card <span class="pro">PRO</span></strong><span>When a storm's forecast reaches a contract's trigger, Home offers to text those clients.</span></div>
-        <div class="tip" id="service-report"><strong>📄 Service Report <span class="pro">PRO</span></strong><span>Arrival and departure times, timed photos and weather for each visit, as a PDF for a client or insurer. A route stop's minutes are counted from the GPS arrival when PlowR caught it ("min, GPS arrival to completion"); otherwise from when the stop became the current stop, which includes the drive there ("min, including travel").</span></div>
+        <div class="tip" id="service-report"><strong>📄 Service Report <span class="pro">PRO</span></strong><span>Arrival and departure times, timed photos and weather for each visit, as a PDF for a client or insurer.</span></div>
         <div class="tip" id="calendar"><strong>📅 Your calendar</strong><span>Settings → Calendar → Add Visits to Calendar keeps a PlowR calendar in step.</span></div>
         <div class="tip" id="export-data"><strong>💾 Export your data</strong><span>Settings → Business → Export Data makes spreadsheets of everything. Share All sends them together.</span></div>
     </div>
@@ -310,13 +309,16 @@
 
 <section id="new">
     <h2>What's new</h2>
-    <div class="card release" id="release-1-7">
-        <h3>PlowR 1.7: first release</h3>
+    <div class="card release" id="release-1-8">
+        <h3>PlowR 1.8: first App Store release</h3>
         <ul>
             <li>A one-minute setup: name, logo, services and prices, tax rate and alerts. Every step can be skipped.</li>
             <li>A Get Started checklist on Home walks you to your first client, route and invoice.</li>
             <li>A new Home that puts today first: today's route, what needs you, money owed and money in.</li>
             <li>A route screen built for gloves and a glance, with a big Complete Stop button.</li>
+            <li>Time on site from GPS: when you arrived at and left each job site, on the job's page, the client's <span class="ui">Service History</span> and the <span class="ui">Route Recap</span>.</li>
+            <li>The <span class="ui">Service Report</span> is a row on the client's page, under <span class="ui">Service History</span>. <span class="pro">PRO</span></li>
+            <li>Help in the app: <span class="ui">Settings</span> → <span class="ui">Help</span>, a <span class="ui">Help</span> item on each tab, and tips that show once, when they're useful.</li>
             <li>A fresh look, with a matching widget and Live Activity.</li>
         </ul>
     </div>

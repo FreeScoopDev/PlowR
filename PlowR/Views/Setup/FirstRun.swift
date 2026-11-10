@@ -40,6 +40,8 @@ enum FirstRun {
     /// part as it was.
     struct Answers: Equatable {
         var companyName = ""
+        /// The business's mailing address, for its documents (optional).
+        var address = ""
         var logoData: Data?
         /// Standard service categories to add (ServiceCatalog.standardCategories' keys).
         var categories: Set<String> = []
@@ -53,10 +55,11 @@ enum FirstRun {
     static func save(_ answers: Answers, operatorID: String, in context: ModelContext) {
         let profiles = (try? context.fetch(FetchDescriptor<BusinessProfile>())) ?? []
         let name = answers.companyName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let address = answers.address.trimmingCharacters(in: .whitespacesAndNewlines)
         let rate = Proposal.readTaxRate(answers.taxRate) ?? 0
         // Nothing given, nothing made: an empty profile could stand in for
         // a real one still on its way from iCloud (BusinessProfiles).
-        if !name.isEmpty || answers.logoData != nil || rate > 0 {
+        if !name.isEmpty || !address.isEmpty || answers.logoData != nil || rate > 0 {
             let profile = BusinessProfiles.current(profiles, operatorID: operatorID) ?? {
                 let new = BusinessProfile(operatorID: operatorID)
                 context.insert(new)
@@ -65,6 +68,7 @@ enum FirstRun {
             // Only what's empty: a profile that arrived from iCloud while
             // setup was open keeps what it had.
             if !name.isEmpty && profile.companyName.isEmpty { profile.companyName = name }
+            if !address.isEmpty && profile.address.isEmpty { profile.address = address }
             if let logo = answers.logoData, profile.logoData == nil { profile.logoData = logo }
             if rate > 0 && profile.defaultTaxRate == 0 { profile.defaultTaxRate = rate }
         }

@@ -452,8 +452,8 @@ enum ServiceLog {
         return copy
     }
 
-    /// A new draft invoice for `client` with `items`: the next number, due in
-    /// `InvoiceTerms.days`, the business's default terms. Record Services and Bill
+    /// A new draft invoice for `client` with `items`: the next number, due on
+    /// the business's terms (InvoiceTerms). Record Services and Bill
     /// Unbilled Work both make invoices through here, so they can't differ.
     /// The client's Default Discount comes off, as on any new document, but
     /// only off `discountableSubtotal` (nil: every item): a contract's own
@@ -465,8 +465,8 @@ enum ServiceLog {
                                 now: Date, in context: ModelContext) -> Proposal {
         let proposal = Proposal(operatorID: operatorID, client: client)
         proposal.invoiceNumber = InvoiceNumbering.next(operatorID: operatorID, in: context)
-        proposal.invoiceDueDate = InvoiceTerms.dueDate(from: now)
         let profile = BusinessProfiles.current((try? context.fetch(FetchDescriptor<BusinessProfile>())) ?? [], operatorID: operatorID)
+        proposal.invoiceDueDate = InvoiceTerms.dueDate(from: now, profile: profile)
         proposal.disclaimer = profile?.defaultDisclaimer ?? ""
         // The business's sales tax, as on every new document, unless the
         // client is tax exempt.
@@ -496,8 +496,8 @@ enum ServiceLog {
         record.invoiceID = invoice.id.uuidString
     }
 
-    /// A revision of `original`: a copy with the next revision number, due in
-    /// 30 days, that takes over its billing (`moveBilling`). The client's
+    /// A revision of `original`: a copy with the next revision number, due on
+    /// the business's terms from today, that takes over its billing (`moveBilling`). The client's
     /// page and the document's page both revise through here; they used to
     /// each have their own copy of this.
     @discardableResult
@@ -510,7 +510,7 @@ enum ServiceLog {
         revision.taxRate = original.taxRate
         revision.disclaimer = original.disclaimer
         revision.notes = original.notes
-        revision.invoiceDueDate = InvoiceTerms.dueDate(from: now)
+        revision.invoiceDueDate = InvoiceTerms.dueDate(from: now, operatorID: original.operatorID, in: context)
         let copies = original.makeLineItemCopies()
         copies.forEach { context.insert($0) }
         revision.lineItems = copies
