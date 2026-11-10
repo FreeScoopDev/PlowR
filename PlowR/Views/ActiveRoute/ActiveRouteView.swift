@@ -810,12 +810,41 @@ struct ActiveRouteView: View {
                 }
             }
 
-            if !stop.stopNotes.isEmpty || !stop.equipmentNotes.isEmpty {
+            // The place's Route Notes (they follow the client's page) and, when
+            // it says something else, this stop's own note: each labelled.
+            let ownNotes = stop.shownOwnNotes.trimmingCharacters(in: .whitespacesAndNewlines)
+            let placeNotes = stop.placeNotes.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !placeNotes.isEmpty || !ownNotes.isEmpty || !stop.equipmentNotes.isEmpty {
                 VStack(alignment: .leading, spacing: PlowRLayout.space2) {
-                    if !stop.stopNotes.isEmpty {
-                        Label(stop.stopNotes, systemImage: "note.text")
-                            .font(.subheadline)
-                            .foregroundStyle(PlowRColor.ink)
+                    if !placeNotes.isEmpty {
+                        Label {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Route Notes")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(PlowRColor.inkSecondary)
+                                Text(placeNotes)
+                                    .font(.subheadline)
+                                    .foregroundStyle(PlowRColor.ink)
+                            }
+                        } icon: {
+                            Image(systemName: "mappin.and.ellipse")
+                        }
+                        .accessibilityElement(children: .combine)
+                    }
+                    if !ownNotes.isEmpty {
+                        Label {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("This Stop Only")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(PlowRColor.inkSecondary)
+                                Text(ownNotes)
+                                    .font(.subheadline)
+                                    .foregroundStyle(PlowRColor.ink)
+                            }
+                        } icon: {
+                            Image(systemName: "note.text")
+                        }
+                        .accessibilityElement(children: .combine)
                     }
                     if !stop.equipmentNotes.isEmpty {
                         Label(stop.equipmentNotes, systemImage: "wrench.and.screwdriver")

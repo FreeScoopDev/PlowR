@@ -423,9 +423,9 @@ struct RouteDetailView: View {
                     }
                 }
                 // Notes / equipment badges
-                if !stop.stopNotes.isEmpty || !stop.equipmentNotes.isEmpty {
+                if stop.hasNotesToShow || !stop.equipmentNotes.isEmpty {
                     AdaptiveDetails(spacing: 6) {
-                        if !stop.stopNotes.isEmpty {
+                        if stop.hasNotesToShow {
                             Label("Notes", systemImage: "note.text")
                                 .font(.caption2)
                                 .foregroundStyle(PlowRColor.inkSecondary)

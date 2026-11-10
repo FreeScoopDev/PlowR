@@ -663,7 +663,7 @@ struct EditClientView: View {
             Text("Route Notes")
                 .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
-            SectionNote("Automatically copied to new route stops for this client.")
+            SectionNote("Shown at every stop for this client, on every route. Changes here reach those stops too.")
                 .font(.caption)
         }
         .listRowBackground(PlowRColor.surface)
@@ -1358,6 +1358,10 @@ struct EditClientView: View {
     private func saveChanges() {
         isSaving = true
         draft.applyExceptAddressAndActive(to: client)
+        // Now, not only once the address is settled: a failed lookup ends on
+        // the address with these already saved, and the Route Notes, name
+        // and phone must reach the stops either way.
+        ClientStops.update(for: client)
         ClientRemoval.setActive(draft.isActive, for: client, in: modelContext)
 
         // Every path ends with the client's stops following (ClientStops): a
