@@ -29,7 +29,7 @@ nonisolated enum ClientImport {
             case .city: "City"
             case .state: "State"
             case .zip: "ZIP"
-            case .notes: "Notes"
+            case .notes: "Route Notes"
             case .tags: "Tags"
             }
         }
@@ -183,7 +183,10 @@ nonisolated enum ClientImport {
         var phone = ""
         var email = ""
         var address = ""
+        /// About the client, private: the "Company: X" line.
         var notes = ""
+        /// What the notes column(s) hold: Route Notes, shown at the client's stops.
+        var routeNotes = ""
         var tags: [String] = []
     }
 
@@ -212,13 +215,13 @@ nonisolated enum ClientImport {
         let stateZip = [value(.state), value(.zip)].filter(lacking).joined(separator: " ")
         let parts = [value(.street2), value(.city)].filter(lacking) + [stateZip]
         draft.address = ([base] + parts).filter { !$0.isEmpty }.joined(separator: ", ")
-        var notes = fields.indices.filter { fields[$0] == .notes && row.indices.contains($0) && !row[$0].isEmpty }
-            .map { row[$0] }
-        // A company beside a person's name is kept, in the notes.
+        draft.routeNotes = fields.indices.filter { fields[$0] == .notes && row.indices.contains($0) && !row[$0].isEmpty }
+            .map { row[$0] }.joined(separator: "\n")
+        // A company beside a person's name is kept, in the private notes: it
+        // is about the client, not the stop.
         if !person.isEmpty, !company.isEmpty, normalized(company) != normalized(person) {
-            notes.insert("Company: \(company)", at: 0)
+            draft.notes = "Company: \(company)"
         }
-        draft.notes = notes.joined(separator: "\n")
         // Separated by ; or , or Google Contacts' " ::: ". Google's own
         // "* myContacts" isn't one of the business's tags.
         draft.tags = value(.tags).replacingOccurrences(of: ":::", with: ";")

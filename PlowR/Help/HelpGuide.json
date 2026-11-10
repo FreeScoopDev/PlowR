@@ -75,7 +75,7 @@
             "In **Clients**, tap **+** → **Import from Spreadsheet**, then **Choose a CSV File**.",
             "Check what PlowR will add, then save. An import can be undone."
           ],
-          "note": "On a device with a camera you can also use **Scan with Camera**.",
+          "note": "A notes column in your file becomes the client's **Route Notes**, which show at their stops on every route. On a device with a camera you can also use **Scan with Camera**.",
           "tips": [
             { "id": "tip-import-clients", "title": "Bring in your list", "message": "Tap **+** and **Import from Spreadsheet** to add many clients at once." }
           ]
