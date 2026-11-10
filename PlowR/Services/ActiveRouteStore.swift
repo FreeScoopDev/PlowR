@@ -727,7 +727,9 @@ final class ActiveRouteStore {
     private func recordVisit(for stop: RouteStop, services: [String], undo: inout UndoableCompletion) {
         guard let startedAt = stopStartedAt else { return }
         let finishedAt = now()
-        let minutes = max(0, finishedAt.timeIntervalSince(startedAt) / 60)
+        // From GPS's arrival when it was caught, else from when the stop
+        // became current (StopMinutes): the record's startedAt stays the latter.
+        let minutes = StopMinutes.counted(startedAt: startedAt, arrivedAt: site.arrivedAt, finishedAt: finishedAt).minutes
         // The stop's time this run, which the route list, the dashboard, the
         // route map and the recap read as "done". Nothing wrote it before. At
         // least a minute, so a quick stop still reads as done.

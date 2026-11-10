@@ -147,7 +147,9 @@ struct RouteRecapView: View {
                 if skippedStops.count > 0 {
                     StatTile(value: "\(skippedStops.count)", label: "Skipped", status: .owed)
                 }
-                let totalMin = stops.reduce(0) { $0 + $1.actualMinutes }
+                let totalMin = StopMinutes.onRoute(runStartedAt: runStartedAt,
+                                                   completions: runRecords.map(\.performedAt),
+                                                   stopMinutes: stops.reduce(0) { $0 + $1.actualMinutes })
                 if totalMin > 0 {
                     let h = totalMin / 60, m = totalMin % 60
                     let label = h > 0 ? "\(h)h \(m)m" : "\(m)m"

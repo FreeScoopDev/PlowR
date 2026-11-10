@@ -344,7 +344,7 @@
           "id": "service-report",
           "title": "Service Report",
           "emoji": "📄",
-          "summary": "Arrival and departure times, timed photos and weather for each visit, as a PDF for a client or insurer.",
+          "summary": "Arrival and departure times, timed photos and weather for each visit, as a PDF for a client or insurer. A route stop's minutes are counted from the GPS arrival when PlowR caught it (\"min, GPS arrival to completion\"); otherwise from when the stop became the current stop, which includes the drive there (\"min, including travel\").",
           "screens": ["clients"],
           "pro": true,
           "tips": [
