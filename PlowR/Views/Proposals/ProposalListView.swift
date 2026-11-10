@@ -436,7 +436,8 @@ struct ClientPickerForProposalView: View {
                 }
             }
             .sheet(isPresented: $showingAddClient) {
-                AddClientView()
+                // Someone added here is being quoted: a lead until they're won.
+                AddClientView(kind: .newLead)
             }
             .proGateSheet($gate)
         }

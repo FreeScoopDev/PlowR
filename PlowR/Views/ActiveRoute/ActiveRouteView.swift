@@ -113,6 +113,7 @@ struct ActiveRouteView: View {
     /// says Complete Stop and moves on.
     private var shouldSkipNextNotify: Bool {
         nextStopClient?.skipNotificationPrompt == true || !MFMessageComposeViewController.canSendText()
+            || (nextStop?.clientPhone.isEmpty ?? false)    // no number to text
     }
 
     var upcomingStops: [RouteStop] {
@@ -1186,7 +1187,8 @@ struct ActiveRouteView: View {
     private func offerHeadsUp(after passedID: UUID) -> Bool {
         guard MFMessageComposeViewController.canSendText(),
               let next = currentStop, !showingNotifyPrompt, store.isBehindCurrentStop(passedID),
-              client(for: next)?.skipNotificationPrompt != true else { return false }
+              client(for: next)?.skipNotificationPrompt != true,
+              !next.clientPhone.isEmpty else { return false }
         promptStopID = nil
         promptNextStop = next
         haptic(.light)
