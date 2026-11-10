@@ -770,16 +770,16 @@ struct OneTapServicesTests {
     /// What the exit offer's sheet says, word for word.
     @Test func theExitOfferSentence() {
         #expect(OneTapServices.exitOfferNotice(clientName: "Pat Lee", names: ["Mow"])
-                == "Send or Skip completes the stop for Pat Lee and records Mow."
+                == "Send Message or Complete Without Text completes the stop for Pat Lee and records Mow."
                     + " To complete it without that service, tap Cancel and choose on the stop.")
         #expect(OneTapServices.exitOfferNotice(clientName: "Pat Lee", names: ["Mow", "Edge"])
-                == "Send or Skip completes the stop for Pat Lee and records Mow and Edge."
+                == "Send Message or Complete Without Text completes the stop for Pat Lee and records Mow and Edge."
                     + " To complete it without them, tap Cancel and choose on the stop.")
         #expect(OneTapServices.exitOfferNotice(clientName: "Pat Lee", names: ["Mow", "Trim", "Edge"])
-                == "Send or Skip completes the stop for Pat Lee and records Mow, Trim, and Edge."
+                == "Send Message or Complete Without Text completes the stop for Pat Lee and records Mow, Trim, and Edge."
                     + " To complete it without them, tap Cancel and choose on the stop.")
         #expect(OneTapServices.exitOfferNotice(clientName: "Pat Lee", names: [])
-                == "Send or Skip completes the stop for Pat Lee and adds no services."
+                == "Send Message or Complete Without Text completes the stop for Pat Lee and adds no services."
                     + " Tap Cancel to stay on that stop.")
         // Every name, however many: nothing shortened to "+N more".
         let many = ["Mow", "Trim", "Edge", "Rake", "Haul", "Blow"]
