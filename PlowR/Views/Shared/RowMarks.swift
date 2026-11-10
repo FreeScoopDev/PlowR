@@ -29,12 +29,16 @@ struct AccentBar: View {
 struct StopNumberBadge: View {
     let number: Int
     var isDone = false
-    /// Grows with the number's text so a large-text digit stays inside its
-    /// circle; capped so the badge never crowds the row.
+    /// At accessibility text sizes the circle grows with the number (capped
+    /// at 56 pt) so the digit stays inside it. False keeps it at 28 pt, where
+    /// the digit shrinks to fit instead: rows already narrow (the route
+    /// builders, with delete and reorder controls) can't spare the width.
+    var growsWithText = true
+    @Environment(\.dynamicTypeSize) private var typeSize
     @ScaledMetric(relativeTo: .footnote) private var scaledSize: CGFloat = 28
 
     var body: some View {
-        let size = min(scaledSize, 56)
+        let size = growsWithText && typeSize.isAccessibilitySize ? min(scaledSize, 56) : 28
         let color: Color = isDone ? PlowRColor.Status.done.text : PlowRColor.brand
         Text("\(number)")
             .font(PlowRFont.label)
