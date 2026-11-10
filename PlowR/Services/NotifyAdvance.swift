@@ -92,22 +92,22 @@ enum NotifyAdvance {
         /// or Control Center completed the stop first. Empty when all were
         /// recorded, when none were named (a button's sheet says nothing,
         /// the button did), and on `.stopChanged`, which the screen already
-        /// reports. What was added is read off the stop: the store puts the
-        /// services on it only if it had none (`ServiceLog.hasNothingRecorded`).
+        /// reports. It goes by what is on the stop afterwards, whoever put it
+        /// there: a service Record Services saved while the sheet was up is
+        /// recorded, and saying it wasn't would be untrue.
         @MainActor
         func runNotingUnrecorded(store: ActiveRouteStore) -> (outcome: Outcome, notRecorded: [String]) {
             let stop = stopID.flatMap { id in store.sortedStops.first { $0.id == id } }
-            let before = stop?.completedServiceIDs ?? []
             let outcome = run(store: store)
             guard notice != nil, !serviceIDs.isEmpty, outcome != .stopChanged else { return (outcome, []) }
-            let added = before.isEmpty ? (stop?.completedServiceIDs ?? []) : []
-            return (outcome, Self.notRecorded(ids: serviceIDs, names: serviceNames, added: added))
+            let onStop = stop?.completedServiceIDs ?? []
+            return (outcome, Self.notRecorded(ids: serviceIDs, names: serviceNames, recorded: onStop))
         }
 
         /// The names, of the services named (`ids`, `names` in step), that
-        /// aren't among those `added`.
-        static func notRecorded(ids: [String], names: [String], added: [String]) -> [String] {
-            zip(ids, names).filter { !added.contains($0.0) }.map(\.1)
+        /// aren't among those `recorded` on the stop.
+        static func notRecorded(ids: [String], names: [String], recorded: [String]) -> [String] {
+            zip(ids, names).filter { !recorded.contains($0.0) }.map(\.1)
         }
     }
 }

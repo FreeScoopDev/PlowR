@@ -842,9 +842,10 @@ struct OneTapServicesTests {
         #expect(result.notRecorded == ["Edge"])
     }
 
-    /// Record Services saved something while the sheet was up: the store
-    /// adds nothing, so every name is reported.
-    @Test func somethingRecordedMeanwhileNamesThemAll() throws {
+    /// Record Services saved Mow while the sheet was up: the store adds
+    /// nothing, and only Edge, which isn't on the stop, is reported. Mow is
+    /// recorded, so the note mustn't say it wasn't.
+    @Test func aServiceRecordedMeanwhileIsNotReportedAsMissing() throws {
         let h = try Harness(stopCount: 2)
         let c = try catalog(h)
         let store = h.makeStore()
@@ -857,7 +858,7 @@ struct OneTapServicesTests {
                                  operatorID: "op", startedAt: try #require(store.stopStartedAt), in: h.context)
         let result = offer.runNotingUnrecorded(store: store)
         #expect(result.outcome == .movedOn)
-        #expect(result.notRecorded == ["Mow", "Edge"])
+        #expect(result.notRecorded == ["Edge"])
     }
 
     /// Work invoiced while the sheet was up: nothing added, every name reported.
