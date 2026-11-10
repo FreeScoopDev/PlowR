@@ -80,7 +80,7 @@ struct ProofOfServiceView: View {
                         LabeledContent("Days Below Trigger", value: "\(checks.count)")
                     }
                 } footer: {
-                    SectionNote("What PlowR recorded (route stops' times, including travel to them, where each record came from, the services, notes and photos), and each visit day's estimated weather, looked up when it's made.")
+                    SectionNote("What PlowR recorded (route stops' times and minutes, counted from the GPS arrival when caught, otherwise including the drive there, where each record came from, the services, notes and photos), and each visit day's estimated weather, looked up when it's made.")
                 }
                 .listRowBackground(PlowRColor.surface)
                 Section {

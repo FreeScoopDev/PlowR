@@ -5,7 +5,9 @@ import Foundation
 /// the two screens can't disagree.
 enum RouteFacts {
     /// About how long the route's work takes: each client stop's client's
-    /// average time on site, for those with one. Travel isn't included.
+    /// average time on site, for those with one. Travel isn't included, whichever way a visit's
+    /// minutes were counted: from the GPS arrival, or, with none caught, from
+    /// when the stop became current (StopMinutes), which includes the drive there.
     static func estimatedMinutes(of stops: [RouteStop], clients: [Client]) -> Int {
         let byID = Dictionary(clients.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         return stops.reduce(0) { total, stop in

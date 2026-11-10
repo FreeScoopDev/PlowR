@@ -14,7 +14,8 @@ import UIKit
 /// - A visit's times are printed only for a route stop, which PlowR timed:
 ///   "started" is when the stop became the current one (the route started,
 ///   or the stop before it was completed), so it includes the travel there;
-///   "completed" is when it was marked done. A visit completed from the
+///   "completed" is when it was marked done. The minutes run from GPS's
+///   arrival when PlowR caught it, and say so; otherwise from "started". A visit completed from the
 ///   Schedule, or logged by hand, has no time PlowR recorded, and says so.
 /// - Each visit says where its record came from (route, Schedule, by hand),
 ///   and that times can be edited in PlowR.
@@ -178,14 +179,20 @@ enum ProofOfService {
     }
 
     /// A visit's times, only where PlowR recorded them: a route stop's
-    /// start (including the travel there) and completion. In the phone's
-    /// own clock style.
+    /// start (including the travel there) and completion, and minutes said
+    /// for the basis they were counted on (StopMinutes). In the phone's own
+    /// clock style.
     static func times(of record: ServiceRecord, timeZone: TimeZone = .current, locale: Locale = .current) -> String {
         guard record.source == .route, let started = record.startedAt else { return "Time not recorded by PlowR" }
         var time = Date.FormatStyle.dateTime.hour().minute().locale(locale)
         time.timeZone = timeZone
         var text = "Started \(started.formatted(time)) · Completed \(record.performedAt.formatted(time))"
-        if record.minutes >= 1 { text += " · \(Int(record.minutes.rounded())) min, including travel" }
+        if record.minutes >= 1 {
+            let count = Int(record.minutes.rounded())
+            text += ServiceLog.minutesBasis(of: record) == .fromArrival
+                ? " · \(count) min on site, from GPS arrival"
+                : " · \(count) min, including travel"
+        }
         return text
     }
 
@@ -332,8 +339,10 @@ enum ProofOfService {
                 + "hand, as each says."
             : ""
         return "About this report: it lists what was recorded in PlowR. A route stop's start is when it became the "
-            + "current stop (the route started, or the previous stop was completed), so it includes travel; its "
-            + "completion is when it was marked done. \"Arrived\" and \"Left\" are when the phone came into and "
+            + "current stop (the route started, or the previous stop was completed); its "
+            + "completion is when it was marked done. A stop's minutes are counted from the GPS arrival when PlowR "
+            + "caught it (\"min on site, from GPS arrival\"), otherwise from the start, which includes the drive "
+            + "there (\"min, including travel\"). \"Arrived\" and \"Left\" are when the phone came into and "
             + "went out of an area \(about(SiteMonitor.radius)) around the property's pin, as iOS reported it, which can be a few "
             + "minutes late; \"not caught\" means it wasn't seen (location off or approximate, already inside when the "
             + "stop began, not seen leaving before the next stop was reached, or the next stop too close to tell "
