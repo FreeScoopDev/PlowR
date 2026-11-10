@@ -8,7 +8,7 @@ struct AddClientView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AuthManager.self) private var authManager
 
-    @State private var draft = NewClientDraft()
+    @State private var draft: NewClientDraft
     @State private var asking = false
     @State private var geocodedCoordinate: CLLocationCoordinate2D? = nil
     @State private var isSaving = false
@@ -17,6 +17,11 @@ struct AddClientView: View {
     /// Built, waiting for an answer: its address couldn't be put on the map.
     @State private var unplacedClient: Client?
     @State private var lookupProblem: AddressPin.Problem?
+
+    /// `kind` is what the form opens on; the user can still change it.
+    init(kind: NewClientDraft.Kind = .existingCustomer) {
+        _draft = State(initialValue: NewClientDraft(kind: kind))
+    }
 
     var body: some View {
         NavigationStack {
@@ -137,15 +142,7 @@ struct AddClientView: View {
 
     private func saveClient() {
         isSaving = true
-        let client = Client(
-            name: draft.name.trimmingCharacters(in: .whitespacesAndNewlines),
-            phone: draft.phone,
-            address: draft.address,
-            operatorID: authManager.userID
-        )
-        client.email = draft.email
-        client.notes = draft.notes
-        client.customerSince = draft.customerSince(at: .now)
+        let client = draft.makeClient(operatorID: authManager.userID, now: .now)
 
         if let coord = geocodedCoordinate {
             client.latitude = coord.latitude
@@ -156,7 +153,7 @@ struct AddClientView: View {
             return
         }
 
-        guard !draft.address.isEmpty else {
+        guard !client.address.isEmpty else {
             modelContext.insert(client)
             isSaving = false
             dismiss()

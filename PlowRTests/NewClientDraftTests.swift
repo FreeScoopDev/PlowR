@@ -83,4 +83,41 @@ struct NewClientDraftTests {
             #expect(typed.hasTypedWork)
         }
     }
+
+    // MARK: What is saved
+
+    @Test func theSavedClientCarriesTheKindTheNotesAndTidyText() throws {
+        let h = try Harness(stopCount: 0)
+        let now = Date(timeIntervalSinceReferenceDate: 800_000_000.75)
+        var draft = NewClientDraft()
+        draft.name = "  Ellen Park "
+        draft.phone = "   "
+        draft.email = " ellen@example.com "
+        draft.address = " 7 Alder Ct "
+        draft.notes = "Gate code 4411\n"
+
+        let customer = draft.makeClient(operatorID: "op", now: now)
+        #expect(customer.name == "Ellen Park")
+        #expect(customer.phone.isEmpty)
+        #expect(customer.email == "ellen@example.com")
+        #expect(customer.address == "7 Alder Ct")
+        #expect(customer.notes == "Gate code 4411")
+        #expect(customer.operatorID == "op")
+        #expect(customer.customerSince == Date(timeIntervalSinceReferenceDate: 800_000_000))
+
+        draft.kind = .newLead
+        let lead = draft.makeClient(operatorID: "op", now: now)
+        #expect(lead.customerSince == nil)
+
+        h.context.insert(customer)
+        h.context.insert(lead)
+        let facts = Pipeline.Facts(in: h.context)
+        #expect(Pipeline.stage(of: customer, facts: facts) == .customer)
+        #expect(Pipeline.stage(of: lead, facts: facts) == .lead)
+    }
+
+    @Test func theFormCanOpenOnNewLead() {
+        #expect(NewClientDraft(kind: .newLead).kind == .newLead)
+        #expect(NewClientDraft(kind: .newLead).makeClient(operatorID: "op", now: .now).customerSince == nil)
+    }
 }
