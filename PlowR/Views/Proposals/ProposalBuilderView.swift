@@ -112,6 +112,7 @@ struct ProposalBuilderView: View {
                     rate: profile?.defaultTaxRate,
                     taxExempt: DocumentDraft.isTaxExempt(onScreen: taxExempt, saved: client.taxExempt))
                 disclaimer = profile?.defaultDisclaimer ?? ""
+                invoiceDueDate = InvoiceTerms.dueDate(from: Date(), profile: profile)
             }
             .navigationTitle(isInvoiceMode ? "New Invoice" : "New Proposal")
             .navigationBarTitleDisplayMode(.inline)

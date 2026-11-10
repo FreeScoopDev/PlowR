@@ -52,7 +52,8 @@ enum InvoiceRecords {
         !proposal.isInvoice && Contracts.madeFrom(proposal, among: contracts) == nil
     }
 
-    /// Converts a proposal to an invoice: the next number, due in 30 days,
+    /// Converts a proposal to an invoice: the next number, due on the
+    /// business's terms (InvoiceTerms),
     /// and a visit's proposal bills the visit's job. False, changing nothing,
     /// for an invoice already or a proposal a contract was made from (it
     /// looks the contracts up itself, so no caller skips that). The one place
@@ -66,7 +67,7 @@ enum InvoiceRecords {
             predicate: #Predicate { $0.sourceProposalID == source }))) ?? []
         guard canConvert(proposal, among: contracts) else { return false }
         proposal.invoiceNumber = InvoiceNumbering.next(operatorID: proposal.operatorID, in: context)
-        proposal.invoiceDueDate = InvoiceTerms.dueDate(from: now)
+        proposal.invoiceDueDate = InvoiceTerms.dueDate(from: now, operatorID: proposal.operatorID, in: context)
         if !proposal.visitID.isEmpty {
             ServiceLog.markVisitInvoiced(visitID: proposal.visitID, invoice: proposal, in: context)
         }

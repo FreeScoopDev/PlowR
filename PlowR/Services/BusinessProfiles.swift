@@ -39,6 +39,9 @@ enum BusinessProfiles {
         }
         text(\.companyName); text(\.phone); text(\.email); text(\.tagline)
         text(\.licenseNumber); text(\.defaultDisclaimer); text(\.requestWelcome)
+        text(\.address)
+        // nil is "never chosen": a choice made on the other device counts.
+        if keep.paymentTermsDays == nil { keep.paymentTermsDays = other.paymentTermsDays }
         if keep.logoData == nil { keep.logoData = other.logoData }
         if keep.defaultTaxRate == 0 { keep.defaultTaxRate = other.defaultTaxRate }
         if keep.accentColorHex == PlowRColor.navyHex { keep.accentColorHex = other.accentColorHex }

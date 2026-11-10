@@ -24,7 +24,7 @@
           ],
           "steps": [
             "Choose **I run a service business**, then sign in with Apple.",
-            "Enter your **Business name** and add your logo. It goes on your proposals and invoices.",
+            "Enter your **Business name**, your mailing address if you'd like (where clients mail a check), and add your logo. They go on your proposals and invoices.",
             "Under **What do you do?**, pick Snow Removal, Lawn Care, Cleanup, or any mix. PlowR adds the usual services and prices, which you can change later.",
             "Enter your **Default tax rate (%)**.",
             "Turn on **Alerts** and **Your location** if you'd like them. Every step has **Skip**.",
@@ -275,12 +275,14 @@
         {
           "id": "payment-methods",
           "title": "Make paying you easy",
-          "summary": "Payment links and handles printed on every invoice.",
+          "summary": "Payment links, your mailing address and your payment terms, printed on every invoice.",
           "screens": ["documents", "settings"],
           "steps": [
             "Go to **Settings → Payment Methods** and tap **+**.",
             "Add how you take payment: a Venmo, PayPal, Square or Cash App link, a Zelle handle, check or cash.",
-            "Your invoices list them. A payment link also prints as a code your client can scan to pay."
+            "Your invoices list them. A payment link also prints as a code your client can scan to pay.",
+            "In **Settings → Business Profile**, add your **Mailing Address**: it prints on your documents and under a check payment, so clients know where to mail it.",
+            "There too, choose your **Payment Terms**: **Due on receipt**, or **Net 7** to **Net 60** days. New invoices are due that many days after they're made, and their PDFs say so. You can still change the due date on any invoice; invoices already made keep theirs."
           ],
           "tips": [
             { "id": "tip-payment-methods", "title": "Get paid faster", "message": "Add a payment link in **Settings → Payment Methods**; invoices print a code to scan and pay." }
