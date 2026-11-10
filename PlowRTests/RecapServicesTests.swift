@@ -361,6 +361,7 @@ struct RecapServicesTests {
         let store = try run(h, completing: 1)
         // Something else waiting to be saved, unrelated to the recap.
         h.clients[0].notes = "Waiting to be saved"
+        let before = try #require(try runRecord(h, store, store.sortedStops[0])).servicesData
         struct Failed: Error {}
         var saves = 0
         let outcome = try record(h, store, try plan(h, store), save: { _ in saves += 1; throw Failed() })
@@ -371,5 +372,7 @@ struct RecapServicesTests {
         #expect(try runRecord(h, store, store.sortedStops[0])?.lines.isEmpty == true)
         // Only the recap's own writes were taken back.
         #expect(h.clients[0].notes == "Waiting to be saved")
+        // To the byte: Undo compares the record's fields.
+        #expect(try runRecord(h, store, store.sortedStops[0])?.servicesData == before)
     }
 }

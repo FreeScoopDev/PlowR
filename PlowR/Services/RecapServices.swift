@@ -151,7 +151,7 @@ enum RecapServiceRecorder {
                        operatorID: String, run: UUID?, in context: ModelContext,
                        save: (ModelContext) throws -> Void = { try $0.save() }) -> Outcome {
         var outcome = Outcome()
-        var written: [(stop: RouteStop, record: ServiceRecord)] = []
+        var written: [(stop: RouteStop, record: ServiceRecord, servicesBefore: [String], linesBefore: Data)] = []
         let active = ServiceLog.activeServices(catalog, operatorID: operatorID)
         let clients = clientsByID(in: context)
         for planned in confirmed {
@@ -165,8 +165,8 @@ enum RecapServiceRecorder {
                 outcome.notRecorded.append(planned.clientName)
                 continue
             }
+            written.append((stop, record, stop.completedServiceIDs, record.servicesData))
             stop.completedServiceIDs = planned.serviceIDs
-            written.append((stop, record))
             ServiceLog.fillLines(of: record, from: stop, client: client, in: context)
             // Only what made it onto the record counts as recorded on the stop.
             let added = record.lines.map(\.serviceID).filter { planned.serviceIDs.contains($0) }
@@ -180,13 +180,14 @@ enum RecapServiceRecorder {
         do {
             try save(context)
         } catch {
-            // Only this action's own writes are taken back (both were empty:
-            // the plan asked). Not `rollback()`, which would also drop
-            // whatever else is waiting to be saved, such as a GPS departure
-            // whose save failed and that no second exit will bring back.
-            for (stop, record) in written {
-                stop.completedServiceIDs = []
-                record.lines = []
+            // Only this action's own writes are taken back, to the exact
+            // bytes they were (a record with no lines holds empty data, not
+            // "[]": Undo compares the bytes). Not `rollback()`, which would
+            // also drop whatever else is waiting to be saved, such as a GPS
+            // departure whose save failed and that no second exit brings back.
+            for (stop, record, servicesBefore, linesBefore) in written {
+                stop.completedServiceIDs = servicesBefore
+                record.servicesData = linesBefore
             }
             outcome.notRecorded += outcome.recorded.map(\.clientName)
             outcome.recorded = []
