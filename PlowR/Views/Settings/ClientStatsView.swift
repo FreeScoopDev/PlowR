@@ -122,8 +122,9 @@ struct ClientStatsView: View {
             }
         } header: {
             Text("Season Summary")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
-            Text("Stats are recorded automatically when route stops are completed.")
+            SectionNote("Stats are recorded automatically when route stops are completed.")
                 .font(.caption)
         }
         .listRowBackground(PlowRColor.surface)
@@ -171,6 +172,7 @@ struct ClientStatsView: View {
             }
         } header: {
             Text("Revenue by Month")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
             HStack(spacing: 16) {
                 Label("Collected", systemImage: "square.fill").foregroundStyle(PlowRColor.Status.done.fill)
@@ -184,14 +186,14 @@ struct ClientStatsView: View {
     @ViewBuilder
     private var activitySection: some View {
         if activeClients.isEmpty {
-            Section("Clients by Activity") {
+            Section(title: "Clients by Activity") {
                 Text("No service history recorded yet")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(PlowRColor.inkSecondary)
                     .font(.subheadline)
             }
             .listRowBackground(PlowRColor.surface)
         } else {
-            Section("Clients by Activity") {
+            Section(title: "Clients by Activity") {
                 ForEach(activeClients) { client in
                     clientRow(client)
                 }
@@ -201,7 +203,7 @@ struct ClientStatsView: View {
     }
 
     private var inactiveSection: some View {
-        Section("Never Serviced") {
+        Section(title: "Never Serviced") {
             ForEach(inactiveClients) { client in
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
@@ -210,13 +212,13 @@ struct ClientStatsView: View {
                         if !client.address.isEmpty {
                             Text(client.address)
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(PlowRColor.inkSecondary)
                         }
                     }
                     Spacer()
                     Text("No visits")
                         .font(.caption)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
                 .padding(.vertical, 2)
             }
@@ -234,7 +236,7 @@ struct ClientStatsView: View {
                     if !client.address.isEmpty {
                         Text(client.address)
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(PlowRColor.inkSecondary)
                     }
                 }
                 Spacer()
@@ -244,12 +246,12 @@ struct ClientStatsView: View {
                 if let last = client.lastServiceDate {
                     Label(last.formatted(.dateTime.month(.abbreviated).day().year()), systemImage: "clock.arrow.circlepath")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
                 if client.averageServiceMinutes > 0 {
                     Label(String(format: "~%.0f min avg", client.averageServiceMinutes), systemImage: "timer")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
             }
             if balance > 0 {

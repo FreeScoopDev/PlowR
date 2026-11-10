@@ -80,7 +80,7 @@ struct BusinessProfileView: View {
                                 .overlay {
                                     Image(systemName: "building.2")
                                         .font(.title)
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(PlowRColor.inkSecondary)
                                 }
                         }
                         PhotosPicker(selection: $logoItem, matching: .images) {
@@ -94,21 +94,21 @@ struct BusinessProfileView: View {
             }
             .listRowBackground(PlowRColor.surface)
 
-            Section("Business Info") {
-                TextField("Company Name", text: $companyName)
-                TextField("Phone", text: $phone)
+            Section(title: "Business Info") {
+                GrowingTextField("Company Name", text: $companyName)
+                GrowingTextField("Phone", text: $phone)
                     .keyboardType(.phonePad)
                     .textContentType(.telephoneNumber)
-                TextField("Email", text: $email)
+                GrowingTextField("Email", text: $email)
                     .keyboardType(.emailAddress)
                     .textContentType(.emailAddress)
                     .autocapitalization(.none)
-                TextField("Tagline (optional)", text: $tagline)
+                GrowingTextField("Tagline (optional)", text: $tagline)
             }
             .listRowBackground(PlowRColor.surface)
 
-            Section("Optional") {
-                TextField("License / Certification Number", text: $licenseNumber)
+            Section(title: "Optional") {
+                GrowingTextField("License / Certification Number", text: $licenseNumber)
             }
             .listRowBackground(PlowRColor.surface)
 
@@ -120,8 +120,9 @@ struct BusinessProfileView: View {
                 Toggle("Compact header", isOn: $compactHeader)
             } header: {
                 Text("PDF Appearance")
+                    .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
-                Text("Compact header uses a smaller document title — useful when a wide logo fills the header.")
+                SectionNote("Compact header uses a smaller document title — useful when a wide logo fills the header.")
             }
             .listRowBackground(PlowRColor.surface)
 
@@ -131,7 +132,7 @@ struct BusinessProfileView: View {
                         TextField("0", text: $defaultTaxRate)
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
-                        Text("%").foregroundStyle(.secondary)
+                        Text("%").foregroundStyle(PlowRColor.inkSecondary)
                     }
                 }
                 if Proposal.readTaxRate(defaultTaxRate) == nil {
@@ -141,12 +142,13 @@ struct BusinessProfileView: View {
                 }
             } header: {
                 Text("Tax")
+                    .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
-                Text("Put on every new invoice and proposal, and you can change it on any one. Leave it at 0 if you don't charge sales tax. Whether your services are taxed, and at what rate, depends on your state: check with your state or an accountant.")
+                SectionNote("Put on every new invoice and proposal, and you can change it on any one. Leave it at 0 if you don't charge sales tax. Whether your services are taxed, and at what rate, depends on your state: check with your state or an accountant.")
             }
             .listRowBackground(PlowRColor.surface)
 
-            Section("Default Proposal Disclaimer") {
+            Section(title: "Default Proposal Disclaimer") {
                 TextEditor(text: $defaultDisclaimer)
                     .frame(minHeight: 80)
             }

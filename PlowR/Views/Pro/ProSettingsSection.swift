@@ -26,7 +26,7 @@ struct ProSettingsSection: View {
                     .font(.headline)
                 Text(Self.message(for: access))
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(PlowRColor.inkSecondary)
             }
             .padding(.vertical, 2)
             if access.tier != .pro {
@@ -51,6 +51,7 @@ struct ProSettingsSection: View {
             .disabled(restoring)
         } header: {
             Text("PlowR Pro")
+                .foregroundStyle(PlowRColor.inkSecondary)
         }
         .listRowBackground(PlowRColor.surface)
     }

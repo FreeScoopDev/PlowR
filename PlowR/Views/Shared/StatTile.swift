@@ -10,6 +10,7 @@ struct StatTile: View {
     let value: String
     let label: String
     var status: PlowRColor.Status?
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     init(value: String, label: String, status: PlowRColor.Status? = nil) {
         self.value = value
@@ -29,7 +30,9 @@ struct StatTile: View {
             Text(label)
                 .font(.caption)
                 .foregroundStyle(PlowRColor.inkSecondary)
-                .lineLimit(1)
+                // Tiles stack at accessibility sizes (StatTileRow), each the
+                // full width: room for a label to take two lines.
+                .lineLimit(typeSize.isAccessibilitySize ? 2 : 1)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, PlowRLayout.space3)
@@ -41,12 +44,17 @@ struct StatTile: View {
     }
 }
 
-/// Stat tiles side by side, sharing the width.
+/// Stat tiles side by side, sharing the width; stacked, each the full
+/// width, at accessibility text sizes, where side by side cut the labels.
 struct StatTileRow<Content: View>: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
     @ViewBuilder let content: Content
 
     var body: some View {
-        HStack(spacing: PlowRLayout.tileSpacing) { content }
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(spacing: PlowRLayout.tileSpacing))
+            : AnyLayout(HStackLayout(spacing: PlowRLayout.tileSpacing))
+        layout { content }
             // A point of room, so an outlined tile's edge isn't clipped by
             // a list row that ends exactly at the row.
             .padding(1)

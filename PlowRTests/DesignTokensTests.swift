@@ -85,6 +85,28 @@ struct DesignTokensTests {
         }
     }
 
+    /// HSV saturation of a color's dark appearance, 0 to 1.
+    private func darkSaturation(_ color: UIColor) -> CGFloat {
+        let (r, g, b) = components(color, dark: true)
+        let high = max(r, g, b)
+        return high == 0 ? 0 : (high - min(r, g, b)) / high
+    }
+
+    // Dark mode's backgrounds are neutral: the first version tinted them deep
+    // green, at about 45% saturation, and the whole screen read green.
+    @Test func darkSurfacesCarryNoColorCast() {
+        for (name, color) in surfaces + [("line", C.lineUIColor)] {
+            #expect(darkSaturation(color) <= 0.2, "\(name)")
+        }
+    }
+
+    // Green means done. The dark brand is a muted sage, so links and buttons
+    // don't read as finished work (a contrast ratio can't see this: it measures
+    // lightness only, and the two are about as light as each other).
+    @Test func darkBrandIsNotTheDoneGreen() {
+        #expect(darkSaturation(C.brandUIColor) <= darkSaturation(C.Status.done.fillUIColor) / 2)
+    }
+
     @Test func serviceTagsCarryWhiteText() {
         for service in C.Service.allCases {
             #expect(contrast(.white, service.fillUIColor, dark: false) >= 4.5, "\(service)")

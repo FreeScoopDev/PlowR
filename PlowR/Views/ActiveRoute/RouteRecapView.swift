@@ -20,6 +20,7 @@ struct RouteRecapView: View {
     var runStartedAt: Date?
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var editingStop: RouteStop?
     /// This run's Service Log records, live: a departure GPS catches while
     /// the recap is open shows.
@@ -84,7 +85,7 @@ struct RouteRecapView: View {
 
                 if !completedStops.isEmpty {
                     let onSite = timesOnSite
-                    Section("Completed Stops") {
+                    Section(title: "Completed Stops") {
                         ForEach(Array(completedStops.enumerated()), id: \.element.id) { idx, stop in
                             stopRow(stop, index: idx + 1, completed: true, onSite: onSite)
                         }
@@ -93,7 +94,7 @@ struct RouteRecapView: View {
                 }
 
                 if !skippedStops.isEmpty {
-                    Section("Not Serviced") {
+                    Section(title: "Not Serviced") {
                         ForEach(Array(skippedStops.enumerated()), id: \.element.id) { idx, stop in
                             stopRow(stop, index: completedStops.count + idx + 1, completed: false)
                         }
@@ -208,59 +209,75 @@ struct RouteRecapView: View {
         Button {
             editingStop = stop
         } label: {
-            HStack(spacing: 12) {
-                ZStack {
-                    Circle()
-                        .fill(completed ? PlowRColor.Status.done.soft : PlowRColor.raised)
-                        .frame(width: 32, height: 32)
-                    Image(systemName: completed ? "checkmark" : "minus")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(completed ? PlowRColor.Status.done.text : PlowRColor.inkSecondary)
-                }
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(stop.clientName)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.primary)
-                    if !stop.clientAddress.isEmpty {
-                        Text(stop.clientAddress)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                }
-
-                Spacer()
-
-                VStack(alignment: .trailing, spacing: 2) {
-                    if !stop.completedServiceIDs.isEmpty {
-                        Text("\(stop.completedServiceIDs.count) service\(stop.completedServiceIDs.count == 1 ? "" : "s")")
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(PlowRColor.Status.done.text)
-                    } else {
-                        Text("No services")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    if stop.actualMinutes > 0 {
-                        Text("\(stop.actualMinutes) min")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                    // GPS's time at the job site, once it has seen the crew
-                    // arrive and leave (a departure seen later shows then).
-                    if completed, let onSite = onSite[stop.id] {
-                        Text(ProofOfService.onSiteListText(onSite))
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                Image(systemName: "pencil.circle")
-                    .foregroundStyle(PlowRColor.brand.opacity(0.7))
-                    .font(.subheadline)
+            let large = typeSize.isAccessibilitySize
+            let mark = ZStack {
+                Circle()
+                    .fill(completed ? PlowRColor.Status.done.soft : PlowRColor.raised)
+                    .frame(width: 32, height: 32)
+                Image(systemName: completed ? "checkmark" : "minus")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(completed ? PlowRColor.Status.done.text : PlowRColor.inkSecondary)
             }
-            .padding(.vertical, 2)
+            let main = VStack(alignment: .leading, spacing: 2) {
+                Text(stop.clientName)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                if !stop.clientAddress.isEmpty {
+                    Text(stop.clientAddress)
+                        .font(.caption)
+                        .foregroundStyle(PlowRColor.inkSecondary)
+                        .lineLimit(large ? nil : 1)
+                }
+            }
+            let details = VStack(alignment: typeSize.trailingColumnAlignment, spacing: 2) {
+                if !stop.completedServiceIDs.isEmpty {
+                    Text("\(stop.completedServiceIDs.count) service\(stop.completedServiceIDs.count == 1 ? "" : "s")")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(PlowRColor.Status.done.text)
+                } else {
+                    Text("No services")
+                        .font(.caption)
+                        .foregroundStyle(PlowRColor.inkSecondary)
+                }
+                if stop.actualMinutes > 0 {
+                    Text("\(stop.actualMinutes) min")
+                        .font(.caption2)
+                        .foregroundStyle(PlowRColor.inkSecondary)
+                }
+                // GPS's time at the job site, once it has seen the crew
+                // arrive and leave (a departure seen later shows then).
+                if completed, let onSite = onSite[stop.id] {
+                    Text(ProofOfService.onSiteListText(onSite))
+                        .font(.caption2)
+                        .foregroundStyle(PlowRColor.inkSecondary)
+                }
+            }
+            let pencil = Image(systemName: "pencil.circle")
+                .foregroundStyle(PlowRColor.brand.opacity(0.7))
+                .font(.subheadline)
+            // Large text: the pencil sits on the mark's line, so the name,
+            // address and services get the full width.
+            if large {
+                VStack(alignment: .leading, spacing: PlowRLayout.space2) {
+                    HStack {
+                        mark
+                        Spacer(minLength: 0)
+                        pencil
+                    }
+                    main
+                    details
+                }
+                .padding(.vertical, 2)
+            } else {
+                HStack(spacing: 12) {
+                    mark
+                    main
+                    Spacer()
+                    details
+                    pencil
+                }
+                .padding(.vertical, 2)
+            }
         }
         .buttonStyle(.plain)
     }

@@ -74,6 +74,17 @@ struct LocationManagerTests {
         #expect(!RouteGPS.needsAlways(status: .authorizedWhenInUse, isMac: true))
     }
 
+    // Location off doesn't end the route: the route screen says what's
+    // missing and carries on (Joe, 2026-11-07: "Continue without location").
+    @Test func locationOffIsSaidNotForced() {
+        #expect(RouteGPS.isOff(status: .denied, isMac: false))
+        #expect(RouteGPS.isOff(status: .restricted, isMac: false))
+        #expect(!RouteGPS.isOff(status: .authorizedWhenInUse, isMac: false))
+        #expect(!RouteGPS.isOff(status: .authorizedAlways, isMac: false))
+        #expect(!RouteGPS.isOff(status: .notDetermined, isMac: false))
+        #expect(!RouteGPS.isOff(status: .denied, isMac: true))
+    }
+
     // With approximate location iOS watches no job-site areas at all: the
     // route screen says Precise Location is needed, ahead of the Always note.
     @Test func arrivalTimesNeedPreciseLocation() {

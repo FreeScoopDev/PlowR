@@ -59,14 +59,15 @@ struct ContractEditView: View {
                     DatePicker("Ends", selection: $draft.endDate, in: draft.earliestEnd()..., displayedComponents: .date)
                 } header: {
                     Text("Contract")
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 } footer: {
-                    Text(draft.isSigned
+                    SectionNote(Text(draft.isSigned
                          ? "Signed: what was agreed (where, what, the price) is locked. To change it, cancel it and make a new one."
-                         : "Left blank, it's named for its dates.")
+                         : "Left blank, it's named for its dates."))
                 }
                 .listRowBackground(PlowRColor.surface)
                 if draft.isSigned {
-                    Section("Agreed") {
+                    Section(title: "Agreed") {
                         LabeledContent("Applies To", value: places.filter { draft.placeIDs.contains($0.id) }
                             .map { $0.isMain ? "Main Address" : $0.label }.joined(separator: ", "))
                         LabeledContent("Services", value: services.filter { draft.serviceIDs.contains($0.id.uuidString) }
@@ -79,7 +80,7 @@ struct ContractEditView: View {
                 }
                 scheduleSection
                 if coversSnow { ContractTriggerSection(inches: $draft.triggerInches, gate: $gate) }
-                Section("Notes") {
+                Section(title: "Notes") {
                     TextField("Terms, what's included, anything agreed", text: $draft.notes, axis: .vertical)
                         .lineLimit(3...)
                 }
@@ -109,7 +110,7 @@ struct ContractEditView: View {
     @ViewBuilder
     private var termsSections: some View {
                 if places.count > 1 || draft.placeIDs.isEmpty {
-                    Section("Applies To") {
+                    Section(title: "Applies To") {
                         ForEach(places, id: \.id) { place in
                             checkRow(place.isMain ? "Main Address" : place.label, detail: place.address,
                                      isOn: draft.placeIDs.contains(place.id)) {
@@ -127,8 +128,9 @@ struct ContractEditView: View {
                     }
                 } header: {
                     Text("Services Covered")
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 } footer: {
-                    Text("Services it doesn't cover are billed as extras, as usual.")
+                    SectionNote("Services it doesn't cover are billed as extras, as usual.")
                 }
                 .listRowBackground(PlowRColor.surface)
                 pricingSection
@@ -151,8 +153,9 @@ struct ContractEditView: View {
             }
         } header: {
             Text("Visits")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
-            Text(scheduleNote)
+            SectionNote(verbatim: scheduleNote)
         }
         .listRowBackground(PlowRColor.surface)
     }
@@ -185,8 +188,9 @@ struct ContractEditView: View {
             }
         } header: {
             Text("Price")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
-            Text(draft.problem() ?? pricingNote)
+            SectionNote(Text(draft.problem() ?? pricingNote))
         }
         .listRowBackground(PlowRColor.surface)
     }
@@ -203,11 +207,11 @@ struct ContractEditView: View {
         Button(action: action) {
             HStack(spacing: 12) {
                 Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(isOn ? Color.accentColor : .secondary)
+                    .foregroundStyle(isOn ? Color.accentColor : PlowRColor.inkSecondary)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title).foregroundStyle(.primary)
                     if let detail, !detail.isEmpty {
-                        Text(detail).font(.caption).foregroundStyle(.secondary)
+                        Text(detail).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
                     }
                 }
             }

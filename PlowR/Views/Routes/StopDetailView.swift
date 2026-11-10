@@ -73,7 +73,7 @@ struct StopDetailView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(stop.clientName).font(.headline)
                         if !stop.clientAddress.isEmpty {
-                            Text(stop.clientAddress).font(.subheadline).foregroundStyle(.secondary)
+                            Text(stop.clientAddress).font(.subheadline).foregroundStyle(PlowRColor.inkSecondary)
                         }
                     }
                     contactRow
@@ -94,8 +94,9 @@ struct StopDetailView: View {
                     }
                 } header: {
                     Text("Expected Services")
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 } footer: {
-                    Text(servicesFooter)
+                    SectionNote(verbatim: servicesFooter)
                 }
                 .listRowBackground(PlowRColor.surface)
 
@@ -104,6 +105,7 @@ struct StopDetailView: View {
                         .lineLimit(2...)
                 } header: {
                     Label("Stop Notes", systemImage: "note.text")
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
                 .listRowBackground(PlowRColor.surface)
 
@@ -112,6 +114,7 @@ struct StopDetailView: View {
                         .lineLimit(2...)
                 } header: {
                     Label("Equipment", systemImage: "wrench.and.screwdriver")
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
                 .listRowBackground(PlowRColor.surface)
 
@@ -123,7 +126,7 @@ struct StopDetailView: View {
                 } footer: {
                     // The client's average is over all their places: said only at their own address.
                     if let client, client.averageServiceMinutes > 0, Place.isMain(stop.propertyID, of: client) {
-                        Text("Usually about \(RouteFacts.duration(Int(client.averageServiceMinutes.rounded()))) here.")
+                        SectionNote("Usually about \(RouteFacts.duration(Int(client.averageServiceMinutes.rounded()))) here.")
                     }
                 }
                 .listRowBackground(PlowRColor.surface)

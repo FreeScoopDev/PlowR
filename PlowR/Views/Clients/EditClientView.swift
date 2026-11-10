@@ -11,6 +11,7 @@ struct EditClientView: View {
     @Environment(\.openURL) private var openURL
     @Environment(AuthManager.self) private var authManager
     @Environment(\.access) private var access
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var gate: ProGate?
 
     let client: Client
@@ -112,7 +113,7 @@ struct EditClientView: View {
                         save()
                     }
                 } footer: {
-                    Text("Inactive clients don't count toward the free tier's \(Access.freeClientLimit). They come off their routes.")
+                    SectionNote("Inactive clients don't count toward the free tier's \(Access.freeClientLimit). They come off their routes.")
                 }
                 .listRowBackground(PlowRColor.surface)
             }
@@ -292,7 +293,11 @@ struct EditClientView: View {
             // scroll view doesn't scroll: it keeps the list from treating the
             // row as one tappable cell with a disclosure arrow.
             ScrollView(.horizontal) {
-                HStack(spacing: 8) {
+                // 2 × 2 at accessibility text sizes: four in a row cut the names.
+                let layout = typeSize.isAccessibilitySize
+                    ? AnyLayout(EqualColumnsLayout(columns: 2, spacing: 8))
+                    : AnyLayout(HStackLayout(spacing: 8))
+                layout {
                     Menu {
                         if !draft.phone.isEmpty {
                             Button {
@@ -360,11 +365,11 @@ struct EditClientView: View {
     // MARK: - Contact Section
 
     private var contactSection: some View {
-        Section("Contact") {
-            TextField("Full Name", text: $draft.name)
+        Section(title: "Contact") {
+            GrowingTextField("Full Name", text: $draft.name)
                 .textContentType(.name)
             HStack {
-                TextField("Phone Number", text: $draft.phone)
+                GrowingTextField("Phone Number", text: $draft.phone)
                     .textContentType(.telephoneNumber)
                     .keyboardType(.phonePad)
                 if !draft.phone.isEmpty,
@@ -379,7 +384,7 @@ struct EditClientView: View {
                 }
             }
             HStack {
-                TextField("Email (optional)", text: $draft.email)
+                GrowingTextField("Email (optional)", text: $draft.email)
                     .textContentType(.emailAddress)
                     .keyboardType(.emailAddress)
                     .textInputAutocapitalization(.never)
@@ -398,7 +403,7 @@ struct EditClientView: View {
                     Text("Skip arrival message prompt")
                     Text("Won't ask to notify when you arrive")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
             }
             Stepper(value: $draft.goalMinutes, in: 0...180, step: 5) {
@@ -406,7 +411,7 @@ struct EditClientView: View {
                     Text("Stop goal time")
                     Spacer()
                     Text(draft.goalMinutes == 0 ? "Not set" : "\(draft.goalMinutes) min")
-                        .foregroundStyle(draft.goalMinutes == 0 ? .secondary : .primary)
+                        .foregroundStyle(draft.goalMinutes == 0 ? PlowRColor.inkSecondary : Color.primary)
                 }
             }
             Toggle(isOn: $draft.isActive) {
@@ -414,7 +419,7 @@ struct EditClientView: View {
                     Text("Active client")
                     Text("Inactive clients are listed separately and taken off their routes")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
             }
         }
@@ -476,7 +481,7 @@ struct EditClientView: View {
                                     .padding(.horizontal, 10)
                                     .padding(.vertical, 4)
                                     .background(PlowRColor.raised)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(PlowRColor.inkSecondary)
                                     .clipShape(Capsule())
                             }
                             .buttonStyle(.plain)
@@ -488,8 +493,9 @@ struct EditClientView: View {
             }
         } header: {
             Text("Tags")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
-            Text("Group clients for bulk messaging — e.g. Residential, Priority, Seasonal.")
+            SectionNote("Group clients for bulk messaging — e.g. Residential, Priority, Seasonal.")
                 .font(.caption)
         }
         .listRowBackground(PlowRColor.surface)
@@ -510,8 +516,9 @@ struct EditClientView: View {
                 .lineLimit(3...8)
         } header: {
             Text("Notes")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
-            Text("Private notes about this client — not shown on route or documents.")
+            SectionNote("Private notes about this client — not shown on route or documents.")
                 .font(.caption)
         }
         .listRowBackground(PlowRColor.surface)
@@ -537,14 +544,15 @@ struct EditClientView: View {
                         Text("Expected Services")
                         Spacer()
                         Text(draft.expectedServiceIDs.isEmpty ? "None" : "\(draft.expectedServiceIDs.count) selected")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(PlowRColor.inkSecondary)
                     }
                 }
             }
         } header: {
             Text("Default Services")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
-            Text("Services this client typically needs. Their route stops expect these, except a stop given its own services on its route (tap the stop on the route).")
+            SectionNote("Services this client typically needs. Their route stops expect these, except a stop given its own services on its route (tap the stop on the route).")
                 .font(.caption)
         }
         .listRowBackground(PlowRColor.surface)
@@ -560,11 +568,11 @@ struct EditClientView: View {
                 } label: {
                     HStack(spacing: 12) {
                         Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                            .foregroundStyle(isSelected ? PlowRColor.brand : .secondary)
+                            .foregroundStyle(isSelected ? PlowRColor.brand : PlowRColor.inkSecondary)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(service.name).foregroundStyle(.primary)
                             Text(service.category.capitalized)
-                                .font(.caption).foregroundStyle(.secondary)
+                                .font(.caption).foregroundStyle(PlowRColor.inkSecondary)
                         }
                     }
                 }
@@ -579,7 +587,7 @@ struct EditClientView: View {
     // MARK: - Billing Section
 
     private var billingSection: some View {
-        Section("Billing & Preferences") {
+        Section(title: "Billing & Preferences") {
             Picker("Preferred Payment", selection: $draft.preferredPayment) {
                 Text("Not set").tag("")
                 Text("Cash").tag("cash")
@@ -595,7 +603,7 @@ struct EditClientView: View {
                     Text("Tax Exempt")
                     Text("New invoices and proposals start at 0% tax instead of your rate in Business Profile")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
             }
 
@@ -624,11 +632,12 @@ struct EditClientView: View {
     private var stopNotesSection: some View {
         Section {
             TextField("Notes shown during active route (gate codes, special instructions…)", text: $draft.defaultStopNotes, axis: .vertical)
-                .lineLimit(3)
+                .lineLimit(typeSize.isAccessibilitySize ? 8 : 3)
         } header: {
             Text("Route Notes")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
-            Text("Automatically copied to new route stops for this client.")
+            SectionNote("Automatically copied to new route stops for this client.")
                 .font(.caption)
         }
         .listRowBackground(PlowRColor.surface)
@@ -638,7 +647,7 @@ struct EditClientView: View {
 
     private var serviceAddressSection: some View {
         Section {
-            TextField("Street Address", text: $draft.address)
+            GrowingTextField("Street Address", text: $draft.address)
                 .textContentType(.fullStreetAddress)
                 .onChange(of: draft.address) { _, v in
                     // Not typed: the address a new pin brought.
@@ -666,7 +675,7 @@ struct EditClientView: View {
                             if !completion.subtitle.isEmpty {
                                 Text(completion.subtitle)
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(PlowRColor.inkSecondary)
                             }
                         }
                     }
@@ -674,6 +683,7 @@ struct EditClientView: View {
             }
         } header: {
             Text("Service Address")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
             if client.needsAddressFix {
                 AddressNotFoundLabel(detail: "The map couldn't find this address, so this client has no pin and isn't on route maps. Correct the address, or set the pin with Set Pin on the Map, under Main Property.")
@@ -700,7 +710,7 @@ struct EditClientView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(Place.of(property).label).foregroundStyle(.primary)
                             if !property.label.isEmpty {
-                                Text(property.address).font(.caption).foregroundStyle(.secondary)
+                                Text(property.address).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
                             }
                         }
                         Spacer()
@@ -718,8 +728,9 @@ struct EditClientView: View {
             }
         } header: {
             Text("Other Properties")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
-            Text("Other places you work for this client, like a rental or a second lot. Each can go on routes and the schedule by itself.")
+            SectionNote("Other places you work for this client, like a rental or a second lot. Each can go on routes and the schedule by itself.")
                 .font(.caption)
         }
         .listRowBackground(PlowRColor.surface)
@@ -739,8 +750,9 @@ struct EditClientView: View {
             }
         } header: {
             Text("Contracts")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
-            Text("An agreement for a period: a season price, a price per visit, or a monthly amount.")
+            SectionNote("An agreement for a period: a season price, a price per visit, or a monthly amount.")
                 .font(.caption)
         }
         .listRowBackground(PlowRColor.surface)
@@ -749,7 +761,7 @@ struct EditClientView: View {
     // MARK: - History Section
 
     private var historySection: some View {
-        Section("Service History") {
+        Section(title: "Service History") {
             // Every job, from routes, visits or logged by hand (the Service Log).
             NavigationLink {
                 ClientServiceHistoryView(client: client)
@@ -770,7 +782,7 @@ struct EditClientView: View {
             }
             if client.totalVisits == 0 {
                 Text("No route visits recorded yet")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(PlowRColor.inkSecondary)
                     .font(.subheadline)
             } else {
                 LabeledContent("Total Visits", value: "\(client.totalVisits) visit\(client.totalVisits == 1 ? "" : "s")")
@@ -824,7 +836,7 @@ struct EditClientView: View {
                             .foregroundStyle(awaitingResponse ? PlowRColor.Status.owed.text : PlowRColor.Status.done.text)
                         Text("Invoice or proposal sent \(sent, format: .relative(presentation: .named))")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(PlowRColor.inkSecondary)
                     }
                     Spacer()
                     if awaitingResponse {
@@ -864,10 +876,10 @@ struct EditClientView: View {
     // MARK: - Documents Section
 
     private var documentsSection: some View {
-        Section("Documents") {
+        Section(title: "Documents") {
             if clientDocuments.isEmpty {
                 Text("No documents yet")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(PlowRColor.inkSecondary)
                     .font(.subheadline)
             } else {
                 ForEach(clientDocuments) { doc in
@@ -900,7 +912,7 @@ struct EditClientView: View {
     // MARK: - Property Section
 
     private var propertySection: some View {
-        Section("Main Property") {
+        Section(title: "Main Property") {
             let zones = client.sortedZones
             if !zones.isEmpty {
                 zoneMapPreview(zones: zones)
@@ -953,7 +965,7 @@ struct EditClientView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(zone.label).font(.subheadline)
                             Text("\(Int(zone.areaSquareFeet)) sq ft · \(zone.terrainLabel)")
-                                .font(.caption).foregroundStyle(.secondary)
+                                .font(.caption).foregroundStyle(PlowRColor.inkSecondary)
                         }
                         Spacer()
                     }
@@ -975,11 +987,11 @@ struct EditClientView: View {
     }
 
     private var scheduleSection: some View {
-        Section("Upcoming Visits") {
+        Section(title: "Upcoming Visits") {
             if upcomingClientVisits.isEmpty {
                 Text("No upcoming visits scheduled")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(PlowRColor.inkSecondary)
             } else {
                 ForEach(upcomingClientVisits) { visit in
                     HStack(spacing: 10) {
@@ -991,7 +1003,7 @@ struct EditClientView: View {
                                 .font(.subheadline)
                             Text(visit.scheduledDate, style: .time)
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(PlowRColor.inkSecondary)
                         }
                         Spacer()
                         Label(visit.status.rawValue, systemImage: visit.status.systemImage)
@@ -1013,7 +1025,7 @@ struct EditClientView: View {
     // MARK: - Photos Section
 
     private var photosSection: some View {
-        Section("Photos") {
+        Section(title: "Photos") {
             NavigationLink {
                 ClientPhotoGalleryView(client: client)
             } label: {
@@ -1070,7 +1082,7 @@ struct EditClientView: View {
                 if document.isInvoice, let due = document.invoiceDueDate {
                     Text("Due \(due.formatted(date: .abbreviated, time: .omitted))")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
             }
             Spacer()

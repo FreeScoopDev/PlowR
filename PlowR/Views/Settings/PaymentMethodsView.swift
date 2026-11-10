@@ -33,7 +33,7 @@ struct PaymentMethodsView: View {
                                 .font(.subheadline.weight(.medium))
                             Text(method.displayValue)
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(PlowRColor.inkSecondary)
                                 .lineLimit(1)
                         }
                         Spacer()
@@ -165,7 +165,7 @@ private struct AddPaymentMethodSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Type") {
+                Section(title: "Type") {
                     Picker("Payment Type", selection: $preset) {
                         ForEach(MethodPreset.allCases, id: \.self) { p in
                             Label(p.rawValue, systemImage: p.systemImage).tag(p)
@@ -179,7 +179,7 @@ private struct AddPaymentMethodSheet: View {
                 }
                 .listRowBackground(PlowRColor.surface)
 
-                Section("Details") {
+                Section(title: "Details") {
                     TextField("Label", text: $label)
                     if preset.requiresValue {
                         TextField(preset.valuePlaceholder, text: $value)
@@ -195,14 +195,14 @@ private struct AddPaymentMethodSheet: View {
                     Section {
                         EmptyView()
                     } footer: {
-                        Text("The name clients should write on the check.")
+                        SectionNote("The name clients should write on the check.")
                     }
                     .listRowBackground(PlowRColor.surface)
                 } else if preset.methodType == "link" {
                     Section {
                         EmptyView()
                     } footer: {
-                        Text("Paste the payment link from your provider. Appears as a tappable link and QR code on invoices.")
+                        SectionNote("Paste the payment link from your provider. Appears as a tappable link and QR code on invoices.")
                     }
                     .listRowBackground(PlowRColor.surface)
                 }

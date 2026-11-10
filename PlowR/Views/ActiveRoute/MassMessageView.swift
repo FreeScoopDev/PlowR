@@ -68,7 +68,7 @@ struct MassMessageView: View {
                 if !MFMessageComposeViewController.canSendText() {
                     Section {
                         Label("Texting isn't available on this device.", systemImage: "message.badge")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(PlowRColor.inkSecondary)
                     }
                     .listRowBackground(PlowRColor.surface)
                 }
@@ -169,6 +169,7 @@ struct MassMessageView: View {
             .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
         } header: {
             Text("Quick Presets").textCase(nil)
+                .foregroundStyle(PlowRColor.inkSecondary)
         }
         .listRowBackground(PlowRColor.surface)
     }
@@ -179,8 +180,9 @@ struct MassMessageView: View {
                 .lineLimit(3...8)
         } header: {
             Text("Message").textCase(nil)
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
-            Text("\(selectedStops.count) of \(stops.count) clients selected.")
+            SectionNote("\(selectedStops.count) of \(stops.count) clients selected.")
         }
         .listRowBackground(PlowRColor.surface)
     }
@@ -200,13 +202,14 @@ struct MassMessageView: View {
                         if !stop.clientPhone.isEmpty {
                             Text(stop.clientPhone)
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(PlowRColor.inkSecondary)
                         }
                     }
                 }
             }
         } header: {
             Text("Recipients").textCase(nil)
+                .foregroundStyle(PlowRColor.inkSecondary)
         }
         .listRowBackground(PlowRColor.surface)
     }
@@ -260,8 +263,9 @@ struct MassMessageView: View {
                 .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
             } header: {
                 Text("Filter by Tag").textCase(nil)
+                    .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
-                Text("Tap a tag to select or deselect all clients with that tag.")
+                SectionNote("Tap a tag to select or deselect all clients with that tag.")
                     .font(.caption)
             }
             .listRowBackground(PlowRColor.surface)

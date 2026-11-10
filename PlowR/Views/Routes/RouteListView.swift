@@ -157,6 +157,7 @@ struct RouteRowView: View {
     let clients: [Client]
     let lastRun: Date?
     @Environment(ActiveRouteStore.self) private var activeRoute
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     private var run: RouteRunSummary {
         RouteRunSummary(route: route, store: activeRoute)
@@ -186,15 +187,16 @@ struct RouteRowView: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
+        IconRow(spacing: 12) {
             IconBadge(systemImage: run.isRunning ? "map.fill" : "map", status: status)
+        } content: {
             VStack(alignment: .leading, spacing: 2) {
                 Text(route.name)
                     .font(.subheadline.weight(.semibold))
-                    .lineLimit(1)
+                    .lineLimit(typeSize.isAccessibilitySize ? nil : 1)
                 Text(stopsText)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(PlowRColor.inkSecondary)
                 Text(statusText)
                     .font(.caption)
                     .foregroundStyle(run.isRunning ? PlowRColor.brand : PlowRColor.inkSecondary)

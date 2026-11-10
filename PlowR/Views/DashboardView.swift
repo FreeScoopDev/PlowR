@@ -8,6 +8,7 @@ struct DashboardView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AuthManager.self) private var authManager
     @Environment(\.access) private var access
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     @Query private var allProfiles: [BusinessProfile]
     @Query private var allClients: [Client]
@@ -327,8 +328,9 @@ struct DashboardView: View {
     private var iCloudBanner: some View {
         if let banner = iCloud.banner {
             PlowRCard {
-                HStack(alignment: .top, spacing: PlowRLayout.space3) {
+                IconCardRow {
                     IconBadge(systemImage: "icloud.slash", status: .owed, size: 36)
+                } content: {
                     VStack(alignment: .leading, spacing: PlowRLayout.space1) {
                         Text(banner.title)
                             .font(.subheadline.weight(.semibold))
@@ -337,7 +339,7 @@ struct DashboardView: View {
                             .font(.caption)
                             .foregroundStyle(PlowRColor.inkSecondary)
                     }
-                    Spacer(minLength: 0)
+                } trailing: {
                     Button {
                         iCloud.dismissBanner()
                     } label: {
@@ -403,7 +405,7 @@ struct DashboardView: View {
                 if !todayVisits.isEmpty {
                     if leadRoute != nil { Divider().overlay(PlowRColor.line) }
                     ForEach(Array(todayVisits.prefix(5).enumerated()), id: \.element.id) { i, visit in
-                        if i > 0 { Divider().overlay(PlowRColor.line).padding(.leading, Self.rowTextInset) }
+                        if i > 0 { Divider().overlay(PlowRColor.line).padding(.leading, rowTextInset) }
                         visitRow(visit)
                     }
                     if todayVisits.count > 5 {
@@ -430,12 +432,14 @@ struct DashboardView: View {
                                              lastRun: lastRuns[route.id.uuidString], canStart: canStart(route),
                                              now: now)
         return VStack(alignment: .leading, spacing: PlowRLayout.space3) {
-            HStack(alignment: .firstTextBaseline) {
+            // Large text: the route's name takes the full width, its stop
+            // count and time under it (`AdaptiveRow`).
+            AdaptiveRow(alignment: .firstTextBaseline, spacing: nil, spacerMinLength: PlowRLayout.space2) {
                 Text(route.name)
                     .font(PlowRFont.title)
                     .foregroundStyle(PlowRColor.ink)
-                    .lineLimit(2)
-                Spacer(minLength: PlowRLayout.space2)
+                    .lineLimit(typeSize.isAccessibilitySize ? nil : 2)
+            } trailing: {
                 Text(run.total == 0 ? "No stops"
                      : "\(run.total) stop\(run.total == 1 ? "" : "s")" + (minutes > 0 ? " · \(RouteFacts.duration(minutes))" : ""))
                     .font(.subheadline)
@@ -515,24 +519,34 @@ struct DashboardView: View {
 
     /// Where a row's text starts (row padding, icon column, gap), so a
     /// separator lines up with it, as iOS lists do.
-    private static let rowTextInset: CGFloat = PlowRLayout.space4 + 36 + PlowRLayout.space3
+    /// At accessibility sizes the icon is above the text (`IconRow`) and a
+    /// Coming Up row's date is inline, so a separator starts at the row's edge.
+    private var rowTextInset: CGFloat {
+        typeSize.isAccessibilitySize ? PlowRLayout.space4 : PlowRLayout.space4 + 36 + PlowRLayout.space3
+    }
 
     private func visitRowContent(_ visit: ScheduledVisit) -> some View {
-        HStack(spacing: PlowRLayout.space3) {
-            IconBadge(systemImage: PlowRSymbol.schedule.name, status: visit.status.chipStatus, size: 36)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(visit.clientName)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(PlowRColor.ink)
-                    .lineLimit(1)
-                Text(visit.scheduledDate, style: .time)
-                    .font(.caption)
-                    .foregroundStyle(PlowRColor.inkSecondary)
+        // Large text: the time, then the minutes, under the name; the chevron
+        // stays at the trailing edge.
+        let large = typeSize.isAccessibilitySize
+        let minutes = Text("\(visit.estimatedMinutes)m").font(.caption).foregroundStyle(PlowRColor.inkSecondary)
+        return HStack(spacing: PlowRLayout.space3) {
+            IconRow {
+                IconBadge(systemImage: PlowRSymbol.schedule.name, status: visit.status.chipStatus, size: 36)
+            } content: {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(visit.clientName)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(PlowRColor.ink)
+                        .lineLimit(large ? nil : 1)
+                    Text(visit.scheduledDate, style: .time)
+                        .font(.caption)
+                        .foregroundStyle(PlowRColor.inkSecondary)
+                    if large && visit.estimatedMinutes > 0 { minutes }
+                }
             }
             Spacer()
-            if visit.estimatedMinutes > 0 {
-                Text("\(visit.estimatedMinutes)m").font(.caption).foregroundStyle(PlowRColor.inkSecondary)
-            }
+            if !large && visit.estimatedMinutes > 0 { minutes }
             chevron
         }
         .padding(.horizontal, PlowRLayout.space4)
@@ -553,16 +567,19 @@ struct DashboardView: View {
                 let items = waiting.items
                 if items.isEmpty {
                     HStack(spacing: PlowRLayout.space3) {
-                        IconBadge(systemImage: PlowRSymbol.complete.name, status: .done, size: 36)
-                        Text("All caught up")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(PlowRColor.ink)
+                        IconRow {
+                            IconBadge(systemImage: PlowRSymbol.complete.name, status: .done, size: 36)
+                        } content: {
+                            Text("All caught up")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(PlowRColor.ink)
+                        }
                         Spacer()
                     }
                     .padding(PlowRLayout.space4)
                 } else {
                     ForEach(Array(items.enumerated()), id: \.element.id) { i, item in
-                        if i > 0 { Divider().overlay(PlowRColor.line).padding(.leading, Self.rowTextInset) }
+                        if i > 0 { Divider().overlay(PlowRColor.line).padding(.leading, rowTextInset) }
                         attentionRow(item, waiting: waiting)
                     }
                 }
@@ -647,17 +664,20 @@ struct DashboardView: View {
     private func attentionText(_ item: DashboardAttention, symbol: String, status: PlowRColor.Status?,
                                detail: String? = nil) -> some View {
         HStack(spacing: PlowRLayout.space3) {
-            IconBadge(systemImage: symbol, status: status, size: 36)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(item.title)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(PlowRColor.ink)
-                if let detail {
-                    Text(detail).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
-                } else if let amount = item.amount, amount > 0 {
-                    Text(Money.text(amount))
-                        .font(.caption)
-                        .foregroundStyle(status?.text ?? PlowRColor.inkSecondary)
+            IconRow {
+                IconBadge(systemImage: symbol, status: status, size: 36)
+            } content: {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(item.title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(PlowRColor.ink)
+                    if let detail {
+                        Text(detail).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
+                    } else if let amount = item.amount, amount > 0 {
+                        Text(Money.text(amount))
+                            .font(.caption)
+                            .foregroundStyle(status?.text ?? PlowRColor.inkSecondary)
+                    }
                 }
             }
             Spacer(minLength: 0)
@@ -729,7 +749,7 @@ struct DashboardView: View {
             sectionLabel("Coming Up")
             PlowRCard {
                 ForEach(Array(upcomingVisits.enumerated()), id: \.element.id) { i, visit in
-                    if i > 0 { Divider().overlay(PlowRColor.line).padding(.leading, Self.rowTextInset) }
+                    if i > 0 { Divider().overlay(PlowRColor.line).padding(.leading, rowTextInset) }
                     let client = allClients.first { $0.id.uuidString == visit.clientID }
                     let rowContent = upcomingVisitRow(visit)
                     if let client {
@@ -744,22 +764,31 @@ struct DashboardView: View {
     }
 
     private func upcomingVisitRow(_ visit: ScheduledVisit) -> some View {
-        HStack(spacing: PlowRLayout.space3) {
-            VStack(spacing: 0) {
-                Text(visit.scheduledDate, format: .dateTime.weekday(.abbreviated))
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(PlowRColor.inkSecondary)
-                    .textCase(.uppercase)
-                Text(visit.scheduledDate, format: .dateTime.day())
-                    .font(PlowRFont.number)
-                    .foregroundStyle(PlowRColor.ink)
+        // Large text: the date is a line of text ("Mon, Nov 9") under the
+        // name, not a 36 pt column beside it.
+        let large = typeSize.isAccessibilitySize
+        return HStack(spacing: PlowRLayout.space3) {
+            if !large {
+                VStack(spacing: 0) {
+                    Text(visit.scheduledDate, format: .dateTime.weekday(.abbreviated))
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(PlowRColor.inkSecondary)
+                        .textCase(.uppercase)
+                    Text(visit.scheduledDate, format: .dateTime.day())
+                        .font(PlowRFont.number)
+                        .foregroundStyle(PlowRColor.ink)
+                }
+                .frame(width: 36)
             }
-            .frame(width: 36)
             VStack(alignment: .leading, spacing: 2) {
                 Text(visit.clientName)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(PlowRColor.ink)
-                    .lineLimit(1)
+                    .lineLimit(large ? nil : 1)
+                if large {
+                    Text(visit.scheduledDate, format: .dateTime.weekday(.abbreviated).month(.abbreviated).day())
+                        .font(.caption).foregroundStyle(PlowRColor.inkSecondary)
+                }
                 Text(visit.scheduledDate, style: .time)
                     .font(.caption).foregroundStyle(PlowRColor.inkSecondary)
             }
@@ -781,8 +810,10 @@ struct DashboardView: View {
         VStack(alignment: .leading, spacing: PlowRLayout.space2) {
             sectionLabel("Quick Actions")
             // Four actions, a full 2 × 2. Settings is the gear at the top.
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: PlowRLayout.tileSpacing),
-                                GridItem(.flexible(), spacing: PlowRLayout.tileSpacing)],
+            LazyVGrid(columns: typeSize.isAccessibilitySize
+                        ? [GridItem(.flexible())]
+                        : [GridItem(.flexible(), spacing: PlowRLayout.tileSpacing),
+                           GridItem(.flexible(), spacing: PlowRLayout.tileSpacing)],
                       spacing: PlowRLayout.tileSpacing) {
                 Menu {
                     Button { $gate.unless(ProGate.addClient(access)) { showingAddClient = true } } label: {
@@ -811,12 +842,15 @@ struct DashboardView: View {
 
     private func quickActionLabel(_ title: String, icon: String) -> some View {
         HStack(spacing: PlowRLayout.space3) {
-            IconBadge(systemImage: icon, size: 32)
-            Text(title)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(PlowRColor.ink)
-                .lineLimit(1)
-                .minimumScaleFactor(0.85)
+            IconRow {
+                IconBadge(systemImage: icon, size: 32)
+            } content: {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(PlowRColor.ink)
+                    .lineLimit(typeSize.isAccessibilitySize ? 3 : 1)
+                    .minimumScaleFactor(typeSize.isAccessibilitySize ? 1 : 0.85)
+            }
             Spacer(minLength: 0)
         }
         .padding(PlowRLayout.space3)

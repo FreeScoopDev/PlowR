@@ -23,7 +23,7 @@ struct AddClientView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Client Info") {
+                Section(title: "Client Info") {
                     TextField("Full Name", text: $name)
                         .textContentType(.name)
                     TextField("Phone Number", text: $phone)
@@ -36,7 +36,7 @@ struct AddClientView: View {
                 }
                 .listRowBackground(PlowRColor.surface)
 
-                Section("Service Address") {
+                Section(title: "Service Address") {
                     TextField("Street Address", text: $address)
                         .textContentType(.fullStreetAddress)
                         .onChange(of: address) { _, v in
@@ -59,7 +59,7 @@ struct AddClientView: View {
                                     if !completion.subtitle.isEmpty {
                                         Text(completion.subtitle)
                                             .font(.caption)
-                                            .foregroundStyle(.secondary)
+                                            .foregroundStyle(PlowRColor.inkSecondary)
                                     }
                                 }
                             }

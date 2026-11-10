@@ -31,7 +31,7 @@ struct EditRouteView: View {
     @ViewBuilder private var editor: some View {
         NavigationStack {
             Form {
-                Section("Route Name") {
+                Section(title: "Route Name") {
                     TextField("Route name", text: $routeName)
                 }
                 .listRowBackground(PlowRColor.surface)
@@ -46,7 +46,7 @@ struct EditRouteView: View {
                                 if !stop.clientAddress.isEmpty {
                                     Text(stop.clientAddress)
                                         .font(.caption)
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(PlowRColor.inkSecondary)
                                 }
                             }
                         }
@@ -66,8 +66,9 @@ struct EditRouteView: View {
                     }
                 } header: {
                     Text("Stops")
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 } footer: {
-                    if stops.count > 1 { Text("Drag to reorder stops.") }
+                    if stops.count > 1 { SectionNote("Drag to reorder stops.") }
                 }
                 .listRowBackground(PlowRColor.surface)
             }

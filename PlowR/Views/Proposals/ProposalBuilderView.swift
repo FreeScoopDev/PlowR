@@ -16,6 +16,7 @@ struct ProposalBuilderView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.access) private var access
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(AuthManager.self) private var authManager
     @Query private var allServices: [ServiceItem]
     @Query private var allProfiles: [BusinessProfile]
@@ -153,7 +154,7 @@ struct ProposalBuilderView: View {
     // MARK: - Sections
 
     private var clientSection: some View {
-        Section("Client") {
+        Section(title: "Client") {
             LabeledContent("Name", value: client.name)
             LabeledContent("Address", value: client.address)
             if zones.isEmpty {
@@ -162,7 +163,7 @@ struct ProposalBuilderView: View {
                         .foregroundStyle(PlowRColor.Status.owed.text)
                     Text("No measured area: services priced by the square foot need a price entered.")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
             }
             if afterHoursMultiplier > 1.0 {
@@ -170,7 +171,7 @@ struct ProposalBuilderView: View {
                     Image(systemName: "moon.fill").foregroundStyle(PlowRColor.inkSecondary)
                     Text("After hours — \(Money.multiplier(afterHoursMultiplier)) multiplier applied to service prices.")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
             }
         }
@@ -189,23 +190,9 @@ struct ProposalBuilderView: View {
                             let key = selectionKey(service: service, zoneIndex: index)
                             let defaultAmt = draft.defaultAmount(serviceID: service.id.uuidString, zoneIndex: index) ?? 0
                             VStack(alignment: .leading, spacing: 0) {
-                                Toggle(isOn: Binding(
-                                    get: { selections.contains(key) },
-                                    set: {
-                                        if $0 {
-                                            selections.insert(key)
-                                            if amounts[key] == nil {
-                                                amounts[key] = String(format: "%.2f", defaultAmt)
-                                            }
-                                        } else { selections.remove(key) }
-                                    }
-                                )) {
-                                    HStack {
-                                        Text(zone.label)
-                                        Spacer()
-                                        Text(Money.text(defaultAmt))
-                                            .foregroundStyle(.secondary)
-                                    }
+                                selectionToggle(key: key, defaultAmount: defaultAmt, title: zone.label) {
+                                    Text(Money.text(defaultAmt))
+                                        .foregroundStyle(PlowRColor.inkSecondary)
                                 }
                                 if selections.contains(key) {
                                     itemEditFields(key: key, defaultAmount: defaultAmt)
@@ -227,18 +214,8 @@ struct ProposalBuilderView: View {
                     let key = selectionKey(service: service, zoneIndex: -1)
                     let defaultAmt = draft.defaultAmount(serviceID: service.id.uuidString, zoneIndex: -1) ?? 0
                     VStack(alignment: .leading, spacing: 0) {
-                        Toggle(isOn: Binding(
-                            get: { selections.contains(key) },
-                            set: {
-                                if $0 {
-                                    selections.insert(key)
-                                    if amounts[key] == nil {
-                                        amounts[key] = String(format: "%.2f", defaultAmt)
-                                    }
-                                } else { selections.remove(key) }
-                            }
-                        )) {
-                            serviceRowLabel(service)
+                        selectionToggle(key: key, defaultAmount: defaultAmt, title: service.name) {
+                            servicePrice(service)
                         }
                         if selections.contains(key) {
                             itemEditFields(key: key, defaultAmount: defaultAmt)
@@ -257,9 +234,10 @@ struct ProposalBuilderView: View {
             }
         } header: {
             Text("Services")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
             if !selections.isEmpty {
-                Text("Estimated total: \(estimatedTotalString)")
+                SectionNote("Estimated total: \(estimatedTotalString)")
             }
         }
         .listRowBackground(PlowRColor.surface)
@@ -268,7 +246,7 @@ struct ProposalBuilderView: View {
     @ViewBuilder
     private func itemEditFields(key: String, defaultAmount: Double) -> some View {
         HStack(spacing: 6) {
-            Text("$").foregroundStyle(.secondary)
+            Text("$").foregroundStyle(PlowRColor.inkSecondary)
             TextField("Amount", text: Binding(
                 get: { amounts[key] ?? String(format: "%.2f", defaultAmount) },
                 set: { amounts[key] = $0 }
@@ -284,7 +262,7 @@ struct ProposalBuilderView: View {
             set: { lineNotes[key] = $0 }
         ))
         .font(.caption)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(PlowRColor.inkSecondary)
         .padding(.leading, 8)
         .padding(.top, 4)
         .padding(.bottom, 6)
@@ -294,24 +272,32 @@ struct ProposalBuilderView: View {
         Section {
             ForEach($customItems) { $item in
                 VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 8) {
-                        TextField("Description", text: $item.name)
-                        Spacer()
-                        Text("$").foregroundStyle(.secondary)
-                        TextField("0.00", text: $item.amount)
-                            .keyboardType(.decimalPad)
-                            .frame(width: 70)
-                        Button {
-                            customItems.removeAll { $0.id == item.id }
-                        } label: {
-                            Image(systemName: "minus.circle.fill")
-                                .foregroundStyle(.red)
+                    // Large text: the description on its own line, the amount
+                    // and the remove button under it.
+                    let lineLayout = typeSize.isAccessibilitySize
+                        ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+                        : AnyLayout(HStackLayout(spacing: 8))
+                    lineLayout {
+                        GrowingTextField("Description", text: $item.name)
+                        if !typeSize.isAccessibilitySize { Spacer() }
+                        HStack(spacing: 8) {
+                            Text("$").foregroundStyle(PlowRColor.inkSecondary)
+                            TextField("0.00", text: $item.amount)
+                                .keyboardType(.decimalPad)
+                                .frame(width: typeSize.isAccessibilitySize ? nil : 70)
+                            if typeSize.isAccessibilitySize { Spacer() }
+                            Button {
+                                customItems.removeAll { $0.id == item.id }
+                            } label: {
+                                Image(systemName: "minus.circle.fill")
+                                    .foregroundStyle(.red)
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
                     TextField("Note for this line (optional)", text: $item.notes)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
             }
             Button {
@@ -321,13 +307,14 @@ struct ProposalBuilderView: View {
             }
         } header: {
             Text("Custom Line Items")
+                .foregroundStyle(PlowRColor.inkSecondary)
         }
         .listRowBackground(PlowRColor.surface)
     }
 
     private var optionsSection: some View {
         Group {
-            Section("Options") {
+            Section(title: "Options") {
                 Toggle("Group line items by service", isOn: $grouped)
                 if isInvoiceMode {
                     DatePicker("Due Date", selection: $invoiceDueDate, displayedComponents: .date)
@@ -354,19 +341,20 @@ struct ProposalBuilderView: View {
                 }
             } header: {
                 Text("Discount & Tax")
+                    .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
                 if clientDiscountPercent > 0 {
-                    Text("\(Proposal.percentText(clientDiscountPercent))% client discount while the field is empty. Type an amount, or 0, to change it.")
+                    SectionNote("\(Proposal.percentText(clientDiscountPercent))% client discount while the field is empty. Type an amount, or 0, to change it.")
                 }
             }
             .listRowBackground(PlowRColor.surface)
-            Section("Disclaimer") {
+            Section(title: "Disclaimer") {
                 TextEditor(text: $disclaimer)
                     .frame(minHeight: 60)
-                    .foregroundStyle(disclaimer.isEmpty ? .secondary : .primary)
+                    .foregroundStyle(disclaimer.isEmpty ? PlowRColor.inkSecondary : Color.primary)
             }
             .listRowBackground(PlowRColor.surface)
-            Section("Notes") {
+            Section(title: "Notes") {
                 TextEditor(text: $notes)
                     .frame(minHeight: 80)
             }
@@ -376,15 +364,68 @@ struct ProposalBuilderView: View {
 
     // MARK: - Helpers
 
+    @ViewBuilder
     private func serviceRowLabel(_ service: ServiceItem) -> some View {
-        HStack {
-            Text(service.name)
-            Spacer()
-            Text(service.unitType == "flat"
-                 ? Money.text(service.pricePerUnit)
-                 : Money.rate(service.pricePerUnit) + "/sqft")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+        // Large text: the price under the name, not squeezed beside it.
+        if typeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(service.name)
+                servicePrice(service)
+            }
+        } else {
+            HStack {
+                Text(service.name)
+                Spacer()
+                servicePrice(service)
+            }
+        }
+    }
+
+    private func servicePrice(_ service: ServiceItem) -> some View {
+        Text(service.unitType == "flat"
+             ? Money.text(service.pricePerUnit)
+             : Money.rate(service.pricePerUnit) + "/sqft")
+            .font(.caption)
+            .foregroundStyle(PlowRColor.inkSecondary)
+    }
+
+    /// A service (or one of its zones) with its price and the switch that
+    /// picks it. Large text: the name on its own line over the price and
+    /// the switch, so neither squeezes it.
+    @ViewBuilder
+    private func selectionToggle<Price: View>(key: String, defaultAmount: Double, title: String,
+                                              @ViewBuilder price: () -> Price) -> some View {
+        let isOn = Binding(
+            get: { selections.contains(key) },
+            set: {
+                if $0 {
+                    selections.insert(key)
+                    if amounts[key] == nil {
+                        amounts[key] = String(format: "%.2f", defaultAmount)
+                    }
+                } else { selections.remove(key) }
+            }
+        )
+        if typeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: PlowRLayout.space2) {
+                // The switch already carries the name for VoiceOver.
+                Text(title).accessibilityHidden(true)
+                HStack {
+                    price().wholeValue()
+                    Spacer(minLength: PlowRLayout.space3)
+                    Toggle(title, isOn: isOn).labelsHidden()
+                }
+            }
+            // One element, as at default size: the name, the price, the switch.
+            .accessibilityElement(children: .combine)
+        } else {
+            Toggle(isOn: isOn) {
+                HStack {
+                    Text(title)
+                    Spacer()
+                    price()
+                }
+            }
         }
     }
 

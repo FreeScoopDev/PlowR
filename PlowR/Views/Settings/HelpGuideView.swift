@@ -25,10 +25,11 @@ struct HelpGuideView: View {
                     }
                 } header: {
                     Text(section.title)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 } footer: {
                     let footer = [section.intro, section.outro].compactMap { $0 }
                     if !footer.isEmpty {
-                        Text(HelpText.attributed(footer.joined(separator: " ")))
+                        SectionNote(Text(HelpText.attributed(footer.joined(separator: " "))))
                     }
                 }
                 .listRowBackground(PlowRColor.surface)
@@ -40,7 +41,7 @@ struct HelpGuideView: View {
                     Label("Help on the Web", systemImage: "safari")
                 }
             } footer: {
-                Text("The same guide on getplowr.app, with screenshots.")
+                SectionNote("The same guide on getplowr.app, with screenshots.")
             }
             .listRowBackground(PlowRColor.surface)
         }
@@ -91,7 +92,7 @@ struct HelpTopicView: View {
             .listRowBackground(PlowRColor.surface)
 
             if !topic.steps.isEmpty {
-                Section("Steps") {
+                Section(title: "Steps") {
                     ForEach(Array(topic.steps.enumerated()), id: \.offset) { index, step in
                         HStack(alignment: .firstTextBaseline, spacing: PlowRLayout.space3) {
                             Text("\(index + 1)")

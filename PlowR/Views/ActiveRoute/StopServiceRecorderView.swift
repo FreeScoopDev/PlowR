@@ -19,6 +19,7 @@ struct StopServiceRecorderView: View {
     @State private var stopStartedAt: Date
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.modelContext) private var modelContext
     @Query private var allServices: [ServiceItem]
 
@@ -150,7 +151,7 @@ struct StopServiceRecorderView: View {
                             LabeledContent("Contract", value: contract.name)
                             Text(contractNote(contract))
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(PlowRColor.inkSecondary)
                         }
                     }
                     .listRowBackground(PlowRColor.surface)
@@ -185,7 +186,7 @@ struct StopServiceRecorderView: View {
                             : "Invoice \(number) was already made for this visit."
                     })
 
-                Section("Notes") {
+                Section(title: "Notes") {
                     TextField("Optional notes for this stop…", text: $notes, axis: .vertical)
                         .lineLimit(3...)
                 }
@@ -266,7 +267,7 @@ struct StopServiceRecorderView: View {
         let status: PlowRColor.Status = isBefore ? .neutral : .done
         let labelColor = isBefore ? PlowRColor.ink : status.text
 
-        Section(label) {
+        Section(title: label) {
             if !images.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
@@ -296,7 +297,11 @@ struct StopServiceRecorderView: View {
                 .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
             }
 
-            HStack(spacing: 12) {
+            // Large text: Camera over Library, each at the full width.
+            let photoButtons = typeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(spacing: 12))
+                : AnyLayout(HStackLayout(spacing: 12))
+            photoButtons {
                 // No camera (an iPad without one, a Mac): asking for it crashes.
                 if CameraPicker.isAvailable {
                     Button {

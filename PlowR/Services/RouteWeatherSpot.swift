@@ -9,7 +9,7 @@ nonisolated enum RouteWeatherSpot {
     /// with location refused. Not while the user hasn't answered yet, or
     /// while it's allowed: then the first GPS fix brings it.
     static func usesStops(isMac: Bool, status: CLAuthorizationStatus) -> Bool {
-        isMac || status == .denied || status == .restricted
+        isMac || RouteGPS.isOff(status: status, isMac: false)
     }
 
     static func coordinate(stops: [(latitude: Double, longitude: Double)],

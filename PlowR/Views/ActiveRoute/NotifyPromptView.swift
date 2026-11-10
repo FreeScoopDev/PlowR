@@ -149,14 +149,14 @@ struct NotifyPromptView: View {
         VStack(spacing: 6) {
             Text(promptTitle)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(PlowRColor.inkSecondary)
             Text(stop.clientName)
                 .font(.largeTitle)
                 .fontWeight(.bold)
             if !stop.clientAddress.isEmpty {
                 Text(stop.clientAddress)
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(PlowRColor.inkSecondary)
                     .multilineTextAlignment(.center)
             }
         }
@@ -168,7 +168,7 @@ struct NotifyPromptView: View {
             Image(systemName: "clock.fill").foregroundStyle(PlowRColor.brand)
             if estimatedMinutes == nil {
                 ProgressView().scaleEffect(0.8)
-                Text("Calculating ETA…").foregroundStyle(.secondary)
+                Text("Calculating ETA…").foregroundStyle(PlowRColor.inkSecondary)
             } else {
                 Text(etaText + " away").font(.headline)
             }
@@ -183,7 +183,7 @@ struct NotifyPromptView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Quick Add-Ons")
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(PlowRColor.inkSecondary)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(messagePresets) { preset in
@@ -212,7 +212,7 @@ struct NotifyPromptView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Custom Note")
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(PlowRColor.inkSecondary)
             TextField("Add a personal note (optional)…", text: $customNote, axis: .vertical)
                 .font(.subheadline)
                 .lineLimit(1...4)
@@ -238,7 +238,7 @@ struct NotifyPromptView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Message Preview")
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(PlowRColor.inkSecondary)
             Text(previewMessage)
                 .font(.subheadline)
                 .frame(maxWidth: .infinity, alignment: .leading)

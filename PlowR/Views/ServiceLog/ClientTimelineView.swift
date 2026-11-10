@@ -18,7 +18,7 @@ struct ClientTimelineView: View {
                     .listRowBackground(Color.clear)   // the empty state sits on the page
                 } else {
                     ForEach(months(of: events), id: \.month) { group in
-                        Section(group.month.formatted(.dateTime.month(.wide).year())) {
+                        Section(title: group.month.formatted(.dateTime.month(.wide).year())) {
                             ForEach(group.events) { row($0) }
                         }
                         .listRowBackground(PlowRColor.surface)
@@ -52,10 +52,13 @@ struct ClientTimelineView: View {
     @ViewBuilder
     private func row(_ event: ClientTimeline.Event) -> some View {
         let content = HStack(spacing: 12) {
-            IconBadge(systemImage: symbol(event.kind), status: status(event.kind), size: 32)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(event.title).font(.subheadline.weight(.semibold)).lineLimit(2)
-                Text(subtitle(event)).font(.caption).foregroundStyle(.secondary)
+            IconRow(spacing: 12) {
+                IconBadge(systemImage: symbol(event.kind), status: status(event.kind), size: 32)
+            } content: {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(event.title).font(.subheadline.weight(.semibold)).lineLimit(2)
+                    Text(subtitle(event)).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
+                }
             }
             Spacer()
             if let amount = event.amount {

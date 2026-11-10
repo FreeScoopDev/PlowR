@@ -12,13 +12,41 @@ struct ProPaywallView: View {
     static let termsURL = URL(string: "https://getplowr.app/terms-of-service.html")
     static let privacyURL = URL(string: "https://getplowr.app/privacy-policy.html")
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+
     var body: some View {
+        VStack(spacing: 0) {
+            // Large text: the store's own close button floats over its
+            // scrolled text. Hidden, and a close button of ours on a line above.
+            if typeSize.isAccessibilitySize {
+                HStack {
+                    Spacer()
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark")
+                            .font(.body.weight(.semibold))
+                            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)   // the mark stays inside its circle
+                            .foregroundStyle(PlowRColor.ink)
+                            .frame(width: PlowRLayout.minTapTarget, height: PlowRLayout.minTapTarget)
+                            .background(PlowRColor.raised, in: Circle())
+                            .contentShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Close")
+                }
+                .padding(.horizontal, PlowRLayout.space4)
+                .padding(.top, PlowRLayout.space3)
+            }
+            store
+        }
+    }
+
+    private var store: some View {
         SubscriptionStoreView(productIDs: [Subscription.productID]) {
             ProPitch()
         }
         .storeButton(.visible, for: .restorePurchases)
         .storeButton(.visible, for: .policies)
-        .storeButton(.visible, for: .cancellation)
+        .storeButton(typeSize.isAccessibilitySize ? .hidden : .visible, for: .cancellation)
         .modifier(PolicyLinks())
         .onInAppPurchaseCompletion { _, result in
             guard case .success(.success(let verification)) = result else {
@@ -59,6 +87,7 @@ private struct PolicyLinks: ViewModifier {
 struct ProPitch: View {
     /// Wide enough for the widest icon at the user's text size, so the text
     /// lines start at one place without an icon running into them.
+    @Environment(\.dynamicTypeSize) private var typeSize
     @ScaledMetric(relativeTo: .body) private var iconWidth: CGFloat = 40
     static let features: [(icon: String, text: String)] = [
         ("person.3.fill", "Unlimited clients and routes"),
@@ -74,19 +103,42 @@ struct ProPitch: View {
             Text("PlowR Pro")
                 .font(.largeTitle.bold())
             ForEach(Self.features, id: \.text) { feature in
-                Label {
-                    Text(feature.text)
-                } icon: {
-                    Image(systemName: feature.icon)
-                        .foregroundStyle(PlowRColor.accent)
-                        .frame(width: iconWidth)
+                if typeSize.isAccessibilitySize {
+                    // The icon above its text: beside it, the text had a
+                    // sliver of the width.
+                    Label {
+                        Text(feature.text)
+                    } icon: {
+                        Image(systemName: feature.icon)
+                            .foregroundStyle(PlowRColor.accent)
+                    }
+                    .labelStyle(IconAboveTitleLabelStyle())
+                } else {
+                    Label {
+                        Text(feature.text)
+                    } icon: {
+                        Image(systemName: feature.icon)
+                            .foregroundStyle(PlowRColor.accent)
+                            .frame(width: iconWidth)
+                    }
                 }
             }
             Text("Cancel any time. Your records stay, and you can always export them.")
                 .font(.footnote)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(PlowRColor.inkSecondary)
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// A label's icon above its title, for accessibility text sizes (a Label
+/// keeps its accessibility: the icon isn't a stop of its own).
+struct IconAboveTitleLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            configuration.icon
+            configuration.title
+        }
     }
 }

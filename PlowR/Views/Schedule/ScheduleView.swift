@@ -196,7 +196,7 @@ struct ScheduleView: View {
             if visitsForSelectedDate.isEmpty {
                 Label("Nothing scheduled", systemImage: "calendar.badge.minus")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(PlowRColor.inkSecondary)
             } else {
                 ForEach(visitsForSelectedDate) { visit in
                     visitRow(visit)
@@ -239,7 +239,7 @@ struct ScheduleView: View {
                                           : AnyLayout(HStackLayout())) {
                 Label(selectedDate.formatted(.dateTime.weekday(.wide).month(.wide).day()), systemImage: "calendar")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(PlowRColor.ink)
                     .textCase(nil)
                 if !typeSize.isAccessibilitySize { Spacer() }
                 if !scheduledClientVisits.isEmpty {
@@ -273,7 +273,7 @@ struct ScheduleView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(visit.clientName).font(.subheadline.weight(.medium))
                             Text(visit.scheduledDate, style: .date)
-                                .font(.caption).foregroundStyle(.secondary)
+                                .font(.caption).foregroundStyle(PlowRColor.inkSecondary)
                         }
                         Spacer()
                         Button("Complete") { $gate.unless(ProGate.edit(access)) { markComplete(visit) } }
@@ -304,7 +304,7 @@ struct ScheduleView: View {
         } header: {
             Label("Upcoming", systemImage: "calendar.badge.clock")
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.primary)
+                .foregroundStyle(PlowRColor.ink)
                 .textCase(nil)
         }
         .listRowBackground(PlowRColor.surface)
@@ -326,10 +326,10 @@ struct ScheduleView: View {
                     .font(.subheadline.weight(.semibold))
                 HStack(spacing: 6) {
                     Text(visit.scheduledDate, style: .time)
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(.caption).foregroundStyle(PlowRColor.inkSecondary)
                     if visit.estimatedMinutes > 0 {
                         Text("· \(visit.estimatedMinutes) min est.")
-                            .font(.caption).foregroundStyle(.secondary)
+                            .font(.caption).foregroundStyle(PlowRColor.inkSecondary)
                     }
                     if visit.isRecurring {
                         Image(systemName: "arrow.triangle.2.circlepath")
@@ -338,7 +338,7 @@ struct ScheduleView: View {
                 }
                 if !visit.notes.isEmpty {
                     Text(visit.notes)
-                        .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                        .font(.caption).foregroundStyle(PlowRColor.inkSecondary).lineLimit(1)
                 }
             }
 
@@ -368,7 +368,7 @@ struct ScheduleView: View {
                 VStack(spacing: 1) {
                     Text(visit.scheduledDate.formatted(.dateTime.month(.abbreviated)))
                         .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                     Text(visit.scheduledDate.formatted(.dateTime.day()))
                         .font(.title3.weight(.bold))
                         .foregroundStyle(PlowRColor.brand)
@@ -381,10 +381,10 @@ struct ScheduleView: View {
                         .foregroundStyle(.primary)
                     HStack(spacing: 4) {
                         Text(visit.scheduledDate, style: .time)
-                            .font(.caption).foregroundStyle(.secondary)
+                            .font(.caption).foregroundStyle(PlowRColor.inkSecondary)
                         if visit.estimatedMinutes > 0 {
                             Text("· \(visit.estimatedMinutes) min")
-                                .font(.caption).foregroundStyle(.secondary)
+                                .font(.caption).foregroundStyle(PlowRColor.inkSecondary)
                         }
                         if visit.isRecurring {
                             Image(systemName: "arrow.triangle.2.circlepath")
@@ -580,7 +580,7 @@ private struct WeatherBannerRow: View {
                     ProgressView().controlSize(.small)
                     Text("Checking weather…")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 } else if let w = fetcher.condition {
                     Image(systemName: w.symbolName)
                         .font(.title2)
@@ -595,12 +595,12 @@ private struct WeatherBannerRow: View {
                                 .foregroundStyle(.tertiary)
                             Text(w.description)
                                 .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(PlowRColor.inkSecondary)
                         }
                         if w.windSpeedMph >= 1 {
                             Text("\(Int(w.windSpeedMph)) mph \(w.windDirectionLabel)")
                                 .font(.caption)
-                                .foregroundStyle(.tertiary)
+                                .foregroundStyle(PlowRColor.inkSecondary)
                         }
                     }
 
@@ -609,7 +609,7 @@ private struct WeatherBannerRow: View {
                     Button { fetcher.refresh() } label: {
                         Image(systemName: "arrow.clockwise")
                             .font(.caption)
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(PlowRColor.inkSecondary)
                     }
                     .buttonStyle(.plain)
                 }
@@ -636,7 +636,7 @@ private struct WeatherBannerRow: View {
         VStack(spacing: 3) {
             Text(day.date, format: .dateTime.weekday(.abbreviated))
                 .font(.caption2.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(PlowRColor.inkSecondary)
             Image(systemName: day.symbolName)
                 .font(.subheadline)
                 .foregroundStyle(WeatherKind(day.description).iconColor)
@@ -652,7 +652,7 @@ private struct WeatherBannerRow: View {
                 .font(.caption.weight(.semibold))
             Text("\(Int(day.minTempF))°")
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(PlowRColor.inkSecondary)
         }
         .frame(minWidth: 42)
         .padding(.vertical, 4)

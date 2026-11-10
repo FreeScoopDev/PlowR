@@ -37,8 +37,9 @@ struct ServiceCatalogView: View {
                 }
             } header: {
                 Text("Add Standard Services")
+                    .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
-                Text("Common services with typical prices, to edit or delete as you like.")
+                SectionNote("Common services with typical prices, to edit or delete as you like.")
             }
             .listRowBackground(PlowRColor.surface)
         }
@@ -50,7 +51,7 @@ struct ServiceCatalogView: View {
     @ViewBuilder private var editor: some View {
         List {
             ForEach(grouped, id: \.category) { group in
-                Section(group.label) {
+                Section(title: group.label) {
                     ForEach(group.items) { item in
                         ServiceRowView(item: item) {
                             serviceToEdit = item
@@ -104,7 +105,7 @@ struct ServiceRowView: View {
                     .font(.headline)
                 Text(priceLabel)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(PlowRColor.inkSecondary)
             }
             Spacer()
             Toggle("", isOn: Binding(
@@ -163,11 +164,11 @@ struct ServiceItemEditView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Service Name") {
+                Section(title: "Service Name") {
                     TextField("e.g. Patio Clearing", text: $name)
                 }
                 .listRowBackground(PlowRColor.surface)
-                Section("Pricing") {
+                Section(title: "Pricing") {
                     Picker("Unit Type", selection: $unitType) {
                         Text("Flat Rate").tag("flat")
                         Text("Per Sq Ft").tag("perSqFt")
@@ -181,7 +182,7 @@ struct ServiceItemEditView: View {
                         TextField(pricePlaceholder, text: $price)
                             .keyboardType(.decimalPad)
                         if !priceSuffix.isEmpty {
-                            Text(priceSuffix).foregroundStyle(.secondary)
+                            Text(priceSuffix).foregroundStyle(PlowRColor.inkSecondary)
                         }
                     }
                     if !price.isEmpty, ServiceCatalog.price(typed: price) == nil {

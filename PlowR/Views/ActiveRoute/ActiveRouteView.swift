@@ -19,6 +19,7 @@ struct ActiveRouteView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.requestReview) private var requestReview
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     @Query private var allClients: [Client]
     @Query private var allServices: [ServiceItem]
@@ -66,6 +67,9 @@ struct ActiveRouteView: View {
     @State private var routeChangedAfterSheet = false
 
     @AppStorage("completedRoutesCount") private var completedRoutesCount = 0
+    /// The completion the Undo bar offers, while its window is open
+    /// (ActiveRouteStore.undoOffer); cleared when the window ends.
+    @State private var shownUndo: ActiveRouteStore.UndoOffer?
 
     // Map camera state
     @State private var mapCameraPosition: MapCameraPosition = .automatic
@@ -172,15 +176,18 @@ struct ActiveRouteView: View {
         } message: {
             Text("This route was changed on another device, so that stop wasn't marked complete. Check the current stop and try again.")
         }
-        .alert("Location Access Required", isPresented: $showingLocationDeniedAlert) {
+        // Location off used to offer only Open Settings or End Route, which
+        // threw away the run. The route works without it, by hand, so
+        // carrying on is the default; the note on the screen says what's missing.
+        .alert("Location Is Off", isPresented: $showingLocationDeniedAlert) {
             Button("Open Settings") {
                 if let url = URL(string: UIApplication.openSettingsURLString) {
                     UIApplication.shared.open(url)
                 }
             }
-            Button("End Route", role: .cancel) { store.end() }
+            Button("Continue Without Location", role: .cancel) {}
         } message: {
-            Text("PlowR needs location access to track your route. Enable it in Settings > Privacy > Location Services.")
+            Text("Without location, PlowR can't show ETAs or record when you arrive at and leave each stop. You can still complete stops by hand. To turn it on: Settings > Privacy & Security > Location Services > PlowR.")
         }
         .confirmationDialog("Open in Maps", isPresented: $showingNavPicker, titleVisibility: .visible) {
             if let stop = navStop {
@@ -209,11 +216,17 @@ struct ActiveRouteView: View {
                      settingsLabel: "Open Settings to turn on Precise Location")
     }
 
+    /// Location off (RouteGPS.isOff): the route carries on, by hand.
+    private var locationOffNote: some View {
+        locationNote("Location is off: no ETAs, arrival or departure times. Complete each stop by hand.",
+                     settingsLabel: "Open Settings to turn on Location")
+    }
+
     private func locationNote(_ text: String, settingsLabel: String) -> some View {
         HStack(alignment: .top, spacing: 8) {
             Label(text, systemImage: "location.circle")
                 .font(.footnote)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(PlowRColor.inkSecondary)
             Spacer(minLength: 0)
             Button {
                 if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
@@ -234,41 +247,70 @@ struct ActiveRouteView: View {
     /// chain of all the screen's modifiers grew too long to type-check.
     private var screenWithSheets: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 0) {
-                    progressHeader
-                    if OnMac.isMac {
-                        // No GPS route-following or texting on a Mac (OnMac).
-                        Label("On a Mac, GPS arrival times and texting aren't available. Run routes on your iPhone.",
-                              systemImage: "laptopcomputer")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal)
-                            .padding(.vertical, 8)
-                    }
-                    if RouteGPS.needsPrecise(status: locationManager.authorizationStatus,
-                                             accuracy: locationManager.accuracyAuthorization,
-                                             areasLimited: SiteMonitor.shared.accuracyLimited, isMac: OnMac.isMac) {
-                        preciseLocationNote
-                    } else if RouteGPS.needsAlways(status: locationManager.authorizationStatus, isMac: OnMac.isMac) {
-                        alwaysLocationNote
-                    }
-                    VStack(spacing: PlowRLayout.space3) {
-                        routeMap
-                        weatherStrip
-                        if let stop = currentStop {
-                            currentStopCard(stop)
-                        } else {
-                            routeCompleteCard
+            // The Undo bar under the scrolling content, not over it: nothing on
+            // the screen is hidden or hard to reach while it shows.
+            VStack(spacing: 0) {
+                ScrollView {
+                    VStack(spacing: 0) {
+                        progressHeader
+                        if OnMac.isMac {
+                            // No GPS route-following or texting on a Mac (OnMac).
+                            Label("On a Mac, GPS arrival times and texting aren't available. Run routes on your iPhone.",
+                                  systemImage: "laptopcomputer")
+                                .font(.caption)
+                                .foregroundStyle(PlowRColor.inkSecondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal)
+                                .padding(.vertical, 8)
                         }
-                        if !upcomingStops.isEmpty {
-                            upcomingStopsSection
+                        if RouteGPS.isOff(status: locationManager.authorizationStatus, isMac: OnMac.isMac) {
+                            locationOffNote
+                        } else if RouteGPS.needsPrecise(status: locationManager.authorizationStatus,
+                                                 accuracy: locationManager.accuracyAuthorization,
+                                                 areasLimited: SiteMonitor.shared.accuracyLimited, isMac: OnMac.isMac) {
+                            preciseLocationNote
+                        } else if RouteGPS.needsAlways(status: locationManager.authorizationStatus, isMac: OnMac.isMac) {
+                            alwaysLocationNote
                         }
+                        VStack(spacing: PlowRLayout.space3) {
+                            routeMap
+                            weatherStrip
+                            if let stop = currentStop {
+                                currentStopCard(stop)
+                            } else {
+                                routeCompleteCard
+                            }
+                            if !upcomingStops.isEmpty {
+                                upcomingStopsSection
+                            }
+                        }
+                        .padding(.horizontal, PlowRLayout.space4)
+                        .padding(.bottom, PlowRLayout.space6)
                     }
-                    .padding(.horizontal, PlowRLayout.space4)
-                    .padding(.bottom, PlowRLayout.space6)
                 }
+                if let offer = shownUndo { undoBar(offer) }
+            }
+            .animation(.easeInOut(duration: 0.2), value: shownUndo)
+            // Shown for as long as the store allows an undo (its window, the
+            // same with VoiceOver), from this screen's Complete, the notify
+            // sheet, Siri or Control Center. The task ends with the offer or
+            // the screen: no timer is left.
+            .task(id: store.undoOffer) {
+                guard let offer = store.undoOffer else {
+                    shownUndo = nil
+                    return
+                }
+                let wait = offer.expiresAt.timeIntervalSinceNow
+                guard wait > 0 else {
+                    shownUndo = nil
+                    return
+                }
+                if shownUndo != offer {
+                    AccessibilityNotification.Announcement("Completed \(offer.clientName). Undo available.").post()
+                }
+                shownUndo = offer
+                do { try await Task.sleep(for: .seconds(wait)) } catch { return }
+                if shownUndo == offer { shownUndo = nil }
             }
             // On this screen's content only: a tint here reached the sheets
             // it opens, which aren't in the new design yet.
@@ -286,6 +328,10 @@ struct ActiveRouteView: View {
             }
         }
         .onAppear {
+            // The screen stays on while a route is up: a crew glancing at the
+            // next stop shouldn't have to unlock the phone in gloves. iOS
+            // ignores this while the app isn't in front; Lock still locks.
+            UIApplication.shared.isIdleTimerDisabled = true
             beginTracking()
             // Built with the app in the background (a location relaunch), it
             // hasn't been seen: that waits for the app to come to the front.
@@ -293,6 +339,7 @@ struct ActiveRouteView: View {
             openRequestedText()
         }
         .onDisappear {
+            UIApplication.shared.isIdleTimerDisabled = false
             // Stops GPS for this screen only. The route itself carries on: only
             // End Route (store.end()) finishes it.
             locationManager.stopTracking()
@@ -405,11 +452,15 @@ struct ActiveRouteView: View {
     /// or a bar on a long route, where segments would be slivers.
     private var progressHeader: some View {
         VStack(alignment: .leading, spacing: PlowRLayout.space2) {
-            HStack(alignment: .firstTextBaseline) {
+            // Large text: "N done" goes under "Stop N of M", not beside it.
+            let headerLayout = typeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2))
+                : AnyLayout(HStackLayout(alignment: .firstTextBaseline))
+            headerLayout {
                 Text("Stop \(min(currentStopIndex + 1, sortedStops.count)) of \(sortedStops.count)")
                     .font(PlowRFont.number)
                     .monospacedDigit()
-                Spacer()
+                if !typeSize.isAccessibilitySize { Spacer() }
                 Text("\(min(currentStopIndex, sortedStops.count)) done")
                     .font(.subheadline)
                     .monospacedDigit()
@@ -466,7 +517,7 @@ struct ActiveRouteView: View {
                 }
             }
             .mapStyle(.standard(pointsOfInterest: .excludingAll))
-            .frame(height: 240)
+            .frame(height: typeSize.isAccessibilitySize ? 150 : 240)   // large text: the stop card starts higher
             .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
             // Frame the driver and the stop from the start: MapKit's
             // automatic framing put the stop's pin on the top edge.
@@ -502,9 +553,9 @@ struct ActiveRouteView: View {
         }
     }
 
-    // The driver: forest green, the brand. The pins use the same colors as
+    // The driver: the brand. The pins use the same colors as
     // the rest of the route: copper for where you're going now, outlined
-    // green for what's ahead (RouteDetailView's pins follow in its own PR).
+    // brand for what's ahead (RouteDetailView's pins follow in its own PR).
     private var driverAnnotationView: some View {
         ZStack {
             Circle()
@@ -628,7 +679,11 @@ struct ActiveRouteView: View {
     private func currentStopCard(_ stop: RouteStop) -> some View {
         VStack(alignment: .leading, spacing: PlowRLayout.space4) {
             // Who and where, with the time to get there as big as the name.
-            HStack(alignment: .top, spacing: PlowRLayout.space3) {
+            // Large text: the minutes away go under the name, not beside it.
+            let whoLayout = typeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: PlowRLayout.space3))
+                : AnyLayout(HStackLayout(alignment: .top, spacing: PlowRLayout.space3))
+            whoLayout {
                 VStack(alignment: .leading, spacing: PlowRLayout.space1) {
                     Text("NOW · STOP \(currentStopIndex + 1)")
                         .font(PlowRFont.label)
@@ -641,6 +696,13 @@ struct ActiveRouteView: View {
                         .font(PlowRFont.stopName)
                         .foregroundStyle(PlowRColor.ink)
                         .fixedSize(horizontal: false, vertical: true)
+                        // While the Undo bar shows, VoiceOver can undo from
+                        // the stop's name too, without finding the bar.
+                        .accessibilityActions {
+                            if let offer = shownUndo {
+                                Button("Undo completing \(offer.clientName)") { undo(offer) }
+                            }
+                        }
                     if !stop.clientAddress.isEmpty {
                         Text(stop.clientAddress)
                             .font(.body)
@@ -650,11 +712,12 @@ struct ActiveRouteView: View {
                         Text(stop.clientPhone)
                             .font(.subheadline)
                             .foregroundStyle(PlowRColor.inkSecondary)
+                            .wholeValue()
                     }
                 }
-                Spacer(minLength: 0)
+                if !typeSize.isAccessibilitySize { Spacer(minLength: 0) }
                 if let eta = etaMinutes {
-                    VStack(alignment: .trailing, spacing: 0) {
+                    VStack(alignment: typeSize.trailingColumnAlignment, spacing: 0) {
                         Text("\(eta)")
                             .font(PlowRFont.bigNumber)
                             .monospacedDigit()
@@ -705,59 +768,8 @@ struct ActiveRouteView: View {
                 .background(PlowRColor.raised, in: RoundedRectangle(cornerRadius: PlowRLayout.cornerMedium, style: .continuous))
             }
 
-            // Getting there, and the record of the work: the quieter choices.
-            HStack(spacing: PlowRLayout.space2) {
-                Button { openNavigation(for: stop) } label: {
-                    Label("Navigate", systemImage: PlowRSymbol.navigate.name)
-                }
-                .buttonStyle(.plowRSecondary)
-                .disabled(stop.latitude == 0 && stop.clientAddress.isEmpty)
-                if !stop.isCustomStop {
-                    // Keeps its name once work is recorded: it's still the
-                    // way back in to add a service or a photo.
-                    let recorded = stop.completedServiceIDs.count
-                    // The count sits in the icon's place, so the title
-                    // doesn't wrap at half the card's width.
-                    Button { recorderStop = stop } label: {
-                        Label {
-                            Text("Record Services")
-                        } icon: {
-                            if recorded == 0 {
-                                Image(systemName: "doc.badge.plus")
-                            } else {
-                                Text("\(recorded)")
-                                    .font(PlowRFont.label)
-                                    .monospacedDigit()
-                                    .foregroundStyle(PlowRColor.onBrand)
-                                    .frame(minWidth: 20, minHeight: 20)
-                                    .background(PlowRColor.brand, in: Circle())
-                            }
-                        }
-                    }
-                    .buttonStyle(.plowRSecondary)
-                    .accessibilityLabel("Record Services")
-                    .accessibilityValue(recorded == 0 ? "" : "\(recorded) recorded")
-                }
-            }
-
-            // The first route only, inline under the button it's about:
-            // never over Complete Stop (RouteTips).
-            if !stop.isCustomStop {
-                TipView(recordServicesTip)
-            }
-
-            // A contract with a snow trigger in force today: less may have
-            // fallen here than the forecast said.
-            if belowTrigger(for: stop) != nil {
-                Button {
-                    $gate.unless(ProGate.proFeature("Marking below trigger", access)) { belowTriggerStop = stop }
-                } label: {
-                    Label("Below Trigger", systemImage: "arrow.down.circle")
-                }
-                .buttonStyle(.plowRSecondary)
-            }
-
-            // The one main action, in copper, glove-sized.
+            // The one main action, in copper, glove-sized, first: it stays near the
+            // top when the buttons below stack or a location note shows (Joe, 2026-11-07).
             if isLastStop {
                 Button {
                     switch store.completeCurrentStop(expecting: stop.id) {
@@ -784,11 +796,130 @@ struct ActiveRouteView: View {
                 }
                 .buttonStyle(.plowRAction)
             }
+
+            // Instead of completing it: a contract with a snow trigger in force today, where less may have
+            // fallen here than the forecast said.
+            if belowTrigger(for: stop) != nil {
+                Button {
+                    $gate.unless(ProGate.proFeature("Marking below trigger", access)) { belowTriggerStop = stop }
+                } label: {
+                    Label("Below Trigger", systemImage: "arrow.down.circle")
+                }
+                .buttonStyle(.plowRSecondary)
+            }
+
+            // Getting there, and the record of the work: the quieter choices.
+            // Side by side, in equal halves, while the wider label fits on one
+            // line in half the row; stacked, full width, when it doesn't (a
+            // narrow phone, large text), so a label never wraps inside its button.
+            ViewThatFits(in: .horizontal) {
+                EqualWidthRow(spacing: PlowRLayout.space2) { stopActionButtons(stop) }
+                VStack(spacing: PlowRLayout.space2) { stopActionButtons(stop) }
+            }
+
+            // The first route only, inline under the button it's about:
+            // never over Complete Stop (RouteTips).
+            if !stop.isCustomStop {
+                TipView(recordServicesTip)
+            }
         }
         .padding(PlowRLayout.space4)
         .background(PlowRColor.surface, in: RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous)
             .stroke(PlowRColor.line, lineWidth: 1))
+    }
+
+    /// "Completed <client> · Undo", for `ActiveRouteStore.undoWindow` after a
+    /// stop is completed. Undo takes back that stop only; a text already
+    /// sent to the next client stays sent, so the bar says nothing about it.
+    @ViewBuilder
+    private func undoBar(_ offer: ActiveRouteStore.UndoOffer) -> some View {
+        // Large text: the words above the button, so the name has the full width.
+        let barLayout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 0))
+            : AnyLayout(HStackLayout(spacing: PlowRLayout.space3))
+        barLayout {
+            Label("Completed \(offer.clientName)", systemImage: PlowRSymbol.complete.name)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(PlowRColor.onBrand)
+                .lineLimit(typeSize.isAccessibilitySize ? 3 : 2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, typeSize.isAccessibilitySize ? PlowRLayout.space3 : 0)
+            Button {
+                undo(offer)
+            } label: {
+                Text("Undo")
+                    .font(PlowRFont.button)
+                    .foregroundStyle(PlowRColor.onBrand)
+                    .padding(.horizontal, PlowRLayout.space4)
+                    .frame(minWidth: PlowRLayout.gloveTapTarget, minHeight: PlowRLayout.gloveTapTarget)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Undo completing \(offer.clientName)")
+            .frame(maxWidth: typeSize.isAccessibilitySize ? .infinity : nil, alignment: .trailing)
+        }
+        .padding(.leading, PlowRLayout.space4)
+        .padding(.trailing, PlowRLayout.space1)
+        .background(PlowRColor.brand, in: RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
+        .padding(.horizontal, PlowRLayout.space4)
+        .padding(.top, PlowRLayout.space2)
+        .padding(.bottom, PlowRLayout.space2)
+        .transition(.move(edge: .bottom).combined(with: .opacity))
+    }
+
+    /// The Undo bar's button (or the stop card's VoiceOver action): the stop
+    /// it named goes back to being current. Refused, the bar just closes,
+    /// with a word for VoiceOver.
+    private func undo(_ offer: ActiveRouteStore.UndoOffer) {
+        shownUndo = nil
+        let refusal: String
+        switch store.undoLastCompletion(expecting: offer.stopID) {
+        case .undone:
+            haptic()
+            return
+        case .expired: refusal = "Too late to undo."
+        case .recordChanged: refusal = "Can't undo: work was saved on that stop since."
+        case .stopChanged, .nothingToUndo: refusal = "Can't undo: the route has moved on."
+        }
+        UINotificationFeedbackGenerator().notificationOccurred(.warning)
+        AccessibilityNotification.Announcement(refusal).post()
+    }
+
+    /// Navigate and Record Services, for the current stop card's row.
+    @ViewBuilder
+    private func stopActionButtons(_ stop: RouteStop) -> some View {
+        Button { openNavigation(for: stop) } label: {
+            Label("Navigate", systemImage: PlowRSymbol.navigate.name)
+        }
+        .buttonStyle(.plowRSecondary)
+        .disabled(stop.latitude == 0 && stop.clientAddress.isEmpty)
+        if !stop.isCustomStop {
+            // Keeps its name once work is recorded: it's still the
+            // way back in to add a service or a photo.
+            let recorded = stop.completedServiceIDs.count
+            // The count sits in the icon's place, so the label stays
+            // as short as it can.
+            Button { recorderStop = stop } label: {
+                Label {
+                    Text("Record Services")
+                } icon: {
+                    if recorded == 0 {
+                        Image(systemName: "doc.badge.plus")
+                    } else {
+                        Text("\(recorded)")
+                            .font(PlowRFont.label)
+                            .monospacedDigit()
+                            .foregroundStyle(PlowRColor.onBrand)
+                            .frame(minWidth: 20, minHeight: 20)
+                            .background(PlowRColor.brand, in: Circle())
+                    }
+                }
+            }
+            .buttonStyle(.plowRSecondary)
+            .accessibilityLabel("Record Services")
+            .accessibilityValue(recorded == 0 ? "" : "\(recorded) recorded")
+        }
     }
 
     private var routeCompleteCard: some View {
@@ -814,13 +945,17 @@ struct ActiveRouteView: View {
 
     private var upcomingStopsSection: some View {
         VStack(alignment: .leading, spacing: PlowRLayout.space2) {
-            HStack {
+            // Large text: the Message All pill goes under the label.
+            let headerLayout = typeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: PlowRLayout.space2))
+                : AnyLayout(HStackLayout())
+            headerLayout {
                 Text("NEXT UP")
                     .font(PlowRFont.label)
                     .tracking(0.8)
                     .foregroundStyle(PlowRColor.inkSecondary)
                     .accessibilityAddTraits(.isHeader)
-                Spacer()
+                if !typeSize.isAccessibilitySize { Spacer() }
                 Button {
                     showingMassMessage = true
                 } label: {
@@ -830,33 +965,54 @@ struct ActiveRouteView: View {
                         .padding(.horizontal, PlowRLayout.space3)
                         .frame(minHeight: PlowRLayout.minTapTarget)
                         .background(PlowRColor.raised, in: Capsule())
+                        // Wraps at the space, never inside "Message".
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .buttonStyle(.plain)
             }
             ForEach(Array(upcomingStops.enumerated()), id: \.element.id) { index, stop in
-                HStack(spacing: PlowRLayout.space3) {
-                    StopNumberBadge(number: currentStopIndex + 2 + index)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(stop.clientName)
-                            .font(.body.weight(.semibold))
-                            .foregroundStyle(PlowRColor.ink)
-                        if !stop.clientAddress.isEmpty {
-                            Text(stop.clientAddress)
-                                .font(.subheadline)
-                                .foregroundStyle(PlowRColor.inkSecondary)
+                // Large text: the number and the navigate button on one line,
+                // the name and address under them at the full width.
+                let badge = StopNumberBadge(number: currentStopIndex + 2 + index)
+                let details = VStack(alignment: .leading, spacing: 2) {
+                    Text(stop.clientName)
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(PlowRColor.ink)
+                    if !stop.clientAddress.isEmpty {
+                        Text(stop.clientAddress)
+                            .font(.subheadline)
+                            .foregroundStyle(PlowRColor.inkSecondary)
+                    }
+                }
+                let navigate = Button { openNavigation(for: stop) } label: {
+                    Image(systemName: PlowRSymbol.navigate.name)
+                        .font(.title2)
+                        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)   // the glyph stays inside its tap target
+                        .foregroundStyle(PlowRColor.brand)
+                        .frame(width: PlowRLayout.minTapTarget, height: PlowRLayout.minTapTarget)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(stop.latitude == 0 && stop.clientAddress.isEmpty)
+                .accessibilityLabel("Directions to \(stop.clientName)")
+                Group {
+                    if typeSize.isAccessibilitySize {
+                        VStack(alignment: .leading, spacing: PlowRLayout.space1) {
+                            HStack {
+                                badge
+                                Spacer(minLength: 0)
+                                navigate
+                            }
+                            details
+                        }
+                    } else {
+                        HStack(spacing: PlowRLayout.space3) {
+                            badge
+                            details
+                            Spacer()
+                            navigate
                         }
                     }
-                    Spacer()
-                    Button { openNavigation(for: stop) } label: {
-                        Image(systemName: PlowRSymbol.navigate.name)
-                            .font(.title2)
-                            .foregroundStyle(PlowRColor.brand)
-                            .frame(width: PlowRLayout.minTapTarget, height: PlowRLayout.minTapTarget)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(stop.latitude == 0 && stop.clientAddress.isEmpty)
-                    .accessibilityLabel("Directions to \(stop.clientName)")
                 }
                 .padding(.vertical, PlowRLayout.space1)
                 .padding(.leading, PlowRLayout.space3)
@@ -1103,5 +1259,35 @@ struct ActiveRouteView: View {
     /// also moves when Siri or Control Center completes a stop.
     private func didAdvance() {
         haptic()
+    }
+}
+
+/// Children side by side in equal widths. Its ideal width is the widest
+/// child's ideal width times the count (plus spacing), not the sum, so
+/// `ViewThatFits` takes it only when every child fits its share on one line.
+private struct EqualWidthRow: Layout {
+    var spacing: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard !subviews.isEmpty else { return .zero }
+        let gaps = spacing * CGFloat(subviews.count - 1)
+        let ideal = subviews.map { $0.sizeThatFits(.unspecified) }
+        let widest = ideal.map(\.width).max() ?? 0
+        let width = proposal.width ?? widest * CGFloat(subviews.count) + gaps
+        let share = (width - gaps) / CGFloat(subviews.count)
+        let height = subviews.map { $0.sizeThatFits(ProposedViewSize(width: share, height: nil)).height }.max() ?? 0
+        return CGSize(width: width, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard !subviews.isEmpty else { return }
+        let gaps = spacing * CGFloat(subviews.count - 1)
+        let share = (bounds.width - gaps) / CGFloat(subviews.count)
+        var x = bounds.minX
+        for subview in subviews {
+            subview.place(at: CGPoint(x: x, y: bounds.minY), anchor: .topLeading,
+                          proposal: ProposedViewSize(width: share, height: bounds.height))
+            x += share + spacing
+        }
     }
 }

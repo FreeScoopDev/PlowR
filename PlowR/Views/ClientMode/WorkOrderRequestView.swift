@@ -18,7 +18,7 @@ struct WorkOrderRequestView: View {
 
     var body: some View {
         Form {
-            Section("Your Contact Info") {
+            Section(title: "Your Contact Info") {
                 TextField("Full Name", text: $clientName)
                     .textContentType(.name)
                 TextField("Phone Number", text: $clientPhone)
@@ -31,25 +31,25 @@ struct WorkOrderRequestView: View {
             }
             .listRowBackground(PlowRColor.surface)
 
-            Section("Property & Service") {
+            Section(title: "Property & Service") {
                 LabeledContent("Address", value: propertyAddress)
                 LabeledContent("Service", value: category)
                 ForEach(zones) { zone in
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(zone.label).font(.subheadline)
-                            Text(zoneDetail(zone)).font(.caption).foregroundStyle(.secondary)
+                            Text(zoneDetail(zone)).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
                         }
                         Spacer()
                         Text(zone.rateType == "flat" ? "Flat rate" : "Per sq ft")
-                            .font(.caption).foregroundStyle(.secondary)
+                            .font(.caption).foregroundStyle(PlowRColor.inkSecondary)
                     }
                 }
                 LabeledContent("Total Area", value: "\(Int(totalArea)) sq ft")
             }
             .listRowBackground(PlowRColor.surface)
 
-            Section("Notes") {
+            Section(title: "Notes") {
                 TextField("Special instructions, access codes, obstacles...", text: $notes, axis: .vertical)
                     .lineLimit(4...)
             }
@@ -78,7 +78,7 @@ struct WorkOrderRequestView: View {
                 .disabled(clientName.isEmpty || clientPhone.isEmpty)
             } footer: {
                 if clientName.isEmpty || clientPhone.isEmpty {
-                    Text("Add your name and phone number to send.")
+                    SectionNote("Add your name and phone number to send.")
                 }
             }
             .listRowBackground(PlowRColor.surface)

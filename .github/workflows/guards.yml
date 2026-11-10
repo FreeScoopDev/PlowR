@@ -1,6 +1,6 @@
 # Cheap, fast repo guards that need no Apple toolchain. They run on
-# ubuntu-latest (1x billing). Building and testing the app is Xcode Cloud's job
-# (docs/ci.md).
+# ubuntu-latest (1x billing). Building and testing the app is the `Tests`
+# workflow's job (tests.yml, docs/ci.md); Xcode Cloud keeps only Release Flow.
 
 name: Guards
 

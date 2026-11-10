@@ -22,7 +22,7 @@ struct ClientHomeView: View {
                             .font(.title.bold())
                         Text("Find nearby operators for snow removal, lawn care, landscaping, and more. Send a property-specific request in minutes.")
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(PlowRColor.inkSecondary)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal)
                     }
@@ -148,12 +148,12 @@ struct ClientHomeView: View {
                     StatusChip(order.category, status: .scheduled)
                     Text(order.submittedAt.formatted(date: .abbreviated, time: .omitted))
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
                 if !order.propertyAddress.isEmpty {
                     Text(order.propertyAddress)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                         .lineLimit(1)
                 }
             }

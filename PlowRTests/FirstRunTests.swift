@@ -29,6 +29,16 @@ struct FirstRunTests {
         #expect(!FirstRun.needsSetup(hasProfile: false, clientCount: 0, completed: true))
     }
 
+    /// The alerts step's Continue makes every system request still undecided,
+    /// alerts first, and none already answered.
+    @Test func alertsContinueAsksWhatIsStillUndecided() {
+        typealias P = SetupPermissions
+        #expect(P.requests(notifications: .undecided, location: .undecided) == [.notifications, .location])
+        #expect(P.requests(notifications: .allowed, location: .undecided) == [.location])
+        #expect(P.requests(notifications: .undecided, location: .declined) == [.notifications])
+        #expect(P.requests(notifications: .declined, location: .allowed).isEmpty)
+    }
+
     @Test func setupSavesTheBusinessServicesAndTax() throws {
         let (container, context) = try store()
         defer { _ = container }
