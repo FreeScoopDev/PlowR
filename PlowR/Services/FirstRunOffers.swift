@@ -37,7 +37,25 @@ enum FirstRunOffers {
     static func clientListState(clientCount: Int, shownCount: Int, search: String) -> ClientListState {
         if clientCount == 0 { return .noClients }
         if shownCount > 0 { return .showing }
-        let searched = search.trimmingCharacters(in: .whitespacesAndNewlines)
+        let searched = searchQuery(search)
         return searched.isEmpty ? .noMatchesForFilter : .noMatchesForSearch(searched)
+    }
+
+    /// What a typed search looks for: the text without the spaces around it.
+    /// The keyboard adds a space after a word it suggests, and "Smith " used
+    /// to match nobody. Only spaces is no search. The list and its
+    /// no-matches message both use this, so they can't disagree.
+    static func searchQuery(_ typed: String) -> String {
+        typed.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Whether a client with these details is found by `typed`: in their
+    /// name, address, phone or a tag, whatever the capitals. No search finds
+    /// everyone.
+    static func search(_ typed: String, finds name: String, address: String, phone: String, tags: [String]) -> Bool {
+        let query = searchQuery(typed).lowercased()
+        if query.isEmpty { return true }
+        return name.lowercased().contains(query) || address.lowercased().contains(query)
+            || phone.lowercased().contains(query) || tags.contains { $0.lowercased().contains(query) }
     }
 }

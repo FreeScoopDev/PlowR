@@ -44,4 +44,24 @@ struct FirstRunOffersTests {
     @Test func clientsShownIsNotAnEmptyState() {
         #expect(FirstRunOffers.clientListState(clientCount: 5, shownCount: 2, search: "sm") == .showing)
     }
+
+    // MARK: Searching clients
+
+    /// The keyboard leaves a space after a suggested word.
+    @Test func aSpaceAfterTheWordStillFindsTheClient() {
+        #expect(FirstRunOffers.search("Smith ", finds: "John Smith", address: "", phone: "", tags: []))
+        #expect(FirstRunOffers.search("  smith", finds: "John Smith", address: "", phone: "", tags: []))
+    }
+
+    @Test func aSearchLooksInNameAddressPhoneAndTags() {
+        #expect(FirstRunOffers.search("alder", finds: "Ellen Park", address: "7 Alder Ct", phone: "", tags: []))
+        #expect(FirstRunOffers.search("0142", finds: "Ellen Park", address: "", phone: "555-0142", tags: []))
+        #expect(FirstRunOffers.search("WEEKLY", finds: "Ellen Park", address: "", phone: "", tags: ["Weekly"]))
+        #expect(!FirstRunOffers.search("jones", finds: "Ellen Park", address: "7 Alder Ct", phone: "555-0142", tags: ["Weekly"]))
+    }
+
+    @Test func onlySpacesIsNoSearch() {
+        #expect(FirstRunOffers.searchQuery("   ").isEmpty)
+        #expect(FirstRunOffers.search("   ", finds: "Ellen Park", address: "", phone: "", tags: []))
+    }
 }

@@ -38,9 +38,14 @@ struct GetStartedCard: View {
                 .buttonStyle(.plain)
                 divider
                 Button(action: addClient) {
-                    row("Add your first client", detail: "Or import them from a spreadsheet, in Clients.",
-                        symbol: PlowRSymbol.addClient.name, done: checklist.clientAdded,
-                        proMark: FirstRunOffers.showsProMark(access))
+                    // Adding a client is free; importing is a Pro tool, so the
+                    // hint says so in words. A Pro chip here read as if the
+                    // whole step needed Pro.
+                    row("Add your first client",
+                        detail: FirstRunOffers.showsProMark(access)
+                            ? "Or, with PlowR Pro, import them from a spreadsheet in Clients."
+                            : "Or import them from a spreadsheet, in Clients.",
+                        symbol: PlowRSymbol.addClient.name, done: checklist.clientAdded)
                 }
                 .buttonStyle(.plain)
                 divider
@@ -76,7 +81,7 @@ struct GetStartedCard: View {
         Divider().overlay(PlowRColor.line).padding(.leading, PlowRLayout.space4 + 36 + PlowRLayout.space3)
     }
 
-    private func row(_ title: String, detail: String, symbol: String, done: Bool, proMark: Bool = false) -> some View {
+    private func row(_ title: String, detail: String, symbol: String, done: Bool) -> some View {
         HStack(spacing: PlowRLayout.space3) {
             IconRow {
                 IconBadge(systemImage: done ? PlowRSymbol.complete.name : symbol, status: done ? .done : nil, size: 36)
@@ -87,11 +92,7 @@ struct GetStartedCard: View {
                         .foregroundStyle(done ? PlowRColor.inkSecondary : PlowRColor.ink)
                         .strikethrough(done)
                     if !done {
-                        // The import offer in the detail goes through the Pro gate.
-                        HStack(alignment: .firstTextBaseline, spacing: PlowRLayout.space2) {
-                            Text(detail).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
-                            if proMark { StatusChip("Pro", status: .neutral) }
-                        }
+                        Text(detail).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
                     }
                 }
             }

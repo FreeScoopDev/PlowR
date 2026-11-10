@@ -87,13 +87,8 @@ struct ClientListView: View {
 
         let tagFiltered = activeTagFilter.map { tag in filtered.filter { $0.tags.contains(tag) } } ?? filtered
 
-        if searchText.isEmpty { return tagFiltered }
-        let q = searchText.lowercased()
         return tagFiltered.filter {
-            $0.name.lowercased().contains(q) ||
-            $0.address.lowercased().contains(q) ||
-            $0.phone.lowercased().contains(q) ||
-            $0.tags.contains { $0.lowercased().contains(q) }
+            FirstRunOffers.search(searchText, finds: $0.name, address: $0.address, phone: $0.phone, tags: $0.tags)
         }
     }
 
@@ -149,9 +144,15 @@ struct ClientListView: View {
         }
     }
 
+    /// Nothing to list, and why: the one decision behind the empty screen and
+    /// the no-matches row.
+    private var listState: FirstRunOffers.ClientListState {
+        FirstRunOffers.clientListState(clientCount: myClients.count, shownCount: clients.count, search: searchText)
+    }
+
     /// What to say when clients exist but the search or filter shows none.
     private var noMatchesMessage: Text? {
-        switch FirstRunOffers.clientListState(clientCount: myClients.count, shownCount: clients.count, search: searchText) {
+        switch listState {
         case let .noMatchesForSearch(searched): Text("No clients match \u{201C}\(searched)\u{201D}.")
         case .noMatchesForFilter: Text("No clients match this filter.")
         case .noClients, .showing: nil
@@ -161,7 +162,7 @@ struct ClientListView: View {
     var body: some View {
         let entries = pipelineEntries
         Group {
-            if clients.isEmpty && myClients.isEmpty {
+            if listState == .noClients {
                 ContentUnavailableView {
                     Label(isFiltered ? "No Clients Match" : "No Clients Yet",
                           systemImage: isFiltered ? "line.3.horizontal.decrease.circle" : "person.badge.plus")
@@ -176,7 +177,7 @@ struct ClientListView: View {
                         Button { importClients() } label: {
                             HStack(spacing: PlowRLayout.space2) {
                                 Text("Import from a Spreadsheet")
-                                if FirstRunOffers.showsProMark(access) { StatusChip("Pro", status: .neutral) }
+                                if FirstRunOffers.showsProMark(access) { ProMark() }
                             }
                         }
                     }
