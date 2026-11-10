@@ -59,17 +59,14 @@ enum StopServices {
 }
 
 extension RouteStop {
+    /// Where the stop is, for the map links (`MapLinks`).
+    var mapDestination: MapLinks.Destination {
+        MapLinks.Destination(latitude: latitude, longitude: longitude, address: clientAddress)
+    }
+
     /// Driving directions to the stop in Apple Maps: to its pin, or its
     /// address if it has none. The route screen and a stop's page both use it.
     var appleMapsDirectionsURL: URL? {
-        if latitude != 0 {
-            return URL(string: "maps://?daddr=\(latitude),\(longitude)&dirflg=d")
-        }
-        let address = clientAddress.addingPercentEncoding(withAllowedCharacters: Self.queryValueAllowed) ?? ""
-        return address.isEmpty ? nil : URL(string: "maps://?daddr=\(address)")
+        MapLinks.url(for: .appleMaps, to: mapDestination)
     }
-
-    /// What a query value may leave unencoded: `.urlQueryAllowed` keeps `&`,
-    /// `=` and `+`, so "Smith & Sons, 5 Elm St" ended the address at "Smith ".
-    private static let queryValueAllowed = CharacterSet.urlQueryAllowed.subtracting(CharacterSet(charactersIn: "&=+"))
 }

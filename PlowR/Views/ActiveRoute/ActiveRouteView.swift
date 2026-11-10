@@ -20,6 +20,7 @@ struct ActiveRouteView: View {
     @Environment(\.requestReview) private var requestReview
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.openURL) private var openURL
 
     @Query private var allClients: [Client]
     @Query private var allServices: [ServiceItem]
@@ -191,12 +192,8 @@ struct ActiveRouteView: View {
         }
         .confirmationDialog("Open in Maps", isPresented: $showingNavPicker, titleVisibility: .visible) {
             if let stop = navStop {
-                Button("Apple Maps") { openInAppleMaps(stop) }
-                if canOpen("comgooglemaps://") {
-                    Button("Google Maps") { openInGoogleMaps(stop) }
-                }
-                if canOpen("waze://") {
-                    Button("Waze") { openInWaze(stop) }
+                ForEach(MapLinks.installedApps(for: stop.mapDestination), id: \.self) { app in
+                    Button(app.title) { MapLinks.open(app, to: stop.mapDestination) }
                 }
                 Button("Cancel", role: .cancel) {}
             }
@@ -808,6 +805,17 @@ struct ActiveRouteView: View {
                 .buttonStyle(.plowRSecondary)
             }
 
+            // Calling the client (about a locked gate, say): only with a number
+            // and a device that can place a call. Read only: it changes nothing
+            // on the route and records nothing.
+            if let callURL = MapLinks.callLink(stop.clientPhone), MapLinks.canCall(phone: stop.clientPhone) {
+                Button { openURL(callURL) } label: {
+                    Label("Call", systemImage: PlowRSymbol.call.name)
+                }
+                .buttonStyle(.plowRSecondary)
+                .accessibilityLabel("Call \(stop.clientName)")
+            }
+
             // Getting there, and the record of the work: the quieter choices.
             // Side by side, in equal halves, while the wider label fits on one
             // line in half the row; stacked, full width, when it doesn't (a
@@ -1050,39 +1058,14 @@ struct ActiveRouteView: View {
         }
     }
 
-    /// Whether an app for this URL scheme is installed. The scheme must be in
-    /// `LSApplicationQueriesSchemes` (Info.plist), or iOS always answers no.
-    private func canOpen(_ scheme: String) -> Bool {
-        guard let url = URL(string: scheme) else { return false }
-        return UIApplication.shared.canOpenURL(url)
-    }
-
     private func openNavigation(for stop: RouteStop) {
-        let hasGoogle = canOpen("comgooglemaps://")
-        let hasWaze   = canOpen("waze://")
-        if !hasGoogle && !hasWaze {
-            openInAppleMaps(stop)
+        let apps = MapLinks.installedApps(for: stop.mapDestination)
+        if apps.count <= 1 {
+            MapLinks.open(.appleMaps, to: stop.mapDestination)
         } else {
             navStop = stop
             showingNavPicker = true
         }
-    }
-
-    private func openInAppleMaps(_ stop: RouteStop) {
-        if let url = stop.appleMapsDirectionsURL { UIApplication.shared.open(url) }
-    }
-
-    private func openInGoogleMaps(_ stop: RouteStop) {
-        let urlStr = stop.latitude != 0
-            ? "comgooglemaps://?daddr=\(stop.latitude),\(stop.longitude)&directionsmode=driving"
-            : "comgooglemaps://?daddr=\(stop.clientAddress.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"
-        if let url = URL(string: urlStr) { UIApplication.shared.open(url) }
-    }
-
-    private func openInWaze(_ stop: RouteStop) {
-        guard stop.latitude != 0,
-              let url = URL(string: "waze://?ll=\(stop.latitude),\(stop.longitude)&navigate=yes") else { return }
-        UIApplication.shared.open(url)
     }
 
     // MARK: - Haptics

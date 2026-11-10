@@ -301,7 +301,7 @@ struct EditClientView: View {
                     Menu {
                         if !draft.phone.isEmpty {
                             Button {
-                                if let url = URL(string: "tel:\(draft.phone.filter { $0.isNumber })") { openURL(url) }
+                                if let url = MapLinks.callLink(draft.phone) { openURL(url) }
                             } label: { Label("Call", systemImage: "phone.fill") }
                             // Presenting the composer where texting isn't set up
                             // (an iPad without Messages) fails; every other
@@ -316,6 +316,24 @@ struct EditClientView: View {
                             Button {
                                 if let url = RequestLink.mailLink(draft.email) { openURL(url) }
                             } label: { Label("Email", systemImage: "envelope.fill") }
+                        }
+                        // Getting there: read only, like Call, for any plan. The
+                        // place as saved (the pin and address this screen opened
+                        // with), not an address being typed that has no pin yet.
+                        let place = MapLinks.Destination(latitude: originalPin.latitude,
+                                                         longitude: originalPin.longitude,
+                                                         address: originalAddress)
+                        let driveApps = MapLinks.installedApps(for: place)
+                        if driveApps.count == 1, let app = driveApps.first {
+                            Button { MapLinks.open(app, to: place) } label: {
+                                Label("Directions", systemImage: PlowRSymbol.navigate.name)
+                            }
+                        } else if driveApps.count > 1 {
+                            Menu {
+                                ForEach(driveApps, id: \.self) { app in
+                                    Button(app.title) { MapLinks.open(app, to: place) }
+                                }
+                            } label: { Label("Directions", systemImage: PlowRSymbol.navigate.name) }
                         }
                     } label: {
                         ClientActionTile(title: "Contact", icon: "phone.badge.waveform.fill", color: PlowRColor.brand)
