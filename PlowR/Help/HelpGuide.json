@@ -413,15 +413,18 @@
       "style": "release",
       "topics": [
         {
-          "id": "release-1-7",
-          "title": "PlowR 1.7: first release",
-          "summary": "A one-minute setup, a Get Started checklist, a new Home and route screen, and a fresh look.",
+          "id": "release-1-8",
+          "title": "PlowR 1.8: first App Store release",
+          "summary": "A one-minute setup, a new Home and route screen, time on site from GPS, help and tips in the app, and a fresh look.",
           "screens": [],
           "bullets": [
             "A one-minute setup: name, logo, services and prices, tax rate and alerts. Every step can be skipped.",
             "A Get Started checklist on Home walks you to your first client, route and invoice.",
             "A new Home that puts today first: today's route, what needs you, money owed and money in.",
             "A route screen built for gloves and a glance, with a big Complete Stop button.",
+            "Time on site from GPS: when you arrived at and left each job site, on the job's page, the client's **Service History** and the **Route Recap**.",
+            "The **Service Report** is a row on the client's page, under **Service History**. [PRO]",
+            "Help in the app: **Settings** → **Help**, a **Help** item on each tab, and tips that show once, when they're useful.",
             "A fresh look, with a matching widget and Live Activity."
           ]
         }
