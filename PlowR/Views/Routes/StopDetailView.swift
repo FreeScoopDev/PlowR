@@ -178,12 +178,9 @@ struct StopDetailView: View {
 
     @ViewBuilder
     private var contactRow: some View {
-        let digits = stop.clientPhone.filter(\.isNumber)
         HStack(spacing: 8) {
-            if !digits.isEmpty {
-                contactButton("Call", systemImage: "phone.fill") {
-                    if let url = URL(string: "tel:\(digits)") { openURL(url) }
-                }
+            if let callURL = MapLinks.callLink(stop.clientPhone) {
+                contactButton("Call", systemImage: "phone.fill") { openURL(callURL) }
                 if MFMessageComposeViewController.canSendText() {
                     contactButton("Text", systemImage: "message.fill") { showingMessage = true }
                 }

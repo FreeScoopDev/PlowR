@@ -318,11 +318,12 @@ struct EditClientView: View {
                             } label: { Label("Email", systemImage: "envelope.fill") }
                         }
                         // Getting there: read only, like Call, for any plan. The
-                        // place as saved (the pin and address this screen opened
-                        // with), not an address being typed that has no pin yet.
-                        let place = MapLinks.Destination(latitude: originalPin.latitude,
-                                                         longitude: originalPin.longitude,
-                                                         address: originalAddress)
+                        // place as saved, read from the client: not an address
+                        // being typed that has no pin yet, and not the pin this
+                        // screen opened with, which another device may have moved.
+                        let place = MapLinks.Destination(latitude: client.latitude,
+                                                         longitude: client.longitude,
+                                                         address: client.address)
                         let driveApps = MapLinks.installedApps(for: place)
                         if driveApps.count == 1, let app = driveApps.first {
                             Button { MapLinks.open(app, to: place) } label: {
@@ -390,8 +391,7 @@ struct EditClientView: View {
                 GrowingTextField("Phone Number", text: $draft.phone)
                     .textContentType(.telephoneNumber)
                     .keyboardType(.phonePad)
-                if !draft.phone.isEmpty,
-                   let url = URL(string: "tel:\(draft.phone.filter { $0.isNumber })") {
+                if let url = MapLinks.callLink(draft.phone) {
                     Button {
                         openURL(url)
                     } label: {

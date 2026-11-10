@@ -901,7 +901,7 @@ struct ActiveRouteView: View {
             Label("Navigate", systemImage: PlowRSymbol.navigate.name)
         }
         .buttonStyle(.plowRSecondary)
-        .disabled(stop.latitude == 0 && stop.clientAddress.isEmpty)
+        .disabled(!stop.mapDestination.isReachable)
         if !stop.isCustomStop {
             // Keeps its name once work is recorded: it's still the
             // way back in to add a service or a photo.
@@ -1001,7 +1001,7 @@ struct ActiveRouteView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .disabled(stop.latitude == 0 && stop.clientAddress.isEmpty)
+                .disabled(!stop.mapDestination.isReachable)
                 .accessibilityLabel("Directions to \(stop.clientName)")
                 Group {
                     if typeSize.isAccessibilitySize {

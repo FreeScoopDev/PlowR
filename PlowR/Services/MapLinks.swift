@@ -14,8 +14,10 @@ nonisolated enum MapLinks {
 
         /// Same rule the route screen always used: a latitude of 0 is no pin.
         var hasPin: Bool { latitude != 0 }
+        /// The address without the spaces around it; only spaces is no address.
+        var typedAddress: String { address.trimmingCharacters(in: .whitespacesAndNewlines) }
         /// Something to drive to: a pin, or an address with text in it.
-        var isReachable: Bool { hasPin || !address.isEmpty }
+        var isReachable: Bool { hasPin || !typedAddress.isEmpty }
     }
 
     enum App: CaseIterable {
@@ -53,14 +55,16 @@ nonisolated enum MapLinks {
             if place.hasPin {
                 return URL(string: "maps://?daddr=\(place.latitude),\(place.longitude)&dirflg=d")
             }
-            let address = place.address.addingPercentEncoding(withAllowedCharacters: queryValueAllowed) ?? ""
+            let address = place.typedAddress.addingPercentEncoding(withAllowedCharacters: queryValueAllowed) ?? ""
             return URL(string: "maps://?daddr=\(address)")
         case .googleMaps:
             if place.hasPin {
                 return URL(string: "comgooglemaps://?daddr=\(place.latitude),\(place.longitude)&directionsmode=driving")
             }
-            // As the route screen has always encoded it for Google Maps.
-            let address = place.address.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+            // Encoded as for Apple Maps. The route screen used to leave "&"
+            // and "#" as they were here, so "Smith & Sons, 5 Elm St" reached
+            // Google Maps as "Smith " and "Unit #4" lost everything after it.
+            let address = place.typedAddress.addingPercentEncoding(withAllowedCharacters: queryValueAllowed) ?? ""
             return URL(string: "comgooglemaps://?daddr=\(address)")
         case .waze:
             guard place.hasPin else { return nil }
@@ -95,11 +99,27 @@ nonisolated enum MapLinks {
 
     // MARK: - Calls
 
-    /// The link that places a call to `phone`: its digits only, so "(555)
-    /// 010-0123" dials. Nil when there are no digits.
+    /// The link that places a call to `phone`, nil when it holds no number.
+    /// The one place a number is turned into a call, for every Call button.
     static func callLink(_ phone: String) -> URL? {
-        let digits = phone.filter { $0.isNumber }
-        return digits.isEmpty ? nil : URL(string: "tel:\(digits)")
+        let number = dialable(phone)
+        return number.isEmpty ? nil : URL(string: "tel:\(number)")
+    }
+
+    /// What to dial for a number as someone typed it: its digits (0 to 9
+    /// only), with a leading "+" kept so a number from abroad still reaches
+    /// its country. It starts at the first digit or "+", so "Cell: 555-0100"
+    /// dials, and stops at the first letter, ";", "," or "#" after that: an
+    /// extension ("555-010-0123 ext. 45") used to be dialed as part of the
+    /// number, which rang nobody.
+    static func dialable(_ phone: String) -> String {
+        let isDigit: (Character) -> Bool = { $0.isASCII && $0.isNumber }
+        let stops: Set<Character> = [";", ",", "#"]
+        let start = phone.drop { !(isDigit($0) || $0 == "+") }
+        let main = start.prefix { !($0.isLetter || stops.contains($0)) }
+        let digits = main.filter(isDigit)
+        if digits.isEmpty { return "" }
+        return (start.hasPrefix("+") ? "+" : "") + digits
     }
 
     /// Whether to show Call: a number to dial, and a device that can place a

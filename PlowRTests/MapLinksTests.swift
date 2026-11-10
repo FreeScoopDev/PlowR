@@ -25,9 +25,23 @@ struct MapLinksTests {
         // "&" must be encoded for Apple Maps or the address ends at "Smith ".
         #expect(MapLinks.url(for: .appleMaps, to: addressOnly)?.absoluteString
                 == "maps://?daddr=Smith%20%26%20Sons,%205%20Elm%20St")
-        let google = MapLinks.url(for: .googleMaps, to: addressOnly)?.absoluteString
-        #expect(google?.hasPrefix("comgooglemaps://?daddr=Smith%20") == true)
-        #expect(google?.contains(" ") == false)
+        #expect(MapLinks.url(for: .googleMaps, to: addressOnly)?.absoluteString
+                == "comgooglemaps://?daddr=Smith%20%26%20Sons,%205%20Elm%20St")
+        // "#" would start a fragment and drop the rest of the address.
+        let unit = MapLinks.Destination(latitude: 0, longitude: 0, address: "Unit #4, 5 Elm St")
+        #expect(MapLinks.url(for: .googleMaps, to: unit)?.absoluteString
+                == "comgooglemaps://?daddr=Unit%20%234,%205%20Elm%20St")
+        #expect(MapLinks.url(for: .appleMaps, to: unit)?.absoluteString
+                == "maps://?daddr=Unit%20%234,%205%20Elm%20St")
+    }
+
+    @Test func onlySpacesIsNoAddress() {
+        let spaces = MapLinks.Destination(latitude: 0, longitude: 0, address: "   ")
+        #expect(!spaces.isReachable)
+        #expect(MapLinks.url(for: .appleMaps, to: spaces) == nil)
+        #expect(MapLinks.apps(for: spaces, isInstalled: { _ in true }).isEmpty)
+        let padded = MapLinks.Destination(latitude: 0, longitude: 0, address: " 5 Elm St ")
+        #expect(MapLinks.url(for: .appleMaps, to: padded)?.absoluteString == "maps://?daddr=5%20Elm%20St")
     }
 
     @Test func wazeNeedsAPin() {
@@ -56,6 +70,24 @@ struct MapLinksTests {
         #expect(MapLinks.callLink("(555) 010-0123")?.absoluteString == "tel:5550100123")
         #expect(MapLinks.callLink("") == nil)
         #expect(MapLinks.callLink("n/a") == nil)
+    }
+
+    @Test func anExtensionIsNotDialedAsPartOfTheNumber() {
+        #expect(MapLinks.callLink("555-010-0123 ext. 45")?.absoluteString == "tel:5550100123")
+        #expect(MapLinks.callLink("555-010-0123 x45")?.absoluteString == "tel:5550100123")
+        #expect(MapLinks.callLink("555-010-0123;45")?.absoluteString == "tel:5550100123")
+    }
+
+    @Test func aNumberFromAbroadKeepsItsPlus() {
+        #expect(MapLinks.callLink("+44 20 7946 0958")?.absoluteString == "tel:+442079460958")
+        #expect(MapLinks.callLink(" +1 (555) 010-0123")?.absoluteString == "tel:+15550100123")
+        #expect(MapLinks.callLink("555+0123")?.absoluteString == "tel:5550123")
+        #expect(MapLinks.callLink("+") == nil)
+    }
+
+    @Test func aLabelBeforeTheNumberStillDials() {
+        #expect(MapLinks.callLink("Cell: 555-0100")?.absoluteString == "tel:5550100")
+        #expect(MapLinks.callLink("office +1 555 010 0123")?.absoluteString == "tel:+15550100123")
     }
 
     @Test func callIsShownOnlyWithANumberOnADeviceThatCanCall() {
