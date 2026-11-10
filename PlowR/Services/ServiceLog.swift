@@ -625,9 +625,15 @@ enum ServiceLog {
         typed == asLoaded ? recorded : readMinutes(typed, locale: locale)
     }
 
-    /// What Minutes on Site holds for a route stop: from when it became the
-    /// current stop to when it was done, as the Service Report says.
-    static let routeMinutesNote = "For a route stop, from when it became the current stop to when it was done, so it includes travel."
+    /// Which basis a record's minutes have (StopMinutes.basis); nil when it
+    /// isn't a route stop's.
+    static func minutesBasis(of record: ServiceRecord) -> StopMinutes.Basis? {
+        StopMinutes.basis(source: record.source, arrivedAt: record.arrivedAt, performedAt: record.performedAt,
+                          minutes: record.minutes)
+    }
+
+    /// What Minutes on Site holds for a route stop, in plain words.
+    static let routeMinutesNote = "For a route stop, counted from the GPS arrival when PlowR caught it; otherwise from when the stop became the current stop, which includes the drive there, up to when it was done."
 
     /// What leaving a job's page says when it can't be saved: the prices
     /// that can't be read, then the minutes; empty when it can be.
