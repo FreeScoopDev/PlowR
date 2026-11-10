@@ -789,7 +789,7 @@ struct ActiveRouteView: View {
             if !expected.isEmpty || target > 0 {
                 VStack(alignment: .leading, spacing: PlowRLayout.space2) {
                     if !expected.isEmpty {
-                        Label(expected.formatted(.list(type: .and)), systemImage: "checklist")
+                        Label(OneTapServices.englishList(expected), systemImage: "checklist")
                             .font(.subheadline.weight(.medium))
                             .foregroundStyle(PlowRColor.ink)
                     }

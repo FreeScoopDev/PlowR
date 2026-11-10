@@ -170,7 +170,7 @@ struct StopServiceRecorderView: View {
                             UIImpactFeedbackGenerator(style: .light).impactOccurred()
                             expectedToAdd.forEach { selectedServiceIDs.insert($0.id) }
                         } label: {
-                            Label("Add Expected: \(expectedToAdd.map(\.name).formatted(.list(type: .and)))",
+                            Label("Add Expected: \(OneTapServices.englishList(expectedToAdd.map(\.name)))",
                                   systemImage: "checklist")
                         }
                     }
