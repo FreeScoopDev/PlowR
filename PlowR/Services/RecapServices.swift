@@ -151,6 +151,7 @@ enum RecapServiceRecorder {
                        operatorID: String, run: UUID?, in context: ModelContext,
                        save: (ModelContext) throws -> Void = { try $0.save() }) -> Outcome {
         var outcome = Outcome()
+        var written: [(stop: RouteStop, record: ServiceRecord)] = []
         let active = ServiceLog.activeServices(catalog, operatorID: operatorID)
         let clients = clientsByID(in: context)
         for planned in confirmed {
@@ -165,6 +166,7 @@ enum RecapServiceRecorder {
                 continue
             }
             stop.completedServiceIDs = planned.serviceIDs
+            written.append((stop, record))
             ServiceLog.fillLines(of: record, from: stop, client: client, in: context)
             // Only what made it onto the record counts as recorded on the stop.
             let added = record.lines.map(\.serviceID).filter { planned.serviceIDs.contains($0) }
@@ -178,8 +180,14 @@ enum RecapServiceRecorder {
         do {
             try save(context)
         } catch {
-            // As Bill Unbilled Work: nothing half-saved left for autosave.
-            context.rollback()
+            // Only this action's own writes are taken back (both were empty:
+            // the plan asked). Not `rollback()`, which would also drop
+            // whatever else is waiting to be saved, such as a GPS departure
+            // whose save failed and that no second exit will bring back.
+            for (stop, record) in written {
+                stop.completedServiceIDs = []
+                record.lines = []
+            }
             outcome.notRecorded += outcome.recorded.map(\.clientName)
             outcome.recorded = []
             outcome.saveFailed = true

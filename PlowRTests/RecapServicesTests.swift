@@ -359,6 +359,8 @@ struct RecapServicesTests {
         let h = try Harness(stopCount: 1)
         try catalog(h)
         let store = try run(h, completing: 1)
+        // Something else waiting to be saved, unrelated to the recap.
+        h.clients[0].notes = "Waiting to be saved"
         struct Failed: Error {}
         var saves = 0
         let outcome = try record(h, store, try plan(h, store), save: { _ in saves += 1; throw Failed() })
@@ -367,5 +369,7 @@ struct RecapServicesTests {
         #expect(outcome.recorded.isEmpty)
         #expect(store.sortedStops[0].completedServiceIDs.isEmpty)
         #expect(try runRecord(h, store, store.sortedStops[0])?.lines.isEmpty == true)
+        // Only the recap's own writes were taken back.
+        #expect(h.clients[0].notes == "Waiting to be saved")
     }
 }
