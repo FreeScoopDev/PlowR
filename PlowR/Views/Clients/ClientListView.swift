@@ -10,7 +10,7 @@ private enum ClientSortOption: String, CaseIterable {
 
 private enum ClientFilterOption: String, CaseIterable {
     case all       = "All"
-    case active    = "Active"
+    case hasVisits = "Has Visits"
     case noHistory = "No History"
 }
 
@@ -81,19 +81,14 @@ struct ClientListView: View {
         let filtered: [Client]
         switch filterOption {
         case .all:       filtered = base
-        case .active:    filtered = base.filter { $0.totalVisits > 0 }
+        case .hasVisits: filtered = base.filter { $0.totalVisits > 0 }
         case .noHistory: filtered = base.filter { $0.totalVisits == 0 }
         }
 
         let tagFiltered = activeTagFilter.map { tag in filtered.filter { $0.tags.contains(tag) } } ?? filtered
 
-        if searchText.isEmpty { return tagFiltered }
-        let q = searchText.lowercased()
         return tagFiltered.filter {
-            $0.name.lowercased().contains(q) ||
-            $0.address.lowercased().contains(q) ||
-            $0.phone.lowercased().contains(q) ||
-            $0.tags.contains { $0.lowercased().contains(q) }
+            FirstRunOffers.search(searchText, finds: $0.name, address: $0.address, phone: $0.phone, tags: $0.tags)
         }
     }
 
@@ -149,10 +144,25 @@ struct ClientListView: View {
         }
     }
 
+    /// Nothing to list, and why: the one decision behind the empty screen and
+    /// the no-matches row.
+    private var listState: FirstRunOffers.ClientListState {
+        FirstRunOffers.clientListState(clientCount: myClients.count, shownCount: clients.count, search: searchText)
+    }
+
+    /// What to say when clients exist but the search or filter shows none.
+    private var noMatchesMessage: Text? {
+        switch listState {
+        case let .noMatchesForSearch(searched): Text("No clients match \u{201C}\(searched)\u{201D}.")
+        case .noMatchesForFilter: Text("No clients match this filter.")
+        case .noClients, .showing: nil
+        }
+    }
+
     var body: some View {
         let entries = pipelineEntries
         Group {
-            if clients.isEmpty && myClients.isEmpty {
+            if listState == .noClients {
                 ContentUnavailableView {
                     Label(isFiltered ? "No Clients Match" : "No Clients Yet",
                           systemImage: isFiltered ? "line.3.horizontal.decrease.circle" : "person.badge.plus")
@@ -164,7 +174,12 @@ struct ClientListView: View {
                     if !isFiltered {
                         Button("Add a Client") { addClient() }
                             .plowRProminent()
-                        Button("Import from a Spreadsheet") { importClients() }
+                        Button { importClients() } label: {
+                            HStack(spacing: PlowRLayout.space2) {
+                                Text("Import from a Spreadsheet")
+                                if FirstRunOffers.showsProMark(access) { ProMark() }
+                            }
+                        }
                     }
                 }
             } else {
@@ -178,6 +193,10 @@ struct ClientListView: View {
                     if !myClients.isEmpty {
                         clientSummarySection
                         pipelineLink(entries)
+                    }
+                    if let message = noMatchesMessage {
+                        Section { message }
+                            .listRowBackground(PlowRColor.surface)
                     }
                     ForEach(activeClients) { client in
                         clientRow(client)

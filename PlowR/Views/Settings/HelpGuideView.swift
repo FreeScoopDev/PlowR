@@ -61,7 +61,7 @@ struct HelpTopicRow: View {
                 Text(topic.title)
                     .font(.body.weight(.semibold))
                 if topic.pro {
-                    StatusChip("Pro", status: .neutral)
+                    ProMark()
                 }
             }
             Text(HelpText.attributed(topic.summary))
@@ -83,7 +83,7 @@ struct HelpTopicView: View {
             Section {
                 VStack(alignment: .leading, spacing: PlowRLayout.space2) {
                     if topic.pro {
-                        StatusChip("Pro", status: .neutral)
+                        ProMark()
                     }
                     Text(HelpText.attributed(topic.lead ?? topic.summary))
                 }

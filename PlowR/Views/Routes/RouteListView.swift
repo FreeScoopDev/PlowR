@@ -47,7 +47,7 @@ struct RouteListView: View {
                                     if Access.freeRoute(in: allRoutes, operatorID: authManager.userID)?.id == route.id {
                                         StatusChip("Free", status: .done)
                                     } else {
-                                        StatusChip("Pro", status: .neutral)
+                                        ProMark()
                                     }
                                 }
                             }
