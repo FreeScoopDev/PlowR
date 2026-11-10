@@ -120,6 +120,20 @@ struct TimeFromArrivalTests {
         #expect(ServiceLog.minutesBasis(of: record(source: .visit, arrived: start + 600, minutes: 20)) == nil)
     }
 
+    // MARK: - The recap's On Route time
+
+    @Test func onRouteIsTheRunsElapsedTimeNotTheStopsMinutesAddedUp() {
+        // Two stops, each reached 10 minutes after it became current and
+        // done 15 minutes later: 50 minutes on the route, 30 at the stops.
+        let done = [start + 25 * 60, start + 50 * 60]
+        #expect(StopMinutes.onRoute(runStartedAt: start, completions: done, stopMinutes: 30) == 50)
+        // Nothing to go by: the stops' minutes, as before.
+        #expect(StopMinutes.onRoute(runStartedAt: nil, completions: done, stopMinutes: 30) == 30)
+        #expect(StopMinutes.onRoute(runStartedAt: start, completions: [], stopMinutes: 30) == 30)
+        // Never less than the stops' minutes (a last stop with no record).
+        #expect(StopMinutes.onRoute(runStartedAt: start, completions: [start + 600], stopMinutes: 30) == 30)
+    }
+
     // MARK: - The report's wording
 
     @Test func theReportLineSaysWhichBasis() {
@@ -129,9 +143,12 @@ struct TimeFromArrivalTests {
             ProofOfService.times(of: record, timeZone: zone, locale: english)
                 .replacingOccurrences(of: "\u{202F}", with: " ")
         }
-        #expect(line(record(arrived: start + 600, minutes: 20)).hasSuffix(" · 20 min on site, from GPS arrival"))
+        #expect(line(record(arrived: start + 600, minutes: 20)).hasSuffix(" · 20 min, GPS arrival to completion"))
+        // "On site" is the GPS line's word, for arrival to departure: two
+        // different "on site" figures for one visit would contradict.
+        #expect(!line(record(arrived: start + 600, minutes: 20)).contains("on site"))
         #expect(line(record(arrived: nil, minutes: 30)).hasSuffix(" · 30 min, including travel"))
         #expect(line(record(arrived: start + 600, minutes: 30)).hasSuffix(" · 30 min, including travel"))
-        #expect(ProofOfService.note().contains("from GPS arrival") && ProofOfService.note().contains("includes the drive there") && !ProofOfService.note().contains("on site"))
+        #expect(ProofOfService.note().contains("GPS arrival to completion") && ProofOfService.note().contains("includes the drive there") && !ProofOfService.note().contains("on site"))
     }
 }

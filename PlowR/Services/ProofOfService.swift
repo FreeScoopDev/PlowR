@@ -190,7 +190,7 @@ enum ProofOfService {
         if record.minutes >= 1 {
             let count = Int(record.minutes.rounded())
             text += ServiceLog.minutesBasis(of: record) == .fromArrival
-                ? " · \(count) min on site, from GPS arrival"
+                ? " · \(count) min, GPS arrival to completion"
                 : " · \(count) min, including travel"
         }
         return text
@@ -341,7 +341,7 @@ enum ProofOfService {
         return "About this report: it lists what was recorded in PlowR. A route stop's start is when it became the "
             + "current stop (the route started, or the previous stop was completed); its "
             + "completion is when it was marked done. Its minutes count from the GPS arrival when PlowR caught it "
-            + "(\"from GPS arrival\"), otherwise from the start, which includes the drive there (\"including "
+            + "(\"GPS arrival to completion\"), otherwise from the start, which includes the drive there (\"including "
             + "travel\"). \"Arrived\" and \"Left\" are when the phone came into and "
             + "went out of an area \(about(SiteMonitor.radius)) around the property's pin, as iOS reported it, which can be a few "
             + "minutes late; \"not caught\" means it wasn't seen (location off or approximate, already inside when the "

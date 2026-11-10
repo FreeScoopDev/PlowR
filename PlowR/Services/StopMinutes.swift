@@ -37,7 +37,9 @@ nonisolated enum StopMinutes {
     /// second; otherwise `.includesTravel`. A record from before this basis
     /// was kept counted from `startedAt`, so it reads `.includesTravel`
     /// unless the two happen to agree (then there was no travel to include).
-    /// Minutes edited by hand that no longer match read `.includesTravel`.
+    /// Minutes edited by hand that no longer match read `.includesTravel`,
+    /// and so does a record whose Done time was moved on the job's page
+    /// (its minutes stay): a known limit of deriving it.
     static func basis(source: ServiceRecordSource, arrivedAt: Date?, performedAt: Date,
                       minutes: Double) -> Basis? {
         guard source == .route else { return nil }
@@ -46,5 +48,17 @@ nonisolated enum StopMinutes {
             return .fromArrival
         }
         return .includesTravel
+    }
+
+    /// The recap's On Route time, in whole minutes: from the run's start to
+    /// its last recorded completion. The stops' own minutes used to be added
+    /// up for it, which was about the same while each ran from the stop
+    /// before; counted from an arrival they leave the driving out. Never
+    /// less than those minutes' sum (`stopMinutes`), which is also the
+    /// answer when the start or the completions aren't known (a run of
+    /// stops with no client keeps no records).
+    static func onRoute(runStartedAt: Date?, completions: [Date], stopMinutes: Int) -> Int {
+        guard let runStartedAt, let last = completions.max(), last > runStartedAt else { return stopMinutes }
+        return max(stopMinutes, Int((last.timeIntervalSince(runStartedAt) / 60).rounded()))
     }
 }
