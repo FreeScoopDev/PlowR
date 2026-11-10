@@ -128,25 +128,40 @@ struct CantServiceTests {
         #expect(stops[1].cantServiceReason == "Gate locked")
     }
 
-    // Saved at once, and still there after the app is ended and relaunched.
+    // Saved at once, not left to autosave (Siri's way of working can see the
+    // app suspended first): a context of its own reads only saved values.
+    @Test func theReasonIsSavedAtOnce() throws {
+        let h = try Harness(stopCount: 3)
+        let store = h.makeStore()
+        store.start(h.route)
+        let stops = h.route.sortedStops
+        h.clock += 300
+        store.skipCurrentStop(expecting: stops[0].id, reason: "Unsafe conditions")
+        let fresh = ModelContext(h.container)
+        let saved = try fresh.fetch(FetchDescriptor<RouteStop>()).first { $0.id == stops[0].id }
+        #expect(saved?.cantServiceReason == "Unsafe conditions")
+        #expect(saved?.cantServiceAt == h.clock)
+    }
+
+    // Skipped, then the app was ended: the relaunched route is past the stop,
+    // and the recap still shows its reason as this run's.
     @Test func theReasonSurvivesARelaunch() throws {
         let h = try Harness(stopCount: 3)
         let before = h.makeClosedAppStore()
         before.start(h.route)
         let stops = h.route.sortedStops
         h.clock += 300
-        before.skipCurrentStop(expecting: stops[0].id, reason: "Unsafe conditions")
-        // What the database holds, read from a context of its own: only saved values.
-        let fresh = ModelContext(h.container)
-        let saved = try fresh.fetch(FetchDescriptor<RouteStop>()).first { $0.id == stops[0].id }
-        #expect(saved?.cantServiceReason == "Unsafe conditions")
-        #expect(saved?.cantServiceAt == h.clock)
-
+        #expect(before.skipCurrentStop(expecting: stops[0].id, reason: "Unsafe conditions") == .advanced(nextStopIndex: 1))
+        try h.context.save()
+        h.clock += 600
         let relaunched = h.makeStore()
         #expect(relaunched.currentStopID == stops[1].id)
         #expect(stops[0].cantServiceReason == "Unsafe conditions")
         #expect(CantService.recapLine(reason: stops[0].cantServiceReason, at: stops[0].cantServiceAt,
                                       runStartedAt: relaunched.runStartedAt) == "Can't service: Unsafe conditions")
+        // Nothing credited on the way through the relaunch either.
+        #expect(stops[0].actualMinutes == 0)
+        #expect(h.clients[0].totalVisits == 0)
     }
 
     // MARK: - The rules the screens share
