@@ -122,6 +122,23 @@ nonisolated enum OneTapServices {
         return titles
     }
 
+    /// What the text sheet offered after leaving a stop says, above its
+    /// buttons, about what Send or Skip does to the stop left
+    /// (`NotifyAdvance.Completion.exitOffer`). `names`: the services the
+    /// card's button names for that stop ("Done:"), every one; empty when
+    /// it's the ordinary Complete. The sheet's header names the next
+    /// client, so this names the one left. Cancel leaves the stop as it was,
+    /// where Complete Without Services is.
+    static func exitOfferNotice(clientName: String, names: [String], locale: Locale = .current) -> String {
+        guard !names.isEmpty else {
+            return "Send or Skip completes the stop for \(clientName) and records nothing new."
+                + " Tap Cancel to stay on that stop."
+        }
+        return "Send or Skip completes the stop for \(clientName) and records "
+            + names.formatted(.list(type: .and).locale(locale)) + "."
+            + " To complete it without them, tap Cancel and choose on the stop."
+    }
+
     /// What VoiceOver reads for the "Done:" button: every name, whatever the
     /// label could fit.
     static func doneAccessibilityLabel(_ names: [String]) -> String {

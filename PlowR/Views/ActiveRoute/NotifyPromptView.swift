@@ -31,6 +31,10 @@ struct NotifyPromptView: View {
     let locationManager: LocationManager
     let onAdvance: () -> Void
     var promptTitle: String = "Notify Next Client?"
+    /// What Send or Skip does to the stop just left, shown above the buttons
+    /// (the exit offer: NotifyAdvance.Completion.notice). Wraps onto as
+    /// many lines as it needs, so no service's name is cut off.
+    var completionNotice: String?
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
@@ -43,6 +47,7 @@ struct NotifyPromptView: View {
     @State private var customNote: String = ""
     @State private var selectedPresetIDs: Set<UUID> = []
     @AppStorage("notifyIncludeLocation") private var includeLocation: Bool = false
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     // MARK: - Computed
 
@@ -105,6 +110,11 @@ struct NotifyPromptView: View {
             ScrollView {
                 VStack(spacing: 24) {
                     clientHeader
+                    // At the largest sizes the sentence goes here, where it
+                    // scrolls: pinned over the buttons it could fill the screen.
+                    if dynamicTypeSize.isAccessibilitySize, let completionNotice {
+                        noticeText(completionNotice)
+                    }
                     etaRow
                     presetsSection
                     customNoteField
@@ -248,8 +258,21 @@ struct NotifyPromptView: View {
         }
     }
 
+    private func noticeText(_ notice: String) -> some View {
+        Text(notice)
+            .font(.subheadline)
+            .foregroundStyle(PlowRColor.ink)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity)
+    }
+
     private var actionButtons: some View {
         VStack(spacing: 10) {
+            if !dynamicTypeSize.isAccessibilitySize, let completionNotice {
+                noticeText(completionNotice)
+                    .padding(.top, 10)
+            }
             // Without Messages (an iPad without texting, a Mac) it used to
             // look as if it sent and send nothing: say so, and offer Skip.
             if MFMessageComposeViewController.canSendText() {

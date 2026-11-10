@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 
 /// What the notify prompt's Send or Skip does to the route. After Done, it
 /// completes the stop the screen showed. After Below Trigger, the stop was
@@ -37,8 +38,13 @@ enum NotifyAdvance {
     struct Completion: Equatable {
         /// The stop to complete; nil completes nothing (the heads-up).
         private(set) var stopID: UUID?
-        /// What the "Done:" button named; empty for any other way in.
+        /// What the "Done:" button named, or the exit offer's sentence
+        /// named; empty for any other way in.
         private(set) var serviceIDs: [String]
+        /// What the sheet says Send or Skip does, above its buttons: only
+        /// the exit offer has one (`OneTapServices.exitOfferNotice`). Opened
+        /// from a button, the button already said it.
+        private(set) var notice: String?
 
         /// Nothing to complete: no sheet open, or one cancelled.
         static let nothing = Completion(stopID: nil, serviceIDs: [])
@@ -49,10 +55,31 @@ enum NotifyAdvance {
             Completion(stopID: drawnStop, serviceIDs: services)
         }
 
-        /// The text offered after leaving the current stop's area: no
-        /// button named any services, so none are recorded.
-        static func exitOffer(currentStop: UUID?) -> Completion {
-            Completion(stopID: currentStop, serviceIDs: [])
+        /// The text offered after leaving the current stop's area, for
+        /// `leftStop` (the exit's stop, checked to be the current one), with
+        /// `main` the copper button the card has for it now. Send or Skip
+        /// records what that button would ("Done:" names services; any other
+        /// records nothing new), and the sheet says so, naming every service
+        /// (Joe, 2026-11-10). Names and IDs come from the same button, so it
+        /// never records one it didn't name or names one it won't record;
+        /// the store's re-check still records nothing if something was
+        /// recorded meanwhile.
+        static func exitOffer(leftStop: UUID, clientName: String, main: OneTapServices.MainButton) -> Completion {
+            var names: [String] = []
+            if case .done(_, let named) = main { names = named }
+            return Completion(stopID: leftStop, serviceIDs: main.recordedServiceIDs,
+                              notice: OneTapServices.exitOfferNotice(clientName: clientName, names: names))
+        }
+
+        /// The exit offer for `stop` as the route screen opens it: its button
+        /// worked out afresh from the database (no memo, which may not have
+        /// seen a save made a moment ago), by the same rule as the card's.
+        @MainActor
+        static func exitOffer(leftStop stop: RouteStop, client: Client?, catalog: [ServiceItem], operatorID: String,
+                              store: ActiveRouteStore, skipsText: Bool, in context: ModelContext) -> Completion {
+            let main = OneTapServices.mainButton(for: stop, client: client, catalog: catalog, operatorID: operatorID,
+                                                 store: store, skipsText: skipsText, in: context)
+            return exitOffer(leftStop: stop.id, clientName: stop.clientName, main: main)
         }
 
         /// The heads-up after Below Trigger: the stop was already passed.

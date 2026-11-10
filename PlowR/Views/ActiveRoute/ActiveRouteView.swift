@@ -398,6 +398,13 @@ struct ActiveRouteView: View {
         .task(id: SiteMonitor.shared.lastExit) { await offerTextAfterExit() }
         // The copper button's record and invoice checks read the database:
         // worked out again after it changes (here or synced), not on every redraw.
+        // Combine's `receive(on: DispatchQueue.main)` only queues the bump for
+        // later, so whoever posted (a save on any thread, CloudKit's import)
+        // never waits for this screen. It must not become
+        // `NotificationCenter.addObserver(forName:object:queue: .main)`: that
+        // makes a poster off the main thread wait for the main queue, which
+        // deadlocked when the main thread was itself waiting on that poster
+        // (fixed in #194; MainActorNotice is the other safe form).
         .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave)
             .merge(with: NotificationCenter.default.publisher(for: .NSPersistentStoreRemoteChange))
             .receive(on: DispatchQueue.main)) { _ in dataVersion &+= 1 }
@@ -429,9 +436,11 @@ struct ActiveRouteView: View {
             }
         }) {
             if let next = promptNextStop {
+                // The exit offer says what Send or Skip completes and records
+                // (promptCompletion.notice); from a button, nothing more.
                 NotifyPromptView(stop: next, locationManager: locationManager, onAdvance: {
                     advance(promptCompletion)
-                })
+                }, completionNotice: promptCompletion.notice)
             }
         }
         .background(
@@ -1186,7 +1195,9 @@ struct ActiveRouteView: View {
 
     /// After the phone left the current stop's area: the text to the next
     /// client, offered once it has stayed out (ExitPrompt). Opens the prompt
-    /// and nothing else: leaving never completes a stop.
+    /// and nothing else: leaving never completes a stop. Its Send or Skip
+    /// completes the stop left, recording what that stop's copper button
+    /// would, and the sheet says so (NotifyAdvance.Completion.exitOffer).
     private func offerTextAfterExit() async {
         guard let exit = SiteMonitor.shared.lastExit else { return }
         let wait = ExitPrompt.delay - Date().timeIntervalSince(exit.time)
@@ -1195,11 +1206,16 @@ struct ActiveRouteView: View {
         }
         // A next stop with no number can't be texted, as the first stop's prompt says.
         let canText = !shouldSkipNextNotify && !(nextStop?.clientPhone.isEmpty ?? true)
+        // The stop left: shouldOffer checks it's the exit's stop.
+        let left = currentStop
         guard ExitPrompt.shouldOffer(exitStopID: exit.stopID, exitedAt: exit.time,
-                                     currentStopID: currentStop?.id, site: store.site,
+                                     currentStopID: left?.id, site: store.site,
                                      hasNextStop: nextStop != nil, canText: canText,
-                                     isPresentingSomething: isPresentingSomething, now: Date()) else { return }
-        openNotifyPrompt(.exitOffer(currentStop: currentStop?.id))
+                                     isPresentingSomething: isPresentingSomething, now: Date()),
+              let left else { return }
+        openNotifyPrompt(.exitOffer(leftStop: left, client: client(for: left), catalog: allServices,
+                                    operatorID: route.operatorID, store: store, skipsText: shouldSkipNextNotify,
+                                    in: modelContext))
     }
 
     /// The Complete button only: a tap. Leaving the stop's area goes to
