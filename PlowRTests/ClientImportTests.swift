@@ -39,13 +39,14 @@ struct ClientImportTests {
         #expect(draft.phone == "603-555-0100")
         #expect(draft.address == "1 Main St, Unit 2, Claremont, NH 03743")
         #expect(draft.tags == ["commercial", "priority"])
-        #expect(draft.notes == "Company: Doe Farms\nGate 1234")
+        #expect(draft.notes == "Company: Doe Farms")      // about the client: private
+        #expect(draft.routeNotes == "Gate 1234")           // about the place: Route Notes
     }
 
     @Test func aCompanyWithNoPersonIsTheName() {
         let draft = ClientImport.draft(from: ["Acme Lots", "1 Mill Rd\nDock 4"], fields: [.company, .address])
         #expect(draft.name == "Acme Lots")
-        #expect(draft.notes.isEmpty)
+        #expect(draft.notes.isEmpty && draft.routeNotes.isEmpty)
         #expect(draft.address == "1 Mill Rd, Dock 4")
     }
 

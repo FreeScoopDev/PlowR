@@ -90,6 +90,7 @@ extension ClientImport {
                                         operatorID: operatorID)
                     client.email = draft.email
                     client.notes = draft.notes
+                    client.defaultStopNotes = draft.routeNotes
                     // An import tag in the file (a re-imported PlowR export) is
                     // an old import's: only this one's is kept, so Recent
                     // Imports and Undo find each client under one import.

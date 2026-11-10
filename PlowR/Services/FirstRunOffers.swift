@@ -5,15 +5,24 @@ import Foundation
 enum FirstRunOffers {
     /// What Home's "Nothing on today" card offers.
     enum NothingToday: Equatable {
-        /// No clients yet: a route or a visit has nobody to be for, so the
+        /// No active clients: a route or a visit has nobody to be for, so the
         /// one useful step is adding a client.
         case addClient
         /// Clients exist: make a route or schedule a visit.
         case routeOrVisit
     }
 
+    /// `clientCount` is the business's active clients (leads included): only
+    /// they can be put on a route or booked.
     static func nothingToday(clientCount: Int) -> NothingToday {
         clientCount == 0 ? .addClient : .routeOrVisit
+    }
+
+    /// The same, from the business's clients: leads count as active, as
+    /// everywhere; an inactive client (or lead) comes off routes and can't
+    /// be put on one, so a business with only those starts again at adding one.
+    static func nothingToday(clients: [Client]) -> NothingToday {
+        nothingToday(clientCount: clients.filter(\.isActive).count)
     }
 
     /// The PRO mark beside an offer that goes through the Pro gate: shown

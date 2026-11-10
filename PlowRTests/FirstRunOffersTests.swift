@@ -16,6 +16,23 @@ struct FirstRunOffersTests {
         #expect(FirstRunOffers.nothingToday(clientCount: 40) == .routeOrVisit)
     }
 
+    // Only active clients can be put on a route or booked, so a business whose
+    // clients are all inactive starts again at adding one. Leads count as
+    // active, as everywhere; an inactive lead doesn't.
+    @Test func homeCountsActiveClientsOnly() {
+        func client(_ name: String, active: Bool, lead: Bool = false) -> Client {
+            let c = Client(name: name, phone: "", address: "", operatorID: "op")
+            c.isActive = active
+            if !lead { c.customerSince = .now }
+            return c
+        }
+        #expect(FirstRunOffers.nothingToday(clients: []) == .addClient)
+        #expect(FirstRunOffers.nothingToday(clients: [client("A", active: false), client("B", active: false)]) == .addClient)
+        #expect(FirstRunOffers.nothingToday(clients: [client("A", active: false), client("B", active: true)]) == .routeOrVisit)
+        #expect(FirstRunOffers.nothingToday(clients: [client("L", active: true, lead: true)]) == .routeOrVisit)
+        #expect(FirstRunOffers.nothingToday(clients: [client("L", active: false, lead: true)]) == .addClient)
+    }
+
     // MARK: The PRO mark
 
     @Test func theProMarkShowsOnEveryPlanButPro() {
