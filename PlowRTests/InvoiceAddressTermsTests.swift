@@ -195,6 +195,31 @@ struct InvoiceAddressTermsTests {
 
     // MARK: The terms a document states
 
+    // A due date set at Mark Sent is counted from the send day: a contract's
+    // payment drafted Nov 1 and sent Nov 16 on Net 30 terms is "Net 30",
+    // not "Net 45"; a due-on-receipt draft moved to its send day says so.
+    @Test func statedTermsCountFromTheSendDayWhenThatStatesThem() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "America/Toronto") ?? .current
+        func day(_ month: Int, _ day: Int) -> Date {
+            calendar.date(from: DateComponents(year: 2026, month: month, day: day, hour: 12)) ?? .distantPast
+        }
+        #expect(InvoiceTerms.statedTerms(issued: day(11, 1), sent: day(11, 16), due: day(12, 16), calendar: calendar) == "Net 30")
+        #expect(InvoiceTerms.statedTerms(issued: day(11, 2), sent: day(11, 5), due: day(11, 5), calendar: calendar) == "Due on receipt")
+        // Made Monday on Net 30, sent Thursday: still the terms it was made on.
+        #expect(InvoiceTerms.statedTerms(issued: day(11, 2), sent: day(11, 5), due: day(12, 2), calendar: calendar) == "Net 30")
+        // Not sent: from its date alone. Neither states terms: none.
+        #expect(InvoiceTerms.statedTerms(issued: day(11, 2), sent: nil, due: day(12, 2), calendar: calendar) == "Net 30")
+        #expect(InvoiceTerms.statedTerms(issued: day(11, 2), sent: day(11, 5), due: day(11, 22), calendar: calendar) == nil)
+    }
+
+    // The header and "Mail to" print the same lines, at most three.
+    @Test func mailToPrintsTheSameLinesAsTheHeader() {
+        let address = "Attn: Office\nPO Box 9\nSuite 4\nSpringvale"
+        #expect(PDFGenerator.addressLines(address) == ["Attn: Office", "PO Box 9", "Suite 4"])
+        #expect(PDFGenerator.addressLine(address) == "Attn: Office, PO Box 9, Suite 4")
+    }
+
     @Test func statedTermsComeFromTheDocumentsOwnDates() {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "America/New_York") ?? .current

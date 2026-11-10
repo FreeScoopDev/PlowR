@@ -64,6 +64,17 @@ nonisolated enum InvoiceTerms {
     /// made): due on or before the day it's dated, "Due on receipt"; exactly
     /// 7, 15, 30, 45 or 60 days after, "Net N"; anything else, nil (a date
     /// picked by hand states no terms).
+    ///
+    /// Counted from the day it was sent when that states terms, else from
+    /// the day it's dated. A due date is often set at Mark Sent, later than
+    /// the document's date (a contract's payment, or a due-on-receipt draft
+    /// moved to its send day): counted from the date alone, a Net 30
+    /// payment drafted 15 days before it went out read "Net 45".
+    static func statedTerms(issued: Date, sent: Date?, due: Date, calendar: Calendar = .current) -> String? {
+        if let sent, let fromSent = statedTerms(issued: sent, due: due, calendar: calendar) { return fromSent }
+        return statedTerms(issued: issued, due: due, calendar: calendar)
+    }
+
     static func statedTerms(issued: Date, due: Date, calendar: Calendar = .current) -> String? {
         let gap = calendar.dateComponents([.day], from: calendar.startOfDay(for: issued),
                                           to: calendar.startOfDay(for: due)).day ?? 0

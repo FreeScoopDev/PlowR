@@ -113,12 +113,12 @@ struct BusinessProfileView: View {
 
             Section {
                 TextField("Mailing Address", text: $address, axis: .vertical)
-                    .lineLimit(2...4)
+                    .lineLimit(2...3)
                     .textContentType(.fullStreetAddress)
             } header: {
                 SectionTitle("Mailing Address")
             } footer: {
-                SectionNote("Printed on your proposals and invoices, and under Make check payable to, so clients know where to mail a check.")
+                SectionNote("Printed on your proposals and invoices, and under Make check payable to, so clients know where to mail a check. Up to three lines are printed.")
             }
             .listRowBackground(PlowRColor.surface)
 

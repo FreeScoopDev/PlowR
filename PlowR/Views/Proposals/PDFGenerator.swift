@@ -73,20 +73,18 @@ struct PDFGenerator {
             .prefix(3))
     }
 
-    /// The mailing address on one line ("Mail to:", a one-line header).
+    /// The mailing address on one line ("Mail to:", a one-line header): the
+    /// same lines the header prints, so the two never disagree.
     nonisolated static func addressLine(_ address: String) -> String {
-        address.split(whereSeparator: \.isNewline)
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
-            .joined(separator: ", ")
+        addressLines(address).joined(separator: ", ")
     }
 
     /// What an invoice prints under DUE DATE: the date, and beside it the
     /// terms its own dates state (InvoiceTerms.statedTerms), if any.
-    nonisolated static func dueLine(issued: Date, due: Date, calendar: Calendar = .current) -> String {
+    nonisolated static func dueLine(issued: Date, sent: Date? = nil, due: Date, calendar: Calendar = .current) -> String {
         let fmt = DateFormatter(); fmt.dateStyle = .long; fmt.calendar = calendar; fmt.timeZone = calendar.timeZone
         let date = fmt.string(from: due)
-        guard let terms = InvoiceTerms.statedTerms(issued: issued, due: due, calendar: calendar) else { return date }
+        guard let terms = InvoiceTerms.statedTerms(issued: issued, sent: sent, due: due, calendar: calendar) else { return date }
         return "\(date)  ·  \(terms)"
     }
 
@@ -347,7 +345,7 @@ struct PDFGenerator {
             leftY += 14
             // The terms from the invoice's own dates, never the profile's
             // choice now: a document mustn't restate its terms later.
-            drawText(dueLine(issued: proposal.createdAt, due: due), x: margin, y: leftY, width: leftW,
+            drawText(dueLine(issued: proposal.createdAt, sent: proposal.invoiceSentAt, due: due), x: margin, y: leftY, width: leftW,
                      font: bodyBoldFont(11), color: ink)
             leftY += 15
         } else if !isInvoice, let validUntil = proposal.validUntil {
@@ -754,7 +752,10 @@ struct PDFGenerator {
             curY += 17
             // Where to send the check.
             if method.isCheck && !mailTo.isEmpty {
-                drawText("Mail to: \(mailTo)", x: margin, y: curY, width: listW, font: bodyFont(10.5), color: inkDark)
+                // One line, cut short if it can't fit: wrapped, its second
+                // line was drawn over the next payment method.
+                drawText("Mail to: \(mailTo)", x: margin, y: curY, width: listW, font: bodyFont(10.5), color: inkDark,
+                         singleLine: true)
                 curY += 17
             }
         }
