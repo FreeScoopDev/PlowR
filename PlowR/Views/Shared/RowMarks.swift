@@ -29,14 +29,21 @@ struct AccentBar: View {
 struct StopNumberBadge: View {
     let number: Int
     var isDone = false
+    /// Grows with the number's text so a large-text digit stays inside its
+    /// circle; capped so the badge never crowds the row.
+    @ScaledMetric(relativeTo: .footnote) private var scaledSize: CGFloat = 28
 
     var body: some View {
+        let size = min(scaledSize, 56)
         let color: Color = isDone ? PlowRColor.Status.done.text : PlowRColor.brand
         Text("\(number)")
             .font(PlowRFont.label)
             .monospacedDigit()
             .foregroundStyle(color)
-            .frame(width: 28, height: 28)
+            .lineLimit(1)
+            .minimumScaleFactor(0.5)
+            .padding(2)
+            .frame(width: size, height: size)
             .background(color.opacity(0.15), in: Circle())
             .accessibilityLabel("Stop \(number)\(isDone ? ", done" : "")")
     }
