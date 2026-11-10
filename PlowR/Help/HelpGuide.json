@@ -145,7 +145,7 @@
           ],
           "steps": [
             "On the route page, tap a stop.",
-            "Under **Expected Services**, switch on what the stop needs. The client's **Route Notes** show here and at the stop; add notes for this stop only, and equipment, if useful.",
+            "Under **Expected Services**, switch on what the stop needs. The place's **Route Notes** (the client's, or the property's) show here and at the stop; add notes for this stop only, and equipment, if useful.",
             "Tap **Save**, then choose **Only on This Route** or **On All Routes From Now On**."
           ],
           "note": "Your list of services and prices lives in **Settings → Service Catalog**. Skipping a stop just for today? Swipe it and tap **Skip Today**."

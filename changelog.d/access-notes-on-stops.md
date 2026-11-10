@@ -3,4 +3,4 @@
 - New Client's Notes field ("Gate code, dog in the yard…") saved to the client's private notes, which no route shows, so a gate code typed there never reached a stop. It now saves to Route Notes and says so. Notes already typed there stay in the private notes (a gate code can't be told from a private remark).
 
 ### Internal
-- One new CloudKit field, `CD_RouteStop.CD_placeNotes`, to deploy to Production at the next release. A device still on an older PlowR shows no notes for a stop made on a newer one until it updates.
+- One new CloudKit field, `CD_RouteStop.CD_placeNotes`, to deploy to Production before the next TestFlight or App Store build: a build that writes it before Production has it can't sync route stops. A device still on an older PlowR shows no notes for a stop made on a newer one until it updates.
