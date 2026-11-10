@@ -7,11 +7,12 @@ import Testing
 /// Contact menu's "has a number to dial" test.
 @MainActor
 struct ClientKindSwitchTests {
+    let container: ModelContainer      // kept: a context without its container traps
     let context: ModelContext
     let now = Date(timeIntervalSinceReferenceDate: 813_000_000.75)
 
     init() throws {
-        let container = try ModelContainer(for: Schema(PlowRApp.models),
+        container = try ModelContainer(for: Schema(PlowRApp.models),
                                            configurations: ModelConfiguration(isStoredInMemoryOnly: true,
                                                                               cloudKitDatabase: .none))
         container.mainContext.autosaveEnabled = false   // see ActiveRouteStoreTests.Harness
