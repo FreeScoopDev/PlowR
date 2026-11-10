@@ -6,9 +6,10 @@ import SwiftData
 /// stale: a client with no work, quote or invoice yet is a lead; one sent a
 /// proposal is quoted; work booked or done (a visit scheduled, a stop on a
 /// route, a job, an invoice) makes them a customer, as does importing them
-/// as a current customer (`Client.customerSince`). Lost is the one the
-/// business sets (and can undo); a proposal made after it puts them back in
-/// Quoted. A quote still waiting for a reply after `followUpDays` is due a
+/// as a current customer or saying so by hand (`Client.customerSince`: New
+/// Client, or Mark as Customer and Mark as Lead on their page). Lost is the
+/// other one the business sets (and can undo); a proposal made after it puts
+/// them back in Quoted. A quote still waiting for a reply after `followUpDays` is due a
 /// follow-up.
 enum Pipeline {
     enum Stage: Int, CaseIterable, Identifiable, Comparable {
@@ -94,17 +95,58 @@ enum Pipeline {
     }
 
     static func stage(of client: Client, facts: Facts, now: Date = .now) -> Stage {
+        stage(of: client, facts: facts, now: now, countingCustomerSince: true)
+    }
+
+    /// `stage(of:facts:now:)`, optionally as if `customerSince` were not set:
+    /// what the client is by what's on file alone.
+    private static func stage(of client: Client, facts: Facts, now: Date, countingCustomerSince: Bool) -> Stage {
         let id = client.id.uuidString
         // Work booked or done, a contract signed and in force, or imported as
         // a customer.
         if client.totalVisits > 0 || facts.withWork.contains(id) || Contracts.hasContractInForce(client, now: now)
-            || client.customerSince != nil {
+            || (countingCustomerSince && client.customerSince != nil) {
             return .customer
         }
         let newestProposal = facts.proposals[id]?.first?.createdAt
         // Lost, unless they've been sent a proposal since: back in Quoted.
         if let lostAt = client.lostAt, (newestProposal ?? .distantPast) <= lostAt { return .lost }
         return newestProposal != nil ? .quoted : .lead
+    }
+
+    // MARK: - Switching between lead and customer
+
+    /// Whether the client page offers Mark as Customer: an active lead or
+    /// quote. A lost client has Reopen instead.
+    static func canMarkAsCustomer(_ client: Client, facts: Facts, now: Date = .now) -> Bool {
+        guard client.isActive else { return false }
+        let stage = stage(of: client, facts: facts, now: now)
+        return stage == .lead || stage == .quoted
+    }
+
+    /// Whether the client page offers Mark as Lead: an active client who is
+    /// a customer only because of `customerSince`. With work, an invoice or a
+    /// contract in force they'd stay a customer, so clearing it would change
+    /// nothing.
+    static func canMarkAsLead(_ client: Client, facts: Facts, now: Date = .now) -> Bool {
+        guard client.isActive, client.customerSince != nil else { return false }
+        return stage(of: client, facts: facts, now: now, countingCustomerSince: false) != .customer
+    }
+
+    /// Makes a lead or quote a customer from `now`, in whole seconds as New
+    /// Client and the import write it.
+    static func markAsCustomer(_ client: Client, in context: ModelContext, now: Date = .now) {
+        var draft = NewClientDraft()
+        draft.kind = .existingCustomer
+        client.customerSince = draft.customerSince(at: now)
+        try? context.save()
+    }
+
+    /// Takes `customerSince` off, so the client is what the Pipeline says
+    /// without it: a lead, quoted, or lost if they were marked lost before.
+    static func markAsLead(_ client: Client, in context: ModelContext) {
+        client.customerSince = nil
+        try? context.save()
     }
 
     /// Whether `client` is waiting to reply to what was sent them (an
