@@ -50,6 +50,18 @@ struct ContractScheduleTests {
                 == "Every 2 weeks on Tuesday and Friday")
     }
 
+    /// The joining word is English whatever the device's language: the copy
+    /// around it is. (The device's locale reaches `.formatted(.list)`, not
+    /// the calendar, so this fails on a French device or `-testLanguage fr
+    /// -testRegion FR`, and passes anywhere once the list is `englishList`.)
+    @Test func itsDaysAreJoinedInEnglishOnAFrenchDevice() throws {
+        let h = try Harness(stopCount: 0)
+        var french = Calendar(identifier: .gregorian)
+        french.locale = Locale(identifier: "fr_FR")
+        let sentence = ContractSchedule.summary(of: mowing(h, weekdays: [6, 3], every: 2), calendar: french)
+        #expect(sentence == "Every 2 weeks on mardi and vendredi")
+    }
+
     @Test func itsVisitsAreOnItsDaysThroughItsLastDay() throws {
         let h = try Harness(stopCount: 0)
         let tuesdays = ContractSchedule.dates(of: mowing(h), now: date(2027, 3, 20), calendar: calendar)

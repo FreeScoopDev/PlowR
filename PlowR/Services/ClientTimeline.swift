@@ -26,7 +26,7 @@ enum ClientTimeline {
         for record in ServiceLog.records(ofClient: id, in: context) {
             let names = record.lines.map(\.name)
             events.append(Event(id: "job-\(record.id)", date: record.performedAt, kind: .job(recordID: record.id),
-                                title: names.isEmpty ? "Job" : names.formatted(.list(type: .and)),
+                                title: names.isEmpty ? "Job" : OneTapServices.englishList(names),
                                 detail: record.routeName.isEmpty ? "" : "On \(record.routeName)",
                                 amount: ServiceLog.total(of: record)))
         }

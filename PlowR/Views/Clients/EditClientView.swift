@@ -555,7 +555,7 @@ struct EditClientView: View {
     private var clientServices: [ServiceItem] {
         allServiceItems
             .filter { $0.operatorID == authManager.userID && $0.isActive }
-            .sorted { $0.sortOrder < $1.sortOrder }
+            .sorted { ServiceLog.catalogOrder($0, $1) }
     }
 
     private var expectedServicesSection: some View {

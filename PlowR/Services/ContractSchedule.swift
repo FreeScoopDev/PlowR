@@ -29,7 +29,7 @@ enum ContractSchedule {
             return calendar.weekdaySymbols[day - 1]
         }
         guard !names.isEmpty else { return "No visits booked by the contract" }
-        let days = names.formatted(.list(type: .and))
+        let days = OneTapServices.englishList(names)
         return contract.scheduleIntervalWeeks > 1 ? "Every \(contract.scheduleIntervalWeeks) weeks on \(days)" : "Every \(days)"
     }
 

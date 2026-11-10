@@ -158,7 +158,7 @@ struct ServiceRecordRow: View {
 
     private var servicesSummary: String {
         let names = record.lines.map(\.name)
-        return names.isEmpty ? "No services recorded" : names.formatted(.list(type: .and))
+        return names.isEmpty ? "No services recorded" : OneTapServices.englishList(names)
     }
 }
 
