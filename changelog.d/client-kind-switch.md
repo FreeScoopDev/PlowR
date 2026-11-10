@@ -3,3 +3,4 @@
 
 ### Fixed
 - The Contact menu on a client's page no longer offers Call or Message for a phone entry with no digits, such as "n/a", where tapping them did nothing.
+- The client page's Contact tile says "No phone, email or address" when there is no way to reach a client, instead of opening an empty menu.

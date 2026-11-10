@@ -6,9 +6,10 @@ import SwiftData
 /// stale: a client with no work, quote or invoice yet is a lead; one sent a
 /// proposal is quoted; work booked or done (a visit scheduled, a stop on a
 /// route, a job, an invoice) makes them a customer, as does importing them
-/// as a current customer (`Client.customerSince`). Lost is the one the
-/// business sets (and can undo); a proposal made after it puts them back in
-/// Quoted. A quote still waiting for a reply after `followUpDays` is due a
+/// as a current customer or saying so by hand (`Client.customerSince`: New
+/// Client, or Mark as Customer and Mark as Lead on their page). Lost is the
+/// other one the business sets (and can undo); a proposal made after it puts
+/// them back in Quoted. A quote still waiting for a reply after `followUpDays` is due a
 /// follow-up.
 enum Pipeline {
     enum Stage: Int, CaseIterable, Identifiable, Comparable {

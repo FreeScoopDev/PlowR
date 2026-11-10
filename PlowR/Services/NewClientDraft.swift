@@ -5,10 +5,11 @@ import Foundation
 nonisolated struct NewClientDraft: Equatable {
     /// Which kind of client this is. A regular customer typed in by hand is
     /// the usual case, so it's the default; only a customer has
-    /// `customerSince`, which is what `Pipeline.stage` reads. Nothing clears
-    /// `customerSince` later, so a screen that adds someone to quote them
-    /// (Documents) opens the form on New Lead: saved as a customer, they'd
-    /// never be Quoted, followed up or markable as lost.
+    /// `customerSince`, which is what `Pipeline.stage` reads. A screen that
+    /// adds someone to quote them (Documents) opens the form on New Lead:
+    /// saved as a customer they wouldn't be Quoted or followed up. A wrong
+    /// choice can be changed on the client's page (Mark as Customer, Mark as
+    /// Lead: `Pipeline.markAsCustomer`, `markAsLead`).
     enum Kind: String, CaseIterable, Identifiable {
         case existingCustomer = "Existing Customer"
         case newLead = "New Lead"

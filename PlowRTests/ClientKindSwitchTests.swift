@@ -157,4 +157,18 @@ struct ClientKindSwitchTests {
         #expect(MapLinks.callLink("   ") == nil)
         #expect(MapLinks.callLink("603-555-0100") != nil)
     }
+
+    // MARK: The Contact menu
+
+    @Test func aNumberWithNothingToDialOffersNoCallOrMessage() {
+        #expect(ClientContact.options(phone: "n/a", canText: true, hasEmail: true, canDrive: true) == [.email, .directions])
+        #expect(ClientContact.options(phone: "", canText: true, hasEmail: false, canDrive: false).isEmpty)
+        #expect(ClientContact.options(phone: "n/a", canText: true, hasEmail: false, canDrive: false).isEmpty)
+    }
+
+    @Test func aRealNumberOffersCallAndMessageWhereTextingWorks() {
+        #expect(ClientContact.options(phone: "555-0100", canText: true, hasEmail: false, canDrive: false) == [.call, .message])
+        #expect(ClientContact.options(phone: "555-0100", canText: false, hasEmail: true, canDrive: true)
+                == [.call, .email, .directions])
+    }
 }

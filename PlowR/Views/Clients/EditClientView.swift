@@ -299,25 +299,6 @@ struct EditClientView: View {
                     : AnyLayout(HStackLayout(spacing: 8))
                 layout {
                     Menu {
-                        // Only a number with something to dial: "n/a" has none.
-                        if MapLinks.callLink(draft.phone) != nil {
-                            Button {
-                                if let url = MapLinks.callLink(draft.phone) { openURL(url) }
-                            } label: { Label("Call", systemImage: "phone.fill") }
-                            // Presenting the composer where texting isn't set up
-                            // (an iPad without Messages) fails; every other
-                            // screen checks this first.
-                            if MFMessageComposeViewController.canSendText() {
-                                Button { showingMessageComposer = true } label: {
-                                    Label("Message", systemImage: "message.fill")
-                                }
-                            }
-                        }
-                        if RequestLink.mailLink(draft.email) != nil {
-                            Button {
-                                if let url = RequestLink.mailLink(draft.email) { openURL(url) }
-                            } label: { Label("Email", systemImage: "envelope.fill") }
-                        }
                         // Getting there: read only, like Call, for any plan. The
                         // place as saved, read from the client: not an address
                         // being typed that has no pin yet, and not the pin this
@@ -326,6 +307,32 @@ struct EditClientView: View {
                                                          longitude: client.longitude,
                                                          address: client.address)
                         let driveApps = MapLinks.installedApps(for: place)
+                        // Presenting the composer where texting isn't set up
+                        // (an iPad without Messages) fails; every other
+                        // screen checks this first.
+                        let options = ClientContact.options(
+                            phone: draft.phone, canText: MFMessageComposeViewController.canSendText(),
+                            hasEmail: RequestLink.mailLink(draft.email) != nil, canDrive: !driveApps.isEmpty)
+                        if options.contains(.call) {
+                            Button {
+                                if let url = MapLinks.callLink(draft.phone) { openURL(url) }
+                            } label: { Label("Call", systemImage: "phone.fill") }
+                        }
+                        if options.contains(.message) {
+                            Button { showingMessageComposer = true } label: {
+                                Label("Message", systemImage: "message.fill")
+                            }
+                        }
+                        if options.contains(.email) {
+                            Button {
+                                if let url = RequestLink.mailLink(draft.email) { openURL(url) }
+                            } label: { Label("Email", systemImage: "envelope.fill") }
+                        }
+                        // Nothing to reach them by: say so, rather than a
+                        // tile that opens an empty menu.
+                        if options.isEmpty {
+                            Button(ClientContact.nothingToUse) {}.disabled(true)
+                        }
                         if driveApps.count == 1, let app = driveApps.first {
                             Button { MapLinks.open(app, to: place) } label: {
                                 Label("Directions", systemImage: PlowRSymbol.navigate.name)
@@ -886,35 +893,56 @@ struct EditClientView: View {
         let canMarkLead = Pipeline.canMarkAsLead(client, facts: facts)
         if client.isActive, canMarkCustomer || canMarkLead || stage == .lost {
             let chip = StatusChip(stage.title, status: stage.chipStatus)
-            let buttons = Group {
-                if canMarkCustomer {
-                    stageButton("Mark as Customer") { Pipeline.markAsCustomer(client, in: modelContext) }
-                }
-                if canMarkLead {
-                    stageButton("Mark as Lead") { Pipeline.markAsLead(client, in: modelContext) }
-                }
-                if stage != .lost, !canMarkLead {
-                    stageButton("Mark Lost") { Pipeline.setLost(true, for: client, in: modelContext) }
-                }
-                if stage == .lost {
-                    stageButton("Reopen") { Pipeline.setLost(false, for: client, in: modelContext) }
-                }
-            }
+            let buttons = stageButtons(stage, canMarkCustomer: canMarkCustomer, canMarkLead: canMarkLead,
+                                       shrinking: false)
             ViewThatFits(in: .horizontal) {
-                HStack(spacing: 8) { chip; Spacer(); buttons }
-                VStack(alignment: .leading, spacing: 8) { chip; HStack(spacing: 8) { buttons } }
-                VStack(alignment: .leading, spacing: 8) { chip; buttons }
+                HStack(spacing: PlowRLayout.space2) { chip; Spacer(); buttons }
+                VStack(alignment: .leading, spacing: PlowRLayout.space2) {
+                    chip
+                    HStack(spacing: PlowRLayout.space2) { buttons }
+                }
+                // The form used when nothing fits (the largest text on a
+                // narrow phone): its labels shrink to the row rather than run
+                // past its edge, as the route screen's main button does.
+                VStack(alignment: .leading, spacing: PlowRLayout.space2) {
+                    chip
+                    stageButtons(stage, canMarkCustomer: canMarkCustomer, canMarkLead: canMarkLead, shrinking: true)
+                }
             }
         }
     }
 
-    private func stageButton(_ title: String, _ action: @escaping () -> Void) -> some View {
-        Button(title) { $gate.unless(ProGate.edit(access)) { action() } }
+    @ViewBuilder
+    private func stageButtons(_ stage: Pipeline.Stage, canMarkCustomer: Bool, canMarkLead: Bool,
+                              shrinking: Bool) -> some View {
+        if canMarkCustomer {
+            stageButton("Mark as Customer", shrinking: shrinking) { Pipeline.markAsCustomer(client, in: modelContext) }
+        }
+        if canMarkLead {
+            stageButton("Mark as Lead", shrinking: shrinking) { Pipeline.markAsLead(client, in: modelContext) }
+        }
+        if stage != .lost, !canMarkLead {
+            stageButton("Mark Lost", shrinking: shrinking) { Pipeline.setLost(true, for: client, in: modelContext) }
+        }
+        if stage == .lost {
+            stageButton("Reopen", shrinking: shrinking) { Pipeline.setLost(false, for: client, in: modelContext) }
+        }
+    }
+
+    /// One line, never split mid-word: at its own width, so the row can tell
+    /// whether it fits; or `shrinking` to the row's width.
+    @ViewBuilder
+    private func stageButton(_ title: String, shrinking: Bool, _ action: @escaping () -> Void) -> some View {
+        let button = Button(title) { $gate.unless(ProGate.edit(access)) { action() } }
             .font(.caption)
             .buttonStyle(.bordered)
             .controlSize(.small)
             .lineLimit(1)
-            .fixedSize(horizontal: true, vertical: false)
+        if shrinking {
+            button.minimumScaleFactor(0.5)
+        } else {
+            button.fixedSize(horizontal: true, vertical: false)
+        }
     }
 
     // MARK: - Documents Section
