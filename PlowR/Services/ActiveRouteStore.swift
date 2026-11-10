@@ -304,6 +304,8 @@ final class ActiveRouteStore {
             stop.actualMinutes = 0
             stop.completedServiceIDs = []
             stop.completedNotes = ""
+            stop.cantServiceReason = ""
+            stop.cantServiceAt = nil
         }
         self.route = route
         routeID = route.id
@@ -353,6 +355,26 @@ final class ActiveRouteStore {
     @discardableResult
     func passCurrentStop(expecting stopID: UUID) -> CompletionResult {
         moveOn(expecting: stopID, recording: false, services: [])
+    }
+
+    /// Can't Service: moves past the current stop as `passCurrentStop` does
+    /// (no visit, time, services or Service Log record; can't be undone, and
+    /// ends the last completion's Undo), and keeps `reason` and the time on
+    /// the stop, only when the route really moved past it. On `.stopChanged`
+    /// or a stop already behind, nothing is written.
+    @discardableResult
+    func skipCurrentStop(expecting stopID: UUID, reason: String) -> CompletionResult {
+        let result = moveOn(expecting: stopID, recording: false, services: [])
+        switch result {
+        case .advanced, .finishedLastStop:
+            guard let stop = sortedStops.first(where: { $0.id == stopID }) else { return result }
+            stop.cantServiceReason = reason
+            stop.cantServiceAt = now()
+            // Saved now, as moveOn saves: not left to autosave.
+            try? context?.save()
+        case .noActiveRoute, .allStopsAlreadyDone, .stopChanged: break
+        }
+        return result
     }
 
     private func moveOn(expecting stopID: UUID, recording: Bool, services: [String]) -> CompletionResult {
