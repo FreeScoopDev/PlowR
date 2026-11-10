@@ -39,7 +39,7 @@ struct EditRouteView: View {
                 Section {
                     ForEach(Array(stops.enumerated()), id: \.element.id) { index, stop in
                         HStack(spacing: 12) {
-                            StopNumberBadge(number: index + 1)
+                            StopNumberBadge(number: index + 1, growsWithText: false)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(stop.clientName)
                                     .font(.subheadline.weight(.semibold))
