@@ -89,7 +89,7 @@ struct PropertyEditView: View {
                     Text("Route")
                         .foregroundStyle(PlowRColor.inkSecondary)
                 } footer: {
-                    SectionNote("Copied to new route stops here, as a client's own are.")
+                    SectionNote("The notes show at every stop here, on every route, and changes reach those stops too.")
                 }
                 .listRowBackground(PlowRColor.surface)
                 if !services.isEmpty { servicesSection }

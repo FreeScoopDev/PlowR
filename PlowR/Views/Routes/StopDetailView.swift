@@ -25,6 +25,9 @@ struct StopDetailView: View {
     @State private var showingMessage = false
 
     private let openedServices: Set<String>
+    /// The stop's own note as the page opened it: empty when it only repeats
+    /// its place's Route Notes (ClientStops.shownOwnNote).
+    private let openedNotes: String
 
     init(stop: RouteStop, client: Client?) {
         self.stop = stop
@@ -32,7 +35,8 @@ struct StopDetailView: View {
         let expected = Set(StopServices.expected(for: stop, client: client))
         _selectedIDs = State(initialValue: expected)
         openedServices = expected
-        _stopNotes = State(initialValue: stop.stopNotes)
+        openedNotes = stop.shownOwnNotes
+        _stopNotes = State(initialValue: stop.shownOwnNotes)
         _equipmentNotes = State(initialValue: stop.equipmentNotes)
         _targetMinutes = State(initialValue: stop.targetMinutes)
     }
@@ -41,7 +45,7 @@ struct StopDetailView: View {
     private var services: [StopRecording.Service] { ServiceLog.activeServices(allServices, operatorID: operatorID) }
     private var servicesChanged: Bool { selectedIDs != openedServices }
     private var hasChanges: Bool {
-        servicesChanged || stopNotes != stop.stopNotes || equipmentNotes != stop.equipmentNotes
+        servicesChanged || stopNotes != openedNotes || equipmentNotes != stop.equipmentNotes
             || targetMinutes != stop.targetMinutes
     }
 
@@ -100,12 +104,30 @@ struct StopDetailView: View {
                 }
                 .listRowBackground(PlowRColor.surface)
 
+                if !stop.isCustomStop {
+                    Section {
+                        if stop.placeNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            Text("None").foregroundStyle(PlowRColor.inkSecondary)
+                        } else {
+                            Text(stop.placeNotes)
+                        }
+                    } header: {
+                        Label("Route Notes", systemImage: "mappin.and.ellipse")
+                            .foregroundStyle(PlowRColor.inkSecondary)
+                    } footer: {
+                        SectionNote(verbatim: placeNotesFooter)
+                    }
+                    .listRowBackground(PlowRColor.surface)
+                }
+
                 Section {
                     TextField("Shown at this stop during the route", text: $stopNotes, axis: .vertical)
                         .lineLimit(2...)
                 } header: {
                     Label("Stop Notes", systemImage: "note.text")
                         .foregroundStyle(PlowRColor.inkSecondary)
+                } footer: {
+                    if !stop.isCustomStop { SectionNote("For this stop on this route only.") }
                 }
                 .listRowBackground(PlowRColor.surface)
 
@@ -168,6 +190,14 @@ struct StopDetailView: View {
                 }
             }
         }
+    }
+
+    /// Where the place's notes are changed: the client's page for their own
+    /// address, the property's page for another.
+    private var placeNotesFooter: String {
+        let atHome = stop.propertyID.isEmpty || stop.propertyID == stop.clientID.uuidString
+        let page = atHome ? "\(stop.clientName)'s page" : "the property's page"
+        return "Changed on \(page). They show at every stop here, on every route."
     }
 
     private var servicesFooter: String {

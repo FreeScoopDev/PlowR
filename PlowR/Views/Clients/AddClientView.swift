@@ -79,9 +79,13 @@ struct AddClientView: View {
                 }
                 .listRowBackground(PlowRColor.surface)
 
-                Section(title: "Notes") {
+                Section {
                     TextField("Gate code, dog in the yard…", text: $draft.notes, axis: .vertical)
                         .lineLimit(3...8)
+                } header: {
+                    SectionTitle("Route Notes")
+                } footer: {
+                    SectionNote("Shown at this client's stops on a route.")
                 }
                 .listRowBackground(PlowRColor.surface)
             }

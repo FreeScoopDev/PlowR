@@ -663,7 +663,7 @@ struct EditClientView: View {
             Text("Route Notes")
                 .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
-            SectionNote("Automatically copied to new route stops for this client.")
+            SectionNote("Shown at every stop for this client, on every route. Changes here reach those stops too.")
                 .font(.caption)
         }
         .listRowBackground(PlowRColor.surface)

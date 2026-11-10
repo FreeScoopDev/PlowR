@@ -51,7 +51,10 @@ nonisolated struct NewClientDraft: Equatable {
         func tidy(_ text: String) -> String { text.trimmingCharacters(in: .whitespacesAndNewlines) }
         let client = Client(name: tidy(name), phone: tidy(phone), address: tidy(address), operatorID: operatorID)
         client.email = tidy(email)
-        client.notes = tidy(notes)
+        // The form's Notes are Route Notes (a gate code, a dog in the yard),
+        // shown at the client's stops. They went to the private notes, which
+        // no route shows, so a gate code typed here never reached the crew.
+        client.defaultStopNotes = tidy(notes)
         client.customerSince = customerSince(at: now)
         return client
     }
