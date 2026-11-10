@@ -92,14 +92,13 @@ struct ClientDraftTests {
         #expect(pat.isActive == draft.isActive)
     }
 
-    // A client needs a name and a phone number to be saved, from Back's
-    // prompt as from the toolbar.
-    @Test func saveNeedsANameAndAPhone() {
+    // A client needs a name to be saved, from Back's prompt as from the
+    // toolbar; a phone number is optional.
+    @Test func saveNeedsAName() {
         var draft = ClientDraft(pat)
         #expect(draft.canSave)
         draft.phone = ""
-        #expect(!draft.canSave)
-        draft.phone = "555-0100"
+        #expect(draft.canSave)
         draft.name = ""
         #expect(!draft.canSave)
     }

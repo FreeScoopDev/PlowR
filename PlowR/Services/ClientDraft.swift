@@ -23,9 +23,14 @@ nonisolated struct ClientDraft: Equatable {
     /// A set: the order they were ticked in isn't a change.
     var expectedServiceIDs: Set<String>
 
-    /// A client needs a name and a phone number: Save isn't offered without
-    /// them, from the toolbar or from Back's prompt.
-    var canSave: Bool { !name.isEmpty && !phone.isEmpty }
+    /// A client needs a name (a phone number is optional): Save isn't offered
+    /// without one, from the toolbar or from Back's prompt.
+    var canSave: Bool { Self.hasName(name) }
+
+    /// A name with white space trimmed isn't empty (New Client uses it too).
+    static func hasName(_ name: String) -> Bool {
+        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
 
     /// The screen's fields after the client changed underneath it, from
     /// `old` to `new`: Schedule making an inactive client active, or an edit

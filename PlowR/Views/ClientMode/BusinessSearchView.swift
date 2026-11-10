@@ -187,8 +187,7 @@ struct BusinessRow: View {
             }
             Spacer()
             VStack(spacing: 6) {
-                if !business.phone.isEmpty,
-                   let url = URL(string: "tel:\(business.phone.filter { $0.isNumber })") {
+                if let url = MapLinks.callLink(business.phone) {
                     Button {
                         openURL(url)
                     } label: {
