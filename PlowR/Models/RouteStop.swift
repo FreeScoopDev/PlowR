@@ -16,6 +16,10 @@ final class RouteStop {
     var actualMinutes: Int = 0
     var completedServiceIDs: [String] = []
     var completedNotes: String = ""
+    /// Can't Service on the route's latest run (CantService): the reason
+    /// and when. Cleared, like the run's times, when the route next starts.
+    var cantServiceReason: String = ""
+    var cantServiceAt: Date? = nil
     var stopNotes: String = ""       // persistent operator reminders shown during route
     var equipmentNotes: String = ""  // equipment/blade flags shown during route
     /// The services this stop needs on this route, when it has its own list

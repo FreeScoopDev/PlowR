@@ -31,7 +31,11 @@ struct NotifyPromptView: View {
     let locationManager: LocationManager
     let onAdvance: () -> Void
     var promptTitle: String = "Notify Next Client?"
-    /// What Send or Skip does to the stop just left, shown above the buttons
+    /// The button beside Send Message: "Complete Without Text" when it
+    /// completes the stop just left (NotifyAdvance.Completion.skipLabel),
+    /// "No Text" when it completes nothing ("Skip" read as skipping the stop).
+    var skipLabel: String = NotifyAdvance.Completion.nothing.skipLabel
+    /// What Send Message or the other button does to the stop just left, shown above the buttons
     /// (the exit offer: NotifyAdvance.Completion.notice). Wraps onto as
     /// many lines as it needs, so no service's name is cut off.
     var completionNotice: String?
@@ -141,7 +145,7 @@ struct NotifyPromptView: View {
         }
         .sheet(isPresented: $showingMessageComposer) {
             MessageComposer(recipients: [stop.clientPhone], body: sending?.body ?? fullMessage) { outcome in
-                // Cancelled or failed: back to this prompt, where Skip moves on
+                // Cancelled or failed: back to this prompt, where the other button moves on
                 // without a text. It used to move on as if the text had gone.
                 guard outcome == .sent else {
                     showingMessageComposer = false
@@ -275,7 +279,7 @@ struct NotifyPromptView: View {
                     .padding(.top, 10)
             }
             // Without Messages (an iPad without texting, a Mac) it used to
-            // look as if it sent and send nothing: say so, and offer Skip.
+            // look as if it sent and send nothing: say so, and offer the other button.
             if MFMessageComposeViewController.canSendText() {
                 Button {
                     sending = (fullMessage, loggedMessage)
@@ -295,7 +299,7 @@ struct NotifyPromptView: View {
                 onAdvance()
                 dismiss()
             } label: {
-                Text("Skip")
+                Text(skipLabel)
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.plowRSecondary)
