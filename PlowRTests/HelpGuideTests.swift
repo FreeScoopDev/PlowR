@@ -8,10 +8,12 @@ import Foundation
 import Testing
 @testable import PlowR
 
-/// PlowR's help has one source, PlowR/Help/HelpGuide.json: the app bundles
-/// it and scripts/help_guide.py makes the website's docs/help.html from it.
-/// These tests are what keeps the two in step (the page carries the JSON's
-/// hash and its own), and what holds the copy to its rules.
+/// PlowR's help copy lives in PlowR/Help/HelpGuide.json, which the app
+/// bundles. The website's docs/help.html describes the version on the App
+/// Store, so scripts/help_guide.py makes it from a copy of the JSON as that
+/// version shipped, scripts/help_guide_published.json. These tests keep the
+/// page in step with that copy (the page carries its hash and its own), the
+/// copy pinned to the newest release, and both JSON files to the copy rules.
 struct HelpGuideTests {
     private static let root = URL(fileURLWithPath: #filePath)
         .deletingLastPathComponent().deletingLastPathComponent()
@@ -29,6 +31,10 @@ struct HelpGuideTests {
     }
 
     private static let sourcePath = "PlowR/Help/HelpGuide.json"
+    /// The help as the newest release shipped, which the website shows.
+    private static let publishedPath = "scripts/help_guide_published.json"
+    /// Both JSON files: the copy rules hold for each.
+    private static let guidePaths = [sourcePath, publishedPath]
     private static let scriptPath = "scripts/help_guide.py"
 
     /// The page's `<meta name="…" content="…">` value.
@@ -54,7 +60,7 @@ struct HelpGuideTests {
     }
 
     @Test func websitePageIsMadeFromTheSource() throws {
-        let source = try repoFile(Self.sourcePath)
+        let source = try repoFile(Self.publishedPath)
         let script = try repoFile(Self.scriptPath)
         let page = try #require(String(data: repoFile("docs/help.html"), encoding: .utf8))
         #expect(Self.pageIsMade(from: source, script: script, page: page),
@@ -64,7 +70,7 @@ struct HelpGuideTests {
     /// The check above can fail: a page edited by hand, or the source or the
     /// script edited without remaking the page, is caught.
     @Test func aPageSourceOrScriptEditedAloneIsCaught() throws {
-        let source = try repoFile(Self.sourcePath)
+        let source = try repoFile(Self.publishedPath)
         let script = try repoFile(Self.scriptPath)
         let page = try #require(String(data: repoFile("docs/help.html"), encoding: .utf8))
         #expect(Self.pageIsMade(from: source, script: script, page: page))
@@ -73,6 +79,42 @@ struct HelpGuideTests {
         #expect(!Self.pageIsMade(from: source, script: script, page: handEdited))
         #expect(!Self.pageIsMade(from: source + Data(" ".utf8), script: script, page: page))
         #expect(!Self.pageIsMade(from: source, script: script + Data(" ".utf8), page: page))
+    }
+
+    /// The newest version in CHANGELOG.md: its first `## [x.y.z]` heading
+    /// (`[Unreleased]` isn't one). The release PR adds the heading.
+    static func newestRelease(in changelog: String) -> String? {
+        changelog.firstMatch(of: /(?m)^## \[(\d+\.\d+\.\d+)\]/).map { String($0.1) }
+    }
+
+    /// Whether the published copy and the page are the newest release's.
+    static func publishedIsNewestRelease(published: Data, page: String, changelog: String) -> Bool {
+        guard let object = try? JSONSerialization.jsonObject(with: published) as? [String: Any],
+              let version = object["version"] as? String,
+              let newest = newestRelease(in: changelog) else { return false }
+        return version == newest && meta("plowr-help-version", in: page) == newest
+    }
+
+    /// The website describes what's on the App Store: the published copy is
+    /// pinned to the newest release. A release PR that adds a version to
+    /// CHANGELOG.md fails here until it copies the JSON over and remakes the
+    /// page, so the page moves with each release and never ahead of it.
+    @Test func thePageIsTheNewestRelease() throws {
+        let changelog = try #require(String(data: repoFile("CHANGELOG.md"), encoding: .utf8))
+        let page = try #require(String(data: repoFile("docs/help.html"), encoding: .utf8))
+        #expect(Self.publishedIsNewestRelease(published: try repoFile(Self.publishedPath), page: page, changelog: changelog),
+                "Copy PlowR/Help/HelpGuide.json to \(Self.publishedPath), set its version to \(Self.newestRelease(in: changelog) ?? "?"), then run python3 scripts/help_guide.py")
+    }
+
+    /// The check above can fail: a release cut without moving the pin is caught.
+    @Test func aReleaseWithoutMovingThePinIsCaught() throws {
+        let changelog = try #require(String(data: repoFile("CHANGELOG.md"), encoding: .utf8))
+        let page = try #require(String(data: repoFile("docs/help.html"), encoding: .utf8))
+        let published = try repoFile(Self.publishedPath)
+        #expect(Self.publishedIsNewestRelease(published: published, page: page, changelog: changelog))
+        let cut = changelog.replacingOccurrences(of: "## [Unreleased]", with: "## [Unreleased]\n\n## [99.0.0] - 2099-01-01")
+        #expect(Self.newestRelease(in: cut) == "99.0.0")
+        #expect(!Self.publishedIsNewestRelease(published: published, page: page, changelog: cut))
     }
 
     /// The app ships the same file (the PlowR folder is synchronized, so a
@@ -131,8 +173,8 @@ struct HelpGuideTests {
 
     /// The JSON as plain values, every field included (`emoji` and the
     /// screenshots are web-only, so `HelpGuide` doesn't decode them).
-    private func rawGuide() throws -> [String: Any] {
-        try #require(JSONSerialization.jsonObject(with: repoFile(Self.sourcePath)) as? [String: Any])
+    private func rawGuide(_ path: String = sourcePath) throws -> [String: Any] {
+        try #require(JSONSerialization.jsonObject(with: repoFile(path)) as? [String: Any])
     }
 
     private static func topics(of guide: [String: Any]) -> [[String: Any]] {
@@ -150,8 +192,9 @@ struct HelpGuideTests {
         }
     }
 
-    @Test func everyScreenshotIsInDocs() throws {
-        let shots = Self.topics(of: try rawGuide()).flatMap { $0["shots"] as? [[String: Any]] ?? [] }
+    @Test(arguments: guidePaths)
+    func everyScreenshotIsInDocs(_ path: String) throws {
+        let shots = Self.topics(of: try rawGuide(path)).flatMap { $0["shots"] as? [[String: Any]] ?? [] }
         // At least the 23 the page had when it moved to the JSON; more is fine.
         #expect(shots.count >= 23)
         for shot in shots {
@@ -207,8 +250,9 @@ struct HelpGuideTests {
         return copy.filter { $0.firstMatch(of: snow) != nil || $0.unicodeScalars.contains("\u{2744}") }
     }
 
-    @Test func sharedCopyAvoidsSnowWording() throws {
-        #expect(Self.snowCopy(in: try rawGuide()) == [])
+    @Test(arguments: guidePaths)
+    func sharedCopyAvoidsSnowWording(_ path: String) throws {
+        #expect(Self.snowCopy(in: try rawGuide(path)) == [])
     }
 
     /// The check above can fail: the storm card, made shared, is caught (by
@@ -233,10 +277,11 @@ struct HelpGuideTests {
     /// Only the markup both the app and the script read the same way:
     /// **bold**, [PRO], and links to https: or mailto:. The app's Markdown
     /// would also read *x*, _x_ and `x`, which the website shows as typed.
-    @Test func onlySharedMarkup() throws {
+    @Test(arguments: guidePaths)
+    func onlySharedMarkup(_ path: String) throws {
         // Only what's shown as text: ids, file names and the like aren't.
-        let notText: Set<String> = ["id", "file", "screens", "style", "web"]
-        for text in Self.strings(in: try rawGuide(), skipping: notText) {
+        let notText: Set<String> = ["id", "file", "screens", "style", "web", "version"]
+        for text in Self.strings(in: try rawGuide(path), skipping: notText) {
             let links = text.matches(of: /\[([^\]]+)\]\(([^)]*)\)/)
             for link in links {
                 let url = String(link.2)
