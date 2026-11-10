@@ -133,10 +133,10 @@ nonisolated enum OneTapServices {
         guard !names.isEmpty else {
             // True whether nothing is expected or something is recorded
             // already: the visit is still logged, only no service is added.
-            return "Send or Skip completes the stop for \(clientName) and adds no services."
+            return "Send Message or Complete Without Text completes the stop for \(clientName) and adds no services."
                 + " Tap Cancel to stay on that stop."
         }
-        return "Send or Skip completes the stop for \(clientName) and records \(englishList(names))."
+        return "Send Message or Complete Without Text completes the stop for \(clientName) and records \(englishList(names))."
             + " To complete it without \(names.count == 1 ? "that service" : "them"),"
             + " tap Cancel and choose on the stop."
     }
