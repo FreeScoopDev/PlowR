@@ -22,6 +22,49 @@ struct IconRow<Icon: View, Content: View>: View {
     }
 }
 
+/// A label as iOS draws it, with its icon above the title at accessibility
+/// text sizes: beside the icon (and a row's chevron, or a button's
+/// padding) a long word broke in two ("Pay / ment Methods", "Adjus / t").
+struct LargeTextLabelStyle: LabelStyle {
+    var alignment: HorizontalAlignment = .leading
+    /// Tint the stacked icon, as a list tints a link's icon.
+    var tintsIcon = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        StackedLabel(configuration: configuration, alignment: alignment, tintsIcon: tintsIcon)
+    }
+
+    private struct StackedLabel: View {
+        @Environment(\.dynamicTypeSize) private var typeSize
+        let configuration: LabelStyleConfiguration
+        let alignment: HorizontalAlignment
+        let tintsIcon: Bool
+
+        var body: some View {
+            if typeSize.isAccessibilitySize {
+                VStack(alignment: alignment, spacing: PlowRLayout.space2) {
+                    if tintsIcon {
+                        configuration.icon.foregroundStyle(.tint)
+                    } else {
+                        configuration.icon
+                    }
+                    configuration.title
+                        .multilineTextAlignment(alignment == .center ? .center : .leading)
+                }
+            } else {
+                Label(configuration)
+            }
+        }
+    }
+}
+
+extension LabelStyle where Self == LargeTextLabelStyle {
+    /// A list link row's label: stacked at accessibility sizes, icon tinted.
+    static var settingsLink: LargeTextLabelStyle { LargeTextLabelStyle(tintsIcon: true) }
+    /// A full-width button's label: stacked and centred at accessibility sizes.
+    static var stackedButton: LargeTextLabelStyle { LargeTextLabelStyle(alignment: .center) }
+}
+
 /// Views in equal columns, left to right and top to bottom, each cell as
 /// tall as the tallest in its row (the client page's 2 × 2 of actions at
 /// accessibility text sizes).

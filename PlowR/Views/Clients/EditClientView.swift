@@ -946,11 +946,17 @@ struct EditClientView: View {
                     Label("Set Pin on the Map", systemImage: "mappin.and.ellipse")
                 }
             } else {
-                HStack(spacing: 10) {
+                // Stacked at accessibility text sizes: side by side, each label
+                // broke mid-word ("Adjus / t Pin").
+                let pinLayout = typeSize.isAccessibilitySize
+                    ? AnyLayout(VStackLayout(spacing: 10))
+                    : AnyLayout(HStackLayout(spacing: 10))
+                pinLayout {
                     Button {
                         showingLocationAdjust = true
                     } label: {
                         Label("Adjust Pin", systemImage: "mappin.and.ellipse")
+                            .labelStyle(.stackedButton)
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
@@ -962,6 +968,7 @@ struct EditClientView: View {
                             ProgressView().scaleEffect(0.8).frame(maxWidth: .infinity)
                         } else {
                             Label("Street View", systemImage: "binoculars")
+                                .labelStyle(.stackedButton)
                                 .frame(maxWidth: .infinity)
                         }
                     }
