@@ -77,7 +77,7 @@ struct ExitPromptTests {
         #expect(handler.components(separatedBy: "openNotifyPrompt(").count == 2)
         // Nothing that runs a completion either: since the exit offer
         // records services, one run here would record them with no tap.
-        for call in ["advance(", "triggerNotifyPrompt(", "completeCurrentStop", "passCurrentStop", ".button(",
+        for call in ["advance(", "triggerNotifyPrompt(", "completeCurrentStop", "passCurrentStop", "skipCurrentStop", ".button(",
                      ".run(", "runNotingUnrecorded", "NotifyAdvance.run", "CompleteStopAction", "completeShownStop",
                      "undoLastCompletion"] {
             #expect(!handler.contains(call), "exit handler calls \(call)")

@@ -281,6 +281,7 @@ nonisolated enum PlowRSymbol: String, CaseIterable {
     case text = "message.fill"
     case email = "envelope.fill"
     case complete = "checkmark.circle.fill"
+    case cantService = "xmark.circle"
     case settings = "gearshape.fill"
     case pro = "star.circle.fill"
     case warning = "exclamationmark.triangle.fill"
