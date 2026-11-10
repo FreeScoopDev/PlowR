@@ -70,8 +70,10 @@ struct ExitPromptTests {
         let start = try #require(source.range(of: "private func offerTextAfterExit() async {"))
         let end = try #require(source.range(of: "    private func ", range: start.upperBound..<source.endIndex))
         let handler = source[start.lowerBound..<end.lowerBound]
-        #expect(handler.contains("openNotifyPrompt()"))
-        for call in ["advance(", "triggerNotifyPrompt(", "completeCurrentStop", "passCurrentStop"] {
+        // The exit offer names the current stop and no services: no button
+        // named any (NotifyAdvance.Completion.exitOffer).
+        #expect(handler.contains("openNotifyPrompt(.exitOffer(currentStop: currentStop?.id))"))
+        for call in ["advance(", "triggerNotifyPrompt(", "completeCurrentStop", "passCurrentStop", ".button("] {
             #expect(!handler.contains(call), "exit handler calls \(call)")
         }
         #expect(!source.contains("onChange(of: SiteMonitor.shared.lastExit"))
