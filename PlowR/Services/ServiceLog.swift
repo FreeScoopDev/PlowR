@@ -697,7 +697,7 @@ enum ServiceLog {
     /// forms list them.
     static func activeServices(_ all: [ServiceItem], operatorID: String) -> [StopRecording.Service] {
         all.filter { $0.operatorID == operatorID && $0.isActive }
-            .sorted(by: catalogOrder)
+            .sorted { catalogOrder($0, $1) }
             .map { .init(id: $0.id.uuidString, name: $0.name, unitType: $0.unitType, pricePerUnit: $0.pricePerUnit) }
     }
 
@@ -957,7 +957,7 @@ enum ServiceLog {
         let zones = Place.of(client, propertyID: propertyID)?.zones ?? []
         return catalog
             .filter { wanted.contains($0.id.uuidString) }
-            .sorted(by: catalogOrder)
+            .sorted { catalogOrder($0, $1) }
             .map { service in
                 ServiceRecord.Line(
                     serviceID: service.id.uuidString, name: service.name, unitType: service.unitType,
