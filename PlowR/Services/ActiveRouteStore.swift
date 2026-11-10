@@ -364,7 +364,9 @@ final class ActiveRouteStore {
     /// or a stop already behind, nothing is written.
     @discardableResult
     func skipCurrentStop(expecting stopID: UUID, reason: String) -> CompletionResult {
-        let result = moveOn(expecting: stopID, recording: false, services: [])
+        // The crew may never have gone there (the client cancelled by phone),
+        // so the stop before is still watched for its departure.
+        let result = moveOn(expecting: stopID, recording: false, services: [], crewWasThere: false)
         switch result {
         case .advanced, .finishedLastStop:
             guard let stop = sortedStops.first(where: { $0.id == stopID }) else { return result }
@@ -377,7 +379,8 @@ final class ActiveRouteStore {
         return result
     }
 
-    private func moveOn(expecting stopID: UUID, recording: Bool, services: [String]) -> CompletionResult {
+    private func moveOn(expecting stopID: UUID, recording: Bool, services: [String],
+                        crewWasThere: Bool = true) -> CompletionResult {
         validate()
         guard isActive else { return .noActiveRoute }
         guard let stop = currentStop else {
@@ -392,7 +395,9 @@ final class ActiveRouteStore {
         var undo = recording ? beforeCompleting(stop) : nil
         // The crew was at this stop: an earlier stop's exit seen from now on
         // isn't when they left it (the areas overlap, or it came too late).
-        if !departures.isEmpty {
+        // Not after Can't Service: an entry at that stop, if there is one,
+        // ends the wait as it always does.
+        if crewWasThere, !departures.isEmpty {
             departures = []
             SiteDepartures.save(departures, to: defaults)
         }

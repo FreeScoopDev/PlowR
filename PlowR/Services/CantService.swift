@@ -37,7 +37,7 @@ nonisolated enum CantService {
 
     /// The route page's line under a stop skipped on the route's latest run:
     /// "Couldn't service Nov 10: Gate locked". nil without a reason.
-    static func routeLine(reason: String, at: Date?, locale: Locale = Locale(identifier: "en_US"),
+    static func routeLine(reason: String, at: Date?, locale: Locale = .autoupdatingCurrent,
                           calendar: Calendar = .current) -> String? {
         guard !reason.isEmpty, let at else { return nil }
         var style = Date.FormatStyle(date: .omitted, time: .omitted, locale: locale, calendar: calendar,

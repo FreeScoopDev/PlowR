@@ -215,7 +215,7 @@ struct ActiveRouteView: View {
         .alert("Route Changed", isPresented: $showingRouteChangedAlert) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text("This route was changed on another device, so that stop wasn't marked complete. Check the current stop and try again.")
+            Text("This route was changed on another device, so the route didn't move on and nothing was recorded for that stop. Check the current stop and try again.")
         }
         // Location off used to offer only Open Settings or End Route, which
         // threw away the run. The route works without it, by hand, so

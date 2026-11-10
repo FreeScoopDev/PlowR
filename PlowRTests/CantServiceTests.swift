@@ -53,9 +53,36 @@ struct CantServiceTests {
         #expect(store.skipCurrentStop(expecting: only.id, reason: "Client cancelled") == .finishedLastStop)
         #expect(store.allStopsDone)
         #expect(only.cantServiceReason == "Client cancelled")
+        let skippedAt = only.cantServiceAt
+        // Asked again once it's behind: nothing is written over it.
+        h.clock += 60
+        #expect(store.skipCurrentStop(expecting: only.id, reason: "Other") == .allStopsAlreadyDone)
+        #expect(only.cantServiceReason == "Client cancelled" && only.cantServiceAt == skippedAt)
         #expect(only.actualMinutes == 0)
         #expect(h.clients[0].totalVisits == 0)
         #expect(try records(h).isEmpty)
+    }
+
+    // The client at the next stop cancels by phone while the crew is still
+    // at the one just done: its departure is still caught afterwards.
+    @Test func aSkipKeepsWatchingTheStopBeforeForItsDeparture() throws {
+        let h = try Harness(stopCount: 3)
+        for (i, stop) in h.route.sortedStops.enumerated() {
+            stop.latitude = 43 + Double(i) / 100
+            stop.longitude = -79
+        }
+        let store = h.makeStore()
+        store.start(h.route)
+        let run = try #require(store.runID)
+        let stops = h.route.sortedStops
+        h.clock += 900
+        #expect(store.completeCurrentStop(expecting: stops[0].id) == .advanced(nextStopIndex: 1))
+        let completed = h.clock
+        h.clock += 60
+        #expect(store.skipCurrentStop(expecting: stops[1].id, reason: "Client cancelled") == .advanced(nextStopIndex: 2))
+        #expect(store.departures.map(\.stopID) == [stops[0].id])
+        store.siteExited(stops[0].id.uuidString, at: completed + 120)
+        #expect(ServiceLog.runRecord(run: run, stop: stops[0].id, in: h.context)?.leftAt == completed + 120)
     }
 
     // iCloud took the stop off the route meanwhile: the sheet's stop isn't
@@ -192,7 +219,8 @@ struct CantServiceTests {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = try #require(TimeZone(identifier: "America/Toronto"))
         let day = try #require(calendar.date(from: DateComponents(year: 2026, month: 11, day: 10, hour: 9)))
-        #expect(CantService.routeLine(reason: "Gate locked", at: day, calendar: calendar)
+        #expect(CantService.routeLine(reason: "Gate locked", at: day, locale: Locale(identifier: "en_US"),
+                                      calendar: calendar)
                 == "Couldn't service Nov 10: Gate locked")
         #expect(CantService.routeLine(reason: "", at: day, calendar: calendar) == nil)
         #expect(CantService.routeLine(reason: "Gate locked", at: nil, calendar: calendar) == nil)
