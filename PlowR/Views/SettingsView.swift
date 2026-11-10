@@ -68,12 +68,15 @@ struct SettingsView: View {
             Section(title: "Business") {
                 NavigationLink(destination: BusinessProfileView()) {
                     Label("Business Profile", systemImage: "building.2")
+                        .labelStyle(.settingsLink)
                 }
                 NavigationLink(destination: ServiceCatalogView()) {
                     Label("Service Catalog", systemImage: "list.bullet.clipboard")
+                        .labelStyle(.settingsLink)
                 }
                 NavigationLink(destination: PaymentMethodsView()) {
                     Label("Payment Methods", systemImage: "creditcard")
+                        .labelStyle(.settingsLink)
                 }
                 if let blocked = ProGate.proFeature("The Request Link", access) {
                     Button { gate = blocked } label: {
@@ -83,6 +86,7 @@ struct SettingsView: View {
                 } else {
                     NavigationLink(destination: RequestLinkView()) {
                         Label("Request Link", systemImage: "link")
+                            .labelStyle(.settingsLink)
                     }
                 }
                 // A Pro tool: without Pro, the row says why instead of opening.
@@ -94,10 +98,12 @@ struct SettingsView: View {
                 } else {
                     NavigationLink(destination: ImportClientsView()) {
                         Label("Import Clients", systemImage: "square.and.arrow.down.on.square")
+                            .labelStyle(.settingsLink)
                     }
                 }
                 NavigationLink(destination: ExportDataView()) {
                     Label("Export Data", systemImage: "square.and.arrow.up.on.square")
+                        .labelStyle(.settingsLink)
                 }
             }
             .listRowBackground(PlowRColor.surface)
@@ -179,6 +185,7 @@ struct SettingsView: View {
             Section {
                 NavigationLink(destination: HelpGuideView()) {
                     Label("Help Guide", systemImage: PlowRSymbol.help.name)
+                        .labelStyle(.settingsLink)
                 }
                 Link(destination: HelpGuide.shared.web) {
                     Label("Help on the Web", systemImage: "safari")

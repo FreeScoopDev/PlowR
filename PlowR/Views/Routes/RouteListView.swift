@@ -5,6 +5,7 @@ struct RouteListView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AuthManager.self) private var authManager
     @Environment(\.access) private var access
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var gate: ProGate?
     @Query private var allRoutes: [PlowRoute]
     @Query private var allClients: [Client]
@@ -33,7 +34,12 @@ struct RouteListView: View {
                         NavigationLink {
                             RouteDetailView(route: route)
                         } label: {
-                            HStack {
+                            // The chip goes under the row at accessibility sizes:
+                            // beside it, the route's name broke ("Mon- / day").
+                            let rowLayout = typeSize.isAccessibilitySize
+                                ? AnyLayout(VStackLayout(alignment: .leading, spacing: PlowRLayout.space2))
+                                : AnyLayout(HStackLayout())
+                            rowLayout {
                                 RouteRowView(route: route, clients: allClients,
                                              lastRun: lastRuns[route.id.uuidString])
                                 // The free tier runs one route: it says Free, the others Pro.
