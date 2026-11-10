@@ -218,7 +218,7 @@
             "Add a quick note if you need one, like Running Late, Weather Delay or Gate / Access, or type your own.",
             "Turn on **Include my location link** if you want them to see where you are.",
             "Tap **Send Message**. It goes from your own Messages app. Or tap **Skip**.",
-            "Drove off without completing the stop? Shortly after you leave its area, PlowR offers the same text. It says what **Send Message** or **Skip** will do: complete the stop you left and record the services it names, the same ones as the **Done:** button. To complete it without them, tap **Cancel**, then **Complete Without Services** on the stop."
+            "Drove off without completing the stop? Shortly after you leave its area, PlowR offers the same text. It says what **Send Message** or **Skip** will do: complete the stop you left and record the services it names, the same ones as the **Done:** button. To complete it without them, tap **Cancel**, then **Complete Without Services** on the stop. If something was recorded there meanwhile, PlowR says which services it didn't add."
           ],
           "note": "Client doesn't want texts? Turn on **Skip arrival message prompt** on their page."
         },

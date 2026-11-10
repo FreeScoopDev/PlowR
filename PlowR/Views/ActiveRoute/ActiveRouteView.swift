@@ -76,6 +76,11 @@ struct ActiveRouteView: View {
     /// Set while the notify sheet is up; the alert shows once it closes
     /// (iOS won't present an alert over a view that is presenting a sheet).
     @State private var routeChangedAfterSheet = false
+    /// After the exit offer's Send or Skip recorded less than its sheet
+    /// named: which services weren't (OneTapServices.notRecordedNote).
+    /// Shown once the sheet closes.
+    @State private var notRecordedNote: String?
+    @State private var showingNotRecordedAlert = false
 
     @AppStorage("completedRoutesCount") private var completedRoutesCount = 0
     /// The completion the Undo bar offers, while its window is open
@@ -103,6 +108,7 @@ struct ActiveRouteView: View {
         showingFirstStopPrompt || showingNotifyPrompt || textOnlyStop != nil || recorderStop != nil || showingMassMessage
             || belowTriggerStop != nil || showingBelowTriggerChangedAlert
             || showingRouteRecap || showingNavPicker || showingRouteChangedAlert || showingLocationDeniedAlert
+            || showingNotRecordedAlert
             || gate != nil
     }
 
@@ -115,11 +121,15 @@ struct ActiveRouteView: View {
 
     /// The current stop's copper button: "Done:" with the services it
     /// records, when the stop expects some and nothing is recorded yet
-    /// (OneTapServices); otherwise the ordinary Complete.
-    private func mainButton(for stop: RouteStop) -> OneTapServices.MainButton {
+    /// (OneTapServices); otherwise the ordinary Complete. The card's and the
+    /// exit offer's both come from here. `memoized`: the card, drawn on every
+    /// GPS fix, keeps the last answer until something it depends on changes;
+    /// the exit offer asks afresh, as the memo may not have seen a save made
+    /// a moment ago.
+    private func mainButton(for stop: RouteStop, memoized: Bool = true) -> OneTapServices.MainButton {
         OneTapServices.mainButton(for: stop, client: client(for: stop), catalog: allServices,
                                   operatorID: route.operatorID, store: store, skipsText: shouldSkipNextNotify,
-                                  in: modelContext, memo: buttonMemo, dataVersion: dataVersion)
+                                  in: modelContext, memo: memoized ? buttonMemo : nil, dataVersion: dataVersion)
     }
 
     private func client(for stop: RouteStop) -> Client? {
@@ -190,6 +200,11 @@ struct ActiveRouteView: View {
                     requestReview()
                 }
             }
+        }
+        .alert("Not Recorded", isPresented: $showingNotRecordedAlert) {
+            Button("OK", role: .cancel) { notRecordedNote = nil }
+        } message: {
+            Text(notRecordedNote ?? "")
         }
         .alert("Route Changed", isPresented: $showingRouteChangedAlert) {
             Button("OK", role: .cancel) {}
@@ -433,6 +448,8 @@ struct ActiveRouteView: View {
             if routeChangedAfterSheet {
                 routeChangedAfterSheet = false
                 showingRouteChangedAlert = true
+            } else if notRecordedNote != nil {
+                showingNotRecordedAlert = true
             }
         }) {
             if let next = promptNextStop {
@@ -1213,9 +1230,8 @@ struct ActiveRouteView: View {
                                      hasNextStop: nextStop != nil, canText: canText,
                                      isPresentingSomething: isPresentingSomething, now: Date()),
               let left else { return }
-        openNotifyPrompt(.exitOffer(leftStop: left, client: client(for: left), catalog: allServices,
-                                    operatorID: route.operatorID, store: store, skipsText: shouldSkipNextNotify,
-                                    in: modelContext))
+        openNotifyPrompt(.exitOffer(leftStop: left.id, clientName: left.clientName,
+                                    main: mainButton(for: left, memoized: false)))
     }
 
     /// The Complete button only: a tap. Leaving the stop's area goes to
@@ -1273,9 +1289,13 @@ struct ActiveRouteView: View {
     }
 
     /// Completes what `completion` names; the heads-up after Below Trigger
-    /// completes nothing (NotifyAdvance).
+    /// completes nothing (NotifyAdvance). After the exit offer, says which
+    /// of the services its sheet named weren't recorded, if any.
     private func advance(_ completion: NotifyAdvance.Completion) {
-        if completion.run(store: store) == .stopChanged {
+        let result = completion.runNotingUnrecorded(store: store)
+        // Shown once the sheet has closed, like Route Changed (nil: nothing missing).
+        notRecordedNote = OneTapServices.notRecordedNote(clientName: completion.clientName, names: result.notRecorded)
+        if result.outcome == .stopChanged {
             if showingNotifyPrompt { routeChangedAfterSheet = true } else { showingRouteChangedAlert = true }
             return
         }

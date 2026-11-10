@@ -1,5 +1,4 @@
 import Foundation
-import SwiftData
 
 /// What the notify prompt's Send or Skip does to the route. After Done, it
 /// completes the stop the screen showed. After Below Trigger, the stop was
@@ -45,6 +44,10 @@ enum NotifyAdvance {
         /// the exit offer has one (`OneTapServices.exitOfferNotice`). Opened
         /// from a button, the button already said it.
         private(set) var notice: String?
+        /// The exit offer's: the names of `serviceIDs`, in the same order,
+        /// and the stop's client, for saying afterwards what wasn't recorded.
+        private(set) var serviceNames: [String] = []
+        private(set) var clientName = ""
 
         /// Nothing to complete: no sheet open, or one cancelled.
         static let nothing = Completion(stopID: nil, serviceIDs: [])
@@ -68,18 +71,8 @@ enum NotifyAdvance {
             var names: [String] = []
             if case .done(_, let named) = main { names = named }
             return Completion(stopID: leftStop, serviceIDs: main.recordedServiceIDs,
-                              notice: OneTapServices.exitOfferNotice(clientName: clientName, names: names))
-        }
-
-        /// The exit offer for `stop` as the route screen opens it: its button
-        /// worked out afresh from the database (no memo, which may not have
-        /// seen a save made a moment ago), by the same rule as the card's.
-        @MainActor
-        static func exitOffer(leftStop stop: RouteStop, client: Client?, catalog: [ServiceItem], operatorID: String,
-                              store: ActiveRouteStore, skipsText: Bool, in context: ModelContext) -> Completion {
-            let main = OneTapServices.mainButton(for: stop, client: client, catalog: catalog, operatorID: operatorID,
-                                                 store: store, skipsText: skipsText, in: context)
-            return exitOffer(leftStop: stop.id, clientName: stop.clientName, main: main)
+                              notice: OneTapServices.exitOfferNotice(clientName: clientName, names: names),
+                              serviceNames: names, clientName: clientName)
         }
 
         /// The heads-up after Below Trigger: the stop was already passed.
@@ -91,6 +84,30 @@ enum NotifyAdvance {
         /// Send or Skip.
         func run(store: ActiveRouteStore) -> Outcome {
             NotifyAdvance.run(completing: stopID, recording: serviceIDs, store: store)
+        }
+
+        /// Send or Skip, and the names of the services the sheet named that
+        /// this didn't record: the store's re-check found something recorded
+        /// or invoiced meanwhile, a named service left the catalog, or Siri
+        /// or Control Center completed the stop first. Empty when all were
+        /// recorded, when none were named (a button's sheet says nothing,
+        /// the button did), and on `.stopChanged`, which the screen already
+        /// reports. What was added is read off the stop: the store puts the
+        /// services on it only if it had none (`ServiceLog.hasNothingRecorded`).
+        @MainActor
+        func runNotingUnrecorded(store: ActiveRouteStore) -> (outcome: Outcome, notRecorded: [String]) {
+            let stop = stopID.flatMap { id in store.sortedStops.first { $0.id == id } }
+            let before = stop?.completedServiceIDs ?? []
+            let outcome = run(store: store)
+            guard notice != nil, !serviceIDs.isEmpty, outcome != .stopChanged else { return (outcome, []) }
+            let added = before.isEmpty ? (stop?.completedServiceIDs ?? []) : []
+            return (outcome, Self.notRecorded(ids: serviceIDs, names: serviceNames, added: added))
+        }
+
+        /// The names, of the services named (`ids`, `names` in step), that
+        /// aren't among those `added`.
+        static func notRecorded(ids: [String], names: [String], added: [String]) -> [String] {
+            zip(ids, names).filter { !added.contains($0.0) }.map(\.1)
         }
     }
 }

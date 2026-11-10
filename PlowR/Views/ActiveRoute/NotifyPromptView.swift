@@ -109,12 +109,13 @@ struct NotifyPromptView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
-                    clientHeader
-                    // At the largest sizes the sentence goes here, where it
-                    // scrolls: pinned over the buttons it could fill the screen.
+                    // At the largest sizes the sentence goes first, where it's
+                    // on screen as the sheet opens and scrolls: pinned over the
+                    // buttons it could fill the screen.
                     if dynamicTypeSize.isAccessibilitySize, let completionNotice {
                         noticeText(completionNotice)
                     }
+                    clientHeader
                     etaRow
                     presetsSection
                     customNoteField

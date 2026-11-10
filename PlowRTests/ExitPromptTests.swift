@@ -73,9 +73,13 @@ struct ExitPromptTests {
         // The exit offer only opens the sheet, for the stop left, with what
         // that stop's button would record (NotifyAdvance.Completion.exitOffer):
         // only Send or Skip there completes it.
-        #expect(handler.contains("openNotifyPrompt(.exitOffer(leftStop: left, client: client(for: left)"))
+        #expect(handler.contains("openNotifyPrompt(.exitOffer(leftStop: left.id, clientName: left.clientName,"))
         #expect(handler.components(separatedBy: "openNotifyPrompt(").count == 2)
-        for call in ["advance(", "triggerNotifyPrompt(", "completeCurrentStop", "passCurrentStop", ".button("] {
+        // Nothing that runs a completion either: since the exit offer
+        // records services, one run here would record them with no tap.
+        for call in ["advance(", "triggerNotifyPrompt(", "completeCurrentStop", "passCurrentStop", ".button(",
+                     ".run(", "runNotingUnrecorded", "NotifyAdvance.run", "CompleteStopAction", "completeShownStop",
+                     "undoLastCompletion"] {
             #expect(!handler.contains(call), "exit handler calls \(call)")
         }
         #expect(!source.contains("onChange(of: SiteMonitor.shared.lastExit"))

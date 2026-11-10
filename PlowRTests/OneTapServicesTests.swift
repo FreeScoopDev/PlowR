@@ -528,13 +528,12 @@ struct OneTapServicesTests {
 
     /// The exit offer for the store's current stop, as the route screen
     /// opens it once the phone has left that stop's area.
+    /// Built from the card's button, worked out afresh (no memo).
     private func exitOffer(_ h: Harness, _ store: ActiveRouteStore,
                            skipsText: Bool = false) throws -> NotifyAdvance.Completion {
         let stop = try #require(store.currentStop)
-        let client = stop.isCustomStop ? nil : h.clients.first { $0.id == stop.clientID }
-        return NotifyAdvance.Completion.exitOffer(leftStop: stop, client: client, catalog: try allServices(h),
-                                                  operatorID: "op", store: store, skipsText: skipsText,
-                                                  in: h.context)
+        return NotifyAdvance.Completion.exitOffer(leftStop: stop.id, clientName: stop.clientName,
+                                                  main: try button(h, store, skipsText: skipsText))
     }
 
     /// The sentence for a stop whose button records nothing new.
@@ -770,21 +769,160 @@ struct OneTapServicesTests {
 
     /// What the exit offer's sheet says, word for word.
     @Test func theExitOfferSentence() {
-        let us = Locale(identifier: "en_US")
-        #expect(OneTapServices.exitOfferNotice(clientName: "Pat Lee", names: ["Mow"], locale: us)
+        #expect(OneTapServices.exitOfferNotice(clientName: "Pat Lee", names: ["Mow"])
                 == "Send or Skip completes the stop for Pat Lee and records Mow."
+                    + " To complete it without that service, tap Cancel and choose on the stop.")
+        #expect(OneTapServices.exitOfferNotice(clientName: "Pat Lee", names: ["Mow", "Edge"])
+                == "Send or Skip completes the stop for Pat Lee and records Mow and Edge."
                     + " To complete it without them, tap Cancel and choose on the stop.")
-        #expect(OneTapServices.exitOfferNotice(clientName: "Pat Lee", names: ["Mow", "Trim", "Edge"], locale: us)
+        #expect(OneTapServices.exitOfferNotice(clientName: "Pat Lee", names: ["Mow", "Trim", "Edge"])
                 == "Send or Skip completes the stop for Pat Lee and records Mow, Trim, and Edge."
                     + " To complete it without them, tap Cancel and choose on the stop.")
-        #expect(OneTapServices.exitOfferNotice(clientName: "Pat Lee", names: [], locale: us)
-                == "Send or Skip completes the stop for Pat Lee and records nothing new."
+        #expect(OneTapServices.exitOfferNotice(clientName: "Pat Lee", names: [])
+                == "Send or Skip completes the stop for Pat Lee and adds no services."
                     + " Tap Cancel to stay on that stop.")
         // Every name, however many: nothing shortened to "+N more".
         let many = ["Mow", "Trim", "Edge", "Rake", "Haul", "Blow"]
-        let sentence = OneTapServices.exitOfferNotice(clientName: "Pat Lee", names: many, locale: us)
+        let sentence = OneTapServices.exitOfferNotice(clientName: "Pat Lee", names: many)
         for name in many { #expect(sentence.contains(name)) }
         #expect(!sentence.contains("more"))
+    }
+
+    /// The app's copy is English only: a list reads in English on a device
+    /// set to another language or region, where the system's own list
+    /// would not ("Mow, Trim et Edge" in French).
+    @Test func listsAreEnglishWhateverTheDevicesRegion() {
+        let names = ["Mow", "Trim", "Edge"]
+        let french = names.formatted(.list(type: .and).locale(Locale(identifier: "fr_FR")))
+        #expect(french != "Mow, Trim, and Edge")
+        #expect(OneTapServices.copyLocale.language.languageCode == .english)
+        #expect(OneTapServices.englishList(names) == "Mow, Trim, and Edge")
+        #expect(OneTapServices.doneAccessibilityLabel(names) == "Done: complete and record Mow, Trim, and Edge")
+        #expect(OneTapServices.notRecordedNote(clientName: "Pat Lee", names: names)?
+            .hasPrefix("Mow, Trim, and Edge weren't") == true)
+    }
+
+    // MARK: - Saying what the exit offer didn't record
+
+    /// The note after Send or Skip, word for word.
+    @Test func theNotRecordedNote() {
+        #expect(OneTapServices.notRecordedNote(clientName: "Pat Lee", names: []) == nil)
+        #expect(OneTapServices.notRecordedNote(clientName: "Pat Lee", names: ["Edge"])
+                == "Edge wasn't recorded for Pat Lee. If it was done, add it from the Route Recap"
+                    + " when you finish the route.")
+        #expect(OneTapServices.notRecordedNote(clientName: "Pat Lee", names: ["Mow", "Edge"])
+                == "Mow and Edge weren't recorded for Pat Lee. If they were done, add them from the Route Recap"
+                    + " when you finish the route.")
+    }
+
+    /// Everything named was recorded: nothing to say.
+    @Test func allRecordedLeavesNoNote() throws {
+        let h = try Harness(stopCount: 2)
+        try catalog(h)
+        let store = h.makeStore()
+        store.start(h.route)
+        let result = try exitOffer(h, store).runNotingUnrecorded(store: store)
+        #expect(result.outcome == .movedOn)
+        #expect(result.notRecorded.isEmpty)
+    }
+
+    /// A named service deleted from the catalog between the sheet opening
+    /// and Send: that one is named as not recorded.
+    @Test func aServiceDeletedMeanwhileIsNamedAsNotRecorded() throws {
+        let h = try Harness(stopCount: 2)
+        let c = try catalog(h)
+        let store = h.makeStore()
+        store.start(h.route)
+        let offer = try exitOffer(h, store)
+        #expect(offer.serviceNames == ["Mow", "Edge"])
+        h.context.delete(c.edge)
+        try h.context.save()
+        let result = offer.runNotingUnrecorded(store: store)
+        #expect(result.outcome == .movedOn)
+        #expect(result.notRecorded == ["Edge"])
+    }
+
+    /// Record Services saved something while the sheet was up: the store
+    /// adds nothing, so every name is reported.
+    @Test func somethingRecordedMeanwhileNamesThemAll() throws {
+        let h = try Harness(stopCount: 2)
+        let c = try catalog(h)
+        let store = h.makeStore()
+        store.start(h.route)
+        let stop = try #require(store.currentStop)
+        let offer = try exitOffer(h, store)
+        let recording = StopRecording(services: ServiceLog.activeServices(try allServices(h), operatorID: "op"),
+                                      zones: [], selectedIDs: [c.mow.id.uuidString])
+        ServiceLog.saveRecording(recording, notes: "", for: stop, of: h.client, run: try #require(store.runID),
+                                 operatorID: "op", startedAt: try #require(store.stopStartedAt), in: h.context)
+        let result = offer.runNotingUnrecorded(store: store)
+        #expect(result.outcome == .movedOn)
+        #expect(result.notRecorded == ["Mow", "Edge"])
+    }
+
+    /// Work invoiced while the sheet was up: nothing added, every name reported.
+    @Test func workInvoicedMeanwhileNamesThemAll() throws {
+        let h = try Harness(stopCount: 2)
+        try catalog(h)
+        let store = h.makeStore()
+        store.start(h.route)
+        let offer = try exitOffer(h, store)
+        let visit = ScheduledVisit(operatorID: "op", clientID: h.client.id.uuidString, clientName: h.client.name,
+                                   clientAddress: h.client.address, scheduledDate: h.clock)
+        h.context.insert(visit)
+        let invoice = Proposal(operatorID: "op", client: h.client)
+        invoice.invoiceNumber = "INV-0042"
+        h.context.insert(invoice)
+        visit.proposalID = invoice.id.uuidString
+        try h.context.save()
+        #expect(offer.runNotingUnrecorded(store: store).notRecorded == ["Mow", "Edge"])
+    }
+
+    /// Siri completed the stop while the sheet was up: nothing was added
+    /// by Send, so every name is reported.
+    @Test func completedBySiriMeanwhileNamesThemAll() throws {
+        let h = try Harness(stopCount: 3)
+        try catalog(h)
+        let store = h.makeStore()
+        store.start(h.route)
+        let offer = try exitOffer(h, store)
+        #expect(CompleteStopAction.siri(in: store, role: UserRole.business).completed)
+        let result = offer.runNotingUnrecorded(store: store)
+        #expect(result.outcome == .movedOn)
+        #expect(result.notRecorded == ["Mow", "Edge"])
+    }
+
+    /// No note from a button's sheet, Cancel, the heads-up, an exit offer
+    /// that named nothing, or a stop changed by sync (Route Changed says so).
+    @Test func noNoteWhereTheSheetNamedNothingOrTheRouteChanged() throws {
+        let h = try Harness(stopCount: 3)
+        let c = try catalog(h)
+        let store = h.makeStore()
+        store.start(h.route)
+        let stops = h.route.sortedStops
+        let offer = try exitOffer(h, store)
+        #expect(offer.cancelled().runNotingUnrecorded(store: store).notRecorded.isEmpty)
+        #expect(NotifyAdvance.Completion.headsUp.runNotingUnrecorded(store: store).notRecorded.isEmpty)
+        // A service deleted meanwhile, but the sheet came from the button.
+        let tapped = NotifyAdvance.Completion.button(drawnStop: stops[0].id, recording: offer.serviceIDs)
+        h.context.delete(c.edge)
+        try h.context.save()
+        let fromButton = tapped.runNotingUnrecorded(store: store)
+        #expect(fromButton.outcome == .movedOn)
+        #expect(fromButton.notRecorded.isEmpty)
+        // Stop 1 expects nothing still in the catalog but Mow; remove the
+        // stop under the offer: .stopChanged, no note.
+        let second = try exitOffer(h, store)
+        #expect(second.stopID == stops[1].id)
+        h.context.delete(stops[1])
+        try h.context.save()
+        let changed = second.runNotingUnrecorded(store: store)
+        #expect(changed.outcome == .stopChanged)
+        #expect(changed.notRecorded.isEmpty)
+        // An exit offer that named nothing.
+        let plain = NotifyAdvance.Completion.exitOffer(leftStop: stops[2].id, clientName: "Client 2",
+                                                       main: .completeRoute)
+        #expect(plain.runNotingUnrecorded(store: store).notRecorded.isEmpty)
     }
 
     // MARK: - Completions from outside the route screen
