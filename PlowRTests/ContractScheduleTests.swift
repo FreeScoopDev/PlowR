@@ -50,10 +50,10 @@ struct ContractScheduleTests {
                 == "Every 2 weeks on Tuesday and Friday")
     }
 
-    /// The joining word is English whatever the device's language: the copy
-    /// around it is. (The device's locale reaches `.formatted(.list)`, not
-    /// the calendar, so this fails on a French device or `-testLanguage fr
-    /// -testRegion FR`, and passes anywhere once the list is `englishList`.)
+    /// Pins the sentence with a French calendar's day names joined in
+    /// English. It does NOT prove the device's language is ignored: the
+    /// test host formats lists in English whatever language it's given, so
+    /// putting `.formatted(.list)` back passes too.
     @Test func itsDaysAreJoinedInEnglishOnAFrenchDevice() throws {
         let h = try Harness(stopCount: 0)
         var french = Calendar(identifier: .gregorian)

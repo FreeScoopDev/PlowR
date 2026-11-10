@@ -68,9 +68,10 @@ struct ClientTimelineTests {
         #expect(jobEvent.amount == 40)
     }
 
-    /// A job's title joins its services with English words on any device
-    /// (fails on a French device, or `-testLanguage fr -testRegion FR`,
-    /// without `OneTapServices.englishList`).
+    /// Pins a job's title as English copy writes a list. It does NOT prove
+    /// the device's language is ignored: the test host formats lists in
+    /// English whatever language it's given (tried `-testLanguage fr` and a
+    /// French simulator), so putting `.formatted(.list)` back passes too.
     @Test func aJobWithSeveralServicesIsTitledInEnglish() throws {
         let h = try Harness(stopCount: 1)
         let job = ServiceRecord(operatorID: "op", sourceKey: "a", source: .route)
