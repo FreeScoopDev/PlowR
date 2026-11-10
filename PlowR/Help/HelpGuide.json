@@ -199,6 +199,7 @@
             "Tap **Navigate** to get directions in Apple Maps, Google Maps or Waze.",
             "At the stop, tap **Record Services** to add before and after photos, the services done (**Add Expected** fills them in), and notes. Then **Save**.",
             "Tap **Complete · Text Next Client** to finish the stop and move on. (It says **Complete Stop** when there's no one to text.)",
+            "When a stop has expected services and nothing is recorded for it yet, the button names them instead, like **Done: Mow, Trim**. One tap completes the stop and records those services at your catalog prices, as **Add Expected** and **Save** would. Did something else? Tap **Complete Without Services**, or record the work in **Record Services** first. Changed your mind? Tap **Undo** in the bar at the bottom: the services come off with it.",
             "After the last stop, tap **Review & End Route** to see the **Route Recap**, then **End Route**."
           ],
           "note": "Set Location to **Always** so PlowR records arrival and departure times even when the app is closed."

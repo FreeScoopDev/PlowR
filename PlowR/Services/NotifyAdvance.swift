@@ -16,11 +16,14 @@ enum NotifyAdvance {
     }
 
     /// `completing`: the stop to complete, or nil for a heads-up only.
-    static func run(completing stopID: UUID?, store: ActiveRouteStore) -> Outcome {
+    /// `recording`: the services the "Done:" button named, recorded only if
+    /// this completes the stop (OneTapServices). Cancel never gets here.
+    static func run(completing stopID: UUID?, recording services: [String] = [],
+                    store: ActiveRouteStore) -> Outcome {
         guard let stopID else { return .confirmed }
         // Completed meanwhile by Siri or Control Center, with the notify sheet
         // up: done, not "changed on another device".
         if store.isBehindCurrentStop(stopID) { return .movedOn }
-        return store.completeCurrentStop(expecting: stopID) == .stopChanged ? .stopChanged : .movedOn
+        return store.completeCurrentStop(expecting: stopID, recordingServices: services) == .stopChanged ? .stopChanged : .movedOn
     }
 }

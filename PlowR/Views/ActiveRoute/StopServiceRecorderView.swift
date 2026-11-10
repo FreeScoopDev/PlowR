@@ -102,8 +102,9 @@ struct StopServiceRecorderView: View {
 
     /// Expected at this stop (StopServices), in the catalog, and not ticked.
     private var expectedToAdd: [StopRecording.Service] {
-        let expected = Set(StopServices.expected(for: stop, client: client))
-        return myServices.filter { expected.contains($0.id) && !selectedServiceIDs.contains($0.id) }
+        // The same filter as the route screen's "Done:" button (OneTapServices).
+        OneTapServices.expectedInCatalog(StopServices.expected(for: stop, client: client), active: myServices)
+            .filter { !selectedServiceIDs.contains($0.id) }
     }
 
     private var myServices: [StopRecording.Service] {

@@ -1,0 +1,111 @@
+import Foundation
+import SwiftData
+
+/// The route screen's main button, when it records the stop's services too.
+///
+/// Complete used to record the visit and its time but no services: those
+/// came only from Record Services (Add Expected, then Save), so a crew that
+/// just tapped Complete ended the day with records saying "No services" and
+/// nothing for Bill Unbilled Work to bill. When the stop is expected to need
+/// services and none are recorded yet, the button now names them ("Done:
+/// Mow, Trim") and completing with it records exactly those (Joe's call,
+/// 2026-11-10). Services are still never ticked silently: the button says
+/// what it records, and Complete Without Services completes as before.
+///
+/// The decision is here, as plain values, so it can be tested without a
+/// screen. Recording happens inside the store's completion
+/// (`ActiveRouteStore.completeCurrentStop(expecting:recordingServices:)`),
+/// so a cancelled text, a stop changed by iCloud and Undo are handled where
+/// the visit is.
+nonisolated enum OneTapServices {
+
+    /// What the current stop's copper button is.
+    enum MainButton: Equatable {
+        /// The last stop, nothing to record by it.
+        case completeRoute
+        /// No one to text next.
+        case completeStop
+        case completeAndText
+        /// "Done: " and the names. Completing with it records `serviceIDs`
+        /// (and only those: they are the ones named).
+        case done(serviceIDs: [String], names: [String])
+
+        /// The services completing with this button records.
+        var recordedServiceIDs: [String] {
+            if case .done(let ids, _) = self { return ids }
+            return []
+        }
+
+        /// Whether the quieter Complete Without Services shows beside it.
+        var offersCompletingWithout: Bool { !recordedServiceIDs.isEmpty }
+    }
+
+    /// The stop's expected services that are in the business's active
+    /// catalog (`ServiceLog.activeServices`), in the catalog's order. Record
+    /// Services' Add Expected offers the same ones.
+    static func expectedInCatalog(_ expected: [String],
+                                  active: [StopRecording.Service]) -> [StopRecording.Service] {
+        let wanted = Set(expected)
+        return active.filter { wanted.contains($0.id) }
+    }
+
+    /// The services the button names: none for a stop without a client (a
+    /// custom stop, or its client is gone), or when something is already
+    /// recorded for it this run (`ServiceLog.hasNothingRecorded`).
+    static func servicesToName(expected: [String], active: [StopRecording.Service], hasClient: Bool,
+                               nothingRecorded: Bool) -> [StopRecording.Service] {
+        guard hasClient, nothingRecorded else { return [] }
+        return expectedInCatalog(expected, active: active)
+    }
+
+    /// The button for the current stop. With services to name it's "Done:",
+    /// on any stop; otherwise exactly as before.
+    static func mainButton(naming services: [StopRecording.Service], isLastStop: Bool,
+                           skipsText: Bool) -> MainButton {
+        if !services.isEmpty { return .done(serviceIDs: services.map(\.id), names: services.map(\.name)) }
+        if isLastStop { return .completeRoute }
+        return skipsText ? .completeStop : .completeAndText
+    }
+
+    /// The route screen's button for `stop`, the store's current stop, as
+    /// it is now: `client` is the stop's (nil for a custom stop, or one
+    /// whose client is gone), `catalog` every service item. The screen and
+    /// the tests both ask this.
+    @MainActor
+    static func mainButton(for stop: RouteStop, client: Client?, catalog: [ServiceItem], operatorID: String,
+                           store: ActiveRouteStore, skipsText: Bool, in context: ModelContext) -> MainButton {
+        var nothingRecorded = false
+        if let client, let run = store.runID, let startedAt = store.stopStartedAt {
+            nothingRecorded = ServiceLog.hasNothingRecorded(for: stop, of: client, run: run, startedAt: startedAt,
+                                                            in: context)
+        }
+        let services = servicesToName(expected: StopServices.expected(for: stop, client: client),
+                                      active: ServiceLog.activeServices(catalog, operatorID: operatorID),
+                                      hasClient: client != nil, nothingRecorded: nothingRecorded)
+        return mainButton(naming: services, isLastStop: store.isLastStop, skipsText: skipsText)
+    }
+
+    /// The ordinary button's words (never "Done:").
+    static func ordinaryTitle(isLastStop: Bool, skipsText: Bool) -> String {
+        if isLastStop { return "Complete Route" }
+        return skipsText ? "Complete Stop" : "Complete · Text Next Client"
+    }
+
+    /// The "Done:" label's forms, longest first: every name, then fewer
+    /// names and "+N more", down to the first name alone. The screen shows
+    /// the first that fits on one line.
+    static func doneTitles(_ names: [String]) -> [String] {
+        guard !names.isEmpty else { return [] }
+        var titles = ["Done: " + names.joined(separator: ", ")]
+        for shown in stride(from: names.count - 1, through: 1, by: -1) {
+            titles.append("Done: " + names.prefix(shown).joined(separator: ", ") + " +\(names.count - shown) more")
+        }
+        return titles
+    }
+
+    /// What VoiceOver reads for the "Done:" button: every name, whatever the
+    /// label could fit.
+    static func doneAccessibilityLabel(_ names: [String]) -> String {
+        "Done: complete and record " + names.formatted(.list(type: .and))
+    }
+}

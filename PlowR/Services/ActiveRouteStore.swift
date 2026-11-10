@@ -120,6 +120,9 @@ final class ActiveRouteStore {
         var visit: UndoVisitState?
         /// The next visit of a repeating series, added when the visit was completed.
         var addedVisits: [ScheduledVisit] = []
+        /// The services the "Done:" button recorded on the stop (it had none
+        /// before): Undo takes them back off. Empty for a plain completion.
+        var servicesAdded: [String] = []
     }
 
     /// What a completion added to a client's totals, and the last service
@@ -330,9 +333,17 @@ final class ActiveRouteStore {
     /// `currentStopID` for Siri) and is required, so no caller can skip it. If
     /// sync has changed the current stop since, nothing is recorded
     /// (`.stopChanged`): a visit is never credited to a client who wasn't visited.
+    ///
+    /// `recordingServices`: the services the route screen's "Done:" button
+    /// named (OneTapServices), recorded with this completion and only if it
+    /// happens, and only when nothing is recorded for the stop yet
+    /// (`ServiceLog.hasNothingRecorded`): they never replace or add to
+    /// services, prices or custom items already there, or touch a bill.
+    /// Undo takes them back off. Siri, Control Center and Below Trigger pass
+    /// none: they don't show which services would be recorded.
     @discardableResult
-    func completeCurrentStop(expecting stopID: UUID) -> CompletionResult {
-        moveOn(expecting: stopID, recording: true)
+    func completeCurrentStop(expecting stopID: UUID, recordingServices serviceIDs: [String] = []) -> CompletionResult {
+        moveOn(expecting: stopID, recording: true, services: serviceIDs)
     }
 
     /// Moves past the current stop without recording a visit: no time, no
@@ -341,10 +352,10 @@ final class ActiveRouteStore {
     /// caller, TriggerChecks). The run's recap shows it as not serviced.
     @discardableResult
     func passCurrentStop(expecting stopID: UUID) -> CompletionResult {
-        moveOn(expecting: stopID, recording: false)
+        moveOn(expecting: stopID, recording: false, services: [])
     }
 
-    private func moveOn(expecting stopID: UUID, recording: Bool) -> CompletionResult {
+    private func moveOn(expecting stopID: UUID, recording: Bool, services: [String]) -> CompletionResult {
         validate()
         guard isActive else { return .noActiveRoute }
         guard let stop = currentStop else {
@@ -364,7 +375,7 @@ final class ActiveRouteStore {
             SiteDepartures.save(departures, to: defaults)
         }
         if var completion = undo {
-            recordVisit(for: stop, undo: &completion)
+            recordVisit(for: stop, services: services, undo: &completion)
             undo = completion
         }
         currentStopIndex += 1
@@ -431,6 +442,10 @@ final class ActiveRouteStore {
         lastCompletion = nil
         let stop = stops[undo.stopIndex]
         stop.actualMinutes = undo.actualMinutes
+        // The "Done:" button's services: the stop had none before.
+        if !undo.servicesAdded.isEmpty, stop.completedServiceIDs == undo.servicesAdded {
+            stop.completedServiceIDs = []
+        }
         if let totals = undo.client, !totals.client.isDeleted {
             let client = totals.client
             client.totalVisits = max(0, client.totalVisits - 1)
@@ -682,7 +697,7 @@ final class ActiveRouteStore {
 
     // MARK: - Private
 
-    private func recordVisit(for stop: RouteStop, undo: inout UndoableCompletion) {
+    private func recordVisit(for stop: RouteStop, services: [String], undo: inout UndoableCompletion) {
         guard let startedAt = stopStartedAt else { return }
         let finishedAt = now()
         let minutes = max(0, finishedAt.timeIntervalSince(startedAt) / 60)
@@ -707,6 +722,15 @@ final class ActiveRouteStore {
         if let visit = target.visit {
             undo.visit = .init(visit: visit, status: visit.status, completedAt: visit.completedAt,
                                serviceLogged: visit.serviceLogged)
+        }
+        // The "Done:" button's services, put on the stop for recordStop to
+        // price (ServiceLog.lines, as Record Services' catalog prices), only
+        // when nothing is recorded for it yet: asked again here, at the
+        // moment of completing, as the button asked when it was drawn.
+        if !services.isEmpty,
+           ServiceLog.hasNothingRecorded(for: stop, of: client, run: runID, startedAt: startedAt, in: context) {
+            stop.completedServiceIDs = services
+            undo.servicesAdded = services
         }
         let record = ServiceLog.recordStop(stop, of: client, run: runID,
                                            operatorID: route?.operatorID ?? client.operatorID,

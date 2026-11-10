@@ -131,6 +131,21 @@ enum ServiceLog {
         return record(forKey: found.key, in: context)
     }
 
+    /// Whether nothing is recorded for `stop` on run `run` yet, so the route
+    /// screen's "Done:" button may record its expected services
+    /// (OneTapServices): no services on the stop, none on its record, and
+    /// its work isn't on an invoice (one made for the day's visit before the
+    /// work counts), so a bill is never changed. The button's label and the
+    /// store's completion both ask this, so they can't disagree.
+    static func hasNothingRecorded(for stop: RouteStop, of client: Client, run: UUID, startedAt: Date,
+                                   in context: ModelContext, calendar: Calendar = .current) -> Bool {
+        guard stop.completedServiceIDs.isEmpty else { return false }
+        if let record = existingRecordForStop(stop, of: client, run: run, startedAt: startedAt, in: context,
+                                              calendar: calendar),
+           !record.lines.isEmpty { return false }
+        return invoiceForStop(stop, of: client, run: run, startedAt: startedAt, in: context, calendar: calendar) == nil
+    }
+
     /// What completing `stop` would write to, as it is now: the record it
     /// would fill (nil: it would make one) and the day's visit it would
     /// share. Nothing is made or changed. Undo after Complete Stop reads it

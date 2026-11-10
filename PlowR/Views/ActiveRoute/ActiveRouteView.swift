@@ -58,6 +58,11 @@ struct ActiveRouteView: View {
     /// completes that stop only; if sync has changed it meanwhile, nothing is
     /// recorded (ActiveRouteStore.CompletionResult.stopChanged).
     @State private var promptStopID: UUID?
+    /// The services the "Done:" button named when it opened the notify
+    /// prompt: Send or Skip records them with the completion, Cancel
+    /// nothing. Empty from Complete Without Services, a geofence exit's
+    /// offer (no label named any) and the heads-up after Below Trigger.
+    @State private var promptServiceIDs: [String] = []
     /// The client the notify prompt opened for, pinned so a sync change can't
     /// swap the recipient while the sheet is up.
     @State private var promptNextStop: RouteStop?
@@ -97,10 +102,18 @@ struct ActiveRouteView: View {
 
     /// The names of the active services `stop` is expected to need.
     private func expectedServiceNames(for stop: RouteStop) -> [String] {
-        let operatorID = route.operatorID
-        return ServiceLog.activeServices(allServices, operatorID: operatorID)
-            .filter { StopServices.expected(for: stop, client: client(for: stop)).contains($0.id) }
+        OneTapServices.expectedInCatalog(StopServices.expected(for: stop, client: client(for: stop)),
+                                         active: ServiceLog.activeServices(allServices, operatorID: route.operatorID))
             .map(\.name)
+    }
+
+    /// The current stop's copper button: "Done:" with the services it
+    /// records, when the stop expects some and nothing is recorded yet
+    /// (OneTapServices); otherwise the ordinary Complete.
+    private func mainButton(for stop: RouteStop) -> OneTapServices.MainButton {
+        OneTapServices.mainButton(for: stop, client: client(for: stop), catalog: allServices,
+                                  operatorID: route.operatorID, store: store, skipsText: shouldSkipNextNotify,
+                                  in: modelContext)
     }
 
     private func client(for stop: RouteStop) -> Client? {
@@ -406,7 +419,9 @@ struct ActiveRouteView: View {
             }
         }) {
             if let next = promptNextStop {
-                NotifyPromptView(stop: next, locationManager: locationManager, onAdvance: { advance(completing: promptStopID) })
+                NotifyPromptView(stop: next, locationManager: locationManager, onAdvance: {
+                    advance(completing: promptStopID, recording: promptServiceIDs)
+                })
             }
         }
         .background(
@@ -770,31 +785,22 @@ struct ActiveRouteView: View {
 
             // The one main action, in copper, glove-sized, first: it stays near the
             // top when the buttons below stack or a location note shows (Joe, 2026-11-07).
-            if isLastStop {
-                Button {
-                    switch store.completeCurrentStop(expecting: stop.id) {
-                    case .finishedLastStop, .allStopsAlreadyDone:
-                        hapticSuccess()
-                        showingRouteRecap = true
-                    case .stopChanged:
-                        showingRouteChangedAlert = true
-                    case .advanced:
-                        didAdvance()   // a stop was added after this one elsewhere; it's next
-                    case .noActiveRoute:
-                        break
-                    }
-                } label: {
-                    Label("Complete Route", systemImage: PlowRSymbol.complete.name)
+            let main = mainButton(for: stop)
+            Button { complete(stop, recording: main.recordedServiceIDs) } label: {
+                mainButtonLabel(main)
+            }
+            .buttonStyle(.plowRAction)
+
+            // "Done:" records the services it names; this completes as the
+            // ordinary button would, with nothing recorded (the work wasn't
+            // the usual, or Record Services will say what it was).
+            if main.offersCompletingWithout {
+                Button { complete(stop, recording: []) } label: {
+                    Label("Complete Without Services", systemImage: PlowRSymbol.complete.name)
                 }
-                .buttonStyle(.plowRAction)
-            } else {
-                Button { triggerNotifyPrompt() } label: {
-                    Label(
-                        shouldSkipNextNotify ? "Complete Stop" : "Complete · Text Next Client",
-                        systemImage: shouldSkipNextNotify ? PlowRSymbol.complete.name : "arrow.right.circle.fill"
-                    )
-                }
-                .buttonStyle(.plowRAction)
+                .buttonStyle(.plowRSecondary)
+                .accessibilityHint(isLastStop ? "Completes the route without recording services."
+                                   : "Completes the stop without recording services.")
             }
 
             // Instead of completing it: a contract with a snow trigger in force today, where less may have
@@ -827,6 +833,55 @@ struct ActiveRouteView: View {
         .background(PlowRColor.surface, in: RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous)
             .stroke(PlowRColor.line, lineWidth: 1))
+    }
+
+    /// The copper button's label. "Done:" shows every name that fits on one
+    /// line, then fewer names and "+N more" (OneTapServices.doneTitles):
+    /// never wrapped, so no name is split; at the largest sizes the last
+    /// form shrinks to fit. VoiceOver reads every name.
+    @ViewBuilder
+    private func mainButtonLabel(_ main: OneTapServices.MainButton) -> some View {
+        switch main {
+        case .done(_, let names):
+            let titles = OneTapServices.doneTitles(names)
+            ViewThatFits(in: .horizontal) {
+                ForEach(Array(titles.enumerated()), id: \.offset) { index, title in
+                    Label(title, systemImage: PlowRSymbol.complete.name)
+                        .lineLimit(1)
+                        .minimumScaleFactor(index == titles.count - 1 ? 0.5 : 1)
+                }
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(OneTapServices.doneAccessibilityLabel(names))
+            .accessibilityHint(isLastStop || shouldSkipNextNotify ? "" : "Then offers to text the next client.")
+        case .completeRoute, .completeStop:
+            Label(OneTapServices.ordinaryTitle(isLastStop: isLastStop, skipsText: shouldSkipNextNotify),
+                  systemImage: PlowRSymbol.complete.name)
+        case .completeAndText:
+            Label(OneTapServices.ordinaryTitle(isLastStop: false, skipsText: false),
+                  systemImage: "arrow.right.circle.fill")
+        }
+    }
+
+    /// The copper button and Complete Without Services: the last stop
+    /// completes the route; any other offers the text to the next client
+    /// first, when there's one to text. `services`: what "Done:" named.
+    private func complete(_ stop: RouteStop, recording services: [String]) {
+        guard isLastStop else {
+            triggerNotifyPrompt(recording: services)
+            return
+        }
+        switch store.completeCurrentStop(expecting: stop.id, recordingServices: services) {
+        case .finishedLastStop, .allStopsAlreadyDone:
+            hapticSuccess()
+            showingRouteRecap = true
+        case .stopChanged:
+            showingRouteChangedAlert = true
+        case .advanced:
+            didAdvance()   // a stop was added after this one elsewhere; it's next
+        case .noActiveRoute:
+            break
+        }
     }
 
     /// "Completed <client> · Undo", for `ActiveRouteStore.undoWindow` after a
@@ -1153,15 +1208,15 @@ struct ActiveRouteView: View {
 
     /// The Complete button only: a tap. Leaving the stop's area goes to
     /// `openNotifyPrompt` instead, and never completes a stop.
-    private func triggerNotifyPrompt() {
+    private func triggerNotifyPrompt(recording services: [String]) {
         // Nothing to notify on the last stop or once every stop is done (it
         // used to open an empty sheet then).
         guard nextStop != nil, !showingNotifyPrompt else { return }
         if shouldSkipNextNotify {
-            advance(completing: currentStop?.id)
+            advance(completing: currentStop?.id, recording: services)
             return
         }
-        openNotifyPrompt()
+        openNotifyPrompt(recording: services)
     }
 
     /// Opens the text Siri asked for, when nothing else is up, if it's still
@@ -1188,6 +1243,7 @@ struct ActiveRouteView: View {
               let next = currentStop, !showingNotifyPrompt, store.isBehindCurrentStop(passedID),
               client(for: next)?.skipNotificationPrompt != true else { return false }
         promptStopID = nil
+        promptServiceIDs = []
         promptNextStop = next
         haptic(.light)
         showingNotifyPrompt = true
@@ -1195,9 +1251,10 @@ struct ActiveRouteView: View {
     }
 
     /// The Complete button and leaving a stop's geofence land here.
-    private func openNotifyPrompt() {
+    private func openNotifyPrompt(recording services: [String] = []) {
         guard let next = nextStop, !showingNotifyPrompt else { return }
         promptStopID = currentStop?.id
+        promptServiceIDs = services
         promptNextStop = next
         haptic(.light)
         showingNotifyPrompt = true
@@ -1205,8 +1262,8 @@ struct ActiveRouteView: View {
 
     /// `stopID`: the stop to complete; nil for the heads-up after Below
     /// Trigger, which completes nothing (NotifyAdvance).
-    private func advance(completing stopID: UUID?) {
-        if NotifyAdvance.run(completing: stopID, store: store) == .stopChanged {
+    private func advance(completing stopID: UUID?, recording services: [String] = []) {
+        if NotifyAdvance.run(completing: stopID, recording: services, store: store) == .stopChanged {
             if showingNotifyPrompt { routeChangedAfterSheet = true } else { showingRouteChangedAlert = true }
             return
         }
