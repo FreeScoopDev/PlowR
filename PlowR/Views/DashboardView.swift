@@ -485,7 +485,7 @@ struct DashboardView: View {
             Text("Nothing on today")
                 .font(.body.weight(.semibold))
                 .foregroundStyle(PlowRColor.ink)
-            switch FirstRunOffers.nothingToday(clientCount: myClients.count) {
+            switch FirstRunOffers.nothingToday(clients: myClients) {
             case .addClient:
                 Button { $gate.unless(ProGate.addClient(access)) { showingAddClient = true } } label: {
                     Label("Add Client", systemImage: PlowRSymbol.addClient.name)
