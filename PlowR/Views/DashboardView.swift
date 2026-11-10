@@ -485,19 +485,27 @@ struct DashboardView: View {
             Text("Nothing on today")
                 .font(.body.weight(.semibold))
                 .foregroundStyle(PlowRColor.ink)
-            HStack(spacing: PlowRLayout.space2) {
-                Button {
-                    $gate.unless(ProGate.createRoute(access, routes: allRoutes, operatorID: authManager.userID)) {
-                        showingCreateRoute = true
+            switch FirstRunOffers.nothingToday(clientCount: myClients.count) {
+            case .addClient:
+                Button { $gate.unless(ProGate.addClient(access)) { showingAddClient = true } } label: {
+                    Label("Add Client", systemImage: PlowRSymbol.addClient.name)
+                }
+                .buttonStyle(.plowRSecondary)
+            case .routeOrVisit:
+                HStack(spacing: PlowRLayout.space2) {
+                    Button {
+                        $gate.unless(ProGate.createRoute(access, routes: allRoutes, operatorID: authManager.userID)) {
+                            showingCreateRoute = true
+                        }
+                    } label: {
+                        Label("New Route", systemImage: PlowRSymbol.route.name)
                     }
-                } label: {
-                    Label("New Route", systemImage: PlowRSymbol.route.name)
+                    .buttonStyle(.plowRSecondary)
+                    Button { showingAddVisit = true } label: {
+                        Label("Schedule Visit", systemImage: "calendar.badge.plus")
+                    }
+                    .buttonStyle(.plowRSecondary)
                 }
-                .buttonStyle(.plowRSecondary)
-                Button { showingAddVisit = true } label: {
-                    Label("Schedule Visit", systemImage: "calendar.badge.plus")
-                }
-                .buttonStyle(.plowRSecondary)
             }
         }
         .padding(PlowRLayout.space4)

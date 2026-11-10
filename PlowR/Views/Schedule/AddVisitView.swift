@@ -281,7 +281,7 @@ struct AddVisitView: View {
     private var clientSection: some View {
         Section(title: "Client") {
             if myClients.isEmpty {
-                Text("No clients yet")
+                Text("No clients yet. Add one to schedule a visit.")
                     .foregroundStyle(PlowRColor.inkSecondary)
             } else {
                 Picker("Client", selection: $selectedClient) {
@@ -321,7 +321,7 @@ struct AddVisitView: View {
             Button {
                 $gate.unless(ProGate.addClient(access)) { showingAddClientSheet = true }
             } label: {
-                Label("New Client", systemImage: "person.badge.plus")
+                Label(myClients.isEmpty ? "Add Client" : "New Client", systemImage: "person.badge.plus")
                     .font(.subheadline)
             }
         }

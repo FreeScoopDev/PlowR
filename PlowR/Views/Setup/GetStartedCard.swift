@@ -4,6 +4,7 @@ import SwiftUI
 /// new business does in PlowR, each a tap away, ticked off as they happen.
 /// Hidden once they're all done, or by its Hide button.
 struct GetStartedCard: View {
+    @Environment(\.access) private var access
     let checklist: FirstRun.Checklist
     let addClient: () -> Void
     let newRoute: () -> Void
@@ -38,7 +39,8 @@ struct GetStartedCard: View {
                 divider
                 Button(action: addClient) {
                     row("Add your first client", detail: "Or import them from a spreadsheet, in Clients.",
-                        symbol: PlowRSymbol.addClient.name, done: checklist.clientAdded)
+                        symbol: PlowRSymbol.addClient.name, done: checklist.clientAdded,
+                        proMark: FirstRunOffers.showsProMark(access))
                 }
                 .buttonStyle(.plain)
                 divider
@@ -74,7 +76,7 @@ struct GetStartedCard: View {
         Divider().overlay(PlowRColor.line).padding(.leading, PlowRLayout.space4 + 36 + PlowRLayout.space3)
     }
 
-    private func row(_ title: String, detail: String, symbol: String, done: Bool) -> some View {
+    private func row(_ title: String, detail: String, symbol: String, done: Bool, proMark: Bool = false) -> some View {
         HStack(spacing: PlowRLayout.space3) {
             IconRow {
                 IconBadge(systemImage: done ? PlowRSymbol.complete.name : symbol, status: done ? .done : nil, size: 36)
@@ -85,7 +87,11 @@ struct GetStartedCard: View {
                         .foregroundStyle(done ? PlowRColor.inkSecondary : PlowRColor.ink)
                         .strikethrough(done)
                     if !done {
-                        Text(detail).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
+                        // The import offer in the detail goes through the Pro gate.
+                        HStack(alignment: .firstTextBaseline, spacing: PlowRLayout.space2) {
+                            Text(detail).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
+                            if proMark { StatusChip("Pro", status: .neutral) }
+                        }
                     }
                 }
             }

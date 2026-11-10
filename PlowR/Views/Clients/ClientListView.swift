@@ -10,7 +10,7 @@ private enum ClientSortOption: String, CaseIterable {
 
 private enum ClientFilterOption: String, CaseIterable {
     case all       = "All"
-    case active    = "Active"
+    case hasVisits = "Has Visits"
     case noHistory = "No History"
 }
 
@@ -81,7 +81,7 @@ struct ClientListView: View {
         let filtered: [Client]
         switch filterOption {
         case .all:       filtered = base
-        case .active:    filtered = base.filter { $0.totalVisits > 0 }
+        case .hasVisits: filtered = base.filter { $0.totalVisits > 0 }
         case .noHistory: filtered = base.filter { $0.totalVisits == 0 }
         }
 
@@ -149,6 +149,15 @@ struct ClientListView: View {
         }
     }
 
+    /// What to say when clients exist but the search or filter shows none.
+    private var noMatchesMessage: Text? {
+        switch FirstRunOffers.clientListState(clientCount: myClients.count, shownCount: clients.count, search: searchText) {
+        case let .noMatchesForSearch(searched): Text("No clients match \u{201C}\(searched)\u{201D}.")
+        case .noMatchesForFilter: Text("No clients match this filter.")
+        case .noClients, .showing: nil
+        }
+    }
+
     var body: some View {
         let entries = pipelineEntries
         Group {
@@ -164,7 +173,12 @@ struct ClientListView: View {
                     if !isFiltered {
                         Button("Add a Client") { addClient() }
                             .plowRProminent()
-                        Button("Import from a Spreadsheet") { importClients() }
+                        Button { importClients() } label: {
+                            HStack(spacing: PlowRLayout.space2) {
+                                Text("Import from a Spreadsheet")
+                                if FirstRunOffers.showsProMark(access) { StatusChip("Pro", status: .neutral) }
+                            }
+                        }
                     }
                 }
             } else {
@@ -178,6 +192,10 @@ struct ClientListView: View {
                     if !myClients.isEmpty {
                         clientSummarySection
                         pipelineLink(entries)
+                    }
+                    if let message = noMatchesMessage {
+                        Section { message }
+                            .listRowBackground(PlowRColor.surface)
                     }
                     ForEach(activeClients) { client in
                         clientRow(client)
