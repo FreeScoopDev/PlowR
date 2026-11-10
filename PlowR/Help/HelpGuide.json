@@ -53,10 +53,10 @@
           ],
           "steps": [
             "Open the **Clients** tab, tap **+**, and choose **Add Manually**.",
-            "Choose **Existing Customer** (someone you already work for) or **New Lead** (someone you hope to win). Enter their **Full Name**; a phone number, email and **Notes** (a gate code, say) are optional. Or tap **Import Contact** to fill it in from your Contacts.",
+            "Choose **Existing Customer** (someone you already work for) or **New Lead** (someone you hope to win). Enter their **Full Name**; a phone number, email and **Route Notes** (a gate code, say: they show at the client's stops on every route) are optional. Or tap **Import Contact** to fill it in from your Contacts.",
             "Type the **Street Address** and pick the match. PlowR pins it on the map.",
             "Tap **Save**.",
-            "On the client's page, add the rest: tags, **Expected Services**, billing preferences, **Tax Exempt**, route notes, and other properties."
+            "On the client's page, add the rest: tags, **Expected Services**, billing preferences, **Tax Exempt**, **Route Notes**, and other properties. Changed Route Notes reach every route the client is on."
           ],
           "note": "Tip: set a client's **Expected Services** once and every route they're on starts with them."
         },
@@ -145,7 +145,7 @@
           ],
           "steps": [
             "On the route page, tap a stop.",
-            "Under **Expected Services**, switch on what the stop needs. Add stop notes and equipment if useful.",
+            "Under **Expected Services**, switch on what the stop needs. The client's **Route Notes** show here and at the stop; add notes for this stop only, and equipment, if useful.",
             "Tap **Save**, then choose **Only on This Route** or **On All Routes From Now On**."
           ],
           "note": "Your list of services and prices lives in **Settings → Service Catalog**. Skipping a stop just for today? Swipe it and tap **Skip Today**."

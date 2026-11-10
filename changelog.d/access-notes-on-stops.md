@@ -1,0 +1,6 @@
+### Fixed
+- A client's Route Notes (gate codes, where to start) now follow to every stop of theirs, on every route, as their address and pin already do, and a property's notes to the stops there. A stop used to copy the notes once, when it was made: a gate code changed on the client's page never reached the routes they were already on, and the crew read the old one at the gate. The route screen's stop card and the stop's page show the place's Route Notes and, labelled apart, a note for that stop only. A stop's own note that was only the old copy is cleared when the notes change; one the user wrote is kept. A copy made before this version that differs from the current notes stays, under its own label, until removed on the stop's page.
+- New Client's Notes field ("Gate code, dog in the yard…") saved to the client's private notes, which no route shows, so a gate code typed there never reached a stop. It now saves to Route Notes and says so. Notes already typed there stay in the private notes (a gate code can't be told from a private remark).
+
+### Internal
+- One new CloudKit field, `CD_RouteStop.CD_placeNotes`, to deploy to Production at the next release. A device still on an older PlowR shows no notes for a stop made on a newer one until it updates.
