@@ -132,6 +132,6 @@ struct TimeFromArrivalTests {
         #expect(line(record(arrived: start + 600, minutes: 20)).hasSuffix(" · 20 min on site, from GPS arrival"))
         #expect(line(record(arrived: nil, minutes: 30)).hasSuffix(" · 30 min, including travel"))
         #expect(line(record(arrived: start + 600, minutes: 30)).hasSuffix(" · 30 min, including travel"))
-        #expect(ProofOfService.note().contains("from GPS arrival") && ProofOfService.note().contains("includes the drive there"))
+        #expect(ProofOfService.note().contains("from GPS arrival") && ProofOfService.note().contains("includes the drive there") && !ProofOfService.note().contains("on site"))
     }
 }
