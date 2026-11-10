@@ -140,10 +140,12 @@ enum ServiceLog {
     static func hasNothingRecorded(for stop: RouteStop, of client: Client, run: UUID, startedAt: Date,
                                    in context: ModelContext, calendar: Calendar = .current) -> Bool {
         guard stop.completedServiceIDs.isEmpty else { return false }
-        if let record = existingRecordForStop(stop, of: client, run: run, startedAt: startedAt, in: context,
-                                              calendar: calendar),
-           !record.lines.isEmpty { return false }
-        return invoiceForStop(stop, of: client, run: run, startedAt: startedAt, in: context, calendar: calendar) == nil
+        // One lookup for both checks: the route screen asks this as it draws.
+        let found = lookup(stop, of: client, run: run, startedAt: startedAt, in: context, calendar: calendar)
+        if let record = record(forKey: found.key, in: context),
+           !record.lines.isEmpty || invoice(of: record, in: context) != nil { return false }
+        // As invoiceForStop: an invoice made for the day's visit before the work.
+        return found.visit.flatMap { invoice(ofVisit: $0, in: context) } == nil
     }
 
     /// What completing `stop` would write to, as it is now: the record it
@@ -695,8 +697,17 @@ enum ServiceLog {
     /// forms list them.
     static func activeServices(_ all: [ServiceItem], operatorID: String) -> [StopRecording.Service] {
         all.filter { $0.operatorID == operatorID && $0.isActive }
-            .sorted { $0.sortOrder < $1.sortOrder }
+            .sorted(by: catalogOrder)
             .map { .init(id: $0.id.uuidString, name: $0.name, unitType: $0.unitType, pricePerUnit: $0.pricePerUnit) }
+    }
+
+    /// The catalog's order: by `sortOrder`, then by ID, so two services
+    /// with the same place come out the same way every time. Record Services
+    /// (`activeServices`) and a stop's catalog prices (`lines(for:)`) both
+    /// sort with it, so the route screen's one tap and Add Expected + Save
+    /// give their lines in the same order.
+    static func catalogOrder(_ a: ServiceItem, _ b: ServiceItem) -> Bool {
+        a.sortOrder != b.sortOrder ? a.sortOrder < b.sortOrder : a.id.uuidString < b.id.uuidString
     }
 
     /// What a record's work adds up to.
@@ -946,7 +957,7 @@ enum ServiceLog {
         let zones = Place.of(client, propertyID: propertyID)?.zones ?? []
         return catalog
             .filter { wanted.contains($0.id.uuidString) }
-            .sorted { $0.sortOrder < $1.sortOrder }
+            .sorted(by: catalogOrder)
             .map { service in
                 ServiceRecord.Line(
                     serviceID: service.id.uuidString, name: service.name, unitType: service.unitType,

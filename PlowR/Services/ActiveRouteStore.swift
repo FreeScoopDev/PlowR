@@ -727,15 +727,21 @@ final class ActiveRouteStore {
         // price (ServiceLog.lines, as Record Services' catalog prices), only
         // when nothing is recorded for it yet: asked again here, at the
         // moment of completing, as the button asked when it was drawn.
-        if !services.isEmpty,
-           ServiceLog.hasNothingRecorded(for: stop, of: client, run: runID, startedAt: startedAt, in: context) {
-            stop.completedServiceIDs = services
-            undo.servicesAdded = services
-        }
+        let addingServices = !services.isEmpty
+            && ServiceLog.hasNothingRecorded(for: stop, of: client, run: runID, startedAt: startedAt, in: context)
+        if addingServices { stop.completedServiceIDs = services }
         let record = ServiceLog.recordStop(stop, of: client, run: runID,
                                            operatorID: route?.operatorID ?? client.operatorID,
                                            startedAt: startedAt, finishedAt: finishedAt, minutes: minutes,
                                            in: context)
+        if addingServices {
+            // Only what made it onto the record: a service deleted from the
+            // catalog since the button was drawn has no line, and mustn't
+            // count as recorded on the stop.
+            let added = record.lines.map(\.serviceID).filter { services.contains($0) }
+            stop.completedServiceIDs = added
+            undo.servicesAdded = added
+        }
         undo.record = record
         if let visit = target.visit, let seriesBefore {
             undo.addedVisits = ServiceLog.series(of: visit, in: context).filter { !seriesBefore.contains($0.id) }

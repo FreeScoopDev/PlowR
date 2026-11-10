@@ -70,19 +70,33 @@ nonisolated enum OneTapServices {
     /// The route screen's button for `stop`, the store's current stop, as
     /// it is now: `client` is the stop's (nil for a custom stop, or one
     /// whose client is gone), `catalog` every service item. The screen and
-    /// the tests both ask this.
+    /// the tests both ask this. With a `memo`, the database is read only
+    /// when something the answer depends on has changed since it was last
+    /// worked out (`MainButtonMemo.Key`); the screen redraws on every GPS
+    /// fix, and `dataVersion` counts the database's saves and synced changes.
     @MainActor
     static func mainButton(for stop: RouteStop, client: Client?, catalog: [ServiceItem], operatorID: String,
-                           store: ActiveRouteStore, skipsText: Bool, in context: ModelContext) -> MainButton {
-        var nothingRecorded = false
-        if let client, let run = store.runID, let startedAt = store.stopStartedAt {
-            nothingRecorded = ServiceLog.hasNothingRecorded(for: stop, of: client, run: run, startedAt: startedAt,
-                                                            in: context)
+                           store: ActiveRouteStore, skipsText: Bool, in context: ModelContext,
+                           memo: MainButtonMemo? = nil, dataVersion: Int = 0) -> MainButton {
+        let active = ServiceLog.activeServices(catalog, operatorID: operatorID)
+        let expected = StopServices.expected(for: stop, client: client)
+        let isLastStop = store.isLastStop
+        let compute = {
+            var nothingRecorded = false
+            if let client, let run = store.runID, let startedAt = store.stopStartedAt {
+                nothingRecorded = ServiceLog.hasNothingRecorded(for: stop, of: client, run: run,
+                                                                startedAt: startedAt, in: context)
+            }
+            let services = servicesToName(expected: expected, active: active, hasClient: client != nil,
+                                          nothingRecorded: nothingRecorded)
+            return mainButton(naming: services, isLastStop: isLastStop, skipsText: skipsText)
         }
-        let services = servicesToName(expected: StopServices.expected(for: stop, client: client),
-                                      active: ServiceLog.activeServices(catalog, operatorID: operatorID),
-                                      hasClient: client != nil, nothingRecorded: nothingRecorded)
-        return mainButton(naming: services, isLastStop: store.isLastStop, skipsText: skipsText)
+        guard let memo else { return compute() }
+        let key = MainButtonMemo.Key(stopID: stop.id, clientID: client?.id, runID: store.runID,
+                                     stopStartedAt: store.stopStartedAt, recorded: stop.completedServiceIDs,
+                                     expected: expected, catalog: active.map { "\($0.id)|\($0.name)" },
+                                     isLastStop: isLastStop, skipsText: skipsText, dataVersion: dataVersion)
+        return memo.button(for: key, compute: compute)
     }
 
     /// The ordinary button's words (never "Done:").
@@ -92,14 +106,19 @@ nonisolated enum OneTapServices {
     }
 
     /// The "Done:" label's forms, longest first: every name, then fewer
-    /// names and "+N more", down to the first name alone. The screen shows
-    /// the first that fits on one line.
+    /// names and "+N more", down to the first name and "+N more". The
+    /// screen shows the first that fits on one line. The last form is the
+    /// one shown when none fits, made smaller to fit: with two or more
+    /// services it's the count ("Done: 3 services"), so shrinking or
+    /// cutting it short can never hide that more is recorded; with one,
+    /// it's that one's name.
     static func doneTitles(_ names: [String]) -> [String] {
         guard !names.isEmpty else { return [] }
         var titles = ["Done: " + names.joined(separator: ", ")]
         for shown in stride(from: names.count - 1, through: 1, by: -1) {
             titles.append("Done: " + names.prefix(shown).joined(separator: ", ") + " +\(names.count - shown) more")
         }
+        if names.count > 1 { titles.append("Done: \(names.count) services") }
         return titles
     }
 
@@ -107,5 +126,38 @@ nonisolated enum OneTapServices {
     /// label could fit.
     static func doneAccessibilityLabel(_ names: [String]) -> String {
         "Done: complete and record " + names.formatted(.list(type: .and))
+    }
+}
+
+/// The route screen's last button and what it was worked out from, so a
+/// redraw with nothing changed doesn't read the database again. Not
+/// observed: it only saves work, and changes nothing the screen shows.
+@MainActor
+final class MainButtonMemo {
+    /// Everything the button depends on. The record and any invoice live in
+    /// the database: `dataVersion` changes with every save and synced change.
+    struct Key: Hashable {
+        var stopID: UUID
+        var clientID: UUID?
+        var runID: UUID?
+        var stopStartedAt: Date?
+        var recorded: [String]
+        var expected: [String]
+        var catalog: [String]
+        var isLastStop: Bool
+        var skipsText: Bool
+        var dataVersion: Int
+    }
+
+    private var last: (key: Key, button: OneTapServices.MainButton)?
+    /// How many times the button was worked out (for tests).
+    private(set) var computed = 0
+
+    func button(for key: Key, compute: () -> OneTapServices.MainButton) -> OneTapServices.MainButton {
+        if let last, last.key == key { return last.button }
+        let button = compute()
+        computed += 1
+        last = (key, button)
+        return button
     }
 }

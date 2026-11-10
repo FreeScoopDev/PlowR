@@ -205,8 +205,20 @@ struct OneTapServicesTests {
             "Done: Mow, Trim, Edge",
             "Done: Mow, Trim +1 more",
             "Done: Mow +2 more",
+            "Done: 3 services",
         ])
         #expect(OneTapServices.doneTitles([]).isEmpty)
+    }
+
+    /// The last form is the one shown, made smaller, when nothing fits: it
+    /// must say how many are recorded, never a name with others hidden.
+    @Test func theLastFormStatesTheCount() {
+        for names in [["Mow", "Trim"], ["Mow", "Trim", "Edge", "Rake", "Haul"]] {
+            let last = OneTapServices.doneTitles(names).last
+            #expect(last == "Done: \(names.count) services")
+        }
+        // One service: its own name, nothing hidden beside it.
+        #expect(OneTapServices.doneTitles(["Fertilization"]).last == "Done: Fertilization")
     }
 
     @Test func voiceOverReadsEveryName() {
@@ -223,6 +235,13 @@ struct OneTapServicesTests {
     @Test func oneTapRecordsWhatAddExpectedAndSaveWould() throws {
         let h = try Harness(stopCount: 3)
         let c = try catalog(h)
+        // Trim shares Mow's place in the catalog: the tie is broken by ID,
+        // the same way in both paths.
+        let trim = ServiceItem(name: "Trim", category: "lawn", unitType: "flat", pricePerUnit: 25, operatorID: "op",
+                               sortOrder: 1)
+        h.context.insert(trim)
+        for client in h.clients { client.expectedServiceIDs.append(trim.id.uuidString) }
+        try h.context.save()
         let store = h.makeStore()
         store.start(h.route)
         let stops = h.route.sortedStops
@@ -246,17 +265,18 @@ struct OneTapServicesTests {
         let saved = try #require(try record(h, store, stop: stops[1]))
         #expect(!tapped.lines.isEmpty)
         #expect(tapped.lines == saved.lines)
-        #expect(tapped.lines.map(\.name) == ["Mow", "Edge"])
-        #expect(tapped.lines.map(\.price) == [40, 21.35])   // 1,234 sq ft at $0.0173
+        let tied = [c.mow, trim].sorted { $0.id.uuidString < $1.id.uuidString }
+        #expect(tapped.lines.map(\.name) == tied.map(\.name) + ["Edge"])
+        #expect(tapped.lines.map(\.price) == tied.map(\.pricePerUnit) + [21.35])   // 1,234 sq ft at $0.0173
         #expect(stops[0].completedServiceIDs == stops[1].completedServiceIDs)
-        #expect(stops[0].completedServiceIDs == [c.mow.id.uuidString, c.edge.id.uuidString])
+        #expect(stops[0].completedServiceIDs == tied.map(\.id.uuidString) + [c.edge.id.uuidString])
         // No invoice made.
         #expect(try h.context.fetch(FetchDescriptor<Proposal>()).isEmpty)
         #expect(tapped.invoiceID.isEmpty)
     }
 
-    /// Send or Skip in the text-next-client sheet: NotifyAdvance completes
-    /// the stop with the services the button named.
+    /// Send or Skip in the text-next-client sheet, opened from the "Done:"
+    /// button: the stop drawn on the card is completed with its services.
     @Test func sendOrSkipRecordsTheNamedServices() throws {
         let h = try Harness(stopCount: 2)
         try catalog(h)
@@ -264,30 +284,90 @@ struct OneTapServicesTests {
         store.start(h.route)
         let stop = try #require(store.currentStop)
         let named = try button(h, store).recordedServiceIDs
-        #expect(NotifyAdvance.run(completing: stop.id, recording: named, store: store) == .movedOn)
+        let sheet = NotifyAdvance.Completion.button(drawnStop: stop.id, recording: named)
+        #expect(sheet.run(store: store) == .movedOn)
         #expect(stop.completedServiceIDs == named)
         #expect(try record(h, store, stop: stop)?.lines.count == 2)
     }
 
-    /// Cancel in the sheet calls nothing: the button staged nothing before
-    /// the completion, so nothing is recorded and it still reads "Done:".
-    @Test func cancelRecordsNothing() throws {
+    /// Cancel drops what the sheet would complete: nothing is recorded, the
+    /// button still reads "Done:", and the services can't reach a later
+    /// sheet, such as the one offered after leaving the stop's area.
+    @Test func cancelRecordsNothingAndLeavesNothingBehind() throws {
         let h = try Harness(stopCount: 2)
         try catalog(h)
         let store = h.makeStore()
         store.start(h.route)
         let stop = try #require(store.currentStop)
         let before = try button(h, store)
-        // The sheet opens with the named services held by the screen, then is cancelled.
-        _ = before.recordedServiceIDs
+        var sheet = NotifyAdvance.Completion.button(drawnStop: stop.id, recording: before.recordedServiceIDs)
+        sheet = sheet.cancelled()
+        #expect(sheet == .nothing)
+        #expect(sheet.run(store: store) == .confirmed)
         #expect(store.currentStopID == stop.id)
         #expect(stop.completedServiceIDs.isEmpty)
         #expect(try records(h).isEmpty)
         #expect(try button(h, store) == before)
-        // A heads-up (no stop to complete) records nothing either.
-        #expect(NotifyAdvance.run(completing: nil, recording: before.recordedServiceIDs, store: store) == .confirmed)
+        // Then the exit offer's Send: the stop is completed, with no services.
+        sheet = .exitOffer(currentStop: store.currentStopID)
+        #expect(sheet.serviceIDs.isEmpty)
+        #expect(sheet.run(store: store) == .movedOn)
         #expect(stop.completedServiceIDs.isEmpty)
+        #expect(try record(h, store, stop: stop)?.lines.isEmpty == true)
+    }
+
+    /// Every way of opening the sheet sets both the stop and the services.
+    @Test func everyWayOfOpeningTheSheetSetsBoth() {
+        let drawn = UUID()
+        let fromButton = NotifyAdvance.Completion.button(drawnStop: drawn, recording: ["a", "b"])
+        #expect(fromButton.stopID == drawn && fromButton.serviceIDs == ["a", "b"])
+        let without = NotifyAdvance.Completion.button(drawnStop: drawn, recording: [])
+        #expect(without.stopID == drawn && without.serviceIDs.isEmpty)
+        let exit = NotifyAdvance.Completion.exitOffer(currentStop: drawn)
+        #expect(exit.stopID == drawn && exit.serviceIDs.isEmpty)
+        #expect(NotifyAdvance.Completion.headsUp.stopID == nil && NotifyAdvance.Completion.headsUp.serviceIDs.isEmpty)
+        #expect(fromButton.cancelled() == .nothing)
+    }
+
+    /// The card was drawn for A; by the tap, iCloud had removed A and B was
+    /// current. The completion names A, so nothing is recorded, and A's
+    /// services never go to B.
+    @Test func aTapDrawnForAStopNoLongerCurrentRecordsNothing() throws {
+        let h = try Harness(stopCount: 3)
+        try catalog(h)
+        let store = h.makeStore()
+        store.start(h.route)
+        let stops = h.route.sortedStops
+        let drawn = NotifyAdvance.Completion.button(drawnStop: stops[0].id,
+                                                    recording: try button(h, store).recordedServiceIDs)
+        h.context.delete(stops[0])
+        try h.context.save()
+        #expect(store.currentStopID == stops[1].id)
+        #expect(drawn.run(store: store) == .stopChanged)
+        #expect(store.currentStopID == stops[1].id)
+        #expect(stops[1].completedServiceIDs.isEmpty)
         #expect(try records(h).isEmpty)
+        // Complete Without Services (and the ordinary Complete) the same way.
+        #expect(NotifyAdvance.Completion.button(drawnStop: stops[0].id, recording: []).run(store: store) == .stopChanged)
+        #expect(store.currentStopID == stops[1].id)
+        #expect(try records(h).isEmpty)
+    }
+
+    /// Drawn for A, but Siri completed A meanwhile: B isn't completed, and
+    /// gets nothing.
+    @Test func aTapDrawnForAStopSiriCompletedRecordsNothingOnTheNext() throws {
+        let h = try Harness(stopCount: 3)
+        try catalog(h)
+        let store = h.makeStore()
+        store.start(h.route)
+        let stops = h.route.sortedStops
+        let drawn = NotifyAdvance.Completion.button(drawnStop: stops[0].id,
+                                                    recording: try button(h, store).recordedServiceIDs)
+        #expect(CompleteStopAction.siri(in: store, role: UserRole.business).completed)
+        #expect(drawn.run(store: store) == .movedOn)
+        #expect(store.currentStopID == stops[1].id)
+        #expect(stops[0].completedServiceIDs.isEmpty && stops[1].completedServiceIDs.isEmpty)
+        #expect(try records(h).allSatisfy { $0.lines.isEmpty })
     }
 
     /// iCloud changed the current stop underneath: nothing is recorded, on
@@ -362,6 +442,82 @@ struct OneTapServicesTests {
         #expect(store.undoLastCompletion(expecting: stop.id) == .undone)
         #expect(try records(h).isEmpty)
         #expect(store.currentStopID == stop.id)
+    }
+
+    /// Record Services saved a service, then the stop was completed the
+    /// ordinary way: Undo leaves that service on the stop and its record.
+    @Test func undoAfterAnOrdinaryCompletionKeepsServicesRecordedBefore() throws {
+        let h = try Harness(stopCount: 2)
+        let c = try catalog(h)
+        let store = h.makeStore()
+        store.start(h.route)
+        let stop = try #require(store.currentStop)
+        let sheet = StopRecording(services: ServiceLog.activeServices(try allServices(h), operatorID: "op"),
+                                  zones: [], selectedIDs: [c.mow.id.uuidString],
+                                  typedPrices: [c.mow.id.uuidString: "55"])
+        ServiceLog.saveRecording(sheet, notes: "", for: stop, of: h.client, run: try #require(store.runID),
+                                 operatorID: "op", startedAt: try #require(store.stopStartedAt), in: h.context)
+        #expect(try button(h, store) == .completeAndText)
+        store.completeCurrentStop(expecting: stop.id)
+        #expect(store.undoLastCompletion(expecting: stop.id) == .undone)
+        #expect(stop.completedServiceIDs == [c.mow.id.uuidString])
+        let saved = try #require(try record(h, store, stop: stop))
+        #expect(saved.lines.map(\.name) == ["Mow"])
+        #expect(saved.lines.map(\.price) == [55])
+    }
+
+    /// A service deleted from the catalog after the button named it gets
+    /// no line, and isn't counted as recorded on the stop.
+    @Test func aServiceDeletedBeforeTheTapIsntCountedAsRecorded() throws {
+        let h = try Harness(stopCount: 2)
+        let c = try catalog(h)
+        let store = h.makeStore()
+        store.start(h.route)
+        let stop = try #require(store.currentStop)
+        let named = try button(h, store).recordedServiceIDs
+        #expect(named == [c.mow.id.uuidString, c.edge.id.uuidString])
+        let mowID = c.mow.id.uuidString
+        h.context.delete(c.edge)
+        try h.context.save()
+        store.completeCurrentStop(expecting: stop.id, recordingServices: named)
+        #expect(stop.completedServiceIDs == [mowID])
+        #expect(try record(h, store, stop: stop)?.lines.map(\.serviceID) == [mowID])
+        // Undo still takes it back off.
+        #expect(store.undoLastCompletion(expecting: stop.id) == .undone)
+        #expect(stop.completedServiceIDs.isEmpty)
+    }
+
+    /// The screen redraws on every GPS fix: the database is read again only
+    /// when something the button depends on changed.
+    @Test func theButtonIsWorkedOutAgainOnlyWhenSomethingChanged() throws {
+        let h = try Harness(stopCount: 2)
+        try catalog(h)
+        let store = h.makeStore()
+        store.start(h.route)
+        let stop = try #require(store.currentStop)
+        let memo = MainButtonMemo()
+        func draw(_ version: Int) throws -> OneTapServices.MainButton {
+            OneTapServices.mainButton(for: stop, client: h.client, catalog: try allServices(h), operatorID: "op",
+                                      store: store, skipsText: false, in: h.context, memo: memo, dataVersion: version)
+        }
+        let first = try draw(0)
+        #expect(first.recordedServiceIDs.count == 2)
+        _ = try draw(0)
+        _ = try draw(0)
+        #expect(memo.computed == 1)
+        // A record with services, made elsewhere and saved: the next version reads it.
+        let visit = ScheduledVisit(operatorID: "op", clientID: h.client.id.uuidString, clientName: h.client.name,
+                                   clientAddress: h.client.address, scheduledDate: h.clock)
+        visit.expectedServiceIDs = first.recordedServiceIDs
+        h.context.insert(visit)
+        _ = try #require(ServiceLog.complete(visit, among: [visit], in: h.context, now: h.clock))
+        try h.context.save()
+        #expect(try draw(1) == .completeAndText)
+        #expect(memo.computed == 2)
+        // The stop's own services are part of what it depends on.
+        stop.completedServiceIDs = ["x"]
+        _ = try draw(1)
+        #expect(memo.computed == 3)
     }
 
     // MARK: - Completions from outside the route screen

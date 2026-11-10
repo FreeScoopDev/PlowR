@@ -199,7 +199,7 @@
             "Tap **Navigate** to get directions in Apple Maps, Google Maps or Waze.",
             "At the stop, tap **Record Services** to add before and after photos, the services done (**Add Expected** fills them in), and notes. Then **Save**.",
             "Tap **Complete · Text Next Client** to finish the stop and move on. (It says **Complete Stop** when there's no one to text.)",
-            "When a stop has expected services and nothing is recorded for it yet, the button names them instead, like **Done: Mow, Trim**. One tap completes the stop and records those services at your catalog prices, as **Add Expected** and **Save** would. Did something else? Tap **Complete Without Services**, or record the work in **Record Services** first. Changed your mind? Tap **Undo** in the bar at the bottom: the services come off with it.",
+            "When a stop has expected services and nothing is recorded for it yet, the button names them instead, like **Done: Mow, Trim**. One tap completes the stop and records those services at your catalog prices, as **Add Expected** and **Save** would. Did something else? Tap **Complete Without Services**, or record the work in **Record Services** first. Tapped it by mistake? On any stop but the last, tap **Undo** in the bar at the bottom: the services come off with it. After the last stop, change them from the **Route Recap**.",
             "After the last stop, tap **Review & End Route** to see the **Route Recap**, then **End Route**."
           ],
           "note": "Set Location to **Always** so PlowR records arrival and departure times even when the app is closed."
@@ -296,7 +296,7 @@
           "id": "siri",
           "title": "Hands-free with Siri",
           "emoji": "🗣️",
-          "summary": "\"Complete current stop in PlowR\" or \"Notify next client in PlowR\".",
+          "summary": "\"Complete current stop in PlowR\" or \"Notify next client in PlowR\". Completing with Siri records the visit, not services: add them in **Record Services**.",
           "screens": ["routeDetail"],
           "tips": [
             { "id": "tip-siri", "title": "Finish stops hands-free", "message": "Ask Siri to complete the current stop in PlowR, or add **Complete Current Stop** to Control Center." }
@@ -306,7 +306,7 @@
           "id": "control-center",
           "title": "Control Center",
           "emoji": "🎛️",
-          "summary": "Add Complete Current Stop to Control Center to finish a stop in one tap.",
+          "summary": "Add Complete Current Stop to Control Center to finish a stop in one tap. It records the visit, not services: add them in **Record Services**.",
           "screens": ["routeDetail"]
         },
         {

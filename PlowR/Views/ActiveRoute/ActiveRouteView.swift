@@ -1,6 +1,8 @@
 import SwiftUI
 import TipKit
 import SwiftData
+import CoreData
+import Combine
 import MapKit
 import CoreLocation
 import StoreKit
@@ -55,15 +57,18 @@ struct ActiveRouteView: View {
     /// Siri's "Notify next client": a text to this stop's client, completing
     /// nothing (NotifyNextAction).
     @State private var textOnlyStop: RouteStop?
-    /// The stop that was current when the notify prompt opened. Advancing
-    /// completes that stop only; if sync has changed it meanwhile, nothing is
-    /// recorded (ActiveRouteStore.CompletionResult.stopChanged).
-    @State private var promptStopID: UUID?
-    /// The services the "Done:" button named when it opened the notify
-    /// prompt: Send or Skip records them with the completion, Cancel
-    /// nothing. Empty from Complete Without Services, a geofence exit's
-    /// offer (no label named any) and the heads-up after Below Trigger.
-    @State private var promptServiceIDs: [String] = []
+    /// What the notify prompt's Send or Skip completes: the stop drawn on
+    /// the card when its button was tapped (or, offered after leaving the
+    /// stop's area, the current one), and the services a "Done:" button
+    /// named. If sync has changed the stop meanwhile, nothing is recorded
+    /// (ActiveRouteStore.CompletionResult.stopChanged). Made anew by every
+    /// way of opening the prompt; Cancel drops it.
+    @State private var promptCompletion = NotifyAdvance.Completion.nothing
+    /// The copper button's last form, kept between redraws (each GPS fix
+    /// redraws the screen) until the stop, its services or the database change.
+    @State private var buttonMemo = MainButtonMemo()
+    /// Counts the database's saves and synced changes, for `buttonMemo`.
+    @State private var dataVersion = 0
     /// The client the notify prompt opened for, pinned so a sync change can't
     /// swap the recipient while the sheet is up.
     @State private var promptNextStop: RouteStop?
@@ -114,7 +119,7 @@ struct ActiveRouteView: View {
     private func mainButton(for stop: RouteStop) -> OneTapServices.MainButton {
         OneTapServices.mainButton(for: stop, client: client(for: stop), catalog: allServices,
                                   operatorID: route.operatorID, store: store, skipsText: shouldSkipNextNotify,
-                                  in: modelContext)
+                                  in: modelContext, memo: buttonMemo, dataVersion: dataVersion)
     }
 
     private func client(for stop: RouteStop) -> Client? {
@@ -391,6 +396,11 @@ struct ActiveRouteView: View {
         // stayed out (ExitPrompt); it never completes the stop. A newer exit
         // restarts the wait.
         .task(id: SiteMonitor.shared.lastExit) { await offerTextAfterExit() }
+        // The copper button's record and invoice checks read the database:
+        // worked out again after it changes (here or synced), not on every redraw.
+        .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave)
+            .merge(with: NotificationCenter.default.publisher(for: .NSPersistentStoreRemoteChange))
+            .receive(on: DispatchQueue.main)) { _ in dataVersion &+= 1 }
         // Siri's "Notify next client", once nothing else is up.
         .onChange(of: RouteSessionManager.shared.textRequest) { _, _ in openRequestedText() }
         .onChange(of: isPresentingSomething) { _, _ in openRequestedText() }
@@ -411,6 +421,8 @@ struct ActiveRouteView: View {
             }
         }
         .sheet(isPresented: $showingNotifyPrompt, onDismiss: {
+            // Sent, skipped or cancelled: nothing is left for a later sheet.
+            promptCompletion = promptCompletion.cancelled()
             if routeChangedAfterSheet {
                 routeChangedAfterSheet = false
                 showingRouteChangedAlert = true
@@ -418,7 +430,7 @@ struct ActiveRouteView: View {
         }) {
             if let next = promptNextStop {
                 NotifyPromptView(stop: next, locationManager: locationManager, onAdvance: {
-                    advance(completing: promptStopID, recording: promptServiceIDs)
+                    advance(promptCompletion)
                 })
             }
         }
@@ -877,7 +889,7 @@ struct ActiveRouteView: View {
     /// first, when there's one to text. `services`: what "Done:" named.
     private func complete(_ stop: RouteStop, recording services: [String]) {
         guard isLastStop else {
-            triggerNotifyPrompt(recording: services)
+            triggerNotifyPrompt(.button(drawnStop: stop.id, recording: services))
             return
         }
         switch store.completeCurrentStop(expecting: stop.id, recordingServices: services) {
@@ -1187,20 +1199,21 @@ struct ActiveRouteView: View {
                                      currentStopID: currentStop?.id, site: store.site,
                                      hasNextStop: nextStop != nil, canText: canText,
                                      isPresentingSomething: isPresentingSomething, now: Date()) else { return }
-        openNotifyPrompt()
+        openNotifyPrompt(.exitOffer(currentStop: currentStop?.id))
     }
 
     /// The Complete button only: a tap. Leaving the stop's area goes to
     /// `openNotifyPrompt` instead, and never completes a stop.
-    private func triggerNotifyPrompt(recording services: [String]) {
+    /// `completion` names the stop drawn on the card that was tapped.
+    private func triggerNotifyPrompt(_ completion: NotifyAdvance.Completion) {
         // Nothing to notify on the last stop or once every stop is done (it
         // used to open an empty sheet then).
         guard nextStop != nil, !showingNotifyPrompt else { return }
         if shouldSkipNextNotify {
-            advance(completing: currentStop?.id, recording: services)
+            advance(completion)
             return
         }
-        openNotifyPrompt(recording: services)
+        openNotifyPrompt(completion)
     }
 
     /// Opens the text Siri asked for, when nothing else is up, if it's still
@@ -1219,7 +1232,7 @@ struct ActiveRouteView: View {
 
     /// After Below Trigger moved on: the client now current is offered the
     /// "on my way" text, as after Done (unless they'd rather not be texted).
-    /// It names no stop to complete (`promptStopID` nil), so its Send or
+    /// It names no stop to complete (`Completion.headsUp`), so its Send or
     /// Skip completes nothing, even if iCloud brings the passed stop back.
     /// Returns whether it was offered.
     private func offerHeadsUp(after passedID: UUID) -> Bool {
@@ -1227,8 +1240,7 @@ struct ActiveRouteView: View {
               let next = currentStop, !showingNotifyPrompt, store.isBehindCurrentStop(passedID),
               client(for: next)?.skipNotificationPrompt != true,
               !next.clientPhone.isEmpty else { return false }
-        promptStopID = nil
-        promptServiceIDs = []
+        promptCompletion = .headsUp
         promptNextStop = next
         haptic(.light)
         showingNotifyPrompt = true
@@ -1236,19 +1248,18 @@ struct ActiveRouteView: View {
     }
 
     /// The Complete button and leaving a stop's geofence land here.
-    private func openNotifyPrompt(recording services: [String] = []) {
+    private func openNotifyPrompt(_ completion: NotifyAdvance.Completion) {
         guard let next = nextStop, !showingNotifyPrompt else { return }
-        promptStopID = currentStop?.id
-        promptServiceIDs = services
+        promptCompletion = completion
         promptNextStop = next
         haptic(.light)
         showingNotifyPrompt = true
     }
 
-    /// `stopID`: the stop to complete; nil for the heads-up after Below
-    /// Trigger, which completes nothing (NotifyAdvance).
-    private func advance(completing stopID: UUID?, recording services: [String] = []) {
-        if NotifyAdvance.run(completing: stopID, recording: services, store: store) == .stopChanged {
+    /// Completes what `completion` names; the heads-up after Below Trigger
+    /// completes nothing (NotifyAdvance).
+    private func advance(_ completion: NotifyAdvance.Completion) {
+        if completion.run(store: store) == .stopChanged {
             if showingNotifyPrompt { routeChangedAfterSheet = true } else { showingRouteChangedAlert = true }
             return
         }
