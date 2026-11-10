@@ -122,10 +122,49 @@ nonisolated enum OneTapServices {
         return titles
     }
 
+    /// What the text sheet offered after leaving a stop says, above its
+    /// buttons, about what Send or Skip does to the stop left
+    /// (`NotifyAdvance.Completion.exitOffer`). `names`: the services the
+    /// card's button names for that stop ("Done:"), every one; empty when
+    /// it's the ordinary Complete. The sheet's header names the next
+    /// client, so this names the one left. Cancel leaves the stop as it was,
+    /// where Complete Without Services is.
+    static func exitOfferNotice(clientName: String, names: [String]) -> String {
+        guard !names.isEmpty else {
+            // True whether nothing is expected or something is recorded
+            // already: the visit is still logged, only no service is added.
+            return "Send or Skip completes the stop for \(clientName) and adds no services."
+                + " Tap Cancel to stay on that stop."
+        }
+        return "Send or Skip completes the stop for \(clientName) and records \(englishList(names))."
+            + " To complete it without \(names.count == 1 ? "that service" : "them"),"
+            + " tap Cancel and choose on the stop."
+    }
+
+    /// After Send or Skip on the exit offer recorded less than its sheet
+    /// named (`NotifyAdvance.Completion.runNotingUnrecorded`): which weren't,
+    /// and where to add them. nil when nothing is missing.
+    static func notRecordedNote(clientName: String, names: [String]) -> String? {
+        guard !names.isEmpty else { return nil }
+        let one = names.count == 1
+        return "\(englishList(names)) \(one ? "wasn't" : "weren't") recorded for \(clientName)."
+            + " If \(one ? "it was" : "they were") done, add \(one ? "it" : "them")"
+            + " from the Route Recap when you finish the route."
+    }
+
+    /// The app's copy is in English only: lists read "Mow, Trim, and Edge"
+    /// whatever the device's region, never half in another language.
+    static let copyLocale = Locale(identifier: "en_US")
+
+    /// `names` as an English list.
+    static func englishList(_ names: [String]) -> String {
+        names.formatted(.list(type: .and).locale(copyLocale))
+    }
+
     /// What VoiceOver reads for the "Done:" button: every name, whatever the
     /// label could fit.
     static func doneAccessibilityLabel(_ names: [String]) -> String {
-        "Done: complete and record " + names.formatted(.list(type: .and))
+        "Done: complete and record " + englishList(names)
     }
 }
 

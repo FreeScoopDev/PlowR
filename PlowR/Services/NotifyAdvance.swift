@@ -37,8 +37,17 @@ enum NotifyAdvance {
     struct Completion: Equatable {
         /// The stop to complete; nil completes nothing (the heads-up).
         private(set) var stopID: UUID?
-        /// What the "Done:" button named; empty for any other way in.
+        /// What the "Done:" button named, or the exit offer's sentence
+        /// named; empty for any other way in.
         private(set) var serviceIDs: [String]
+        /// What the sheet says Send or Skip does, above its buttons: only
+        /// the exit offer has one (`OneTapServices.exitOfferNotice`). Opened
+        /// from a button, the button already said it.
+        private(set) var notice: String?
+        /// The exit offer's: the names of `serviceIDs`, in the same order,
+        /// and the stop's client, for saying afterwards what wasn't recorded.
+        private(set) var serviceNames: [String] = []
+        private(set) var clientName = ""
 
         /// Nothing to complete: no sheet open, or one cancelled.
         static let nothing = Completion(stopID: nil, serviceIDs: [])
@@ -49,10 +58,21 @@ enum NotifyAdvance {
             Completion(stopID: drawnStop, serviceIDs: services)
         }
 
-        /// The text offered after leaving the current stop's area: no
-        /// button named any services, so none are recorded.
-        static func exitOffer(currentStop: UUID?) -> Completion {
-            Completion(stopID: currentStop, serviceIDs: [])
+        /// The text offered after leaving the current stop's area, for
+        /// `leftStop` (the exit's stop, checked to be the current one), with
+        /// `main` the copper button the card has for it now. Send or Skip
+        /// records what that button would ("Done:" names services; any other
+        /// records nothing new), and the sheet says so, naming every service
+        /// (Joe, 2026-11-10). Names and IDs come from the same button, so it
+        /// never records one it didn't name or names one it won't record;
+        /// the store's re-check still records nothing if something was
+        /// recorded meanwhile.
+        static func exitOffer(leftStop: UUID, clientName: String, main: OneTapServices.MainButton) -> Completion {
+            var names: [String] = []
+            if case .done(_, let named) = main { names = named }
+            return Completion(stopID: leftStop, serviceIDs: main.recordedServiceIDs,
+                              notice: OneTapServices.exitOfferNotice(clientName: clientName, names: names),
+                              serviceNames: names, clientName: clientName)
         }
 
         /// The heads-up after Below Trigger: the stop was already passed.
@@ -64,6 +84,30 @@ enum NotifyAdvance {
         /// Send or Skip.
         func run(store: ActiveRouteStore) -> Outcome {
             NotifyAdvance.run(completing: stopID, recording: serviceIDs, store: store)
+        }
+
+        /// Send or Skip, and the names of the services the sheet named that
+        /// this didn't record: the store's re-check found something recorded
+        /// or invoiced meanwhile, a named service left the catalog, or Siri
+        /// or Control Center completed the stop first. Empty when all were
+        /// recorded, when none were named (a button's sheet says nothing,
+        /// the button did), and on `.stopChanged`, which the screen already
+        /// reports. It goes by what is on the stop afterwards, whoever put it
+        /// there: a service Record Services saved while the sheet was up is
+        /// recorded, and saying it wasn't would be untrue.
+        @MainActor
+        func runNotingUnrecorded(store: ActiveRouteStore) -> (outcome: Outcome, notRecorded: [String]) {
+            let stop = stopID.flatMap { id in store.sortedStops.first { $0.id == id } }
+            let outcome = run(store: store)
+            guard notice != nil, !serviceIDs.isEmpty, outcome != .stopChanged else { return (outcome, []) }
+            let onStop = stop?.completedServiceIDs ?? []
+            return (outcome, Self.notRecorded(ids: serviceIDs, names: serviceNames, recorded: onStop))
+        }
+
+        /// The names, of the services named (`ids`, `names` in step), that
+        /// aren't among those `recorded` on the stop.
+        static func notRecorded(ids: [String], names: [String], recorded: [String]) -> [String] {
+            zip(ids, names).filter { !recorded.contains($0.0) }.map(\.1)
         }
     }
 }
