@@ -1,6 +1,8 @@
 import SwiftUI
 import TipKit
 import SwiftData
+import CoreData
+import Combine
 import MapKit
 
 struct RouteRecapView: View {
@@ -33,6 +35,10 @@ struct RouteRecapView: View {
     /// What Confirm left to say, shown once its sheet has closed.
     @State private var expectedNote: String?
     @State private var shownExpectedNote: String?
+    /// Record Expected Services' plan, kept until something it depends on changes.
+    @State private var planMemo = RecapPlanMemo()
+    /// Counts the database's saves and synced changes, for `planMemo`.
+    @State private var dataVersion = 0
 
     init(route: PlowRoute, stops: [RouteStop], allClients: [Client], onEndRoute: @escaping () -> Void,
          runID: UUID? = nil, runStartedAt: Date? = nil) {
@@ -104,13 +110,15 @@ struct RouteRecapView: View {
                 // Not gated: Record Services here isn't (a running route never is).
                 let expectedPlan = RecapServiceRecorder.plan(stops: stops, catalog: allServices,
                                                              operatorID: route.operatorID, run: runID,
-                                                             in: modelContext)
+                                                             records: runRecords, in: modelContext,
+                                                             memo: planMemo, dataVersion: dataVersion)
                 if !expectedPlan.isEmpty {
                     Section {
                         Button {
                             confirmingExpected = ExpectedServicesPlan(stops: expectedPlan)
                         } label: {
-                            Label(RecapServices.buttonTitle(count: expectedPlan.count), systemImage: "checklist")
+                            Label(RecapServices.buttonTitle(count: expectedPlan.count),
+                                  systemImage: PlowRSymbol.services.name)
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.plowRSecondary)
@@ -146,6 +154,11 @@ struct RouteRecapView: View {
             .plowRGrouped()
             // The widget's tip is for someone without the widget.
             .task { await PlowRTips.checkRouteWidget() }
+            // Delivered later on the main queue, as the route screen's: a
+            // poster off the main thread never waits for this screen (#194).
+            .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave)
+                .merge(with: NotificationCenter.default.publisher(for: .NSPersistentStoreRemoteChange))
+                .receive(on: DispatchQueue.main)) { _ in dataVersion &+= 1 }
             .navigationTitle("Route Recap")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

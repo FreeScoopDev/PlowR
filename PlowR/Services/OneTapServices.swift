@@ -61,6 +61,20 @@ nonisolated enum OneTapServices {
         services.filter { !InvoiceLines.needsPrice(unitType: $0.unitType, zones: zones) }
     }
 
+    /// What the route card lists as the stop's expected services
+    /// (`expectedInCatalog`), each one the "Done:" button leaves out for
+    /// want of a measured area (`priced`) marked as such, so the card says
+    /// why the button doesn't name it.
+    static func expectedNames(expected: [String], active: [StopRecording.Service],
+                              zones: [InvoiceLines.Zone]) -> [String] {
+        let inCatalog = expectedInCatalog(expected, active: active)
+        let pricedIDs = Set(priced(inCatalog, zones: zones).map(\.id))
+        return inCatalog.map { pricedIDs.contains($0.id) ? $0.name : $0.name + noAreaSuffix }
+    }
+
+    /// The mark `expectedNames` puts on a service with no area to price it by.
+    static let noAreaSuffix = " (no area measured)"
+
     /// What one tap records for a stop expecting `expected` at a place with
     /// `zones`: the expected services in the catalog (`expectedInCatalog`)
     /// that have a price there (`priced`). The route screen's "Done:", the

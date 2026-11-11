@@ -98,6 +98,53 @@ nonisolated enum RecapServices {
     static func afterConfirm(saveFailed: Bool, notRecorded: [String]) -> String? {
         saveFailed ? saveFailedMessage : notRecordedMessage(notRecorded)
     }
+
+    /// The confirmation's Confirm, once: a second tap before the sheet has
+    /// closed would find every stop already recorded and report them all
+    /// as "Not recorded".
+    struct ConfirmOnce {
+        private(set) var done = false
+
+        /// Runs `action` the first time only.
+        mutating func run(_ action: () -> Void) {
+            guard !done else { return }
+            done = true
+            action()
+        }
+    }
+}
+
+/// The recap's Record Expected Services plan and what it was worked out
+/// from, so a redraw with nothing changed doesn't read the database again
+/// (as `MainButtonMemo` does for the route screen's button). Not observed:
+/// it only saves work, and changes nothing the screen shows.
+@MainActor
+final class RecapPlanMemo {
+    /// Everything the plan depends on. Invoices and the clients' expected
+    /// services and areas live in the database: `dataVersion` changes with
+    /// every save and synced change.
+    struct Key: Hashable {
+        var runID: UUID?
+        /// Each of the run's records: ID, invoice, lines and start.
+        var records: [String]
+        /// Each stop: ID, place and the services recorded on it.
+        var stops: [String]
+        /// Each active service's ID, name and unit type.
+        var catalog: [String]
+        var dataVersion: Int
+    }
+
+    private var last: (key: Key, plan: [RecapServices.Planned])?
+    /// How many times the plan was worked out (for tests).
+    private(set) var computed = 0
+
+    func plan(for key: Key, compute: () -> [RecapServices.Planned]) -> [RecapServices.Planned] {
+        if let last, last.key == key { return last.plan }
+        let plan = compute()
+        computed += 1
+        last = (key, plan)
+        return plan
+    }
 }
 
 /// Reads a run's stops for `RecapServices` and records what its confirmation
@@ -147,6 +194,27 @@ enum RecapServiceRecorder {
         let clients = clientsByID(in: context)
         return RecapServices.plan(stops.map { facts(for: $0, client: client(of: $0, in: clients), run: run, in: context) },
                                   active: active)
+    }
+
+    /// `plan`, worked out again only when something it depends on has
+    /// changed since `memo` last did (`RecapPlanMemo.Key`): the recap
+    /// redraws as GPS records departures and as its sheets come and go.
+    /// `records`: the run's records; `dataVersion` counts the database's
+    /// saves and synced changes.
+    static func plan(stops: [RouteStop], catalog: [ServiceItem], operatorID: String, run: UUID?,
+                     records: [ServiceRecord], in context: ModelContext, memo: RecapPlanMemo,
+                     dataVersion: Int) -> [RecapServices.Planned] {
+        let key = RecapPlanMemo.Key(
+            runID: run,
+            records: records.map {
+                "\($0.id)|\($0.invoiceID)|\($0.servicesData.hashValue)|\($0.startedAt?.timeIntervalSince1970 ?? -1)"
+            }.sorted(),
+            stops: stops.map { "\($0.id)|\($0.propertyID)|\($0.completedServiceIDs.joined(separator: ","))" },
+            catalog: ServiceLog.activeServices(catalog, operatorID: operatorID).map { "\($0.id)|\($0.name)|\($0.unitType)" },
+            dataVersion: dataVersion)
+        return memo.plan(for: key) {
+            plan(stops: stops, catalog: catalog, operatorID: operatorID, run: run, in: context)
+        }
     }
 
     /// Records `confirmed`, as the confirmation named it, for each stop that

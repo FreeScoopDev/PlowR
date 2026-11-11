@@ -96,7 +96,9 @@ enum NotifyAdvance {
 
         /// Send or Skip, and the names of the services the sheet named that
         /// this didn't record: the store's re-check found something recorded
-        /// or invoiced meanwhile, a named service left the catalog, or Siri
+        /// or invoiced meanwhile, a named service left the catalog, a named
+        /// per-square-foot service lost its price because the place's
+        /// measured area was removed (`OneTapServices.stillPriced`), or Siri
         /// or Control Center completed the stop first. Empty when all were
         /// recorded, when none were named (a button's sheet says nothing,
         /// the button did), and on `.stopChanged`, which the screen already

@@ -412,4 +412,66 @@ struct RecapServicesTests {
         #expect(saved.lines.map(\.name) == ["Mow"])
         #expect(saved.lines.allSatisfy { $0.price > 0 })
     }
+
+    // MARK: - Worked out once per change; Confirm once
+
+    private func records(_ h: Harness, _ store: ActiveRouteStore) throws -> [ServiceRecord] {
+        let id = try #require(store.runID).uuidString
+        return try h.context.fetch(FetchDescriptor<ServiceRecord>(predicate: #Predicate { $0.runID == id }))
+    }
+
+    /// The recap redraws often: the plan is read again only when the run's
+    /// records, the stops' services, the catalog or the database changed.
+    @Test func thePlanIsWorkedOutAgainOnlyWhenSomethingChanged() throws {
+        let h = try Harness()
+        let c = try catalog(h)
+        let store = try run(h, completing: 1)
+        let memo = RecapPlanMemo()
+        func draw(_ version: Int) throws -> [RecapServices.Planned] {
+            RecapServiceRecorder.plan(stops: store.sortedStops, catalog: try services(h), operatorID: "op",
+                                      run: store.runID, records: try records(h, store), in: h.context,
+                                      memo: memo, dataVersion: version)
+        }
+        let first = try draw(0)
+        #expect(first.count == 1)
+        #expect(try draw(0) == first)
+        #expect(memo.computed == 1)
+        // A save or synced change: worked out again.
+        #expect(try draw(1) == first)
+        #expect(memo.computed == 2)
+        // Services recorded on a stop (not yet saved): worked out again, and
+        // it's offered no more.
+        store.sortedStops[0].completedServiceIDs = [c.mow.id.uuidString]
+        #expect(try draw(1).isEmpty)
+        #expect(memo.computed == 3)
+        // A catalog change: worked out again.
+        store.sortedStops[0].completedServiceIDs = []
+        _ = try draw(1)
+        let computed = memo.computed
+        c.mow.name = "Mowing"
+        #expect(try draw(1).first?.names == ["Mowing", "Edge"])
+        #expect(memo.computed == computed + 1)
+    }
+
+    /// Confirm runs once: a second tap before the sheet closes would find
+    /// every stop recorded and say none were.
+    @Test func confirmRunsOnce() {
+        var confirm = RecapServices.ConfirmOnce()
+        var runs = 0
+        confirm.run { runs += 1 }
+        confirm.run { runs += 1 }
+        #expect(runs == 1)
+        #expect(confirm.done)
+    }
+
+    /// Why it matters: run twice, the second finds nothing to record and
+    /// would report every stop as not recorded.
+    @Test func aSecondConfirmWouldReportEveryStopAsNotRecorded() throws {
+        let h = try Harness()
+        try catalog(h)
+        let store = try run(h, completing: 1)
+        let planned = try plan(h, store)
+        #expect(try record(h, store, planned).notRecorded.isEmpty)
+        #expect(try record(h, store, planned).notRecorded == ["Client 0"])
+    }
 }

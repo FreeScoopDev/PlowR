@@ -118,11 +118,13 @@ struct ActiveRouteView: View {
             || gate != nil
     }
 
-    /// The names of the active services `stop` is expected to need.
+    /// The names of the active services `stop` is expected to need, a
+    /// per-square-foot one with no measured area marked (`expectedNames`).
     private func expectedServiceNames(for stop: RouteStop) -> [String] {
-        OneTapServices.expectedInCatalog(StopServices.expected(for: stop, client: client(for: stop)),
-                                         active: ServiceLog.activeServices(allServices, operatorID: route.operatorID))
-            .map(\.name)
+        let client = client(for: stop)
+        return OneTapServices.expectedNames(expected: StopServices.expected(for: stop, client: client),
+                                            active: ServiceLog.activeServices(allServices, operatorID: route.operatorID),
+                                            zones: client.map { Place.zones(of: $0, propertyID: stop.propertyID) } ?? [])
     }
 
     /// The current stop's copper button: "Done:" with the services it
@@ -798,7 +800,7 @@ struct ActiveRouteView: View {
             if !expected.isEmpty || target > 0 {
                 VStack(alignment: .leading, spacing: PlowRLayout.space2) {
                     if !expected.isEmpty {
-                        Label(OneTapServices.englishList(expected), systemImage: "checklist")
+                        Label(OneTapServices.englishList(expected), systemImage: PlowRSymbol.services.name)
                             .font(.subheadline.weight(.medium))
                             .foregroundStyle(PlowRColor.ink)
                     }
@@ -817,34 +819,10 @@ struct ActiveRouteView: View {
             if !placeNotes.isEmpty || !ownNotes.isEmpty || !stop.equipmentNotes.isEmpty {
                 VStack(alignment: .leading, spacing: PlowRLayout.space2) {
                     if !placeNotes.isEmpty {
-                        Label {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Route Notes")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(PlowRColor.inkSecondary)
-                                Text(placeNotes)
-                                    .font(.subheadline)
-                                    .foregroundStyle(PlowRColor.ink)
-                            }
-                        } icon: {
-                            Image(systemName: "mappin.and.ellipse")
-                        }
-                        .accessibilityElement(children: .combine)
+                        StopCardNote(title: "Route Notes", text: placeNotes, symbol: .routeNotes)
                     }
                     if !ownNotes.isEmpty {
-                        Label {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("This Stop Only")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(PlowRColor.inkSecondary)
-                                Text(ownNotes)
-                                    .font(.subheadline)
-                                    .foregroundStyle(PlowRColor.ink)
-                            }
-                        } icon: {
-                            Image(systemName: "note.text")
-                        }
-                        .accessibilityElement(children: .combine)
+                        StopCardNote(title: "This Stop Only", text: ownNotes, symbol: .stopNote)
                     }
                     if !stop.equipmentNotes.isEmpty {
                         Label(stop.equipmentNotes, systemImage: "wrench.and.screwdriver")
@@ -1433,6 +1411,30 @@ struct ActiveRouteView: View {
     /// also moves when Siri or Control Center completes a stop.
     private func didAdvance() {
         haptic()
+    }
+}
+
+/// One of the stop card's labelled notes (Route Notes, This Stop Only): its
+/// title above its text, read as one by VoiceOver.
+private struct StopCardNote: View {
+    let title: String
+    let text: String
+    let symbol: PlowRSymbol
+
+    var body: some View {
+        Label {
+            VStack(alignment: .leading, spacing: PlowRLayout.space1) {
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(PlowRColor.inkSecondary)
+                Text(text)
+                    .font(.subheadline)
+                    .foregroundStyle(PlowRColor.ink)
+            }
+        } icon: {
+            Image(systemName: symbol.name)
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 
