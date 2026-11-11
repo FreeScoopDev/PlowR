@@ -426,7 +426,7 @@ struct RouteDetailView: View {
                 if stop.hasNotesToShow || !stop.equipmentNotes.isEmpty {
                     AdaptiveDetails(spacing: 6) {
                         if stop.hasNotesToShow {
-                            Label("Notes", systemImage: "note.text")
+                            Label("Notes", systemImage: PlowRSymbol.stopNote.name)
                                 .font(.caption2)
                                 .foregroundStyle(PlowRColor.inkSecondary)
                         }

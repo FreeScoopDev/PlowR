@@ -69,7 +69,12 @@ nonisolated struct Place: Equatable {
     }
 
     static func isMain(_ propertyID: String, of client: Client) -> Bool {
-        propertyID.isEmpty || propertyID == client.id.uuidString
+        isMain(propertyID, clientID: client.id)
+    }
+
+    /// `isMain(_:of:)` by the client's ID, without fetching the client (a stop).
+    static func isMain(_ propertyID: String, clientID: UUID) -> Bool {
+        propertyID.isEmpty || propertyID == clientID.uuidString
     }
 
     /// The client's places work can be booked at: the main one, then their

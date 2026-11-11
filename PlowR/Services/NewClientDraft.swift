@@ -21,7 +21,9 @@ nonisolated struct NewClientDraft: Equatable {
     var phone = ""
     var email = ""
     var address = ""
-    var notes = ""
+    /// The form's Route Notes (a gate code, a dog in the yard): the client's
+    /// `defaultStopNotes`, never their private notes.
+    var routeNotes = ""
 
     /// Only a name is needed (a blank one, or spaces, isn't one).
     var canSave: Bool { ClientDraft.hasName(name) }
@@ -29,7 +31,7 @@ nonisolated struct NewClientDraft: Equatable {
     /// Whether any field has text: leaving then asks first. The kind alone
     /// isn't typed work.
     var hasTypedWork: Bool {
-        [name, phone, email, address, notes].contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        [name, phone, email, address, routeNotes].contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     }
 
     /// The client's `customerSince` when saved at `now`: whole seconds, as
@@ -54,7 +56,7 @@ nonisolated struct NewClientDraft: Equatable {
         // The form's Notes are Route Notes (a gate code, a dog in the yard),
         // shown at the client's stops. They went to the private notes, which
         // no route shows, so a gate code typed here never reached the crew.
-        client.defaultStopNotes = tidy(notes)
+        client.defaultStopNotes = tidy(routeNotes)
         client.customerSince = customerSince(at: now)
         return client
     }

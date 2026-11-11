@@ -120,6 +120,28 @@ struct TimeFromArrivalTests {
         #expect(ServiceLog.minutesBasis(of: record(source: .visit, arrived: start + 600, minutes: 20)) == nil)
     }
 
+    // The job page says what a route stop's minutes were counted from, and
+    // no label calls mixed minutes "on site".
+    @Test func theJobPageSaysTheMinutesBasis() {
+        #expect(ServiceLog.minutesBasisNote(of: record(arrived: start + 600, minutes: 20))?
+            .contains("from GPS arrival") == true)
+        let travel = ServiceLog.minutesBasisNote(of: record(arrived: nil, minutes: 30))
+        #expect(travel?.contains("includes the drive there") == true)
+        #expect(travel?.contains("GPS") == false)
+        #expect(ServiceLog.minutesBasisNote(of: record(source: .manual, arrived: nil, minutes: 30)) == nil)
+        // Counted from the arrival, then changed by hand: the user's minutes,
+        // so the page doesn't claim they include the drive.
+        #expect(ServiceLog.minutesBasisNote(of: record(arrived: start + 600, minutes: 23)) == nil)
+        #expect(ServiceLog.minutesLabel == "Minutes")
+        #expect(ServiceLog.totalTimeLabel == "Total time at stops")
+        #expect(ServiceLog.totalTimeText(minutes: 125) == "2h 5m total time at stops")
+        #expect(ServiceLog.totalTimeText(minutes: 45.6) == "45 min total time at stops")
+        for text in [ServiceLog.minutesLabel, ServiceLog.totalTimeLabel, ServiceLog.totalTimeText(minutes: 90),
+                     ServiceLog.unreadableMinutesMessage, ServiceLog.averageTimeLabel] {
+            #expect(!text.lowercased().contains("on site") && !text.lowercased().contains("on-site"), "\(text)")
+        }
+    }
+
     // MARK: - The recap's On Route time
 
     @Test func onRouteIsTheRunsElapsedTimeNotTheStopsMinutesAddedUp() {

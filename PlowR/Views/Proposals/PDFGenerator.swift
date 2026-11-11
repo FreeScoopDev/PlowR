@@ -968,8 +968,7 @@ struct PDFGenerator {
         }
         var bottom = y + 14 + 26
         if figures.minutes > 0 {
-            let h = Int(figures.minutes) / 60, m = Int(figures.minutes) % 60
-            let t = h > 0 ? "\(h)h \(m)m total on-site" : "\(m) min total on-site"
+            let t = ServiceLog.totalTimeText(minutes: figures.minutes)
             drawText(t, x: margin, y: bottom + 4, width: contentW, font: bodyFont(10), color: inkMid)
             bottom += 18
         }

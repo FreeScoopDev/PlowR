@@ -124,35 +124,7 @@ struct RouteListView: View {
     }
 
     private func duplicateRoute(_ route: PlowRoute) {
-        let copy = PlowRoute(name: "\(route.name) (Copy)", operatorID: route.operatorID)
-        modelContext.insert(copy)
-        for (index, stop) in route.sortedStops.enumerated() {
-            if stop.isCustomStop {
-                let stopCopy = RouteStop(order: index, customName: stop.clientName,
-                                        customAddress: stop.clientAddress, customPhone: stop.clientPhone)
-                stopCopy.stopNotes = stop.stopNotes
-                stopCopy.equipmentNotes = stop.equipmentNotes
-                stopCopy.targetMinutes = stop.targetMinutes
-                stopCopy.expectedServiceIDs = stop.expectedServiceIDs
-                stopCopy.hasOwnServices = stop.hasOwnServices
-                stopCopy.propertyID = stop.propertyID
-                stopCopy.route = copy
-                modelContext.insert(stopCopy)
-            } else if let client = allClients.first(where: { $0.id == stop.clientID }), client.isActive,
-                      let place = Place.of(client, propertyID: stop.propertyID), place.isActive {
-                // A copy is a new route: inactive clients and properties, and
-                // places since removed, stay off it, as off every new route.
-                let stopCopy = RouteStop(order: index, client: client, place: place)
-                // Its own note only: the place's notes come with the place.
-                stopCopy.stopNotes = stop.shownOwnNotes
-                stopCopy.equipmentNotes = stop.equipmentNotes
-                stopCopy.targetMinutes = stop.targetMinutes
-                stopCopy.expectedServiceIDs = stop.expectedServiceIDs
-                stopCopy.hasOwnServices = stop.hasOwnServices
-                stopCopy.route = copy
-                modelContext.insert(stopCopy)
-            }
-        }
+        ClientStops.duplicate(route, clients: allClients, in: modelContext)
     }
 }
 

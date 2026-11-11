@@ -184,7 +184,8 @@ struct ProposalDetailView: View {
             InvoicePaymentsView(invoice: proposal)
         }
         .sheet(isPresented: $showingEditView, onDismiss: { generatePDF() }) {
-            ProposalEditView(proposal: proposal)
+            ProposalEditView(proposal: proposal,
+                             termsDays: DocumentEdits.termsDays(for: proposal, profiles: allProfiles))
         }
         // An invoice that's out is a record: changed by a revision, or voided
         // (InvoiceRecords). Never edited under its number, never deleted.

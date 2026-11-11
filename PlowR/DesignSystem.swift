@@ -287,6 +287,12 @@ nonisolated enum PlowRSymbol: String, CaseIterable {
     case warning = "exclamationmark.triangle.fill"
     case serviceReport = "checkmark.seal"
     case help = "questionmark.circle"
+    /// A place's Route Notes, which follow the client's page.
+    case routeNotes = "mappin.and.ellipse"
+    /// A stop's own note, for that stop only.
+    case stopNote = "note.text"
+    /// Services expected at or recorded for a stop.
+    case services = "checklist"
 
     /// The name, for `Image(systemName:)` and `Label(_:systemImage:)`.
     var name: String { rawValue }

@@ -9,13 +9,16 @@ struct RecordExpectedServicesSheet: View {
     let onConfirm: () -> Void
 
     @Environment(\.dismiss) private var dismiss
+    /// Confirm runs once: a second tap before the sheet closes would report
+    /// every stop as not recorded.
+    @State private var confirm = RecapServices.ConfirmOnce()
 
     var body: some View {
         NavigationStack {
             List {
                 Section {
                     ForEach(planned) { stop in
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: PlowRLayout.space1) {
                             Text(stop.clientName)
                                 .font(.subheadline.weight(.semibold))
                                 .foregroundStyle(PlowRColor.ink)
@@ -23,7 +26,7 @@ struct RecordExpectedServicesSheet: View {
                                 .font(.subheadline)
                                 .foregroundStyle(PlowRColor.inkSecondary)
                         }
-                        .padding(.vertical, 2)
+                        .padding(.vertical, PlowRLayout.space1)
                         .accessibilityElement(children: .combine)
                     }
                 } footer: {
@@ -33,10 +36,12 @@ struct RecordExpectedServicesSheet: View {
 
                 Section {
                     Button {
-                        onConfirm()
-                        dismiss()
+                        confirm.run {
+                            onConfirm()
+                            dismiss()
+                        }
                     } label: {
-                        Label(RecapServices.confirmTitle(count: planned.count), systemImage: "checklist")
+                        Label(RecapServices.confirmTitle(count: planned.count), systemImage: PlowRSymbol.services.name)
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.plowRAction)

@@ -112,7 +112,7 @@ struct StopDetailView: View {
                             Text(stop.placeNotes)
                         }
                     } header: {
-                        Label("Route Notes", systemImage: "mappin.and.ellipse")
+                        Label("Route Notes", systemImage: PlowRSymbol.routeNotes.name)
                             .foregroundStyle(PlowRColor.inkSecondary)
                     } footer: {
                         SectionNote(verbatim: placeNotesFooter)
@@ -124,7 +124,7 @@ struct StopDetailView: View {
                     TextField("Shown at this stop during the route", text: $stopNotes, axis: .vertical)
                         .lineLimit(2...)
                 } header: {
-                    Label("Stop Notes", systemImage: "note.text")
+                    Label("Stop Notes", systemImage: PlowRSymbol.stopNote.name)
                         .foregroundStyle(PlowRColor.inkSecondary)
                 } footer: {
                     if !stop.isCustomStop { SectionNote("For this stop on this route only.") }
@@ -195,8 +195,7 @@ struct StopDetailView: View {
     /// Where the place's notes are changed: the client's page for their own
     /// address, the property's page for another.
     private var placeNotesFooter: String {
-        let atHome = stop.propertyID.isEmpty || stop.propertyID == stop.clientID.uuidString
-        let page = atHome ? "\(stop.clientName)'s page" : "the property's page"
+        let page = Place.isMain(stop.propertyID, clientID: stop.clientID) ? "\(stop.clientName)'s page" : "the property's page"
         return "Changed on \(page). They show at every stop here, on every route."
     }
 

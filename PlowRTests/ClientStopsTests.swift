@@ -206,6 +206,33 @@ struct ClientStopsTests {
         #expect(ClientStops.shownOwnNote("", placeNotes: "Gate 1234").isEmpty)
     }
 
+    // Duplicate Route: a stop's own note that only copies the place's notes
+    // isn't carried to the copy (the place's notes come with the place); a
+    // real one is, and a custom stop keeps its note.
+    @Test func duplicateRouteCarriesOnlyARealOwnNote() throws {
+        pat.defaultStopNotes = "Gate 1234"
+        sam.defaultStopNotes = "Dog in yard"
+        ClientStops.updateAll(in: context)
+        let original = monday.sortedStops
+        original[0].stopNotes = " Gate 1234\n"
+        original[1].stopNotes = "Ring first"
+        original[2].stopNotes = "Key under mat"
+        let copy = ClientStops.duplicate(monday, clients: [pat, sam], in: context)
+        try context.save()
+        #expect(copy.name == "Monday (Copy)")
+        let copied = copy.sortedStops
+        #expect(copied.map(\.clientName) == ["Pat Doe", "Sam Roe", "Salt shed"])
+        #expect(copied.map(\.stopNotes) == ["", "Ring first", "Key under mat"])
+        #expect(copied.map(\.placeNotes) == ["Gate 1234", "Dog in yard", ""])
+    }
+
+    // An inactive client stays off the copy, as off every new route.
+    @Test func duplicateRouteLeavesInactiveClientsOff() throws {
+        sam.isActive = false
+        let copy = ClientStops.duplicate(monday, clients: [pat, sam], in: context)
+        #expect(copy.sortedStops.map(\.clientName) == ["Pat Doe", "Salt shed"])
+    }
+
     // A client changed on another device arrives through iCloud: the stops
     // follow then, not only at the next launch. A route app stays open for
     // days.

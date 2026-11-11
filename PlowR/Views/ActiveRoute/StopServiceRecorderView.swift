@@ -171,7 +171,7 @@ struct StopServiceRecorderView: View {
                             expectedToAdd.forEach { selectedServiceIDs.insert($0.id) }
                         } label: {
                             Label("Add Expected: \(OneTapServices.englishList(expectedToAdd.map(\.name)))",
-                                  systemImage: "checklist")
+                                  systemImage: PlowRSymbol.services.name)
                         }
                     }
                     .listRowBackground(PlowRColor.surface)

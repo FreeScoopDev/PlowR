@@ -57,7 +57,7 @@ struct LogWorkView: View {
                         }
                     }
                     DatePicker("Done", selection: $performedAt, in: ...Date.now)
-                    LabeledContent("Minutes on Site") {
+                    LabeledContent(ServiceLog.minutesLabel) {
                         TextField("Optional", text: $minutes)
                             .keyboardType(.numberPad)
                             .multilineTextAlignment(.trailing)

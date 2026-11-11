@@ -1082,6 +1082,55 @@ struct OneTapServicesTests {
         #expect(stop.completedServiceIDs == [c.mow.id.uuidString])
     }
 
+    /// The button named only a per-square-foot service, and the area went
+    /// before the tap: the store records the visit, but no line and no
+    /// service on the stop; Undo then leaves the stop's services as they were.
+    @Test func onlyAnUnpricedServiceAfterTheAreaWentRecordsTheVisitAlone() throws {
+        let h = try Harness(stopCount: 2)
+        let c = try catalog(h)
+        h.client.expectedServiceIDs = [c.edge.id.uuidString]
+        try h.context.save()
+        let store = h.makeStore()
+        store.start(h.route)
+        let stop = try #require(store.currentStop)
+        let main = try button(h, store)
+        #expect(main.recordedServiceIDs == [c.edge.id.uuidString])
+        let visitsBefore = h.client.totalVisits
+        try unmeasure(h.client, h)
+        store.completeCurrentStop(expecting: stop.id, recordingServices: main.recordedServiceIDs)
+        #expect(store.currentStopID != stop.id)
+        #expect(h.client.totalVisits == visitsBefore + 1)
+        #expect(try #require(try record(h, store, stop: stop)).lines.isEmpty)
+        #expect(stop.completedServiceIDs.isEmpty)
+        #expect(store.undoLastCompletion(expecting: stop.id) == .undone)
+        #expect(stop.completedServiceIDs.isEmpty)
+        #expect(h.client.totalVisits == visitsBefore)
+    }
+
+    /// The route card lists the expected services with the one the button
+    /// leaves out for want of an area marked (`expectedNames`).
+    @Test func theCardMarksAServiceWithNoAreaMeasured() {
+        let active = [StopRecording.Service(id: "mow", name: "Mow", unitType: "flat", pricePerUnit: 40),
+                      StopRecording.Service(id: "edge", name: "Edge", unitType: "perSqFt", pricePerUnit: 0.02),
+                      StopRecording.Service(id: "bags", name: "Bags", unitType: "perUnit", pricePerUnit: 5)]
+        let measured = [InvoiceLines.Zone(label: "Front", areaSquareFeet: 1_000)]
+        let expected = ["edge", "bags", "mow", "gone"]
+        #expect(OneTapServices.expectedNames(expected: expected, active: active, zones: measured)
+                == ["Mow", "Edge", "Bags"])
+        #expect(OneTapServices.expectedNames(expected: expected, active: active, zones: [])
+                == ["Mow", "Edge (no area measured)", "Bags"])
+        #expect(OneTapServices.expectedNames(expected: expected, active: active,
+                                             zones: [InvoiceLines.Zone(label: "Front", areaSquareFeet: 0)])
+                == ["Mow", "Edge (no area measured)", "Bags"])
+        // No client: the button names nothing, so nothing is singled out.
+        #expect(OneTapServices.expectedNames(expected: expected, active: active, zones: [], hasClient: false)
+                == ["Mow", "Edge", "Bags"])
+        // What's marked is exactly what the button leaves out.
+        let unmarked = OneTapServices.expectedNames(expected: expected, active: active, zones: [])
+            .filter { !$0.hasSuffix(OneTapServices.noAreaSuffix) }
+        #expect(unmarked == OneTapServices.toRecord(expected: expected, active: active, zones: []).map(\.name))
+    }
+
     /// The memo is keyed on the place's zones: measuring or removing an area
     /// changes the button even before the save reaches `dataVersion`.
     @Test func theButtonFollowsThePlacesArea() throws {

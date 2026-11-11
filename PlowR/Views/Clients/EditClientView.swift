@@ -186,7 +186,8 @@ struct EditClientView: View {
             }
         }
         .sheet(item: $editingProposal) { proposal in
-            ProposalEditView(proposal: proposal)
+            ProposalEditView(proposal: proposal,
+                             termsDays: DocumentEdits.termsDays(for: proposal, profiles: allProfiles))
         }
         .sheet(isPresented: $showingProposalBuilder) {
             NavigationStack { ProposalBuilderView(client: client, isInvoiceMode: false, taxExempt: draft.taxExempt,
@@ -818,7 +819,7 @@ struct EditClientView: View {
                     }
                 }
                 if client.averageServiceMinutes > 0 {
-                    LabeledContent("Avg Time on Site") {
+                    LabeledContent(ServiceLog.averageTimeLabel) {
                         Text(String(format: "~%.0f min", client.averageServiceMinutes))
                     }
                 }

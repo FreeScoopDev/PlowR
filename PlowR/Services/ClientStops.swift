@@ -66,6 +66,40 @@ enum ClientStops {
         text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    /// Duplicate Route: a new route, "<name> (Copy)", with `route`'s stops.
+    /// A copy is a new route: inactive clients and properties, and places
+    /// since removed, stay off it, as off every new route. A client's stop
+    /// carries its own note only as the route shows it (`shownOwnNotes`): a
+    /// note that is just a copy of the place's notes isn't carried, as the
+    /// place's notes come with the place.
+    @discardableResult
+    static func duplicate(_ route: PlowRoute, clients: [Client], in context: ModelContext) -> PlowRoute {
+        let copy = PlowRoute(name: "\(route.name) (Copy)", operatorID: route.operatorID)
+        context.insert(copy)
+        for (index, stop) in route.sortedStops.enumerated() {
+            let stopCopy: RouteStop
+            if stop.isCustomStop {
+                stopCopy = RouteStop(order: index, customName: stop.clientName,
+                                     customAddress: stop.clientAddress, customPhone: stop.clientPhone)
+                stopCopy.stopNotes = stop.stopNotes
+                stopCopy.propertyID = stop.propertyID
+            } else if let client = clients.first(where: { $0.id == stop.clientID }), client.isActive,
+                      let place = Place.of(client, propertyID: stop.propertyID), place.isActive {
+                stopCopy = RouteStop(order: index, client: client, place: place)
+                stopCopy.stopNotes = stop.shownOwnNotes
+            } else {
+                continue
+            }
+            stopCopy.equipmentNotes = stop.equipmentNotes
+            stopCopy.targetMinutes = stop.targetMinutes
+            stopCopy.expectedServiceIDs = stop.expectedServiceIDs
+            stopCopy.hasOwnServices = stop.hasOwnServices
+            stopCopy.route = copy
+            context.insert(stopCopy)
+        }
+        return copy
+    }
+
     /// After `client` was changed: all their stops follow, and their
     /// upcoming visits.
     static func update(for client: Client) {

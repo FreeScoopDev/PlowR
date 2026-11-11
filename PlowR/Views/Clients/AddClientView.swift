@@ -80,7 +80,7 @@ struct AddClientView: View {
                 .listRowBackground(PlowRColor.surface)
 
                 Section {
-                    TextField("Gate code, dog in the yard…", text: $draft.notes, axis: .vertical)
+                    TextField("Gate code, dog in the yard…", text: $draft.routeNotes, axis: .vertical)
                         .lineLimit(3...8)
                 } header: {
                     SectionTitle("Route Notes")
