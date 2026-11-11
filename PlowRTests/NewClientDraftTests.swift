@@ -77,7 +77,7 @@ struct NewClientDraftTests {
         #expect(!draft.hasTypedWork)
         draft.name = "  "
         #expect(!draft.hasTypedWork)
-        for set in [\NewClientDraft.name, \.phone, \.email, \.address, \.notes] {
+        for set in [\NewClientDraft.name, \.phone, \.email, \.address, \.routeNotes] {
             var typed = NewClientDraft()
             typed[keyPath: set] = "x"
             #expect(typed.hasTypedWork)
@@ -94,7 +94,7 @@ struct NewClientDraftTests {
         draft.phone = "   "
         draft.email = " ellen@example.com "
         draft.address = " 7 Alder Ct "
-        draft.notes = "Gate code 4411\n"
+        draft.routeNotes = "Gate code 4411\n"
 
         let customer = draft.makeClient(operatorID: "op", now: now)
         #expect(customer.name == "Ellen Park")
@@ -125,7 +125,7 @@ struct NewClientDraftTests {
         var draft = NewClientDraft()
         draft.name = "Ellen Park"
         draft.address = "7 Alder Ct"
-        draft.notes = "Gate code 4411"
+        draft.routeNotes = "Gate code 4411"
         let client = draft.makeClient(operatorID: "op", now: .now)
         h.context.insert(client)
         let stop = RouteStop(order: 0, client: client, place: Place.main(of: client))
