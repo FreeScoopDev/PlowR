@@ -25,17 +25,23 @@ final class ServiceItem {
         self.sortOrder = sortOrder
     }
 
+    /// The starter catalog a business can add by category (ServiceCatalog.
+    /// addStandard). Every one is flat, at a placeholder price the business
+    /// edits in its catalog: five used to be per square foot, so a business
+    /// that hadn't measured its clients' areas recorded them at $0 (Joe,
+    /// 2026-11-10). Per square foot stays a choice in Add Service. Catalogs
+    /// made before keep what they have.
     static let defaultServices: [(name: String, category: String, unitType: String, price: Double)] = [
-        ("Snow Plowing",         "snow",    "perSqFt", 0.08),
-        ("Salting / Ice Melt",   "snow",    "perSqFt", 0.03),
+        ("Snow Plowing",         "snow",    "flat",    50.0),
+        ("Salting / Ice Melt",   "snow",    "flat",    25.0),
         ("Walkway Shoveling",    "snow",    "flat",    45.0),
         ("Roof Snow Removal",    "snow",    "flat",    150.0),
-        ("Lawn Mowing",          "lawn",    "perSqFt", 0.06),
+        ("Lawn Mowing",          "lawn",    "flat",    45.0),
         ("Edging",               "lawn",    "flat",    30.0),
-        ("Fertilization",        "lawn",    "perSqFt", 0.04),
+        ("Fertilization",        "lawn",    "flat",    60.0),
         ("Hedge Trimming",       "lawn",    "flat",    60.0),
         ("Spring Cleanup",       "cleanup", "flat",    120.0),
         ("Fall Cleanup",         "cleanup", "flat",    120.0),
-        ("Mulching",             "cleanup", "perSqFt", 0.12),
+        ("Mulching",             "cleanup", "flat",    75.0),
     ]
 }

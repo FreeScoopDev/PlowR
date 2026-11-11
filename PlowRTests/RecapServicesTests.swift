@@ -84,7 +84,7 @@ struct RecapServicesTests {
 
     private func facts() -> RecapServices.StopFacts {
         RecapServices.StopFacts(stopID: UUID(), clientName: "Ann", completedThisRun: true, hasClient: true,
-                                expected: ["edge", "gone", "mow"], nothingRecorded: true, notOnInvoice: true)
+                                expected: ["edge", "gone", "mow"], zones: [], nothingRecorded: true, notOnInvoice: true)
     }
 
     @Test func aStopThatQualifiesGetsItsExpectedServicesInCatalogOrder() throws {
@@ -374,5 +374,42 @@ struct RecapServicesTests {
         #expect(h.clients[0].notes == "Waiting to be saved")
         // To the byte: Undo compares the record's fields.
         #expect(try runRecord(h, store, store.sortedStops[0])?.servicesData == before)
+    }
+
+    // MARK: - Per square foot with no measured area
+
+    @Test func thePlannerLeavesOutPerSquareFootWithNoArea() throws {
+        let edge = StopRecording.Service(id: "edge", name: "Edge", unitType: "perSqFt", pricePerUnit: 0.02)
+        let catalog = [active[0], edge]
+        var stop = facts()
+        // No area: Mow only, never Edge at $0.
+        #expect(RecapServices.plan(stop, active: catalog)?.serviceIDs == ["mow"])
+        // Measured: both.
+        stop.zones = [InvoiceLines.Zone(label: "Front", areaSquareFeet: 500)]
+        #expect(RecapServices.plan(stop, active: catalog)?.serviceIDs == ["mow", "edge"])
+        // Only Edge expected, no area: the stop isn't offered.
+        var onlyEdge = facts()
+        onlyEdge.expected = ["edge"]
+        #expect(RecapServices.plan(onlyEdge, active: catalog) == nil)
+    }
+
+    @Test func aStopExpectingOnlyUnpricedServicesIsNeverOffered() throws {
+        let h = try Harness(stopCount: 2)
+        let c = try catalog(h)
+        for client in h.clients {
+            for zone in client.zones ?? [] { h.context.delete(zone) }
+            client.zones = []
+        }
+        h.clients[0].expectedServiceIDs = [c.edge.id.uuidString]
+        try h.context.save()
+        let store = try run(h, completing: 2)
+        let planned = try plan(h, store)
+        // The second stop is offered Mow alone; the first, nothing.
+        #expect(planned == [RecapServices.Planned(stopID: store.sortedStops[1].id, clientName: "Client 1",
+                                                  serviceIDs: [c.mow.id.uuidString], names: ["Mow"])])
+        try record(h, store, planned)
+        let saved = try #require(try runRecord(h, store, store.sortedStops[1]))
+        #expect(saved.lines.map(\.name) == ["Mow"])
+        #expect(saved.lines.allSatisfy { $0.price > 0 })
     }
 }

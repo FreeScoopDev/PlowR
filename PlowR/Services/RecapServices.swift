@@ -26,6 +26,10 @@ nonisolated enum RecapServices {
         var hasClient: Bool
         /// Its expected services (`StopServices.expected`).
         var expected: [String]
+        /// Its place's measured zones (`Place.zones`): a per-square-foot
+        /// service is offered only where they give it a price
+        /// (`OneTapServices.priced`).
+        var zones: [InvoiceLines.Zone]
         /// `ServiceLog.hasNothingRecorded`, the question the one tap asks: no
         /// services on the stop, no lines on its record, no invoice.
         var nothingRecorded: Bool
@@ -46,10 +50,12 @@ nonisolated enum RecapServices {
 
     /// The services to record for `stop`, or nil when it doesn't qualify:
     /// completed this run, with a client, nothing recorded, not on an
-    /// invoice, and expected services in the business's active catalog.
+    /// invoice, and expected services in the business's active catalog with
+    /// a price at its place: what the one tap would record
+    /// (`OneTapServices.toRecord`).
     static func plan(_ stop: StopFacts, active: [StopRecording.Service]) -> Planned? {
         guard stop.completedThisRun, stop.hasClient, stop.nothingRecorded, stop.notOnInvoice else { return nil }
-        let services = OneTapServices.expectedInCatalog(stop.expected, active: active)
+        let services = OneTapServices.toRecord(expected: stop.expected, active: active, zones: stop.zones)
         guard !services.isEmpty else { return nil }
         return Planned(stopID: stop.stopID, clientName: stop.clientName,
                        serviceIDs: services.map(\.id), names: services.map(\.name))
@@ -126,6 +132,7 @@ enum RecapServiceRecorder {
             completedThisRun: record?.startedAt != nil,
             hasClient: client != nil,
             expected: StopServices.expected(for: stop, client: client),
+            zones: client.map { Place.zones(of: $0, propertyID: stop.propertyID) } ?? [],
             nothingRecorded: nothingRecorded,
             notOnInvoice: record?.invoiceID.isEmpty ?? false)
     }

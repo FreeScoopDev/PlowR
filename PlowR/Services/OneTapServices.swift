@@ -11,6 +11,9 @@ import SwiftData
 /// Mow, Trim") and completing with it records exactly those (Joe's call,
 /// 2026-11-10). Services are still never ticked silently: the button says
 /// what it records, and Complete Without Services completes as before.
+/// A per-square-foot service is left out where the place has no measured
+/// area (`priced`): it would be recorded at $0, so it's left to Record
+/// Services, which asks for its price.
 ///
 /// The decision is here, as plain values, so it can be tested without a
 /// screen. Recording happens inside the store's completion
@@ -49,13 +52,48 @@ nonisolated enum OneTapServices {
         return active.filter { wanted.contains($0.id) }
     }
 
+    /// `services` less any per square foot with no measured area at the
+    /// place (`zones`, as `ServiceLog.lines(for:)` prices from them): such a
+    /// service would be recorded at $0 (`InvoiceLines.needsPrice`, the rule
+    /// Record Services' price note uses). It's left to Record Services,
+    /// where the price is entered.
+    static func priced(_ services: [StopRecording.Service], zones: [InvoiceLines.Zone]) -> [StopRecording.Service] {
+        services.filter { !InvoiceLines.needsPrice(unitType: $0.unitType, zones: zones) }
+    }
+
+    /// What one tap records for a stop expecting `expected` at a place with
+    /// `zones`: the expected services in the catalog (`expectedInCatalog`)
+    /// that have a price there (`priced`). The route screen's "Done:", the
+    /// exit offer and the recap's Record Expected Services all ask this, so
+    /// what they name is what they record.
+    static func toRecord(expected: [String], active: [StopRecording.Service],
+                         zones: [InvoiceLines.Zone]) -> [StopRecording.Service] {
+        priced(expectedInCatalog(expected, active: active), zones: zones)
+    }
+
     /// The services the button names: none for a stop without a client (a
     /// custom stop, or its client is gone), or when something is already
-    /// recorded for it this run (`ServiceLog.hasNothingRecorded`).
-    static func servicesToName(expected: [String], active: [StopRecording.Service], hasClient: Bool,
-                               nothingRecorded: Bool) -> [StopRecording.Service] {
+    /// recorded for it this run (`ServiceLog.hasNothingRecorded`); otherwise
+    /// `toRecord`.
+    static func servicesToName(expected: [String], active: [StopRecording.Service], zones: [InvoiceLines.Zone],
+                               hasClient: Bool, nothingRecorded: Bool) -> [StopRecording.Service] {
         guard hasClient, nothingRecorded else { return [] }
-        return expectedInCatalog(expected, active: active)
+        return toRecord(expected: expected, active: active, zones: zones)
+    }
+
+    /// The services among `serviceIDs` that still have a price at `stop`'s
+    /// place, asked again as completing records them (`priced`): a zone
+    /// removed since the button was drawn never makes a $0 line.
+    @MainActor
+    static func stillPriced(_ serviceIDs: [String], at stop: RouteStop, of client: Client,
+                            in context: ModelContext) -> [String] {
+        guard !serviceIDs.isEmpty else { return [] }
+        let catalog = (try? context.fetch(FetchDescriptor<ServiceItem>())) ?? []
+        let named = catalog.filter { serviceIDs.contains($0.id.uuidString) }
+            .map { StopRecording.Service(id: $0.id.uuidString, name: $0.name, unitType: $0.unitType,
+                                         pricePerUnit: $0.pricePerUnit) }
+        let keep = Set(priced(named, zones: Place.zones(of: client, propertyID: stop.propertyID)).map(\.id))
+        return serviceIDs.filter { keep.contains($0) }
     }
 
     /// The button for the current stop. With services to name it's "Done:",
@@ -80,6 +118,7 @@ nonisolated enum OneTapServices {
                            memo: MainButtonMemo? = nil, dataVersion: Int = 0) -> MainButton {
         let active = ServiceLog.activeServices(catalog, operatorID: operatorID)
         let expected = StopServices.expected(for: stop, client: client)
+        let zones = client.map { Place.zones(of: $0, propertyID: stop.propertyID) } ?? []
         let isLastStop = store.isLastStop
         let compute = {
             var nothingRecorded = false
@@ -87,14 +126,15 @@ nonisolated enum OneTapServices {
                 nothingRecorded = ServiceLog.hasNothingRecorded(for: stop, of: client, run: run,
                                                                 startedAt: startedAt, in: context)
             }
-            let services = servicesToName(expected: expected, active: active, hasClient: client != nil,
-                                          nothingRecorded: nothingRecorded)
+            let services = servicesToName(expected: expected, active: active, zones: zones,
+                                          hasClient: client != nil, nothingRecorded: nothingRecorded)
             return mainButton(naming: services, isLastStop: isLastStop, skipsText: skipsText)
         }
         guard let memo else { return compute() }
         let key = MainButtonMemo.Key(stopID: stop.id, clientID: client?.id, runID: store.runID,
                                      stopStartedAt: store.stopStartedAt, recorded: stop.completedServiceIDs,
-                                     expected: expected, catalog: active.map { "\($0.id)|\($0.name)" },
+                                     expected: expected, zones: zones,
+                                     catalog: active.map { "\($0.id)|\($0.name)|\($0.unitType)" },
                                      isLastStop: isLastStop, skipsText: skipsText, dataVersion: dataVersion)
         return memo.button(for: key, compute: compute)
     }
@@ -182,6 +222,10 @@ final class MainButtonMemo {
         var stopStartedAt: Date?
         var recorded: [String]
         var expected: [String]
+        /// The place's measured zones: a per-square-foot service is named
+        /// only where there's an area to price it by (`priced`).
+        var zones: [InvoiceLines.Zone]
+        /// Each active service's ID, name and unit type.
         var catalog: [String]
         var isLastStop: Bool
         var skipsText: Bool
