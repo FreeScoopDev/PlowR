@@ -979,6 +979,12 @@ struct OneTapServicesTests {
         #expect(OneTapServices.toRecord(expected: ["edge", "mow"], active: active, zones: unmeasured).map(\.id)
                 == ["mow"])
         #expect(OneTapServices.toRecord(expected: ["edge"], active: active, zones: []).isEmpty)
+        // Only a per-square-foot service is left out for want of an area: a
+        // flat service at $0 (comped) and a per-unit one are always kept.
+        let kept = [StopRecording.Service(id: "comped", name: "Comped", unitType: "flat", pricePerUnit: 0),
+                    StopRecording.Service(id: "bags", name: "Bags", unitType: "perUnit", pricePerUnit: 5)]
+        #expect(OneTapServices.toRecord(expected: ["comped", "bags"], active: kept, zones: []).map(\.id)
+                == ["comped", "bags"])
         // It agrees with what the Service Log would price it at.
         #expect(InvoiceLines.propertyPrice(unitType: "perSqFt", pricePerUnit: 0.02, zones: []) == 0)
         #expect(InvoiceLines.propertyPrice(unitType: "perSqFt", pricePerUnit: 0.02, zones: measured) == 20)
