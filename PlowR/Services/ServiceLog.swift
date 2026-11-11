@@ -648,10 +648,19 @@ enum ServiceLog {
         switch minutesBasis(of: record) {
         case .fromArrival: return "Counted from GPS arrival to when the stop was done."
         case .includesTravel:
+            // Only when the minutes still are start to done: minutes typed
+            // or a Done time moved by hand are the user's, from neither.
+            guard let started = record.startedAt,
+                  abs(record.minutes * 60 - record.performedAt.timeIntervalSince(started)) <= StopMinutes.tolerance
+            else { return nil }
             return "Counted from when the stop became the current stop to when it was done, so it includes the drive there."
         case nil: return nil
         }
     }
+
+    /// A client's average minutes a visit (the client page, the visit
+    /// summary). Not "on site": a route stop's minutes can include the drive.
+    static let averageTimeLabel = "Average Time"
 
     /// The season's minutes added up (Client Stats, the Season Report). They
     /// mix route stops counted from GPS arrival, route stops that include the

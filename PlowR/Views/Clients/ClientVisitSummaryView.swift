@@ -58,7 +58,7 @@ struct ClientVisitSummaryView: View {
                 }
             }
             if client.averageServiceMinutes > 0 {
-                LabeledContent("Average Time") {
+                LabeledContent(ServiceLog.averageTimeLabel) {
                     Text(String(format: "~%.0f min", client.averageServiceMinutes))
                 }
             }

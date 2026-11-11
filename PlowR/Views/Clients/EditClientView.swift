@@ -819,7 +819,7 @@ struct EditClientView: View {
                     }
                 }
                 if client.averageServiceMinutes > 0 {
-                    LabeledContent("Avg Time on Site") {
+                    LabeledContent(ServiceLog.averageTimeLabel) {
                         Text(String(format: "~%.0f min", client.averageServiceMinutes))
                     }
                 }

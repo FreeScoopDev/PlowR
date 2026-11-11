@@ -124,7 +124,8 @@ struct ActiveRouteView: View {
         let client = client(for: stop)
         return OneTapServices.expectedNames(expected: StopServices.expected(for: stop, client: client),
                                             active: ServiceLog.activeServices(allServices, operatorID: route.operatorID),
-                                            zones: client.map { Place.zones(of: $0, propertyID: stop.propertyID) } ?? [])
+                                            zones: client.map { Place.zones(of: $0, propertyID: stop.propertyID) } ?? [],
+                                            hasClient: client != nil)
     }
 
     /// The current stop's copper button: "Done:" with the services it

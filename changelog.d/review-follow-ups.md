@@ -1,6 +1,6 @@
 ### Changed
 - The route screen's stop card marks an expected per-square-foot service the "Done:" button leaves out for want of a measured area, as in "Mow and Edge (no area measured)". The card listed it while the button didn't name it, with nothing saying why; the mark uses the same rule as the button.
-- Labels no longer call mixed minutes "on site": a route stop's minutes run from GPS arrival when PlowR caught it, otherwise from when the stop became current, which includes the drive there. Client Stats' total is now **Total time at stops**, the Season Report's line reads "… total time at stops", and the minutes field on a job's page and in Log Work is **Minutes**. A route stop's job page now says which its minutes are: counted from GPS arrival, or including the drive there.
+- Labels no longer call mixed minutes "on site": a route stop's minutes run from GPS arrival when PlowR caught it, otherwise from when the stop became current, which includes the drive there. Client Stats' total is now **Total time at stops**, the Season Report's line reads "… total time at stops", and the minutes field on a job's page and in Log Work is **Minutes**, and the client page's average is **Average Time**, as on the visit summary. A route stop's job page now says which its minutes are: counted from GPS arrival, or including the drive there; minutes changed by hand get no such note.
 
 ### Fixed
 - Record Expected Services' Confirm runs once: a second tap before its sheet closed found every stop already recorded and showed a "Not Recorded" alert naming them all.

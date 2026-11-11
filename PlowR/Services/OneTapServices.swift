@@ -66,8 +66,11 @@ nonisolated enum OneTapServices {
     /// want of a measured area (`priced`) marked as such, so the card says
     /// why the button doesn't name it.
     static func expectedNames(expected: [String], active: [StopRecording.Service],
-                              zones: [InvoiceLines.Zone]) -> [String] {
+                              zones: [InvoiceLines.Zone], hasClient: Bool = true) -> [String] {
         let inCatalog = expectedInCatalog(expected, active: active)
+        // No client (a custom stop, or one whose client is gone): the button
+        // names nothing, so no service is singled out as left off it.
+        guard hasClient else { return inCatalog.map(\.name) }
         let pricedIDs = Set(priced(inCatalog, zones: zones).map(\.id))
         return inCatalog.map { pricedIDs.contains($0.id) ? $0.name : $0.name + noAreaSuffix }
     }

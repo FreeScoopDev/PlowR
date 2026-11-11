@@ -1122,6 +1122,9 @@ struct OneTapServicesTests {
         #expect(OneTapServices.expectedNames(expected: expected, active: active,
                                              zones: [InvoiceLines.Zone(label: "Front", areaSquareFeet: 0)])
                 == ["Mow", "Edge (no area measured)", "Bags"])
+        // No client: the button names nothing, so nothing is singled out.
+        #expect(OneTapServices.expectedNames(expected: expected, active: active, zones: [], hasClient: false)
+                == ["Mow", "Edge", "Bags"])
         // What's marked is exactly what the button leaves out.
         let unmarked = OneTapServices.expectedNames(expected: expected, active: active, zones: [])
             .filter { !$0.hasSuffix(OneTapServices.noAreaSuffix) }
