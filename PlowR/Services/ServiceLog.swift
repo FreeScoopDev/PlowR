@@ -966,7 +966,7 @@ enum ServiceLog {
               let catalog = catalog ?? (try? context.fetch(FetchDescriptor<ServiceItem>())) else { return [] }
         // Priced for the place the work was at (Place): its measured zones.
         // A missing place has none: never the main house's.
-        let zones = Place.of(client, propertyID: propertyID)?.zones ?? []
+        let zones = Place.zones(of: client, propertyID: propertyID)
         return catalog
             .filter { wanted.contains($0.id.uuidString) }
             .sorted { catalogOrder($0, $1) }

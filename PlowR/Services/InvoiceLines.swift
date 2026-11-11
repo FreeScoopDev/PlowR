@@ -16,7 +16,7 @@ import Foundation
 /// tests; the app target defaults everything to @MainActor.
 nonisolated enum InvoiceLines {
 
-    struct Zone: Equatable {
+    struct Zone: Hashable {
         var label: String
         var areaSquareFeet: Double
     }
@@ -78,7 +78,9 @@ nonisolated enum InvoiceLines {
     }
 
     /// A per-square-foot service with no measured area: its price has to be
-    /// entered (the screens say so).
+    /// entered (the screens say so). The one rule for "no measured area":
+    /// Record Services' note, and what the one tap and the recap leave out
+    /// (OneTapServices.priced), so they never record such a service at $0.
     static func needsPrice(unitType: String, zones: [Zone]) -> Bool {
         unitType == "perSqFt" && totalArea(zones) <= 0
     }

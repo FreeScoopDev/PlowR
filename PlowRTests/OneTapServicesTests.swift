@@ -133,7 +133,7 @@ struct OneTapServicesTests {
         #expect(custom.completedServiceIDs.isEmpty)
         #expect(OneTapServices.servicesToName(expected: [c.mow.id.uuidString],
                                               active: ServiceLog.activeServices(try allServices(h), operatorID: "op"),
-                                              hasClient: false, nothingRecorded: true).isEmpty)
+                                              zones: [], hasClient: false, nothingRecorded: true).isEmpty)
     }
 
     @Test func servicesRecordedAlreadyKeepTheOrdinaryButton() throws {
@@ -955,5 +955,152 @@ struct OneTapServicesTests {
         #expect(outcome == .movedOn)
         #expect(stop.completedServiceIDs.isEmpty)
         #expect(try records(h).isEmpty)
+    }
+
+    // MARK: - Per square foot with no measured area
+
+    /// Takes away `client`'s measured zones: no area to price per square foot by.
+    private func unmeasure(_ client: Client, _ h: Harness) throws {
+        for zone in client.zones ?? [] { h.context.delete(zone) }
+        client.zones = []
+        try h.context.save()
+    }
+
+    /// The rule, as plain values: a per-square-foot service is left out where
+    /// there is no area (it would be $0), kept where there is.
+    @Test func perSquareFootIsRecordedOnlyWhereThereIsAnArea() {
+        let active = [StopRecording.Service(id: "mow", name: "Mow", unitType: "flat", pricePerUnit: 40),
+                      StopRecording.Service(id: "edge", name: "Edge", unitType: "perSqFt", pricePerUnit: 0.02)]
+        let measured = [InvoiceLines.Zone(label: "Front", areaSquareFeet: 1_000)]
+        let unmeasured = [InvoiceLines.Zone(label: "Front", areaSquareFeet: 0)]
+        #expect(OneTapServices.toRecord(expected: ["edge", "mow"], active: active, zones: measured).map(\.id)
+                == ["mow", "edge"])
+        #expect(OneTapServices.toRecord(expected: ["edge", "mow"], active: active, zones: []).map(\.id) == ["mow"])
+        #expect(OneTapServices.toRecord(expected: ["edge", "mow"], active: active, zones: unmeasured).map(\.id)
+                == ["mow"])
+        #expect(OneTapServices.toRecord(expected: ["edge"], active: active, zones: []).isEmpty)
+        // Only a per-square-foot service is left out for want of an area: a
+        // flat service at $0 (comped) and a per-unit one are always kept.
+        let kept = [StopRecording.Service(id: "comped", name: "Comped", unitType: "flat", pricePerUnit: 0),
+                    StopRecording.Service(id: "bags", name: "Bags", unitType: "perUnit", pricePerUnit: 5)]
+        #expect(OneTapServices.toRecord(expected: ["comped", "bags"], active: kept, zones: []).map(\.id)
+                == ["comped", "bags"])
+        // It agrees with what the Service Log would price it at.
+        #expect(InvoiceLines.propertyPrice(unitType: "perSqFt", pricePerUnit: 0.02, zones: []) == 0)
+        #expect(InvoiceLines.propertyPrice(unitType: "perSqFt", pricePerUnit: 0.02, zones: measured) == 20)
+    }
+
+    @Test func noMeasuredAreaLeavesThePerSquareFootServiceOffTheButton() throws {
+        let h = try Harness(stopCount: 2)
+        let c = try catalog(h)
+        try unmeasure(h.client, h)
+        let store = h.makeStore()
+        store.start(h.route)
+        let stop = try #require(store.currentStop)
+        let main = try button(h, store)
+        #expect(main == .done(serviceIDs: [c.mow.id.uuidString], names: ["Mow"]))
+        // Completing with it records what it named, and no $0 line.
+        store.completeCurrentStop(expecting: stop.id, recordingServices: main.recordedServiceIDs)
+        let saved = try #require(try record(h, store, stop: stop))
+        #expect(saved.lines.map(\.name) == ["Mow"])
+        #expect(saved.lines.allSatisfy { $0.price > 0 })
+        #expect(stop.completedServiceIDs == [c.mow.id.uuidString])
+        // The next client is still measured: Edge is kept there.
+        #expect(try button(h, store).recordedServiceIDs == [c.mow.id.uuidString, c.edge.id.uuidString])
+    }
+
+    @Test func onlyUnpricedServicesExpectedGivesTheOrdinaryButton() throws {
+        let h = try Harness(stopCount: 2)
+        let c = try catalog(h)
+        h.client.expectedServiceIDs = [c.edge.id.uuidString]
+        try unmeasure(h.client, h)
+        let store = h.makeStore()
+        store.start(h.route)
+        #expect(try button(h, store) == .completeAndText)
+        #expect(!(try button(h, store)).offersCompletingWithout)
+    }
+
+    /// An additional property has no measured zones (Place.of(property)):
+    /// a stop there doesn't get a per-square-foot service, whatever the
+    /// main house's area.
+    @Test func aStopAtAnAdditionalPropertyIsPricedByThatPlace() throws {
+        let h = try Harness(stopCount: 1)
+        let c = try catalog(h)
+        let barn = Property(label: "Barn", address: "1 Barn Ln", operatorID: "op")
+        h.context.insert(barn)
+        barn.client = h.client
+        barn.expectedServiceIDs = [c.edge.id.uuidString, c.mow.id.uuidString]
+        let stop = try #require(h.route.sortedStops.first)
+        stop.propertyID = barn.id.uuidString
+        try h.context.save()
+        let store = h.makeStore()
+        store.start(h.route)
+        #expect(try button(h, store) == .done(serviceIDs: [c.mow.id.uuidString], names: ["Mow"]))
+    }
+
+    /// The exit offer names only what Send or Skip records.
+    @Test func theExitOfferNamesOnlyWhatItRecords() throws {
+        let h = try Harness(stopCount: 2)
+        let c = try catalog(h)
+        try unmeasure(h.client, h)
+        let store = h.makeStore()
+        store.start(h.route)
+        let stop = try #require(store.currentStop)
+        let offer = try exitOffer(h, store)
+        #expect(offer.serviceIDs == [c.mow.id.uuidString])
+        #expect(offer.notice == OneTapServices.exitOfferNotice(clientName: "Client 0", names: ["Mow"]))
+        #expect(offer.notice?.contains("Edge") == false)
+        let result = offer.runNotingUnrecorded(store: store)
+        #expect(result.notRecorded.isEmpty)
+        let saved = try #require(try record(h, store, stop: stop))
+        #expect(saved.lines.map(\.name) == ["Mow"])
+        // With only Edge expected, the offer names nothing and records nothing new.
+        let next = try #require(store.currentStop)
+        h.clients[1].expectedServiceIDs = [c.edge.id.uuidString]
+        try unmeasure(h.clients[1], h)
+        let plain = try exitOffer(h, store)
+        #expect(plain.serviceIDs.isEmpty)
+        #expect(plain.notice == nothingNew("Client 1"))
+        _ = plain.run(store: store)
+        #expect(try record(h, store, stop: next)?.lines.isEmpty == true)
+    }
+
+    /// The area removed after the button was drawn: completing with it
+    /// doesn't record the per-square-foot service at $0.
+    @Test func anAreaRemovedAfterDrawingIsNotRecordedAtZero() throws {
+        let h = try Harness(stopCount: 2)
+        let c = try catalog(h)
+        let store = h.makeStore()
+        store.start(h.route)
+        let stop = try #require(store.currentStop)
+        let main = try button(h, store)
+        #expect(main.recordedServiceIDs == [c.mow.id.uuidString, c.edge.id.uuidString])
+        try unmeasure(h.client, h)
+        store.completeCurrentStop(expecting: stop.id, recordingServices: main.recordedServiceIDs)
+        let saved = try #require(try record(h, store, stop: stop))
+        #expect(saved.lines.map(\.name) == ["Mow"])
+        #expect(stop.completedServiceIDs == [c.mow.id.uuidString])
+    }
+
+    /// The memo is keyed on the place's zones: measuring or removing an area
+    /// changes the button even before the save reaches `dataVersion`.
+    @Test func theButtonFollowsThePlacesArea() throws {
+        let h = try Harness(stopCount: 2)
+        let c = try catalog(h)
+        let store = h.makeStore()
+        store.start(h.route)
+        let stop = try #require(store.currentStop)
+        let memo = MainButtonMemo()
+        func draw() throws -> OneTapServices.MainButton {
+            OneTapServices.mainButton(for: stop, client: h.client, catalog: try allServices(h), operatorID: "op",
+                                      store: store, skipsText: false, in: h.context, memo: memo, dataVersion: 0)
+        }
+        #expect(try draw().recordedServiceIDs == [c.mow.id.uuidString, c.edge.id.uuidString])
+        try unmeasure(h.client, h)
+        #expect(try draw().recordedServiceIDs == [c.mow.id.uuidString])
+        // A service switched to per square foot changes it too.
+        c.mow.unitType = "perSqFt"
+        #expect(try draw() == .completeAndText)
+        #expect(memo.computed == 3)
     }
 }

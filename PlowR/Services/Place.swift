@@ -50,6 +50,13 @@ nonisolated struct Place: Equatable {
         return (client.properties ?? []).first { $0.id.uuidString == propertyID }.map { of($0) }
     }
 
+    /// The measured zones work at `client`'s place with `propertyID` is
+    /// priced by (ServiceLog.lines(for:), Record Services, the one tap):
+    /// none for a missing place, never the main house's.
+    static func zones(of client: Client, propertyID: String) -> [InvoiceLines.Zone] {
+        of(client, propertyID: propertyID)?.zones ?? []
+    }
+
     /// The ID of `client`'s place with `propertyID`, found or not: which
     /// place work was at, as the Service Log keeps it.
     static func id(of client: Client, propertyID: String) -> String {

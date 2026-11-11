@@ -36,7 +36,8 @@ struct ServiceCatalogTests {
     @Test func addingACategoryAddsItsStandardServices() throws {
         let added = ServiceCatalog.addStandard(lawn, operatorID: "op", existing: [], to: context)
         #expect(added.map(\.name) == ["Lawn Mowing", "Edging", "Fertilization", "Hedge Trimming"])
-        #expect(added.map(\.pricePerUnit) == [0.06, 30, 0.04, 60])
+        #expect(added.map(\.pricePerUnit) == [45, 30, 60, 60])
+        #expect(added.allSatisfy { $0.unitType == "flat" })
         #expect(added.allSatisfy { $0.operatorID == "op" && $0.isBuiltIn && $0.category == "lawn" && $0.isActive })
         #expect(try context.fetchCount(FetchDescriptor<ServiceItem>()) == 4)
         #expect(ServiceCatalog.offered(from: added, operatorID: "op").map(\.key) == ["snow", "cleanup"])
@@ -81,6 +82,25 @@ struct ServiceCatalogTests {
         #expect(ServiceCatalog.coverage(of: [service("Theirs", category: "lawn", operatorID: "x")], operatorID: "op") == .empty)
         #expect(ServiceCatalog.coverage(of: [off], operatorID: "op") == .allOff)
         #expect(ServiceCatalog.coverage(of: [off, service("Mowing", category: "lawn")], operatorID: "op") == .some)
+    }
+
+    /// The starter catalog is flat, at placeholder prices the business edits:
+    /// per square foot recorded $0 wherever no area was measured (Joe,
+    /// 2026-11-10). Per square foot stays a choice in Add Service.
+    @Test func theStarterCatalogIsFlat() {
+        let starter = ServiceItem.defaultServices.map { "\($0.name)|\($0.unitType)|\($0.price)" }
+        #expect(starter == [
+            "Snow Plowing|flat|50.0", "Salting / Ice Melt|flat|25.0", "Walkway Shoveling|flat|45.0",
+            "Roof Snow Removal|flat|150.0", "Lawn Mowing|flat|45.0", "Edging|flat|30.0",
+            "Fertilization|flat|60.0", "Hedge Trimming|flat|60.0", "Spring Cleanup|flat|120.0",
+            "Fall Cleanup|flat|120.0", "Mulching|flat|75.0",
+        ])
+        // And what a business adds from it is the same.
+        let added = ServiceCatalog.standardCategories.flatMap {
+            ServiceCatalog.addStandard($0, operatorID: "op", existing: [], to: context)
+        }
+        #expect(added.count == ServiceItem.defaultServices.count)
+        #expect(added.allSatisfy { $0.unitType == "flat" && $0.pricePerUnit > 0 })
     }
 
     @Test func everyStandardServiceIsInAnOfferedCategory() {

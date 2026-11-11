@@ -135,7 +135,7 @@ struct StopServiceRecorderView: View {
     }
 
     private var pricingZones: [InvoiceLines.Zone] {
-        client.flatMap { Place.of($0, propertyID: stop.propertyID)?.zones } ?? []
+        client.map { Place.zones(of: $0, propertyID: stop.propertyID) } ?? []
     }
 
     var body: some View {

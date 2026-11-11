@@ -755,10 +755,13 @@ final class ActiveRouteStore {
         // The "Done:" button's services, put on the stop for recordStop to
         // price (ServiceLog.lines, as Record Services' catalog prices), only
         // when nothing is recorded for it yet: asked again here, at the
-        // moment of completing, as the button asked when it was drawn.
-        let addingServices = !services.isEmpty
+        // moment of completing, as the button asked when it was drawn. A
+        // per-square-foot one whose place has lost its measured area since
+        // isn't added at $0 (OneTapServices.stillPriced).
+        let priced = OneTapServices.stillPriced(services, at: stop, of: client, in: context)
+        let addingServices = !priced.isEmpty
             && ServiceLog.hasNothingRecorded(for: stop, of: client, run: runID, startedAt: startedAt, in: context)
-        if addingServices { stop.completedServiceIDs = services }
+        if addingServices { stop.completedServiceIDs = priced }
         let record = ServiceLog.recordStop(stop, of: client, run: runID,
                                            operatorID: route?.operatorID ?? client.operatorID,
                                            startedAt: startedAt, finishedAt: finishedAt, minutes: minutes,
@@ -767,7 +770,7 @@ final class ActiveRouteStore {
             // Only what made it onto the record: a service deleted from the
             // catalog since the button was drawn has no line, and mustn't
             // count as recorded on the stop.
-            let added = record.lines.map(\.serviceID).filter { services.contains($0) }
+            let added = record.lines.map(\.serviceID).filter { priced.contains($0) }
             stop.completedServiceIDs = added
             undo.servicesAdded = added
         }
