@@ -125,6 +125,21 @@ struct InvoiceAddressTermsTests {
         #expect(DocumentEdits(editing: invoice, now: h.clock).dueDate == due)
     }
 
+    // The Edit screen is handed its terms by the screen showing it, from
+    // that screen's profiles: the same terms as looking the profile up.
+    @Test func theEditScreensTermsComeFromTheProfilesItIsHanded() throws {
+        let h = try Harness(stopCount: 0)
+        let mine = profile(h, terms: 60)
+        let other = profile(h, terms: 15, operatorID: "someone else")
+        let invoice = Proposal(operatorID: "op", client: h.client)
+        invoice.invoiceNumber = "INV-0001"
+        h.context.insert(invoice)
+        let days = DocumentEdits.termsDays(for: invoice, profiles: [other, mine])
+        #expect(days == 60)
+        #expect(DocumentEdits(editing: invoice, termsDays: days, now: h.clock).dueDate
+                == DocumentEdits(editing: invoice, now: h.clock).dueDate)
+    }
+
     // MARK: Saved invoices keep their dates
 
     @Test func changingTheTermsChangesNoSavedInvoice() throws {
@@ -336,6 +351,23 @@ struct InvoiceAddressTermsTests {
         let pdf = try text(of: PDFGenerator.generate(proposal: invoice, profile: BusinessProfile(operatorID: "op"),
                                                      paymentMethods: [check], madeWithPlowR: false))
         #expect(pdf.contains("Due on receipt"))
+        #expect(!pdf.contains("Mail to"))
+    }
+
+    // "Mail to" is where to send a check: with an address but no check
+    // among the payment methods, there's none.
+    @Test func noCheckPrintsNoMailToLine() throws {
+        let client = Client(name: "Pat", phone: "", address: "", operatorID: "op")
+        let invoice = Proposal(operatorID: "op", client: client)
+        invoice.invoiceNumber = "INV-0001"
+        invoice.invoiceDueDate = InvoiceTerms.dueDate(from: invoice.createdAt, days: 0)
+        let profile = BusinessProfile(operatorID: "op")
+        profile.address = "PO Box 9\nSpringvale"
+        let venmo = PaymentMethod(operatorID: "op", label: "Venmo", value: "@acme", methodType: "link")
+        let pdf = try text(of: PDFGenerator.generate(proposal: invoice, profile: profile,
+                                                     paymentMethods: [venmo], madeWithPlowR: false))
+        #expect(pdf.contains("Venmo"))
+        #expect(pdf.contains("PO Box 9"))   // the header still prints the address
         #expect(!pdf.contains("Mail to"))
     }
 

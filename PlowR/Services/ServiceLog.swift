@@ -638,8 +638,32 @@ enum ServiceLog {
                           minutes: record.minutes)
     }
 
-    /// What Minutes on Site holds for a route stop, in plain words.
-    static let routeMinutesNote = "For a route stop, counted from the GPS arrival when PlowR caught it; otherwise from when the stop became the current stop, which includes the drive there, up to when it was done."
+    /// The minutes field's label (a job's page, Log Work). Not "on site": a
+    /// route stop's minutes can include the drive there.
+    static let minutesLabel = "Minutes"
+
+    /// What a route stop's minutes were counted from, on its job's page
+    /// (`minutesBasis`): nil for a record that isn't a route stop's.
+    static func minutesBasisNote(of record: ServiceRecord) -> String? {
+        switch minutesBasis(of: record) {
+        case .fromArrival: return "Counted from GPS arrival to when the stop was done."
+        case .includesTravel:
+            return "Counted from when the stop became the current stop to when it was done, so it includes the drive there."
+        case nil: return nil
+        }
+    }
+
+    /// The season's minutes added up (Client Stats, the Season Report). They
+    /// mix route stops counted from GPS arrival, route stops that include the
+    /// drive there and jobs logged by hand, so they're time at stops, not
+    /// time on site.
+    static let totalTimeLabel = "Total time at stops"
+
+    /// The Season Report's line: "2h 5m total time at stops", "45 min total time at stops".
+    static func totalTimeText(minutes: Double) -> String {
+        let h = Int(minutes) / 60, m = Int(minutes) % 60
+        return (h > 0 ? "\(h)h \(m)m" : "\(m) min") + " total time at stops"
+    }
 
     /// What leaving a job's page says when it can't be saved: the prices
     /// that can't be read, then the minutes; empty when it can be.
@@ -649,7 +673,7 @@ enum ServiceLog {
             .compactMap { $0 }.joined(separator: " ")
     }
 
-    static let unreadableMinutesMessage = "Can't read Minutes on Site: type a number of minutes, such as 45."
+    static let unreadableMinutesMessage = "Can't read Minutes: type a number of minutes, such as 45."
 
     /// Work done off a route or a visit, logged from the client's Service
     /// History, at the client's address.

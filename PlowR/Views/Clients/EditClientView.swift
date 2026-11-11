@@ -186,7 +186,8 @@ struct EditClientView: View {
             }
         }
         .sheet(item: $editingProposal) { proposal in
-            ProposalEditView(proposal: proposal)
+            ProposalEditView(proposal: proposal,
+                             termsDays: DocumentEdits.termsDays(for: proposal, profiles: allProfiles))
         }
         .sheet(isPresented: $showingProposalBuilder) {
             NavigationStack { ProposalBuilderView(client: client, isInvoiceMode: false, taxExempt: draft.taxExempt,

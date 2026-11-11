@@ -10,9 +10,12 @@ struct ProposalEditView: View {
     /// The discount, tax and due date typed here. Only the ones changed are saved.
     @State private var edits: DocumentEdits
 
-    init(proposal: Proposal) {
+    /// `termsDays`: the business's terms (`DocumentEdits.termsDays`), from
+    /// the presenting screen's profiles: this init runs on every redraw of
+    /// that screen, so it reads nothing from the database.
+    init(proposal: Proposal, termsDays: Int) {
         self.proposal = proposal
-        _edits = State(initialValue: DocumentEdits(editing: proposal))
+        _edits = State(initialValue: DocumentEdits(editing: proposal, termsDays: termsDays))
     }
 
     // Done, Mark as Sent and a swipe down all save, so the total shown is the

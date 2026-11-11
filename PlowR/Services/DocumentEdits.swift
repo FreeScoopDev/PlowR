@@ -62,9 +62,23 @@ extension DocumentEdits {
     @MainActor
     init(editing proposal: Proposal, now: Date = Date()) {
         let profiles = (try? proposal.modelContext?.fetch(FetchDescriptor<BusinessProfile>())) ?? []
-        let profile = BusinessProfiles.current(profiles, operatorID: proposal.operatorID)
+        self.init(editing: proposal, termsDays: Self.termsDays(for: proposal, profiles: profiles), now: now)
+    }
+
+    /// The Edit screen's fields for `proposal` on terms of `termsDays`
+    /// (`termsDays(for:profiles:)`): no database read, so the screen's init,
+    /// run on every redraw of the screen that shows it, stays cheap.
+    @MainActor
+    init(editing proposal: Proposal, termsDays: Int, now: Date = Date()) {
         self.init(discount: proposal.discountAmount, taxRate: proposal.taxRate, dueDate: proposal.invoiceDueDate,
-                  termsDays: InvoiceTerms.days(for: profile), now: now)
+                  termsDays: termsDays, now: now)
+    }
+
+    /// `proposal`'s business's terms, its profile found among `profiles`
+    /// (BusinessProfiles.current), as the screen showing it already has them.
+    @MainActor
+    static func termsDays(for proposal: Proposal, profiles: [BusinessProfile]) -> Int {
+        InvoiceTerms.days(for: BusinessProfiles.current(profiles, operatorID: proposal.operatorID))
     }
 
     /// The total `proposal` will have once these edits are saved.

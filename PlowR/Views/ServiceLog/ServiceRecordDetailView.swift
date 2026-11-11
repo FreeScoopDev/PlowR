@@ -86,7 +86,7 @@ struct ServiceRecordDetailView: View {
             Group {
             Section {
                 DatePicker("Done", selection: $performedAt, in: ...Date.now)
-                LabeledContent("Minutes on Site") {
+                LabeledContent(ServiceLog.minutesLabel) {
                     TextField("None", text: $minutes)
                         .keyboardType(.numberPad)
                         .multilineTextAlignment(.trailing)
@@ -109,8 +109,9 @@ struct ServiceRecordDetailView: View {
                     } else if !isBillable {
                         SectionNote("No charge: this work won't be billed.")
                     }
-                    if record.source == .route {
-                        SectionNote(Text(ServiceLog.routeMinutesNote))
+                    // A route stop's: what its minutes were counted from.
+                    if let basis = ServiceLog.minutesBasisNote(of: record) {
+                        SectionNote(verbatim: basis)
                     }
                 }
             }

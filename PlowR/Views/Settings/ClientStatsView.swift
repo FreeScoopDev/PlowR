@@ -117,7 +117,7 @@ struct ClientStatsView: View {
                 let hours = Int(totalMinutes) / 60
                 let mins = Int(totalMinutes) % 60
                 let timeString = hours > 0 ? "\(hours)h \(mins)m" : "\(mins) min"
-                LabeledContent("Total time on-site", value: timeString)
+                LabeledContent(ServiceLog.totalTimeLabel, value: timeString)
                     .font(.subheadline)
             }
         } header: {
