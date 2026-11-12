@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- Made by scripts/help_guide.py from scripts/help_guide_published.json, the help as PlowR 1.8.0 shipped.
+<!-- Made by scripts/help_guide.py from scripts/help_guide_published.json, the help as PlowR 1.9.0 shipped.
      Don't edit this page: edit the JSON, then run python3 scripts/help_guide.py. -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="How to use PlowR: setting up your business, adding clients, building routes with expected services, running a route and texting clients, tips and common questions.">
-    <meta name="plowr-help-version" content="1.8.0">
-    <meta name="plowr-help-source" content="a7e1327828c8f15e1e9fff88ea5d25c7225fe157d89b7521e62329de51151727">
+    <meta name="plowr-help-version" content="1.9.0">
+    <meta name="plowr-help-source" content="875a9545ca06201363489b3ab3e1fd546b9aebbfd0193ae7ddcd081d28436e6d">
     <meta name="plowr-help-script" content="b1e2c8973aab8b3475f69ade97e15b6bc539146793a27e47d202ed8a0db3e222">
-    <meta name="plowr-help-page" content="6ba58ed593cb91d9fe554a17f86a7d8922efeb7d79dce80e5f288423182fb4c1">
+    <meta name="plowr-help-page" content="ff737e5983a717b4e95d4f4be8d407c68ba347bad9d4c0172d3e3331c019487a">
     <title>PlowR Help — Tips &amp; Tricks</title>
     <style>
         :root { color-scheme: light dark; --text: #1c1c1e; --muted: #6e6e73; --link: #0071e3; --card: #f2f2f7; --bg: #ffffff; --shot: #e5e5ea; --shot2: #dedee3; --line: #c7c7cc; --warn: #b25000; }
@@ -79,7 +79,7 @@
         </div>
         <ol class="steps">
             <li>Choose <span class="ui">I run a service business</span>, then sign in with Apple.</li>
-            <li>Enter your <span class="ui">Business name</span> and add your logo. It goes on your proposals and invoices.</li>
+            <li>Enter your <span class="ui">Business name</span>, your mailing address if you'd like (where clients mail a check), and add your logo. They go on your proposals and invoices.</li>
             <li>Under <span class="ui">What do you do?</span>, pick Snow Removal, Lawn Care, Cleanup, or any mix. PlowR adds the usual services and prices, which you can change later.</li>
             <li>Enter your <span class="ui">Default tax rate (%)</span>.</li>
             <li>Turn on <span class="ui">Alerts</span> and <span class="ui">Your location</span> if you'd like them. Every step has <span class="ui">Skip</span>.</li>
@@ -102,10 +102,10 @@
         </div>
         <ol class="steps">
             <li>Open the <span class="ui">Clients</span> tab, tap <span class="ui">+</span>, and choose <span class="ui">Add Manually</span>.</li>
-            <li>Enter their <span class="ui">Full Name</span> and <span class="ui">Phone Number</span>, and an email if you have one. Or tap <span class="ui">Import Contact</span> to fill it in from your Contacts.</li>
+            <li>Choose <span class="ui">Existing Customer</span> (someone you already work for) or <span class="ui">New Lead</span> (someone you hope to win). Enter their <span class="ui">Full Name</span>; a phone number, email and <span class="ui">Route Notes</span> (a gate code, say: they show at the client's stops on every route) are optional. Or tap <span class="ui">Import Contact</span> to fill it in from your Contacts.</li>
             <li>Type the <span class="ui">Street Address</span> and pick the match. PlowR pins it on the map.</li>
             <li>Tap <span class="ui">Save</span>.</li>
-            <li>On the client's page, add the rest: tags, notes, <span class="ui">Expected Services</span>, billing preferences, <span class="ui">Tax Exempt</span>, route notes, and other properties.</li>
+            <li>On the client's page, add the rest: tags, <span class="ui">Expected Services</span>, billing preferences, <span class="ui">Tax Exempt</span>, <span class="ui">Route Notes</span>, and other properties. Changed Route Notes reach every route the client is on.</li>
         </ol>
         <div class="note">Tip: set a client's <span class="ui">Expected Services</span> once and every route they're on starts with them.</div>
     </div>
@@ -121,7 +121,7 @@
             <li>In <span class="ui">Clients</span>, tap <span class="ui">+</span> → <span class="ui">Import from Spreadsheet</span>, then <span class="ui">Choose a CSV File</span>.</li>
             <li>Check what PlowR will add, then save. An import can be undone.</li>
         </ol>
-        <div class="note">On a device with a camera you can also use <span class="ui">Scan with Camera</span>.</div>
+        <div class="note">A notes column in your file becomes the client's <span class="ui">Route Notes</span>, which show at their stops on every route. On a device with a camera you can also use <span class="ui">Scan with Camera</span>.</div>
     </div>
 
     <div class="card" id="request-link">
@@ -166,7 +166,7 @@
         </div>
         <ol class="steps">
             <li>On the route page, tap a stop.</li>
-            <li>Under <span class="ui">Expected Services</span>, switch on what the stop needs. Add stop notes and equipment if useful.</li>
+            <li>Under <span class="ui">Expected Services</span>, switch on what the stop needs. The place's <span class="ui">Route Notes</span> (the client's, or the property's) show here and at the stop; add notes for this stop only, and equipment, if useful.</li>
             <li>Tap <span class="ui">Save</span>, then choose <span class="ui">Only on This Route</span> or <span class="ui">On All Routes From Now On</span>.</li>
         </ol>
         <div class="note">Your list of services and prices lives in <span class="ui">Settings → Service Catalog</span>. Skipping a stop just for today? Swipe it and tap <span class="ui">Skip Today</span>.</div>
@@ -205,7 +205,9 @@
             <li>Tap <span class="ui">Navigate</span> to get directions in Apple Maps, Google Maps or Waze.</li>
             <li>At the stop, tap <span class="ui">Record Services</span> to add before and after photos, the services done (<span class="ui">Add Expected</span> fills them in), and notes. Then <span class="ui">Save</span>.</li>
             <li>Tap <span class="ui">Complete · Text Next Client</span> to finish the stop and move on. (It says <span class="ui">Complete Stop</span> when there's no one to text.)</li>
-            <li>After the last stop, tap <span class="ui">Review &amp; End Route</span> to see the <span class="ui">Route Recap</span>, then <span class="ui">End Route</span>.</li>
+            <li>When a stop has expected services and nothing is recorded for it yet, the button names them instead, like <span class="ui">Done: Mow, Trim</span>. One tap completes the stop and records those services at your catalog prices, as <span class="ui">Add Expected</span> and <span class="ui">Save</span> would. A service priced per square foot is named only where the property has a measured area: elsewhere it would be $0, so add it in <span class="ui">Record Services</span>, which asks for its price. Did something else? Tap <span class="ui">Complete Without Services</span>, or record the work in <span class="ui">Record Services</span> first. Tapped it by mistake? On any stop but the last, tap <span class="ui">Undo</span> in the bar at the bottom: the services come off with it. After the last stop, change them from the <span class="ui">Route Recap</span>.</li>
+            <li>Couldn't do a stop (a vehicle in the way, a locked gate)? Tap <span class="ui">Can't Service</span>, pick a reason and tap <span class="ui">Save &amp; Move On</span>. PlowR moves on without recording a visit, time or services, and the reason shows in the <span class="ui">Route Recap</span> and on the route's page until its next run.</li>
+            <li>After the last stop, tap <span class="ui">Review &amp; End Route</span> to see the <span class="ui">Route Recap</span>, then <span class="ui">End Route</span>. Stops completed with nothing recorded, from Siri or Control Center, say, can get their expected services there: tap <span class="ui">Record Expected Services</span>, check the stops and services it lists, and confirm. Nothing already recorded or invoiced is changed.</li>
         </ol>
         <div class="note">Set Location to <span class="ui">Always</span> so PlowR records arrival and departure times even when the app is closed.</div>
     </div>
@@ -220,7 +222,8 @@
             <li>When you complete a stop, PlowR offers <span class="ui">Notify Next Client?</span> with a ready message: "I'm on my way and about N minutes out."</li>
             <li>Add a quick note if you need one, like Running Late, Weather Delay or Gate / Access, or type your own.</li>
             <li>Turn on <span class="ui">Include my location link</span> if you want them to see where you are.</li>
-            <li>Tap <span class="ui">Send Message</span>. It goes from your own Messages app. Or tap <span class="ui">Skip</span>.</li>
+            <li>Tap <span class="ui">Send Message</span>. It goes from your own Messages app. Or tap <span class="ui">Complete Without Text</span>.</li>
+            <li>Drove off without completing the stop? Shortly after you leave its area, PlowR offers the same text. It says what <span class="ui">Send Message</span> or <span class="ui">Complete Without Text</span> will do: complete the stop you left and record the services it names, the same ones as the <span class="ui">Done:</span> button. To complete it without them, tap <span class="ui">Cancel</span>, then <span class="ui">Complete Without Services</span> on the stop. If something was recorded there meanwhile, PlowR says which of those services aren't recorded.</li>
         </ol>
         <div class="note">Client doesn't want texts? Turn on <span class="ui">Skip arrival message prompt</span> on their page.</div>
     </div>
@@ -264,6 +267,8 @@
             <li>Go to <span class="ui">Settings → Payment Methods</span> and tap <span class="ui">+</span>.</li>
             <li>Add how you take payment: a Venmo, PayPal, Square or Cash App link, a Zelle handle, check or cash.</li>
             <li>Your invoices list them. A payment link also prints as a code your client can scan to pay.</li>
+            <li>In <span class="ui">Settings → Business Profile</span>, add your <span class="ui">Mailing Address</span>: it prints on your documents and under a check payment, so clients know where to mail it.</li>
+            <li>There too, choose your <span class="ui">Payment Terms</span>: <span class="ui">Due on receipt</span>, or <span class="ui">Net 7</span> to <span class="ui">Net 60</span> days. New invoices are due that many days after they're made, and their PDFs say so. You can still change the due date on any invoice; invoices already made keep theirs.</li>
         </ol>
     </div>
 </section>
@@ -271,12 +276,12 @@
 <section id="tips">
     <h2>Quick tips</h2>
     <div class="tips">
-        <div class="tip" id="siri"><strong>🗣️ Hands-free with Siri</strong><span>"Complete current stop in PlowR" or "Notify next client in PlowR".</span></div>
-        <div class="tip" id="control-center"><strong>🎛️ Control Center</strong><span>Add Complete Current Stop to Control Center to finish a stop in one tap.</span></div>
+        <div class="tip" id="siri"><strong>🗣️ Hands-free with Siri</strong><span>"Complete current stop in PlowR" or "Notify next client in PlowR". Completing with Siri records the visit, not services: add them in <span class="ui">Record Services</span>.</span></div>
+        <div class="tip" id="control-center"><strong>🎛️ Control Center</strong><span>Add Complete Current Stop to Control Center to finish a stop in one tap. It records the visit, not services: add them in <span class="ui">Record Services</span>.</span></div>
         <div class="tip" id="widget"><strong>📱 Today's Route widget</strong><span>See your progress and next stop on your Home Screen.</span></div>
         <div class="tip" id="lock-screen"><strong>🔒 Lock Screen</strong><span>Your route's progress shows on the Lock Screen while it runs.</span></div>
         <div class="tip" id="storm-card"><strong>❄️ Storm card <span class="pro">PRO</span></strong><span>When a storm's forecast reaches a contract's trigger, Home offers to text those clients.</span></div>
-        <div class="tip" id="service-report"><strong>📄 Service Report <span class="pro">PRO</span></strong><span>Arrival and departure times, timed photos and weather for each visit, as a PDF for a client or insurer.</span></div>
+        <div class="tip" id="service-report"><strong>📄 Service Report <span class="pro">PRO</span></strong><span>Arrival and departure times, timed photos and weather for each visit, as a PDF for a client or insurer. A route stop's minutes are counted from the GPS arrival when PlowR caught it ("min, GPS arrival to completion"); otherwise from when the stop became the current stop, which includes the drive there ("min, including travel").</span></div>
         <div class="tip" id="calendar"><strong>📅 Your calendar</strong><span>Settings → Calendar → Add Visits to Calendar keeps a PlowR calendar in step.</span></div>
         <div class="tip" id="export-data"><strong>💾 Export your data</strong><span>Settings → Business → Export Data makes spreadsheets of everything. Share All sends them together.</span></div>
     </div>
@@ -309,6 +314,21 @@
 
 <section id="new">
     <h2>What's new</h2>
+    <div class="card release" id="release-1-9">
+        <h3>PlowR 1.9: built for the route day</h3>
+        <ul>
+            <li>The screen stays on while the route screen is up, and the route carries on with Location off: tap <span class="ui">Continue Without Location</span>.</li>
+            <li>One tap completes a stop and records its expected services: the button names them, as in <span class="ui">Done: Mow, Trim</span>.</li>
+            <li>Completed the wrong stop? Tap <span class="ui">Undo</span> within 30 seconds.</li>
+            <li><span class="ui">Can't Service</span> moves on from a stop you couldn't do, with a reason, and bills nothing.</li>
+            <li>The <span class="ui">Route Recap</span> can record expected services for stops completed with nothing recorded.</li>
+            <li><span class="ui">Call</span> from the route screen, and <span class="ui">Directions</span> from a client's <span class="ui">Contact</span> menu.</li>
+            <li>A client's <span class="ui">Route Notes</span>, such as a gate code, follow to every stop of theirs.</li>
+            <li>New Client asks whether it's an <span class="ui">Existing Customer</span> or a <span class="ui">New Lead</span>, and a client's page can switch them.</li>
+            <li>Your <span class="ui">Mailing Address</span> and <span class="ui">Payment Terms</span> in <span class="ui">Business Profile</span> print on your invoices.</li>
+            <li>Easier-to-read text everywhere, screens that fit the largest text sizes, and a neutral graphite dark mode.</li>
+        </ul>
+    </div>
     <div class="card release" id="release-1-8">
         <h3>PlowR 1.8: first App Store release</h3>
         <ul>

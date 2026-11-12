@@ -1,5 +1,0 @@
-### Added
-- The Route Recap offers **Record Expected Services for N Stops** when stops were completed with nothing recorded: from Siri, Control Center, or with Complete Without Services. Since the route screen's "Done:" button, a stop completed there records its expected services, but these others still ended with a record saying "No services" and nothing for Bill Unbilled Work to bill. The button first lists each stop by client with the services it would record; Confirm records them at the catalog's prices for the client's property, through the same path the "Done:" button uses, so both price a stop the same way. It never adds to a stop with anything already recorded (a service, a custom item, a typed price), never touches work on an invoice, and leaves the record's times, minutes, notes and photos as they were. A stop whose record changed between the list and Confirm is left as it is and named. Saved at once. No CloudKit change.
-
-### Changed
-- Lists of service names on the route screen's stop card and Record Services' **Add Expected** read in English whatever the device's region, as the rest of PlowR's copy does.

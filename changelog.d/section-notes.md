@@ -1,2 +1,0 @@
-### Changed
-- The notes under sections in lists and forms (the small text under Settings groups, route pages, Add Visit and the rest) are darker. iOS drew them in its own pale grey, like the section titles before; they now use the app's secondary text colour, at 4.5:1 on the page colour. Buttons in rows and in notes keep their brand green. A check now fails a `footer:` note that isn't styled, so new screens get the same notes.
