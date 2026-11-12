@@ -415,6 +415,24 @@
       "style": "release",
       "topics": [
         {
+          "id": "release-1-9",
+          "title": "PlowR 1.9: built for the route day",
+          "summary": "A route screen that keeps up in gloves and without signal, readable text in sun and at night, a calmer dark mode, and invoices with your address and terms.",
+          "screens": [],
+          "bullets": [
+            "The screen stays on while the route screen is up, and the route carries on with Location off: tap **Continue Without Location**.",
+            "One tap completes a stop and records its expected services: the button names them, as in **Done: Mow, Trim**.",
+            "Completed the wrong stop? Tap **Undo** within 30 seconds.",
+            "**Can't Service** moves on from a stop you couldn't do, with a reason, and bills nothing.",
+            "The **Route Recap** can record expected services for stops completed with nothing recorded.",
+            "**Call** from the route screen, and **Directions** from a client's **Contact** menu.",
+            "A client's **Route Notes**, such as a gate code, follow to every stop of theirs.",
+            "New Client asks whether it's an **Existing Customer** or a **New Lead**, and a client's page can switch them.",
+            "Your **Mailing Address** and **Payment Terms** in **Business Profile** print on your invoices.",
+            "Easier-to-read text everywhere, screens that fit the largest text sizes, and a neutral graphite dark mode."
+          ]
+        },
+        {
           "id": "release-1-8",
           "title": "PlowR 1.8: first App Store release",
           "summary": "A one-minute setup, a new Home and route screen, time on site from GPS, help and tips in the app, and a fresh look.",
