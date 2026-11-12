@@ -24,7 +24,7 @@
           ],
           "steps": [
             "Choose **I run a service business**, then sign in with Apple.",
-            "Enter your **Business name** and add your logo. It goes on your proposals and invoices.",
+            "Enter your **Business name**, your mailing address if you'd like (where clients mail a check), and add your logo. They go on your proposals and invoices.",
             "Under **What do you do?**, pick Snow Removal, Lawn Care, Cleanup, or any mix. PlowR adds the usual services and prices, which you can change later.",
             "Enter your **Default tax rate (%)**.",
             "Turn on **Alerts** and **Your location** if you'd like them. Every step has **Skip**.",
@@ -44,7 +44,7 @@
         {
           "id": "add-client",
           "title": "Add a client",
-          "summary": "Name, phone and address; the rest goes on the client's page.",
+          "summary": "Only a name is needed; phone, email, address and notes are optional.",
           "screens": ["clients"],
           "shots": [
             { "file": "clients-clients-tab-menu.jpg", "alt": "Clients tab, + menu" },
@@ -53,10 +53,10 @@
           ],
           "steps": [
             "Open the **Clients** tab, tap **+**, and choose **Add Manually**.",
-            "Enter their **Full Name** and **Phone Number**, and an email if you have one. Or tap **Import Contact** to fill it in from your Contacts.",
+            "Choose **Existing Customer** (someone you already work for) or **New Lead** (someone you hope to win). Enter their **Full Name**; a phone number, email and **Route Notes** (a gate code, say: they show at the client's stops on every route) are optional. Or tap **Import Contact** to fill it in from your Contacts.",
             "Type the **Street Address** and pick the match. PlowR pins it on the map.",
             "Tap **Save**.",
-            "On the client's page, add the rest: tags, notes, **Expected Services**, billing preferences, **Tax Exempt**, route notes, and other properties."
+            "On the client's page, add the rest: tags, **Expected Services**, billing preferences, **Tax Exempt**, **Route Notes**, and other properties. Changed Route Notes reach every route the client is on."
           ],
           "note": "Tip: set a client's **Expected Services** once and every route they're on starts with them."
         },
@@ -75,7 +75,7 @@
             "In **Clients**, tap **+** → **Import from Spreadsheet**, then **Choose a CSV File**.",
             "Check what PlowR will add, then save. An import can be undone."
           ],
-          "note": "On a device with a camera you can also use **Scan with Camera**.",
+          "note": "A notes column in your file becomes the client's **Route Notes**, which show at their stops on every route. On a device with a camera you can also use **Scan with Camera**.",
           "tips": [
             { "id": "tip-import-clients", "title": "Bring in your list", "message": "Tap **+** and **Import from Spreadsheet** to add many clients at once." }
           ]
@@ -145,7 +145,7 @@
           ],
           "steps": [
             "On the route page, tap a stop.",
-            "Under **Expected Services**, switch on what the stop needs. Add stop notes and equipment if useful.",
+            "Under **Expected Services**, switch on what the stop needs. The place's **Route Notes** (the client's, or the property's) show here and at the stop; add notes for this stop only, and equipment, if useful.",
             "Tap **Save**, then choose **Only on This Route** or **On All Routes From Now On**."
           ],
           "note": "Your list of services and prices lives in **Settings → Service Catalog**. Skipping a stop just for today? Swipe it and tap **Skip Today**."
@@ -199,7 +199,9 @@
             "Tap **Navigate** to get directions in Apple Maps, Google Maps or Waze.",
             "At the stop, tap **Record Services** to add before and after photos, the services done (**Add Expected** fills them in), and notes. Then **Save**.",
             "Tap **Complete · Text Next Client** to finish the stop and move on. (It says **Complete Stop** when there's no one to text.)",
-            "After the last stop, tap **Review & End Route** to see the **Route Recap**, then **End Route**."
+            "When a stop has expected services and nothing is recorded for it yet, the button names them instead, like **Done: Mow, Trim**. One tap completes the stop and records those services at your catalog prices, as **Add Expected** and **Save** would. A service priced per square foot is named only where the property has a measured area: elsewhere it would be $0, so add it in **Record Services**, which asks for its price. Did something else? Tap **Complete Without Services**, or record the work in **Record Services** first. Tapped it by mistake? On any stop but the last, tap **Undo** in the bar at the bottom: the services come off with it. After the last stop, change them from the **Route Recap**.",
+            "Couldn't do a stop (a vehicle in the way, a locked gate)? Tap **Can't Service**, pick a reason and tap **Save & Move On**. PlowR moves on without recording a visit, time or services, and the reason shows in the **Route Recap** and on the route's page until its next run.",
+            "After the last stop, tap **Review & End Route** to see the **Route Recap**, then **End Route**. Stops completed with nothing recorded, from Siri or Control Center, say, can get their expected services there: tap **Record Expected Services**, check the stops and services it lists, and confirm. Nothing already recorded or invoiced is changed."
           ],
           "note": "Set Location to **Always** so PlowR records arrival and departure times even when the app is closed."
         },
@@ -216,7 +218,8 @@
             "When you complete a stop, PlowR offers **Notify Next Client?** with a ready message: \"I'm on my way and about N minutes out.\"",
             "Add a quick note if you need one, like Running Late, Weather Delay or Gate / Access, or type your own.",
             "Turn on **Include my location link** if you want them to see where you are.",
-            "Tap **Send Message**. It goes from your own Messages app. Or tap **Skip**."
+            "Tap **Send Message**. It goes from your own Messages app. Or tap **Complete Without Text**.",
+            "Drove off without completing the stop? Shortly after you leave its area, PlowR offers the same text. It says what **Send Message** or **Complete Without Text** will do: complete the stop you left and record the services it names, the same ones as the **Done:** button. To complete it without them, tap **Cancel**, then **Complete Without Services** on the stop. If something was recorded there meanwhile, PlowR says which of those services aren't recorded."
           ],
           "note": "Client doesn't want texts? Turn on **Skip arrival message prompt** on their page."
         },
@@ -272,12 +275,14 @@
         {
           "id": "payment-methods",
           "title": "Make paying you easy",
-          "summary": "Payment links and handles printed on every invoice.",
+          "summary": "Payment links, your mailing address and your payment terms, printed on every invoice.",
           "screens": ["documents", "settings"],
           "steps": [
             "Go to **Settings → Payment Methods** and tap **+**.",
             "Add how you take payment: a Venmo, PayPal, Square or Cash App link, a Zelle handle, check or cash.",
-            "Your invoices list them. A payment link also prints as a code your client can scan to pay."
+            "Your invoices list them. A payment link also prints as a code your client can scan to pay.",
+            "In **Settings → Business Profile**, add your **Mailing Address**: it prints on your documents and under a check payment, so clients know where to mail it.",
+            "There too, choose your **Payment Terms**: **Due on receipt**, or **Net 7** to **Net 60** days. New invoices are due that many days after they're made, and their PDFs say so. You can still change the due date on any invoice; invoices already made keep theirs."
           ],
           "tips": [
             { "id": "tip-payment-methods", "title": "Get paid faster", "message": "Add a payment link in **Settings → Payment Methods**; invoices print a code to scan and pay." }
@@ -295,7 +300,7 @@
           "id": "siri",
           "title": "Hands-free with Siri",
           "emoji": "🗣️",
-          "summary": "\"Complete current stop in PlowR\" or \"Notify next client in PlowR\".",
+          "summary": "\"Complete current stop in PlowR\" or \"Notify next client in PlowR\". Completing with Siri records the visit, not services: add them in **Record Services**.",
           "screens": ["routeDetail"],
           "tips": [
             { "id": "tip-siri", "title": "Finish stops hands-free", "message": "Ask Siri to complete the current stop in PlowR, or add **Complete Current Stop** to Control Center." }
@@ -305,7 +310,7 @@
           "id": "control-center",
           "title": "Control Center",
           "emoji": "🎛️",
-          "summary": "Add Complete Current Stop to Control Center to finish a stop in one tap.",
+          "summary": "Add Complete Current Stop to Control Center to finish a stop in one tap. It records the visit, not services: add them in **Record Services**.",
           "screens": ["routeDetail"]
         },
         {
@@ -341,7 +346,7 @@
           "id": "service-report",
           "title": "Service Report",
           "emoji": "📄",
-          "summary": "Arrival and departure times, timed photos and weather for each visit, as a PDF for a client or insurer.",
+          "summary": "Arrival and departure times, timed photos and weather for each visit, as a PDF for a client or insurer. A route stop's minutes are counted from the GPS arrival when PlowR caught it (\"min, GPS arrival to completion\"); otherwise from when the stop became the current stop, which includes the drive there (\"min, including travel\").",
           "screens": ["clients"],
           "pro": true,
           "tips": [
@@ -410,15 +415,18 @@
       "style": "release",
       "topics": [
         {
-          "id": "release-1-7",
-          "title": "PlowR 1.7: first release",
-          "summary": "A one-minute setup, a Get Started checklist, a new Home and route screen, and a fresh look.",
+          "id": "release-1-8",
+          "title": "PlowR 1.8: first App Store release",
+          "summary": "A one-minute setup, a new Home and route screen, time on site from GPS, help and tips in the app, and a fresh look.",
           "screens": [],
           "bullets": [
             "A one-minute setup: name, logo, services and prices, tax rate and alerts. Every step can be skipped.",
             "A Get Started checklist on Home walks you to your first client, route and invoice.",
             "A new Home that puts today first: today's route, what needs you, money owed and money in.",
             "A route screen built for gloves and a glance, with a big Complete Stop button.",
+            "Time on site from GPS: when you arrived at and left each job site, on the job's page, the client's **Service History** and the **Route Recap**.",
+            "The **Service Report** is a row on the client's page, under **Service History**. [PRO]",
+            "Help in the app: **Settings** → **Help**, a **Help** item on each tab, and tips that show once, when they're useful.",
             "A fresh look, with a matching widget and Live Activity."
           ]
         }

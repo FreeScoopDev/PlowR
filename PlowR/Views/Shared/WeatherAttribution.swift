@@ -41,7 +41,7 @@ struct WeatherAttribution: View {
             }
         }
         .font(.caption2)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(PlowRColor.inkSecondary)
         .task {
             guard !WeatherService.unavailable else { return }
             attribution = try? await WeatherKit.WeatherService.shared.attribution

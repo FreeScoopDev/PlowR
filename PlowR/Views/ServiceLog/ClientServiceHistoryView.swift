@@ -125,30 +125,30 @@ struct ServiceRecordRow: View {
                 Spacer()
                 Text(Money.text(status == .covered ? ServiceLog.total(of: record) : charged))
                     .font(.subheadline)
-                    .foregroundStyle(record.isBillable && status != .covered ? .primary : .secondary)
+                    .foregroundStyle(record.isBillable && status != .covered ? Color.primary : PlowRColor.inkSecondary)
             }
             Text(servicesSummary)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(PlowRColor.inkSecondary)
                 .lineLimit(2)
             HStack(spacing: 8) {
                 ServiceRecordStatusChip(status: status)
                 if record.minutes >= 1 {
                     Label("\(Int(record.minutes.rounded())) min", systemImage: "clock")
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
                 // How long GPS saw the phone at the job site, when it saw
                 // both the arrival and the departure (never a guess).
                 if let onSite = ProofOfService.timeOnSite(of: record) {
                     Label(ProofOfService.onSiteListText(onSite), systemImage: "mappin.and.ellipse")
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
                 if !record.routeName.isEmpty {
                     Label(record.routeName, systemImage: "map")
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                         .lineLimit(1)
                 }
             }
@@ -158,7 +158,7 @@ struct ServiceRecordRow: View {
 
     private var servicesSummary: String {
         let names = record.lines.map(\.name)
-        return names.isEmpty ? "No services recorded" : names.formatted(.list(type: .and))
+        return names.isEmpty ? "No services recorded" : OneTapServices.englishList(names)
     }
 }
 

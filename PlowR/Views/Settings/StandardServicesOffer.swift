@@ -15,14 +15,14 @@ struct StandardServicesOffer: View {
         case .empty:
             Text("Your service catalog is empty. Add the standard services for your work, or your own in Settings → Service Catalog.")
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(PlowRColor.inkSecondary)
             ForEach(ServiceCatalog.standardCategories) { category in
                 StandardCategoryButton(category: category, operatorID: operatorID)
             }
         case .allOff:
             Text("All your services are turned off. Turn them on in Settings → Service Catalog.")
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(PlowRColor.inkSecondary)
         case .some:
             EmptyView()
         }

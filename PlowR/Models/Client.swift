@@ -20,7 +20,7 @@ final class Client {
     // Route behavior preferences
     var skipNotificationPrompt: Bool = false
     var goalMinutes: Int = 0
-    var defaultStopNotes: String = ""  // auto-copied to RouteStop on route creation
+    var defaultStopNotes: String = ""  // Route Notes: shown at every stop here (RouteStop.placeNotes)
 
     // Client badges / billing preferences
     var preferredPayment: String = ""   // "cash", "check", "zelle", "card", or ""
@@ -38,8 +38,10 @@ final class Client {
     /// Nil for everyone else, and again when reopened.
     var lostAt: Date? = nil
     /// When they became a customer without anything in PlowR to show it: a
-    /// client list imported as current customers (ClientImport). Nil for
-    /// everyone else; their work says it (Pipeline).
+    /// client list imported as current customers (ClientImport), New Client
+    /// saved as Existing Customer, or Mark as Customer on their page. Mark as
+    /// Lead clears it (`Pipeline.canMarkAsLead`). Nil for everyone else;
+    /// their work says it (Pipeline).
     var customerSince: Date?
     /// When the map couldn't find their address (ImportPins): looked up once,
     /// never again on its own; the client is marked until they have a pin

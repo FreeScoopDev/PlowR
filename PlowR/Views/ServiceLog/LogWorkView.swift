@@ -57,7 +57,7 @@ struct LogWorkView: View {
                         }
                     }
                     DatePicker("Done", selection: $performedAt, in: ...Date.now)
-                    LabeledContent("Minutes on Site") {
+                    LabeledContent(ServiceLog.minutesLabel) {
                         TextField("Optional", text: $minutes)
                             .keyboardType(.numberPad)
                             .multilineTextAlignment(.trailing)
@@ -74,7 +74,7 @@ struct LogWorkView: View {
                     selectedIDs: $selectedIDs, typedPrices: $typedPrices,
                     customItems: $customItems, keptLines: $keptLines)
 
-                Section("Notes") {
+                Section(title: "Notes") {
                     TextField("Optional notes", text: $notes, axis: .vertical)
                         .lineLimit(3...)
                 }

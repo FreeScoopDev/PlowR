@@ -31,10 +31,10 @@ struct MoneyOwedView: View {
                         }
                     }
                 } footer: {
-                    Text("Late counts from each invoice's due date. Drafts, and invoices with no due date, aren't late.")
+                    SectionNote("Late counts from each invoice's due date. Drafts, and invoices with no due date, aren't late.")
                 }
                 .listRowBackground(PlowRColor.surface)
-                Section("By Client") {
+                Section(title: "By Client") {
                     ForEach(summary.clients) { client in
                         NavigationLink {
                             List(client.invoices) { invoice in
@@ -52,7 +52,7 @@ struct MoneyOwedView: View {
                                     Text(client.name)
                                     Text(client.invoices.count == 1 ? "1 invoice" : "\(client.invoices.count) invoices")
                                         .font(.caption)
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(PlowRColor.inkSecondary)
                                 }
                                 Spacer()
                                 VStack(alignment: .trailing, spacing: 2) {

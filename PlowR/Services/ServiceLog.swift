@@ -81,14 +81,20 @@ enum ServiceLog {
         record.startedAt = startedAt
         record.performedAt = finishedAt
         record.minutes = max(0, minutes)
-        // Record Services' own lines (typed prices, custom items) stand; the
-        // catalog prices only fill a record that has none.
-        if record.lines.isEmpty, !stop.completedServiceIDs.isEmpty {
-            record.lines = lines(for: stop.completedServiceIDs, client: client, propertyID: stop.propertyID,
-                                 in: context)
-        }
+        fillLines(of: record, from: stop, client: client, in: context)
         if record.notes.isEmpty, !stop.completedNotes.isEmpty { record.notes = stop.completedNotes }
         return record
+    }
+
+    /// The stop's services (`completedServiceIDs`) put on `record` at the
+    /// catalog's prices for the stop's place (`lines(for:)`), only when the
+    /// record has no lines: Record Services' own lines (typed prices, custom
+    /// items) stand. Writes the lines and nothing else. Completing a stop
+    /// and the recap's Record Expected Services (RecapServiceRecorder) both
+    /// write through here, so the two price a stop the same way.
+    static func fillLines(of record: ServiceRecord, from stop: RouteStop, client: Client, in context: ModelContext) {
+        guard record.lines.isEmpty, !stop.completedServiceIDs.isEmpty else { return }
+        record.lines = lines(for: stop.completedServiceIDs, client: client, propertyID: stop.propertyID, in: context)
     }
 
     /// The record for the work at `stop` on run `run`, made if there's none
@@ -129,6 +135,34 @@ enum ServiceLog {
                                       in context: ModelContext, calendar: Calendar = .current) -> ServiceRecord? {
         let found = lookup(stop, of: client, run: run, startedAt: startedAt, in: context, calendar: calendar)
         return record(forKey: found.key, in: context)
+    }
+
+    /// Whether nothing is recorded for `stop` on run `run` yet, so the route
+    /// screen's "Done:" button may record its expected services
+    /// (OneTapServices): no services on the stop, none on its record, and
+    /// its work isn't on an invoice (one made for the day's visit before the
+    /// work counts), so a bill is never changed. The button's label and the
+    /// store's completion both ask this, so they can't disagree.
+    static func hasNothingRecorded(for stop: RouteStop, of client: Client, run: UUID, startedAt: Date,
+                                   in context: ModelContext, calendar: Calendar = .current) -> Bool {
+        guard stop.completedServiceIDs.isEmpty else { return false }
+        // One lookup for both checks: the route screen asks this as it draws.
+        let found = lookup(stop, of: client, run: run, startedAt: startedAt, in: context, calendar: calendar)
+        if let record = record(forKey: found.key, in: context),
+           !record.lines.isEmpty || invoice(of: record, in: context) != nil { return false }
+        // As invoiceForStop: an invoice made for the day's visit before the work.
+        return found.visit.flatMap { invoice(ofVisit: $0, in: context) } == nil
+    }
+
+    /// What completing `stop` would write to, as it is now: the record it
+    /// would fill (nil: it would make one) and the day's visit it would
+    /// share. Nothing is made or changed. Undo after Complete Stop reads it
+    /// first, to know what to put back.
+    static func targetForStop(_ stop: RouteStop, of client: Client, run: UUID, startedAt: Date,
+                              in context: ModelContext,
+                              calendar: Calendar = .current) -> (record: ServiceRecord?, visit: ScheduledVisit?) {
+        let found = lookup(stop, of: client, run: run, startedAt: startedAt, in: context, calendar: calendar)
+        return (record(forKey: found.key, in: context), found.visit)
     }
 
     /// The invoice the work at `stop` is already on: its record's, or, before
@@ -418,8 +452,8 @@ enum ServiceLog {
         return copy
     }
 
-    /// A new draft invoice for `client` with `items`: the next number, due in
-    /// `InvoiceTerms.days`, the business's default terms. Record Services and Bill
+    /// A new draft invoice for `client` with `items`: the next number, due on
+    /// the business's terms (InvoiceTerms). Record Services and Bill
     /// Unbilled Work both make invoices through here, so they can't differ.
     /// The client's Default Discount comes off, as on any new document, but
     /// only off `discountableSubtotal` (nil: every item): a contract's own
@@ -431,8 +465,8 @@ enum ServiceLog {
                                 now: Date, in context: ModelContext) -> Proposal {
         let proposal = Proposal(operatorID: operatorID, client: client)
         proposal.invoiceNumber = InvoiceNumbering.next(operatorID: operatorID, in: context)
-        proposal.invoiceDueDate = InvoiceTerms.dueDate(from: now)
         let profile = BusinessProfiles.current((try? context.fetch(FetchDescriptor<BusinessProfile>())) ?? [], operatorID: operatorID)
+        proposal.invoiceDueDate = InvoiceTerms.dueDate(from: now, profile: profile)
         proposal.disclaimer = profile?.defaultDisclaimer ?? ""
         // The business's sales tax, as on every new document, unless the
         // client is tax exempt.
@@ -462,8 +496,8 @@ enum ServiceLog {
         record.invoiceID = invoice.id.uuidString
     }
 
-    /// A revision of `original`: a copy with the next revision number, due in
-    /// 30 days, that takes over its billing (`moveBilling`). The client's
+    /// A revision of `original`: a copy with the next revision number, due on
+    /// the business's terms from today, that takes over its billing (`moveBilling`). The client's
     /// page and the document's page both revise through here; they used to
     /// each have their own copy of this.
     @discardableResult
@@ -476,7 +510,7 @@ enum ServiceLog {
         revision.taxRate = original.taxRate
         revision.disclaimer = original.disclaimer
         revision.notes = original.notes
-        revision.invoiceDueDate = InvoiceTerms.dueDate(from: now)
+        revision.invoiceDueDate = InvoiceTerms.dueDate(from: now, operatorID: original.operatorID, in: context)
         let copies = original.makeLineItemCopies()
         copies.forEach { context.insert($0) }
         revision.lineItems = copies
@@ -597,9 +631,48 @@ enum ServiceLog {
         typed == asLoaded ? recorded : readMinutes(typed, locale: locale)
     }
 
-    /// What Minutes on Site holds for a route stop: from when it became the
-    /// current stop to when it was done, as the Service Report says.
-    static let routeMinutesNote = "For a route stop, from when it became the current stop to when it was done, so it includes travel."
+    /// Which basis a record's minutes have (StopMinutes.basis); nil when it
+    /// isn't a route stop's.
+    static func minutesBasis(of record: ServiceRecord) -> StopMinutes.Basis? {
+        StopMinutes.basis(source: record.source, arrivedAt: record.arrivedAt, performedAt: record.performedAt,
+                          minutes: record.minutes)
+    }
+
+    /// The minutes field's label (a job's page, Log Work). Not "on site": a
+    /// route stop's minutes can include the drive there.
+    static let minutesLabel = "Minutes"
+
+    /// What a route stop's minutes were counted from, on its job's page
+    /// (`minutesBasis`): nil for a record that isn't a route stop's.
+    static func minutesBasisNote(of record: ServiceRecord) -> String? {
+        switch minutesBasis(of: record) {
+        case .fromArrival: return "Counted from GPS arrival to when the stop was done."
+        case .includesTravel:
+            // Only when the minutes still are start to done: minutes typed
+            // or a Done time moved by hand are the user's, from neither.
+            guard let started = record.startedAt,
+                  abs(record.minutes * 60 - record.performedAt.timeIntervalSince(started)) <= StopMinutes.tolerance
+            else { return nil }
+            return "Counted from when the stop became the current stop to when it was done, so it includes the drive there."
+        case nil: return nil
+        }
+    }
+
+    /// A client's average minutes a visit (the client page, the visit
+    /// summary). Not "on site": a route stop's minutes can include the drive.
+    static let averageTimeLabel = "Average Time"
+
+    /// The season's minutes added up (Client Stats, the Season Report). They
+    /// mix route stops counted from GPS arrival, route stops that include the
+    /// drive there and jobs logged by hand, so they're time at stops, not
+    /// time on site.
+    static let totalTimeLabel = "Total time at stops"
+
+    /// The Season Report's line: "2h 5m total time at stops", "45 min total time at stops".
+    static func totalTimeText(minutes: Double) -> String {
+        let h = Int(minutes) / 60, m = Int(minutes) % 60
+        return (h > 0 ? "\(h)h \(m)m" : "\(m) min") + " total time at stops"
+    }
 
     /// What leaving a job's page says when it can't be saved: the prices
     /// that can't be read, then the minutes; empty when it can be.
@@ -609,7 +682,7 @@ enum ServiceLog {
             .compactMap { $0 }.joined(separator: " ")
     }
 
-    static let unreadableMinutesMessage = "Can't read Minutes on Site: type a number of minutes, such as 45."
+    static let unreadableMinutesMessage = "Can't read Minutes: type a number of minutes, such as 45."
 
     /// Work done off a route or a visit, logged from the client's Service
     /// History, at the client's address.
@@ -647,9 +720,12 @@ enum ServiceLog {
     /// Deletes `record`, unless it's on an invoice: delete the invoice first,
     /// or the bill would name work the log no longer has. Its photos stay in
     /// the client's gallery. True if it was deleted.
+    /// `evenIfInvoiced`: for Undo after Complete Stop only, taking back a
+    /// record completing made and billed on the invoice already made for its
+    /// visit (billFromVisit): the invoice is the visit's, and stays.
     @discardableResult
-    static func deleteRecord(_ record: ServiceRecord, in context: ModelContext) -> Bool {
-        guard invoice(of: record, in: context) == nil else { return false }
+    static func deleteRecord(_ record: ServiceRecord, in context: ModelContext, evenIfInvoiced: Bool = false) -> Bool {
+        guard evenIfInvoiced || invoice(of: record, in: context) == nil else { return false }
         for photo in photos(of: record, in: context) { photo.recordID = "" }
         context.delete(record)
         return true
@@ -666,8 +742,17 @@ enum ServiceLog {
     /// forms list them.
     static func activeServices(_ all: [ServiceItem], operatorID: String) -> [StopRecording.Service] {
         all.filter { $0.operatorID == operatorID && $0.isActive }
-            .sorted { $0.sortOrder < $1.sortOrder }
+            .sorted { catalogOrder($0, $1) }
             .map { .init(id: $0.id.uuidString, name: $0.name, unitType: $0.unitType, pricePerUnit: $0.pricePerUnit) }
+    }
+
+    /// The catalog's order: by `sortOrder`, then by ID, so two services
+    /// with the same place come out the same way every time. Record Services
+    /// (`activeServices`) and a stop's catalog prices (`lines(for:)`) both
+    /// sort with it, so the route screen's one tap and Add Expected + Save
+    /// give their lines in the same order.
+    static func catalogOrder(_ a: ServiceItem, _ b: ServiceItem) -> Bool {
+        a.sortOrder != b.sortOrder ? a.sortOrder < b.sortOrder : a.id.uuidString < b.id.uuidString
     }
 
     /// What a record's work adds up to.
@@ -892,10 +977,14 @@ enum ServiceLog {
                                       among visits: [ScheduledVisit]? = nil, in context: ModelContext) {
         visit.status = .completed
         visit.completedAt = date
+        ClientVisits.addNext(after: visit, among: visits ?? series(of: visit, in: context), in: context)
+    }
+
+    /// The visits of `visit`'s repeating series, its own included.
+    static func series(of visit: ScheduledVisit, in context: ModelContext) -> [ScheduledVisit] {
         let seriesID = visit.seriesID
-        let series = visits ?? ((try? context.fetch(FetchDescriptor<ScheduledVisit>(
-            predicate: #Predicate { $0.seriesID == seriesID }))) ?? [])
-        ClientVisits.addNext(after: visit, among: series, in: context)
+        return (try? context.fetch(FetchDescriptor<ScheduledVisit>(
+            predicate: #Predicate { $0.seriesID == seriesID }))) ?? []
     }
 
     // MARK: - Services
@@ -910,10 +999,10 @@ enum ServiceLog {
               let catalog = catalog ?? (try? context.fetch(FetchDescriptor<ServiceItem>())) else { return [] }
         // Priced for the place the work was at (Place): its measured zones.
         // A missing place has none: never the main house's.
-        let zones = Place.of(client, propertyID: propertyID)?.zones ?? []
+        let zones = Place.zones(of: client, propertyID: propertyID)
         return catalog
             .filter { wanted.contains($0.id.uuidString) }
-            .sorted { $0.sortOrder < $1.sortOrder }
+            .sorted { catalogOrder($0, $1) }
             .map { service in
                 ServiceRecord.Line(
                     serviceID: service.id.uuidString, name: service.name, unitType: service.unitType,

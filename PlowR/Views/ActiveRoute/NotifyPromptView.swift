@@ -31,6 +31,14 @@ struct NotifyPromptView: View {
     let locationManager: LocationManager
     let onAdvance: () -> Void
     var promptTitle: String = "Notify Next Client?"
+    /// The button beside Send Message: "Complete Without Text" when it
+    /// completes the stop just left (NotifyAdvance.Completion.skipLabel),
+    /// "No Text" when it completes nothing ("Skip" read as skipping the stop).
+    var skipLabel: String = NotifyAdvance.Completion.nothing.skipLabel
+    /// What Send Message or the other button does to the stop just left, shown above the buttons
+    /// (the exit offer: NotifyAdvance.Completion.notice). Wraps onto as
+    /// many lines as it needs, so no service's name is cut off.
+    var completionNotice: String?
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
@@ -43,6 +51,7 @@ struct NotifyPromptView: View {
     @State private var customNote: String = ""
     @State private var selectedPresetIDs: Set<UUID> = []
     @AppStorage("notifyIncludeLocation") private var includeLocation: Bool = false
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     // MARK: - Computed
 
@@ -104,6 +113,12 @@ struct NotifyPromptView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
+                    // At the largest sizes the sentence goes first, where it's
+                    // on screen as the sheet opens and scrolls: pinned over the
+                    // buttons it could fill the screen.
+                    if dynamicTypeSize.isAccessibilitySize, let completionNotice {
+                        noticeText(completionNotice)
+                    }
                     clientHeader
                     etaRow
                     presetsSection
@@ -130,7 +145,7 @@ struct NotifyPromptView: View {
         }
         .sheet(isPresented: $showingMessageComposer) {
             MessageComposer(recipients: [stop.clientPhone], body: sending?.body ?? fullMessage) { outcome in
-                // Cancelled or failed: back to this prompt, where Skip moves on
+                // Cancelled or failed: back to this prompt, where the other button moves on
                 // without a text. It used to move on as if the text had gone.
                 guard outcome == .sent else {
                     showingMessageComposer = false
@@ -149,14 +164,14 @@ struct NotifyPromptView: View {
         VStack(spacing: 6) {
             Text(promptTitle)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(PlowRColor.inkSecondary)
             Text(stop.clientName)
                 .font(.largeTitle)
                 .fontWeight(.bold)
             if !stop.clientAddress.isEmpty {
                 Text(stop.clientAddress)
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(PlowRColor.inkSecondary)
                     .multilineTextAlignment(.center)
             }
         }
@@ -168,7 +183,7 @@ struct NotifyPromptView: View {
             Image(systemName: "clock.fill").foregroundStyle(PlowRColor.brand)
             if estimatedMinutes == nil {
                 ProgressView().scaleEffect(0.8)
-                Text("Calculating ETA…").foregroundStyle(.secondary)
+                Text("Calculating ETA…").foregroundStyle(PlowRColor.inkSecondary)
             } else {
                 Text(etaText + " away").font(.headline)
             }
@@ -183,7 +198,7 @@ struct NotifyPromptView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Quick Add-Ons")
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(PlowRColor.inkSecondary)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(messagePresets) { preset in
@@ -212,7 +227,7 @@ struct NotifyPromptView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Custom Note")
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(PlowRColor.inkSecondary)
             TextField("Add a personal note (optional)…", text: $customNote, axis: .vertical)
                 .font(.subheadline)
                 .lineLimit(1...4)
@@ -238,7 +253,7 @@ struct NotifyPromptView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Message Preview")
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(PlowRColor.inkSecondary)
             Text(previewMessage)
                 .font(.subheadline)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -248,10 +263,23 @@ struct NotifyPromptView: View {
         }
     }
 
+    private func noticeText(_ notice: String) -> some View {
+        Text(notice)
+            .font(.subheadline)
+            .foregroundStyle(PlowRColor.ink)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity)
+    }
+
     private var actionButtons: some View {
         VStack(spacing: 10) {
+            if !dynamicTypeSize.isAccessibilitySize, let completionNotice {
+                noticeText(completionNotice)
+                    .padding(.top, 10)
+            }
             // Without Messages (an iPad without texting, a Mac) it used to
-            // look as if it sent and send nothing: say so, and offer Skip.
+            // look as if it sent and send nothing: say so, and offer the other button.
             if MFMessageComposeViewController.canSendText() {
                 Button {
                     sending = (fullMessage, loggedMessage)
@@ -271,7 +299,7 @@ struct NotifyPromptView: View {
                 onAdvance()
                 dismiss()
             } label: {
-                Text("Skip")
+                Text(skipLabel)
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.plowRSecondary)

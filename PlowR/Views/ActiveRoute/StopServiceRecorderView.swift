@@ -19,6 +19,7 @@ struct StopServiceRecorderView: View {
     @State private var stopStartedAt: Date
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.modelContext) private var modelContext
     @Query private var allServices: [ServiceItem]
 
@@ -101,8 +102,9 @@ struct StopServiceRecorderView: View {
 
     /// Expected at this stop (StopServices), in the catalog, and not ticked.
     private var expectedToAdd: [StopRecording.Service] {
-        let expected = Set(StopServices.expected(for: stop, client: client))
-        return myServices.filter { expected.contains($0.id) && !selectedServiceIDs.contains($0.id) }
+        // The same filter as the route screen's "Done:" button (OneTapServices).
+        OneTapServices.expectedInCatalog(StopServices.expected(for: stop, client: client), active: myServices)
+            .filter { !selectedServiceIDs.contains($0.id) }
     }
 
     private var myServices: [StopRecording.Service] {
@@ -133,7 +135,7 @@ struct StopServiceRecorderView: View {
     }
 
     private var pricingZones: [InvoiceLines.Zone] {
-        client.flatMap { Place.of($0, propertyID: stop.propertyID)?.zones } ?? []
+        client.map { Place.zones(of: $0, propertyID: stop.propertyID) } ?? []
     }
 
     var body: some View {
@@ -150,7 +152,7 @@ struct StopServiceRecorderView: View {
                             LabeledContent("Contract", value: contract.name)
                             Text(contractNote(contract))
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(PlowRColor.inkSecondary)
                         }
                     }
                     .listRowBackground(PlowRColor.surface)
@@ -168,8 +170,8 @@ struct StopServiceRecorderView: View {
                             UIImpactFeedbackGenerator(style: .light).impactOccurred()
                             expectedToAdd.forEach { selectedServiceIDs.insert($0.id) }
                         } label: {
-                            Label("Add Expected: \(expectedToAdd.map(\.name).formatted(.list(type: .and)))",
-                                  systemImage: "checklist")
+                            Label("Add Expected: \(OneTapServices.englishList(expectedToAdd.map(\.name)))",
+                                  systemImage: PlowRSymbol.services.name)
                         }
                     }
                     .listRowBackground(PlowRColor.surface)
@@ -185,7 +187,7 @@ struct StopServiceRecorderView: View {
                             : "Invoice \(number) was already made for this visit."
                     })
 
-                Section("Notes") {
+                Section(title: "Notes") {
                     TextField("Optional notes for this stop…", text: $notes, axis: .vertical)
                         .lineLimit(3...)
                 }
@@ -266,7 +268,7 @@ struct StopServiceRecorderView: View {
         let status: PlowRColor.Status = isBefore ? .neutral : .done
         let labelColor = isBefore ? PlowRColor.ink : status.text
 
-        Section(label) {
+        Section(title: label) {
             if !images.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
@@ -296,7 +298,11 @@ struct StopServiceRecorderView: View {
                 .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
             }
 
-            HStack(spacing: 12) {
+            // Large text: Camera over Library, each at the full width.
+            let photoButtons = typeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(spacing: 12))
+                : AnyLayout(HStackLayout(spacing: 12))
+            photoButtons {
                 // No camera (an iPad without one, a Mac): asking for it crashes.
                 if CameraPicker.isAvailable {
                     Button {

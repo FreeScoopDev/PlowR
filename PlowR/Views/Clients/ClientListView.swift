@@ -10,7 +10,7 @@ private enum ClientSortOption: String, CaseIterable {
 
 private enum ClientFilterOption: String, CaseIterable {
     case all       = "All"
-    case active    = "Active"
+    case hasVisits = "Has Visits"
     case noHistory = "No History"
 }
 
@@ -81,19 +81,14 @@ struct ClientListView: View {
         let filtered: [Client]
         switch filterOption {
         case .all:       filtered = base
-        case .active:    filtered = base.filter { $0.totalVisits > 0 }
+        case .hasVisits: filtered = base.filter { $0.totalVisits > 0 }
         case .noHistory: filtered = base.filter { $0.totalVisits == 0 }
         }
 
         let tagFiltered = activeTagFilter.map { tag in filtered.filter { $0.tags.contains(tag) } } ?? filtered
 
-        if searchText.isEmpty { return tagFiltered }
-        let q = searchText.lowercased()
         return tagFiltered.filter {
-            $0.name.lowercased().contains(q) ||
-            $0.address.lowercased().contains(q) ||
-            $0.phone.lowercased().contains(q) ||
-            $0.tags.contains { $0.lowercased().contains(q) }
+            FirstRunOffers.search(searchText, finds: $0.name, address: $0.address, phone: $0.phone, tags: $0.tags)
         }
     }
 
@@ -141,6 +136,7 @@ struct ClientListView: View {
                         let leads = entries.filter { $0.stage == .lead }.count
                         let quoted = entries.filter { $0.stage == .quoted }.count
                         Text("\(leads) \(leads == 1 ? "lead" : "leads") · \(quoted) quoted")
+                            .foregroundStyle(PlowRColor.inkSecondary)
                     }
                 }
             }
@@ -148,10 +144,25 @@ struct ClientListView: View {
         }
     }
 
+    /// Nothing to list, and why: the one decision behind the empty screen and
+    /// the no-matches row.
+    private var listState: FirstRunOffers.ClientListState {
+        FirstRunOffers.clientListState(clientCount: myClients.count, shownCount: clients.count, search: searchText)
+    }
+
+    /// What to say when clients exist but the search or filter shows none.
+    private var noMatchesMessage: Text? {
+        switch listState {
+        case let .noMatchesForSearch(searched): Text("No clients match \u{201C}\(searched)\u{201D}.")
+        case .noMatchesForFilter: Text("No clients match this filter.")
+        case .noClients, .showing: nil
+        }
+    }
+
     var body: some View {
         let entries = pipelineEntries
         Group {
-            if clients.isEmpty && myClients.isEmpty {
+            if listState == .noClients {
                 ContentUnavailableView {
                     Label(isFiltered ? "No Clients Match" : "No Clients Yet",
                           systemImage: isFiltered ? "line.3.horizontal.decrease.circle" : "person.badge.plus")
@@ -163,7 +174,12 @@ struct ClientListView: View {
                     if !isFiltered {
                         Button("Add a Client") { addClient() }
                             .plowRProminent()
-                        Button("Import from a Spreadsheet") { importClients() }
+                        Button { importClients() } label: {
+                            HStack(spacing: PlowRLayout.space2) {
+                                Text("Import from a Spreadsheet")
+                                if FirstRunOffers.showsProMark(access) { ProMark() }
+                            }
+                        }
                     }
                 }
             } else {
@@ -178,12 +194,16 @@ struct ClientListView: View {
                         clientSummarySection
                         pipelineLink(entries)
                     }
+                    if let message = noMatchesMessage {
+                        Section { message }
+                            .listRowBackground(PlowRColor.surface)
+                    }
                     ForEach(activeClients) { client in
                         clientRow(client)
                     }
                     .listRowBackground(PlowRColor.surface)
                     if !inactiveClients.isEmpty {
-                        Section("Inactive") {
+                        Section(title: "Inactive") {
                             ForEach(inactiveClients) { client in
                                 clientRow(client)
                             }
@@ -480,6 +500,7 @@ extension ClientListView {
 // MARK: - Client Row
 
 struct ClientRowView: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
     let client: Client
     var outstandingBalance: Double = 0
     var isOverdue: Bool = false
@@ -495,13 +516,20 @@ struct ClientRowView: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
+        // Large text: the name, then its details, then the badges and the
+        // address under them (`AdaptiveRow`).
+        let large = typeSize.isAccessibilitySize
+        AdaptiveRow {
             AccentBar(status: accentStatus)
-
+        } main: {
             VStack(alignment: .leading, spacing: 3) {
                 Text(client.name)
                     .font(.subheadline.weight(.semibold))
-                    .lineLimit(1)
+                    .lineLimit(large ? nil : 1)
+                    // The list measures the row at a width where the name wraps
+                    // to two lines but lays it out where it fits on one, leaving
+                    // a blank line and a clipped name: take the height it needs.
+                    .fixedSize(horizontal: false, vertical: large)
                 if client.anyAddressNeedsFix {
                     AddressNotFoundLabel()
                         .font(.caption2)
@@ -509,43 +537,48 @@ struct ClientRowView: View {
                 if !client.phone.isEmpty {
                     Text(client.phone)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
+                        .wholeValue()
                 }
                 if client.totalVisits > 0 {
                     Button {
                         onVisitTap?()
                     } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.caption2)
-                                .foregroundStyle(PlowRColor.Status.done.text)
-                            if let last = client.lastServiceDate {
-                                Text(last, format: .dateTime.month(.abbreviated).day())
+                        // Large text: the last visit's date, then the count
+                        // under it.
+                        AdaptiveDetails {
+                            HStack(spacing: 4) {
+                                Image(systemName: "checkmark.circle.fill")
                                     .font(.caption2)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(PlowRColor.Status.done.text)
+                                if let last = client.lastServiceDate {
+                                    Text(last, format: .dateTime.month(.abbreviated).day())
+                                        .font(.caption2)
+                                        .foregroundStyle(PlowRColor.inkSecondary)
+                                }
                             }
-                            Text("· \(client.totalVisits) visit\(client.totalVisits == 1 ? "" : "s")")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 8, weight: .semibold))
-                                .foregroundStyle(.tertiary)
+                            HStack(spacing: 4) {
+                                Text("\(typeSize.detailSeparator)\(client.totalVisits) visit\(client.totalVisits == 1 ? "" : "s")")
+                                    .font(.caption2)
+                                    .foregroundStyle(PlowRColor.inkSecondary)
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 8, weight: .semibold))
+                                    .foregroundStyle(.tertiary)
+                            }
                         }
                     }
                     .buttonStyle(.plain)
                 }
             }
-
-            Spacer()
-
-            VStack(alignment: .trailing, spacing: 4) {
+        } trailing: {
+            VStack(alignment: typeSize.trailingColumnAlignment, spacing: 4) {
                 badgeRow
                 if !client.address.isEmpty {
                     Text(client.address)
                         .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
-                        .multilineTextAlignment(.trailing)
+                        .foregroundStyle(PlowRColor.inkSecondary)
+                        .lineLimit(large ? nil : 1)
+                        .multilineTextAlignment(large ? .leading : .trailing)
                 }
             }
         }
@@ -554,7 +587,7 @@ struct ClientRowView: View {
 
     @ViewBuilder
     private var badgeRow: some View {
-        HStack(spacing: 4) {
+        AdaptiveDetails {
             if client.isComped {
                 badge("COMP", status: .neutral)
             }
@@ -564,7 +597,7 @@ struct ClientRowView: View {
             if client.skipNotificationPrompt {
                 Image(systemName: "bell.slash.fill")
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(PlowRColor.inkSecondary)
             }
             if isOverdue {
                 badge("Overdue", status: .overdue)

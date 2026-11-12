@@ -78,7 +78,7 @@ struct ContactScannerView: View {
             ProgressView().scaleEffect(1.4)
             Text("Reading contact info…")
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(PlowRColor.inkSecondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(PlowRColor.ground)
@@ -102,7 +102,7 @@ struct ContactScannerView: View {
                 .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
             }
 
-            Section("Contact Info") {
+            Section(title: "Contact Info") {
                 TextField("Full Name", text: $name).textContentType(.name)
                 TextField("Phone Number", text: $phone)
                     .textContentType(.telephoneNumber)
@@ -114,7 +114,7 @@ struct ContactScannerView: View {
             }
             .listRowBackground(PlowRColor.surface)
 
-            Section("Service Address") {
+            Section(title: "Service Address") {
                 TextField("Street Address", text: $address, axis: .vertical)
                     .textContentType(.fullStreetAddress)
                     .lineLimit(2...3)
@@ -127,8 +127,9 @@ struct ContactScannerView: View {
                         .lineLimit(2...6)
                 } header: {
                     Text("Other Detected Text")
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 } footer: {
-                    Text("Text that didn't match a contact field — saved as client notes.")
+                    SectionNote("Text that didn't match a contact field — saved as client notes.")
                         .font(.caption)
                 }
                 .listRowBackground(PlowRColor.surface)

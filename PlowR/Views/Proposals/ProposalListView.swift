@@ -122,7 +122,7 @@ struct ProposalListView: View {
                     }
                     .listRowBackground(PlowRColor.surface)
                     if !archivedProposals.isEmpty {
-                        Section("Archived — Paid") {
+                        Section(title: "Archived — Paid") {
                             ForEach(archivedProposals) { proposal in
                                 proposalRow(proposal)
                             }
@@ -410,7 +410,7 @@ struct ClientPickerForProposalView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(client.name).font(.headline).foregroundStyle(.primary)
                                 if !client.address.isEmpty {
-                                    Text(client.address).font(.caption).foregroundStyle(.secondary)
+                                    Text(client.address).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
                                 }
                             }
                             .padding(.vertical, 2)
@@ -436,7 +436,8 @@ struct ClientPickerForProposalView: View {
                 }
             }
             .sheet(isPresented: $showingAddClient) {
-                AddClientView()
+                // Someone added here is being quoted: a lead until they're won.
+                AddClientView(kind: .newLead)
             }
             .proGateSheet($gate)
         }

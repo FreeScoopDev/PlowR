@@ -20,11 +20,13 @@ nonisolated struct DocumentEdits {
     private let openedTaxRateText: String
     private let openedDueDate: Date
 
-    init(discount: Double, taxRate: Double, dueDate: Date?, now: Date = Date()) {
+    /// `termsDays`: the business's terms (InvoiceTerms.days(for:)).
+    init(discount: Double, taxRate: Double, dueDate: Date?, termsDays: Int = InvoiceTerms.days, now: Date = Date()) {
         openedDiscountText = discount > 0 ? String(format: "%.2f", discount) : ""
         openedTaxRateText = taxRate > 0 ? Proposal.percentText(taxRate) : ""
-        // An invoice without a due date shows one 30 days out, and saving keeps it.
-        openedDueDate = dueDate ?? InvoiceTerms.dueDate(from: now)
+        // An invoice without a due date shows one on the business's terms,
+        // and saving keeps it.
+        openedDueDate = dueDate ?? InvoiceTerms.dueDate(from: now, days: termsDays)
         discountText = openedDiscountText
         taxRateText = openedTaxRateText
         self.dueDate = openedDueDate
@@ -55,6 +57,30 @@ nonisolated struct DocumentEdits {
 }
 
 extension DocumentEdits {
+    /// The Edit screen's fields for `proposal`, on its business's terms
+    /// (its profile found by BusinessProfiles.current in its own context).
+    @MainActor
+    init(editing proposal: Proposal, now: Date = Date()) {
+        let profiles = (try? proposal.modelContext?.fetch(FetchDescriptor<BusinessProfile>())) ?? []
+        self.init(editing: proposal, termsDays: Self.termsDays(for: proposal, profiles: profiles), now: now)
+    }
+
+    /// The Edit screen's fields for `proposal` on terms of `termsDays`
+    /// (`termsDays(for:profiles:)`): no database read, so the screen's init,
+    /// run on every redraw of the screen that shows it, stays cheap.
+    @MainActor
+    init(editing proposal: Proposal, termsDays: Int, now: Date = Date()) {
+        self.init(discount: proposal.discountAmount, taxRate: proposal.taxRate, dueDate: proposal.invoiceDueDate,
+                  termsDays: termsDays, now: now)
+    }
+
+    /// `proposal`'s business's terms, its profile found among `profiles`
+    /// (BusinessProfiles.current), as the screen showing it already has them.
+    @MainActor
+    static func termsDays(for proposal: Proposal, profiles: [BusinessProfile]) -> Int {
+        InvoiceTerms.days(for: BusinessProfiles.current(profiles, operatorID: proposal.operatorID))
+    }
+
     /// The total `proposal` will have once these edits are saved.
     @MainActor
     func total(of proposal: Proposal) -> Double {

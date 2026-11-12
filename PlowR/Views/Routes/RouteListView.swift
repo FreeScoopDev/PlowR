@@ -5,6 +5,7 @@ struct RouteListView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AuthManager.self) private var authManager
     @Environment(\.access) private var access
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var gate: ProGate?
     @Query private var allRoutes: [PlowRoute]
     @Query private var allClients: [Client]
@@ -33,7 +34,12 @@ struct RouteListView: View {
                         NavigationLink {
                             RouteDetailView(route: route)
                         } label: {
-                            HStack {
+                            // The chip goes under the row at accessibility sizes:
+                            // beside it, the route's name broke ("Mon- / day").
+                            let rowLayout = typeSize.isAccessibilitySize
+                                ? AnyLayout(VStackLayout(alignment: .leading, spacing: PlowRLayout.space2))
+                                : AnyLayout(HStackLayout())
+                            rowLayout {
                                 RouteRowView(route: route, clients: allClients,
                                              lastRun: lastRuns[route.id.uuidString])
                                 // The free tier runs one route: it says Free, the others Pro.
@@ -41,7 +47,7 @@ struct RouteListView: View {
                                     if Access.freeRoute(in: allRoutes, operatorID: authManager.userID)?.id == route.id {
                                         StatusChip("Free", status: .done)
                                     } else {
-                                        StatusChip("Pro", status: .neutral)
+                                        ProMark()
                                     }
                                 }
                             }
@@ -118,34 +124,7 @@ struct RouteListView: View {
     }
 
     private func duplicateRoute(_ route: PlowRoute) {
-        let copy = PlowRoute(name: "\(route.name) (Copy)", operatorID: route.operatorID)
-        modelContext.insert(copy)
-        for (index, stop) in route.sortedStops.enumerated() {
-            if stop.isCustomStop {
-                let stopCopy = RouteStop(order: index, customName: stop.clientName,
-                                        customAddress: stop.clientAddress, customPhone: stop.clientPhone)
-                stopCopy.stopNotes = stop.stopNotes
-                stopCopy.equipmentNotes = stop.equipmentNotes
-                stopCopy.targetMinutes = stop.targetMinutes
-                stopCopy.expectedServiceIDs = stop.expectedServiceIDs
-                stopCopy.hasOwnServices = stop.hasOwnServices
-                stopCopy.propertyID = stop.propertyID
-                stopCopy.route = copy
-                modelContext.insert(stopCopy)
-            } else if let client = allClients.first(where: { $0.id == stop.clientID }), client.isActive,
-                      let place = Place.of(client, propertyID: stop.propertyID), place.isActive {
-                // A copy is a new route: inactive clients and properties, and
-                // places since removed, stay off it, as off every new route.
-                let stopCopy = RouteStop(order: index, client: client, place: place)
-                stopCopy.stopNotes = stop.stopNotes
-                stopCopy.equipmentNotes = stop.equipmentNotes
-                stopCopy.targetMinutes = stop.targetMinutes
-                stopCopy.expectedServiceIDs = stop.expectedServiceIDs
-                stopCopy.hasOwnServices = stop.hasOwnServices
-                stopCopy.route = copy
-                modelContext.insert(stopCopy)
-            }
-        }
+        ClientStops.duplicate(route, clients: allClients, in: modelContext)
     }
 }
 
@@ -157,6 +136,7 @@ struct RouteRowView: View {
     let clients: [Client]
     let lastRun: Date?
     @Environment(ActiveRouteStore.self) private var activeRoute
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     private var run: RouteRunSummary {
         RouteRunSummary(route: route, store: activeRoute)
@@ -186,15 +166,16 @@ struct RouteRowView: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
+        IconRow(spacing: 12) {
             IconBadge(systemImage: run.isRunning ? "map.fill" : "map", status: status)
+        } content: {
             VStack(alignment: .leading, spacing: 2) {
                 Text(route.name)
                     .font(.subheadline.weight(.semibold))
-                    .lineLimit(1)
+                    .lineLimit(typeSize.isAccessibilitySize ? nil : 1)
                 Text(stopsText)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(PlowRColor.inkSecondary)
                 Text(statusText)
                     .font(.caption)
                     .foregroundStyle(run.isRunning ? PlowRColor.brand : PlowRColor.inkSecondary)

@@ -45,7 +45,7 @@ struct SettingsView: View {
     private var iCloudTint: Color {
         switch iCloud.summary.kind {
         case .backedUp: return PlowRColor.Status.done.text
-        case .unknown: return .secondary
+        case .unknown: return PlowRColor.inkSecondary
         case .problem: return PlowRColor.Status.owed.text
         }
     }
@@ -65,15 +65,18 @@ struct SettingsView: View {
                 .listRowBackground(PlowRColor.surface)
             }
 
-            Section("Business") {
+            Section(title: "Business") {
                 NavigationLink(destination: BusinessProfileView()) {
                     Label("Business Profile", systemImage: "building.2")
+                        .labelStyle(.settingsLink)
                 }
                 NavigationLink(destination: ServiceCatalogView()) {
                     Label("Service Catalog", systemImage: "list.bullet.clipboard")
+                        .labelStyle(.settingsLink)
                 }
                 NavigationLink(destination: PaymentMethodsView()) {
                     Label("Payment Methods", systemImage: "creditcard")
+                        .labelStyle(.settingsLink)
                 }
                 if let blocked = ProGate.proFeature("The Request Link", access) {
                     Button { gate = blocked } label: {
@@ -83,6 +86,7 @@ struct SettingsView: View {
                 } else {
                     NavigationLink(destination: RequestLinkView()) {
                         Label("Request Link", systemImage: "link")
+                            .labelStyle(.settingsLink)
                     }
                 }
                 // A Pro tool: without Pro, the row says why instead of opening.
@@ -94,10 +98,12 @@ struct SettingsView: View {
                 } else {
                     NavigationLink(destination: ImportClientsView()) {
                         Label("Import Clients", systemImage: "square.and.arrow.down.on.square")
+                            .labelStyle(.settingsLink)
                     }
                 }
                 NavigationLink(destination: ExportDataView()) {
                     Label("Export Data", systemImage: "square.and.arrow.up.on.square")
+                        .labelStyle(.settingsLink)
                 }
             }
             .listRowBackground(PlowRColor.surface)
@@ -109,12 +115,27 @@ struct SettingsView: View {
                 }
             } header: {
                 Text("Calendar")
+                    .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
-                calendarFooter
+                if calendarSync.needsAccess {
+                    // Only the note is styled: the button keeps its tint.
+                    VStack(alignment: .leading, spacing: 6) {
+                        SectionNote("PlowR needs full access to your calendars to keep its events in step with your visits.")
+                        Button("Allow in Settings") {
+                            if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+                        }
+                        .font(.caption.weight(.semibold))
+                    }
+                } else if let problem = calendarSync.problem {
+                    Text(problem)
+                        .foregroundStyle(PlowRColor.Status.overdue.text)
+                } else {
+                    SectionNote("Adds your visits from the last month and the next six months to a “PlowR” calendar, with a reminder an hour before, and keeps it up to date when visits are moved, skipped or deleted. The switch is for this device; in iCloud, the calendar shows on your other devices too.")
+                }
             }
             .listRowBackground(PlowRColor.surface)
 
-            Section("Discover") {
+            Section(title: "Discover") {
                 Button {
                     showingFindService = true
                 } label: {
@@ -125,16 +146,17 @@ struct SettingsView: View {
 
             Section {
                 // It said "Backed Up" whatever iCloud's state (ICloudStatus).
-                HStack(alignment: .top, spacing: 12) {
+                IconRow(alignment: .top, spacing: 12) {
                     Image(systemName: iCloudSymbol)
                         .font(.title2)
                         .foregroundStyle(iCloudTint)
+                } content: {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(iCloud.summary.title)
                             .font(.subheadline.weight(.semibold))
                         Text(iCloud.summary.message)
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(PlowRColor.inkSecondary)
                     }
                 }
                 .padding(.vertical, 4)
@@ -151,8 +173,9 @@ struct SettingsView: View {
 
             } header: {
                 Text("Data & Backup")
+                    .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
-                Text("Your data syncs through your private iCloud to every device signed in to your Apple ID. To take PlowR's data off one device and leave the others alone, use Delete Account & Data → Remove from This Device: that also turns sync off on that device until you turn it back on here. Export Data (under Business) keeps a copy as spreadsheets.")
+                SectionNote("Your data syncs through your private iCloud to every device signed in to your Apple ID. To take PlowR's data off one device and leave the others alone, use Delete Account & Data → Remove from This Device: that also turns sync off on that device until you turn it back on here. Export Data (under Business) keeps a copy as spreadsheets.")
                     .font(.caption)
             }
             .listRowBackground(PlowRColor.surface)
@@ -162,6 +185,7 @@ struct SettingsView: View {
             Section {
                 NavigationLink(destination: HelpGuideView()) {
                     Label("Help Guide", systemImage: PlowRSymbol.help.name)
+                        .labelStyle(.settingsLink)
                 }
                 Link(destination: HelpGuide.shared.web) {
                     Label("Help on the Web", systemImage: "safari")
@@ -182,9 +206,10 @@ struct SettingsView: View {
                 .disabled(tipsComeBack)
             } header: {
                 Text("Help")
+                    .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
                 if tipsComeBack {
-                    Text("Tips come back the next time you open PlowR.")
+                    SectionNote("Tips come back the next time you open PlowR.")
                 }
             }
             .listRowBackground(PlowRColor.surface)
@@ -196,11 +221,12 @@ struct SettingsView: View {
                     }
                 } header: {
                     Text("On a Mac")
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
                 .listRowBackground(PlowRColor.surface)
             }
 
-            Section("Account") {
+            Section(title: "Account") {
                 if !authManager.operatorName.isEmpty {
                     LabeledContent("Name", value: authManager.operatorName)
                 }
@@ -242,7 +268,7 @@ struct SettingsView: View {
             }
             .listRowBackground(PlowRColor.surface)
 
-            Section("Legal") {
+            Section(title: "Legal") {
                 if let url = URL(string: "https://getplowr.app/privacy-policy.html") {
                     Link("Privacy Policy", destination: url)
                 }
@@ -273,8 +299,9 @@ struct SettingsView: View {
                 .disabled(schemaStatus == "Setting Up…")
             } header: {
                 Text("Developer")
+                    .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
-                Text("Populate adds sample Claremont, NH clients for testing. Set Up iCloud Schema puts every record type and field into iCloud's Development database, to deploy to Production before a release (CloudKitSchemaSetup).")
+                SectionNote("Populate adds sample Claremont, NH clients for testing. Set Up iCloud Schema puts every record type and field into iCloud's Development database, to deploy to Production before a release (CloudKitSchemaSetup).")
             }
             .listRowBackground(PlowRColor.surface)
             #endif
@@ -314,23 +341,6 @@ struct SettingsView: View {
     /// checks this is said).
     static let subscriptionNote = "\n\nNeither cancels a PlowR Pro subscription: Apple keeps billing it until you cancel it in PlowR Pro → Manage Subscription, above."
     static let subscriptionNoteOne = "\n\nRemoving your data doesn't cancel a PlowR Pro subscription: Apple keeps billing it until you cancel it in PlowR Pro → Manage Subscription, above."
-
-    @ViewBuilder private var calendarFooter: some View {
-        if calendarSync.needsAccess {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("PlowR needs full access to your calendars to keep its events in step with your visits.")
-                Button("Allow in Settings") {
-                    if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
-                }
-                .font(.caption.weight(.semibold))
-            }
-        } else if let problem = calendarSync.problem {
-            Text(problem)
-                .foregroundStyle(PlowRColor.Status.overdue.text)
-        } else {
-            Text("Adds your visits from the last month and the next six months to a “PlowR” calendar, with a reminder an hour before, and keeps it up to date when visits are moved, skipped or deleted. The switch is for this device; in iCloud, the calendar shows on your other devices too.")
-        }
-    }
 
     /// Remove from This Device: nothing in iCloud is touched (AccountEraser,
     /// DeviceSync). Finished at the next launch.

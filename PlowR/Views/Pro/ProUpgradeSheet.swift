@@ -44,7 +44,7 @@ struct ProGateMessage: View {
                 .multilineTextAlignment(.center)
             Text(gate.message)
                 .font(.body)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(PlowRColor.inkSecondary)
                 .multilineTextAlignment(.center)
             Button(action: subscribe) {
                 Text(gate == .readOnly ? "Subscribe Again" : "See PlowR Pro")

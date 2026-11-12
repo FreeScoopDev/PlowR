@@ -90,7 +90,7 @@ struct RequestLinkView: View {
             Text("Your link needs \(missing.joined(separator: " and ")). Add \(missing.count == 1 ? "it" : "them") in Business Profile.")
             NavigationLink("Business Profile") { BusinessProfileView() }
         } footer: {
-            Text("A link anyone can open to ask you for service, from any phone or computer, without the app.")
+            SectionNote("A link anyone can open to ask you for service, from any phone or computer, without the app.")
         }
         .listRowBackground(PlowRColor.surface)
     }
@@ -99,7 +99,7 @@ struct RequestLinkView: View {
         Section {
             Text(link.absoluteString)
                 .font(.caption.monospaced())
-                .foregroundStyle(.secondary)
+                .foregroundStyle(PlowRColor.inkSecondary)
                 .lineLimit(2)
                 .truncationMode(.middle)
                 .textSelection(.enabled)
@@ -131,8 +131,9 @@ struct RequestLinkView: View {
             }
         } header: {
             Text("Your Link")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
-            Text("Put it in a text, on social media or your website, or print the QR code on a flyer or your truck. Whoever opens it fills in a short form, and the request comes to \(profile.phone) as a text from their own phone\(RequestLink.validEmail(profile.email).isEmpty ? "" : " (or, from a computer, an email to \(RequestLink.validEmail(profile.email)))"), ending in Add to PlowR: tap that to add them as a lead. Nothing goes through a server, and no app is needed to send a request.")
+            SectionNote("Put it in a text, on social media or your website, or print the QR code on a flyer or your truck. Whoever opens it fills in a short form, and the request comes to \(profile.phone) as a text from their own phone\(RequestLink.validEmail(profile.email).isEmpty ? "" : " (or, from a computer, an email to \(RequestLink.validEmail(profile.email)))"), ending in Add to PlowR: tap that to add them as a lead. Nothing goes through a server, and no app is needed to send a request.")
         }
         .listRowBackground(PlowRColor.surface)
     }
@@ -161,11 +162,12 @@ struct RequestLinkView: View {
             }
         } header: {
             Text("Services on the Form")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
-            Text((fromCatalog ? "Up to \(RequestLink.Limit.services), from your Service Catalog." : "Tick what you do. Add services to your Service Catalog to offer your own.")
+            SectionNote(Text((fromCatalog ? "Up to \(RequestLink.Limit.services), from your Service Catalog." : "Tick what you do. Add services to your Service Catalog to offer your own.")
                  + (chosen.isEmpty ? " With none ticked, the form asks only for their details and notes."
                                    : " The form also offers Something else.")
-                 + " Changes go into your link from now on; a link you've already given out keeps what it had.")
+                 + " Changes go into your link from now on; a link you've already given out keeps what it had."))
         }
         .listRowBackground(PlowRColor.surface)
     }
@@ -180,7 +182,7 @@ struct RequestLinkView: View {
                     if profile.requestWelcome != cut { profile.requestWelcome = cut }
                 }
         } footer: {
-            Text("Shown at the top of the form, like \u{201C}Tell us about your property and we'll text you a quote.\u{201D} \(RequestLink.Limit.welcome - welcome.count) characters left.")
+            SectionNote("Shown at the top of the form, like \u{201C}Tell us about your property and we'll text you a quote.\u{201D} \(RequestLink.Limit.welcome - welcome.count) characters left.")
         }
         .listRowBackground(PlowRColor.surface)
     }
@@ -209,7 +211,7 @@ struct RequestLinkQRView: View {
             VStack(spacing: 20) {
                 Spacer()
                 Text(businessName).font(.title2.weight(.semibold)).multilineTextAlignment(.center)
-                Text("Scan to request service").foregroundStyle(.secondary)
+                Text("Scan to request service").foregroundStyle(PlowRColor.inkSecondary)
                 if let image {
                     Image(uiImage: image)
                         .interpolation(.none)
@@ -223,12 +225,12 @@ struct RequestLinkQRView: View {
                     }
                     .plowRProminent()
                     Text("Save Image puts it in Photos, for a flyer, a sign or your truck. The bigger it's printed, the farther away it scans.")
-                        .font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                        .font(.footnote).foregroundStyle(PlowRColor.inkSecondary).multilineTextAlignment(.center)
                 } else if made {
                     Text(link == nil ? "Your link isn't available right now."
                          : "This link is too long for a QR code. Shorten your business name or welcome line, or offer fewer services.")
                         .multilineTextAlignment(.center)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
                 Spacer()
             }

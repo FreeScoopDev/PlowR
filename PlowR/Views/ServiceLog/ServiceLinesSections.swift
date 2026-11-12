@@ -44,8 +44,9 @@ struct ServiceLinesSections: View {
             }
         } header: {
             Text("Services Performed")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
-            if let footer { Text(footer) }
+            if let footer { SectionNote(verbatim: footer) }
         }
         .listRowBackground(PlowRColor.surface)
 
@@ -63,19 +64,20 @@ struct ServiceLinesSections: View {
                 }
             } header: {
                 Text("Also Recorded")
+                    .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
-                Text("No longer in your active services, so kept as recorded.")
+                SectionNote("No longer in your active services, so kept as recorded.")
             }
             .listRowBackground(PlowRColor.surface)
             .disabled(locked)
         }
 
-        Section("Custom Services") {
+        Section(title: "Custom Services") {
             ForEach($customItems) { $item in
                 HStack(spacing: 8) {
                     TextField("Service name", text: $item.name)
                     Divider()
-                    Text("$").foregroundStyle(.secondary)
+                    Text("$").foregroundStyle(PlowRColor.inkSecondary)
                     TextField("0.00", text: $item.price)
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.trailing)
@@ -136,7 +138,7 @@ struct ServiceLinesSections: View {
             .disabled(locked)
             if isOn {
                 HStack(spacing: 4) {
-                    Text("Price: $").font(.caption).foregroundStyle(.secondary)
+                    Text("Price: $").font(.caption).foregroundStyle(PlowRColor.inkSecondary)
                     TextField("0.00", text: Binding(
                         get: { typedPrices[key] ?? StopRecording.money(defaultPrice(for: service)) },
                         set: { typedPrices[key] = $0 }
@@ -147,7 +149,7 @@ struct ServiceLinesSections: View {
                     .disabled(locked)
                     if service.unitType == "perSqFt", case let area = InvoiceLines.totalArea(zones), area > 0 {
                         Text("(\(Int(area)) sqft)")
-                            .font(.caption2).foregroundStyle(.tertiary)
+                            .font(.caption2).foregroundStyle(PlowRColor.inkSecondary)
                     }
                 }
                 .padding(.leading, 48)

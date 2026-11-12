@@ -24,6 +24,7 @@
 	<array>
 		<string>comgooglemaps</string>
 		<string>waze</string>
+		<string>tel</string>
 	</array>
 </dict>
 </plist>

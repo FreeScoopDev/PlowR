@@ -42,7 +42,7 @@ struct InvoicePaymentsView: View {
                     }
                 } footer: {
                     if invoice.overpaid > 0 {
-                        Text("Its payments come to more than its total: one may have been recorded twice.")
+                        SectionNote("Its payments come to more than its total: one may have been recorded twice.")
                     }
                 }
                 .listRowBackground(PlowRColor.surface)
@@ -51,7 +51,7 @@ struct InvoicePaymentsView: View {
                     Section {
                         Button("Mark Paid") { Payments.payInFull(invoice, in: modelContext) }
                     } footer: {
-                        Text("Nothing is left to pay on this invoice.")
+                        SectionNote("Nothing is left to pay on this invoice.")
                     }
                     .listRowBackground(PlowRColor.surface)
                 }
@@ -82,7 +82,7 @@ struct InvoicePaymentsView: View {
                             Text(payment.receivedAt, format: .dateTime.month(.abbreviated).day().year())
                             let detail = [payment.method, payment.note].filter { !$0.isEmpty }.joined(separator: " · ")
                             if !detail.isEmpty {
-                                Text(detail).font(.caption).foregroundStyle(.secondary)
+                                Text(detail).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
                             }
                         }
                         Spacer()
@@ -95,12 +95,13 @@ struct InvoicePaymentsView: View {
                 }
             } header: {
                 Text("Received")
+                    .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
-                Text("Swipe left to remove a payment recorded by mistake. What it paid is owed again.")
+                SectionNote("Swipe left to remove a payment recorded by mistake. What it paid is owed again.")
             }
             .listRowBackground(PlowRColor.surface)
         } else if let paidAt = invoice.invoicePaidAt {
-            Section("Received") {
+            Section(title: "Received") {
                 LabeledContent("Marked paid", value: paidAt.formatted(.dateTime.month(.abbreviated).day().year()))
             }
             .listRowBackground(PlowRColor.surface)
@@ -124,8 +125,9 @@ struct InvoicePaymentsView: View {
                 .disabled(typedAmount == nil)
         } header: {
             Text("Record a Payment")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
-            Text(recordFooter)
+            SectionNote(verbatim: recordFooter)
         }
         .listRowBackground(PlowRColor.surface)
     }

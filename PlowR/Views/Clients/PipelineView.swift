@@ -79,8 +79,9 @@ struct PipelineView: View {
                 }
             } header: {
                 Text("\(title) (\(entries.count))")
+                    .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
-                Text(footer)
+                SectionNote(verbatim: footer)
             }
             .listRowBackground(PlowRColor.surface)
         }
@@ -90,7 +91,7 @@ struct PipelineView: View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text(entry.client.name)
-                Text(detail(entry)).font(.caption).foregroundStyle(.secondary)
+                Text(detail(entry)).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
             }
             Spacer()
             if let total = entry.quoteTotal {

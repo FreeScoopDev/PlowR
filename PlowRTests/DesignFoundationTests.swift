@@ -15,7 +15,7 @@ struct DesignFoundationTests {
     }
 
     /// `Color.accentColor` (the asset) and `PlowRColor.accent` (the tint) are
-    /// the same green: screens that use either look the same. The asset was
+    /// the same colour: screens that use either look the same. The asset was
     /// empty, so those screens fell back to system blue.
     @Test(arguments: [false, true])
     func theAccentColourAssetIsTheBrand(dark: Bool) throws {

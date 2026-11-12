@@ -12,14 +12,26 @@ import UIKit
 /// A text sent from the client's page used to set it, and sending a
 /// document didn't. Texts don't set it now.
 enum DocumentSent {
-    /// Marks an invoice sent now: when, a due date 30 days out if it has
-    /// none, and its client awaiting a response. The one place for it: the
-    /// document, the documents list, the edit screen and the route's service
-    /// recorder all mark invoices sent.
-    static func markSent(_ proposal: Proposal, in context: ModelContext, now: Date = .now) {
+    /// Marks an invoice sent now: when, a due date on the business's terms
+    /// if it has none (how a contract's installment gets its date), and its
+    /// client awaiting a response. The one place for it: the document, the
+    /// documents list, the edit screen and the route's service recorder all
+    /// mark invoices sent.
+    ///
+    /// An invoice is never due before the day it's sent: a draft due on an
+    /// earlier day (due on receipt, made Monday and sent Thursday) is due the
+    /// day it's sent, or it would be overdue the moment it went out. A due
+    /// date on or after that day is left as it is.
+    static func markSent(_ proposal: Proposal, in context: ModelContext, now: Date = .now,
+                         calendar: Calendar = .current) {
+        let wasDraft = proposal.invoiceSentAt == nil && proposal.invoicePaidAt == nil && proposal.voidedAt == nil
         proposal.invoiceSentAt = now
-        if proposal.invoiceDueDate == nil {
-            proposal.invoiceDueDate = InvoiceTerms.dueDate(from: now)
+        if let due = proposal.invoiceDueDate {
+            if wasDraft, calendar.startOfDay(for: due) < calendar.startOfDay(for: now) {
+                proposal.invoiceDueDate = InvoiceTerms.dueDate(from: now, days: 0, calendar: calendar)
+            }
+        } else {
+            proposal.invoiceDueDate = InvoiceTerms.dueDate(from: now, operatorID: proposal.operatorID, in: context)
         }
         awaitResponse(clientID: proposal.clientID, in: context, now: now)
     }
@@ -208,7 +220,7 @@ struct DocumentShareView: View {
                         Text("Mark as Sent")
                         Text(DocumentSent.shareNote(status: status, clientName: clientName, toClient: toClient))
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(PlowRColor.inkSecondary)
                     }
                 }
                 .padding(.horizontal, 20)

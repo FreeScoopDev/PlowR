@@ -86,7 +86,7 @@ struct ServiceRecordDetailView: View {
             Group {
             Section {
                 DatePicker("Done", selection: $performedAt, in: ...Date.now)
-                LabeledContent("Minutes on Site") {
+                LabeledContent(ServiceLog.minutesLabel) {
                     TextField("None", text: $minutes)
                         .keyboardType(.numberPad)
                         .multilineTextAlignment(.trailing)
@@ -103,14 +103,15 @@ struct ServiceRecordDetailView: View {
             } footer: {
                 VStack(alignment: .leading, spacing: PlowRLayout.space1) {
                     if let invoice {
-                        Text("On invoice \(invoice.invoiceNumber).")
+                        SectionNote("On invoice \(invoice.invoiceNumber).")
                     } else if record.source == .beforeLog {
-                        Text("Completed before PlowR kept a Service History, or on an older version of PlowR, so whether it was billed wasn't tracked. It's never counted as owed.")
+                        SectionNote("Completed before PlowR kept a Service History, or on an older version of PlowR, so whether it was billed wasn't tracked. It's never counted as owed.")
                     } else if !isBillable {
-                        Text("No charge: this work won't be billed.")
+                        SectionNote("No charge: this work won't be billed.")
                     }
-                    if record.source == .route {
-                        Text(ServiceLog.routeMinutesNote)
+                    // A route stop's: what its minutes were counted from.
+                    if let basis = ServiceLog.minutesBasisNote(of: record) {
+                        SectionNote(verbatim: basis)
                     }
                 }
             }
@@ -122,7 +123,7 @@ struct ServiceRecordDetailView: View {
                 customItems: $customItems, keptLines: $keptLines, locked: locked,
                 footer: locked ? "On an invoice, so these are fixed. To change them, edit the invoice." : nil)
 
-            Section("Notes") {
+            Section(title: "Notes") {
                 TextField("Optional notes", text: $notes, axis: .vertical)
                     .lineLimit(3...)
             }
@@ -134,7 +135,7 @@ struct ServiceRecordDetailView: View {
 
             siteSection
 
-            Section("Details") {
+            Section(title: "Details") {
                 LabeledContent("Recorded From", value: sourceText)
                 if !record.propertyAddress.isEmpty {
                     LabeledContent("Address", value: record.propertyAddress)
@@ -184,7 +185,7 @@ struct ServiceRecordDetailView: View {
     @ViewBuilder
     private var photosSection: some View {
         if !photos.isEmpty {
-            Section("Photos") {
+            Section(title: "Photos") {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         ForEach(photos) { photo in
@@ -217,8 +218,9 @@ struct ServiceRecordDetailView: View {
                 }
             } header: {
                 Text("Job Site (GPS)")
+                    .foregroundStyle(PlowRColor.inkSecondary)
             } footer: {
-                Text(ProofOfService.siteFooter)
+                SectionNote(Text(ProofOfService.siteFooter))
             }
             .listRowBackground(PlowRColor.surface)
         }

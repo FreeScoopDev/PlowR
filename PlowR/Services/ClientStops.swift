@@ -10,8 +10,10 @@ import SwiftData
 ///
 /// They used to be copied once, when the stop was made, and never again. A
 /// corrected phone number or address, or a pin set by hand, never reached
-/// the routes the client was already on. Stop notes and what a run recorded
-/// are the stop's own and aren't touched. The client's upcoming visits
+/// the routes the client was already on. The place's Route Notes follow the
+/// same way (`placeNotes`). The stop's own notes and what a run recorded are
+/// the stop's and aren't touched, but for an exact copy of the place's
+/// previous notes (`ownNote(_:following:to:)`). The client's upcoming visits
 /// follow at the same moments (ClientVisits).
 enum ClientStops {
     /// The client's stops on every route. A custom stop isn't a client's.
@@ -34,7 +36,68 @@ enum ClientStops {
         if stop.clientAddress != place.address { stop.clientAddress = place.address; changed = true }
         if stop.latitude != place.latitude { stop.latitude = place.latitude; changed = true }
         if stop.longitude != place.longitude { stop.longitude = place.longitude; changed = true }
+        if stop.placeNotes != place.stopNotes {
+            stop.stopNotes = ownNote(stop.stopNotes, following: stop.placeNotes, to: place.stopNotes)
+            stop.placeNotes = place.stopNotes
+            changed = true
+        }
         return changed
+    }
+
+    /// A stop's own note when its place's notes change from `old` to `new`.
+    /// Stops used to start with a copy of the place's notes as their own: a
+    /// note that is exactly `old` (trimmed) was only ever that copy, and is
+    /// cleared, or the old gate code would still show beside the new one.
+    /// Any other note is the user's words and is kept. An `old` that's empty
+    /// (a stop's first follow) clears nothing.
+    nonisolated static func ownNote(_ own: String, following old: String, to new: String) -> String {
+        let was = trimmed(old)
+        guard !was.isEmpty, was != trimmed(new), trimmed(own) == was else { return own }
+        return ""
+    }
+
+    /// The stop's own note as shown beside its place's notes: none when it
+    /// says the same (a stop made before the notes followed the place).
+    nonisolated static func shownOwnNote(_ own: String, placeNotes: String) -> String {
+        trimmed(own) == trimmed(placeNotes) ? "" : own
+    }
+
+    nonisolated private static func trimmed(_ text: String) -> String {
+        text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Duplicate Route: a new route, "<name> (Copy)", with `route`'s stops.
+    /// A copy is a new route: inactive clients and properties, and places
+    /// since removed, stay off it, as off every new route. A client's stop
+    /// carries its own note only as the route shows it (`shownOwnNotes`): a
+    /// note that is just a copy of the place's notes isn't carried, as the
+    /// place's notes come with the place.
+    @discardableResult
+    static func duplicate(_ route: PlowRoute, clients: [Client], in context: ModelContext) -> PlowRoute {
+        let copy = PlowRoute(name: "\(route.name) (Copy)", operatorID: route.operatorID)
+        context.insert(copy)
+        for (index, stop) in route.sortedStops.enumerated() {
+            let stopCopy: RouteStop
+            if stop.isCustomStop {
+                stopCopy = RouteStop(order: index, customName: stop.clientName,
+                                     customAddress: stop.clientAddress, customPhone: stop.clientPhone)
+                stopCopy.stopNotes = stop.stopNotes
+                stopCopy.propertyID = stop.propertyID
+            } else if let client = clients.first(where: { $0.id == stop.clientID }), client.isActive,
+                      let place = Place.of(client, propertyID: stop.propertyID), place.isActive {
+                stopCopy = RouteStop(order: index, client: client, place: place)
+                stopCopy.stopNotes = stop.shownOwnNotes
+            } else {
+                continue
+            }
+            stopCopy.equipmentNotes = stop.equipmentNotes
+            stopCopy.targetMinutes = stop.targetMinutes
+            stopCopy.expectedServiceIDs = stop.expectedServiceIDs
+            stopCopy.hasOwnServices = stop.hasOwnServices
+            stopCopy.route = copy
+            context.insert(stopCopy)
+        }
+        return copy
     }
 
     /// After `client` was changed: all their stops follow, and their
@@ -105,5 +168,16 @@ enum ClientStops {
                 InvoiceRecords.resolveDuplicateNumbers(in: container.mainContext)
             }
         }
+    }
+}
+
+extension RouteStop {
+    /// This stop's own note as the route shows it (ClientStops.shownOwnNote).
+    var shownOwnNotes: String { ClientStops.shownOwnNote(stopNotes, placeNotes: placeNotes) }
+
+    /// Whether the route has a note to show for this stop: its place's, or its own.
+    var hasNotesToShow: Bool {
+        !placeNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || !shownOwnNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 }

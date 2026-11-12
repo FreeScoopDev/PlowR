@@ -1,15 +1,24 @@
 #!/usr/bin/env python3
-"""PlowR's help has one source: PlowR/Help/HelpGuide.json. The app bundles
-it (Settings > Help, the Help items on screens, and from 1.8 the tips), and
-this script writes the website's page from it, docs/help.html. Edit the JSON,
+"""PlowR's help copy lives in PlowR/Help/HelpGuide.json, which the app
+bundles (Settings > Help, the Help items on screens, and the tips). The
+website's page, docs/help.html, describes the version on the App Store, not
+main, so this script makes it from a copy of the JSON as that version
+shipped: scripts/help_guide_published.json, whose "version" key says which.
+Edit the JSON (the copy only to fix what the live version's page says),
 never the page, then run this.
 
   python3 scripts/help_guide.py           # writes docs/help.html
   python3 scripts/help_guide.py --check   # exits 1 if the page is out of date
 
-The page records the SHA-256 of the JSON, of this script and of itself (with
-that field blank), and a unit test (HelpGuideTests) recomputes all three, so
-the required test check fails a PR that edits one without remaking the page.
+The release PR moves the pin: copy PlowR/Help/HelpGuide.json over the
+published copy, set its "version" to the new one, and run this.
+HelpGuideTests fails until the pinned version is the newest release in
+CHANGELOG.md, so the page can't be left behind.
+
+The page records the version, the SHA-256 of the published JSON, of this
+script and of itself (with that field blank), and a unit test
+(HelpGuideTests) recomputes the hashes, so the required test check fails a
+PR that edits one without remaking the page.
 
 Markup in the JSON, the same in the app: **UI label**, [text](https://...),
 and [PRO] for the Pro badge; links are https: or mailto:. HelpGuideTests
@@ -20,11 +29,12 @@ import hashlib, html, json, re, sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SOURCE = ROOT / "PlowR/Help/HelpGuide.json"
+SOURCE = ROOT / "scripts/help_guide_published.json"
 PAGE = ROOT / "docs/help.html"
 PAGE_HASH = "plowr-help-page"
 SOURCE_HASH = "plowr-help-source"
 SCRIPT_HASH = "plowr-help-script"
+VERSION = "plowr-help-version"
 
 CSS = """\
         :root { color-scheme: light dark; --text: #1c1c1e; --muted: #6e6e73; --link: #0071e3; --card: #f2f2f7; --bg: #ffffff; --shot: #e5e5ea; --shot2: #dedee3; --line: #c7c7cc; --warn: #b25000; }
@@ -145,15 +155,17 @@ def section(sec, lines):
 
 def render(source_bytes):
     guide = json.loads(source_bytes)
+    version = guide["version"]
     lines = [
         "<!DOCTYPE html>",
         '<html lang="en">',
-        "<!-- Made by scripts/help_guide.py from PlowR/Help/HelpGuide.json. Don't edit",
-        "     this page: edit the JSON, then run python3 scripts/help_guide.py. -->",
+        f"<!-- Made by scripts/help_guide.py from scripts/help_guide_published.json, the help as PlowR {version} shipped.",
+        "     Don't edit this page: edit the JSON, then run python3 scripts/help_guide.py. -->",
         "<head>",
         '    <meta charset="UTF-8">',
         '    <meta name="viewport" content="width=device-width, initial-scale=1.0">',
         f'    <meta name="description" content="{attr(guide["description"])}">',
+        f'    <meta name="{VERSION}" content="{attr(version)}">',
         f'    <meta name="{SOURCE_HASH}" content="{hashlib.sha256(source_bytes).hexdigest()}">',
         f'    <meta name="{SCRIPT_HASH}" content="{hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}">',
         f'    <meta name="{PAGE_HASH}" content="">',
@@ -198,10 +210,10 @@ def main():
     page = render(SOURCE.read_bytes())
     if "--check" in sys.argv[1:]:
         if not PAGE.exists() or PAGE.read_text(encoding="utf-8") != page:
-            print("docs/help.html isn't what PlowR/Help/HelpGuide.json makes. "
+            print("docs/help.html isn't what scripts/help_guide_published.json makes. "
                   "Edit the JSON, not the page, then run: python3 scripts/help_guide.py")
             return 1
-        print("docs/help.html matches PlowR/Help/HelpGuide.json.")
+        print("docs/help.html matches scripts/help_guide_published.json.")
         return 0
     PAGE.write_text(page, encoding="utf-8")
     print(f"Wrote {PAGE.relative_to(ROOT)}.")

@@ -31,9 +31,10 @@ nonisolated enum PlowRColor {
     static let navyUIColor = UIColor(red: 0.118, green: 0.227, blue: 0.541, alpha: 1)
     static let navy = Color(navyUIColor)
 
-    /// The app's tint: links, toggles, the tab bar, navigation. Forest green,
-    /// the brand (`brandUIColor`), since 1.7 (Joe, 2026-10-11); it was navy,
-    /// with a brighter blue in dark mode. Navy stays the default colour of a
+    /// The app's tint: links, toggles, the tab bar, navigation. The brand
+    /// (`brandUIColor`) since 1.7 (Joe, 2026-10-11): forest green in light mode,
+    /// muted sage in dark. It was navy, with a brighter blue in dark mode.
+    /// Navy stays the default colour of a
     /// business's own documents (`navyHex`). The asset catalog's AccentColor
     /// holds the same two colours, for `Color.accentColor`.
     static var accentUIColor: UIColor { brandUIColor }
@@ -59,9 +60,12 @@ nonisolated enum PlowRLayout {
 
 // Chosen by Joe on 2026-10-10 from mockups of four schemes: forest green for
 // the brand, copper for the one action that matters on each screen, warm
-// neutrals, and a deep forest green (not black) in dark mode. These are the
-// tokens screens move to one at a time; until a screen does, it keeps its
-// current colors, so adding them changes nothing on screen.
+// neutrals. These are the tokens screens move to one at a time; until a screen
+// does, it keeps its current colors, so adding them changes nothing on screen.
+//
+// Dark mode is neutral graphite with muted sage links (Joe, 2026-11-06): the
+// first version tinted every surface deep green, and its pale green accent
+// sat beside the done green, so green meant both. Now green means done.
 nonisolated extension PlowRColor {
     /// A color with a light and a dark appearance.
     static func adaptive(_ light: UInt32, _ dark: UInt32) -> UIColor {
@@ -74,22 +78,22 @@ nonisolated extension PlowRColor {
     }
 
     // Surfaces, back to front.
-    static let groundUIColor = adaptive(0xF5F2EC, 0x0D1813)
-    static let surfaceUIColor = adaptive(0xFFFFFF, 0x15251D)
-    static let raisedUIColor = adaptive(0xEAE5DB, 0x1E3328)
-    static let lineUIColor = adaptive(0xDDD6CA, 0x284034)
+    static let groundUIColor = adaptive(0xF5F2EC, 0x121416)
+    static let surfaceUIColor = adaptive(0xFFFFFF, 0x1C1F21)
+    static let raisedUIColor = adaptive(0xEAE5DB, 0x272B2E)
+    static let lineUIColor = adaptive(0xDDD6CA, 0x3A3F43)
 
     // Text.
-    static let inkUIColor = adaptive(0x17201B, 0xEEF1EC)
-    static let inkSecondaryUIColor = adaptive(0x5B635D, 0xA3AEA6)
+    static let inkUIColor = adaptive(0x17201B, 0xE6E8E8)
+    static let inkSecondaryUIColor = adaptive(0x5B635D, 0xA8AEB1)
 
-    /// Forest green: the brand, navigation, the client avatar.
-    static let brandUIColor = adaptive(0x1F4D3A, 0x9CCFB3)
-    static let onBrandUIColor = adaptive(0xFFFFFF, 0x0D1813)
+    /// Forest green (muted sage in dark): the brand, navigation, the client avatar.
+    static let brandUIColor = adaptive(0x1F4D3A, 0xB2C8BA)
+    static let onBrandUIColor = adaptive(0xFFFFFF, 0x121416)
 
     /// Copper: the one main action on a screen (Complete Stop, Resume Route,
-    /// Invoice). Brighter in dark mode, so it stays the brightest thing there.
-    static let actionUIColor = adaptive(0xA85A22, 0xE0954F)
+    /// Invoice). Its filled, warm block is what stands out on a neutral dark screen.
+    static let actionUIColor = adaptive(0xA85A22, 0xD98B47)
     static let onActionUIColor = adaptive(0xFFFFFF, 0x1C0E03)
     /// A copper-tinted background, and the text that goes on it.
     static let actionSoftUIColor = adaptive(0xF4E1D2, 0x3A2715)
@@ -134,7 +138,7 @@ nonisolated extension PlowRColor {
             case .void: adaptive(0x6B7280, 0x9CA3AF)
             // Lighter than void in light mode, darker in dark: the two greys
             // differ by at least 2:1, so a draft's bar isn't a void one's.
-            case .neutral: adaptive(0xB3ACA0, 0x55625A)
+            case .neutral: adaptive(0xB3ACA0, 0x5A6064)
             }
         }
 
@@ -277,11 +281,18 @@ nonisolated enum PlowRSymbol: String, CaseIterable {
     case text = "message.fill"
     case email = "envelope.fill"
     case complete = "checkmark.circle.fill"
+    case cantService = "xmark.circle"
     case settings = "gearshape.fill"
     case pro = "star.circle.fill"
     case warning = "exclamationmark.triangle.fill"
     case serviceReport = "checkmark.seal"
     case help = "questionmark.circle"
+    /// A place's Route Notes, which follow the client's page.
+    case routeNotes = "mappin.and.ellipse"
+    /// A stop's own note, for that stop only.
+    case stopNote = "note.text"
+    /// Services expected at or recorded for a stop.
+    case services = "checklist"
 
     /// The name, for `Image(systemName:)` and `Label(_:systemImage:)`.
     var name: String { rawValue }

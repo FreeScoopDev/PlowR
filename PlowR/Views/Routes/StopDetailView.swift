@@ -25,6 +25,9 @@ struct StopDetailView: View {
     @State private var showingMessage = false
 
     private let openedServices: Set<String>
+    /// The stop's own note as the page opened it: empty when it only repeats
+    /// its place's Route Notes (ClientStops.shownOwnNote).
+    private let openedNotes: String
 
     init(stop: RouteStop, client: Client?) {
         self.stop = stop
@@ -32,7 +35,8 @@ struct StopDetailView: View {
         let expected = Set(StopServices.expected(for: stop, client: client))
         _selectedIDs = State(initialValue: expected)
         openedServices = expected
-        _stopNotes = State(initialValue: stop.stopNotes)
+        openedNotes = stop.shownOwnNotes
+        _stopNotes = State(initialValue: stop.shownOwnNotes)
         _equipmentNotes = State(initialValue: stop.equipmentNotes)
         _targetMinutes = State(initialValue: stop.targetMinutes)
     }
@@ -41,7 +45,7 @@ struct StopDetailView: View {
     private var services: [StopRecording.Service] { ServiceLog.activeServices(allServices, operatorID: operatorID) }
     private var servicesChanged: Bool { selectedIDs != openedServices }
     private var hasChanges: Bool {
-        servicesChanged || stopNotes != stop.stopNotes || equipmentNotes != stop.equipmentNotes
+        servicesChanged || stopNotes != openedNotes || equipmentNotes != stop.equipmentNotes
             || targetMinutes != stop.targetMinutes
     }
 
@@ -73,7 +77,7 @@ struct StopDetailView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(stop.clientName).font(.headline)
                         if !stop.clientAddress.isEmpty {
-                            Text(stop.clientAddress).font(.subheadline).foregroundStyle(.secondary)
+                            Text(stop.clientAddress).font(.subheadline).foregroundStyle(PlowRColor.inkSecondary)
                         }
                     }
                     contactRow
@@ -94,16 +98,36 @@ struct StopDetailView: View {
                     }
                 } header: {
                     Text("Expected Services")
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 } footer: {
-                    Text(servicesFooter)
+                    SectionNote(verbatim: servicesFooter)
                 }
                 .listRowBackground(PlowRColor.surface)
+
+                if !stop.isCustomStop {
+                    Section {
+                        if stop.placeNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            Text("None").foregroundStyle(PlowRColor.inkSecondary)
+                        } else {
+                            Text(stop.placeNotes)
+                        }
+                    } header: {
+                        Label("Route Notes", systemImage: PlowRSymbol.routeNotes.name)
+                            .foregroundStyle(PlowRColor.inkSecondary)
+                    } footer: {
+                        SectionNote(verbatim: placeNotesFooter)
+                    }
+                    .listRowBackground(PlowRColor.surface)
+                }
 
                 Section {
                     TextField("Shown at this stop during the route", text: $stopNotes, axis: .vertical)
                         .lineLimit(2...)
                 } header: {
-                    Label("Stop Notes", systemImage: "note.text")
+                    Label("Stop Notes", systemImage: PlowRSymbol.stopNote.name)
+                        .foregroundStyle(PlowRColor.inkSecondary)
+                } footer: {
+                    if !stop.isCustomStop { SectionNote("For this stop on this route only.") }
                 }
                 .listRowBackground(PlowRColor.surface)
 
@@ -112,6 +136,7 @@ struct StopDetailView: View {
                         .lineLimit(2...)
                 } header: {
                     Label("Equipment", systemImage: "wrench.and.screwdriver")
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
                 .listRowBackground(PlowRColor.surface)
 
@@ -123,7 +148,7 @@ struct StopDetailView: View {
                 } footer: {
                     // The client's average is over all their places: said only at their own address.
                     if let client, client.averageServiceMinutes > 0, Place.isMain(stop.propertyID, of: client) {
-                        Text("Usually about \(RouteFacts.duration(Int(client.averageServiceMinutes.rounded()))) here.")
+                        SectionNote("Usually about \(RouteFacts.duration(Int(client.averageServiceMinutes.rounded()))) here.")
                     }
                 }
                 .listRowBackground(PlowRColor.surface)
@@ -167,6 +192,13 @@ struct StopDetailView: View {
         }
     }
 
+    /// Where the place's notes are changed: the client's page for their own
+    /// address, the property's page for another.
+    private var placeNotesFooter: String {
+        let page = Place.isMain(stop.propertyID, clientID: stop.clientID) ? "\(stop.clientName)'s page" : "the property's page"
+        return "Changed on \(page). They show at every stop here, on every route."
+    }
+
     private var servicesFooter: String {
         if stop.isCustomStop { return "For this stop on this route." }
         if stop.hasOwnServices { return "Set for this stop on this route." }
@@ -175,12 +207,9 @@ struct StopDetailView: View {
 
     @ViewBuilder
     private var contactRow: some View {
-        let digits = stop.clientPhone.filter(\.isNumber)
         HStack(spacing: 8) {
-            if !digits.isEmpty {
-                contactButton("Call", systemImage: "phone.fill") {
-                    if let url = URL(string: "tel:\(digits)") { openURL(url) }
-                }
+            if let callURL = MapLinks.callLink(stop.clientPhone) {
+                contactButton("Call", systemImage: "phone.fill") { openURL(callURL) }
                 if MFMessageComposeViewController.canSendText() {
                     contactButton("Text", systemImage: "message.fill") { showingMessage = true }
                 }

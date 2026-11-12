@@ -64,6 +64,30 @@ struct PDFGenerator {
         }
     }
 
+    /// The business's mailing address as a document's header prints it: a
+    /// line each, blank lines dropped, at most three.
+    nonisolated static func addressLines(_ address: String) -> [String] {
+        Array(address.split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .prefix(3))
+    }
+
+    /// The mailing address on one line ("Mail to:", a one-line header): the
+    /// same lines the header prints, so the two never disagree.
+    nonisolated static func addressLine(_ address: String) -> String {
+        addressLines(address).joined(separator: ", ")
+    }
+
+    /// What an invoice prints under DUE DATE: the date, and beside it the
+    /// terms its own dates state (InvoiceTerms.statedTerms), if any.
+    nonisolated static func dueLine(issued: Date, sent: Date? = nil, due: Date, calendar: Calendar = .current) -> String {
+        let fmt = DateFormatter(); fmt.dateStyle = .long; fmt.calendar = calendar; fmt.timeZone = calendar.timeZone
+        let date = fmt.string(from: due)
+        guard let terms = InvoiceTerms.statedTerms(issued: issued, sent: sent, due: due, calendar: calendar) else { return date }
+        return "\(date)  ·  \(terms)"
+    }
+
     /// Whether the document being drawn carries PlowR's line, for the
     /// footer drawn from deep inside the page layout.
     @TaskLocal private static var madeWithPlowR = true
@@ -182,8 +206,8 @@ struct PDFGenerator {
                     UIBezierPath(rect: CGRect(x: 0, y: 0, width: pageW, height: 5)).fill()
                     y += 10
                 }
-                drawPaymentSection(methods: activeMethods, contentW: contentW,
-                                   margin: margin, y: y, accent: accent)
+                drawPaymentSection(methods: activeMethods, mailTo: addressLine(profile?.address ?? ""),
+                                   contentW: contentW, margin: margin, y: y, accent: accent)
             }
 
             drawFooter(profile: profile, pageW: pageW, pageH: pageH,
@@ -238,6 +262,11 @@ struct PDFGenerator {
             drawText(tagline, x: margin + logoOffset, y: leftY, width: leftW - logoOffset,
                      font: bodyFont(9.5), color: inkMid, singleLine: true)
             leftY += 13
+        }
+        for line in addressLines(profile?.address ?? "") {
+            drawText(line, x: margin + logoOffset, y: leftY, width: leftW - logoOffset,
+                     font: bodyFont(9), color: inkMid, singleLine: true)
+            leftY += 12
         }
         let contacts = [profile?.phone, profile?.email].compactMap { $0 }.filter { !$0.isEmpty }
         if !contacts.isEmpty {
@@ -311,11 +340,12 @@ struct PDFGenerator {
 
         if isInvoice, let due = proposal.invoiceDueDate {
             leftY += 8
-            let fmt = DateFormatter(); fmt.dateStyle = .long
             drawText("DUE DATE", x: margin, y: leftY, width: leftW,
                      font: labelFont(8), color: accent, kern: 1.8)
             leftY += 14
-            drawText(fmt.string(from: due), x: margin, y: leftY, width: leftW,
+            // The terms from the invoice's own dates, never the profile's
+            // choice now: a document mustn't restate its terms later.
+            drawText(dueLine(issued: proposal.createdAt, sent: proposal.invoiceSentAt, due: due), x: margin, y: leftY, width: leftW,
                      font: bodyBoldFont(11), color: ink)
             leftY += 15
         } else if !isInvoice, let validUntil = proposal.validUntil {
@@ -703,7 +733,7 @@ struct PDFGenerator {
     // MARK: - Payment Section
 
     private static func drawPaymentSection(
-        methods: [PaymentMethod], contentW: CGFloat, margin: CGFloat,
+        methods: [PaymentMethod], mailTo: String, contentW: CGFloat, margin: CGFloat,
         y: CGFloat, accent: UIColor
     ) {
         drawHRule(x: margin, y: y, width: contentW, weight: 0.75, color: ruleLight)
@@ -720,6 +750,14 @@ struct PDFGenerator {
             let (text, color) = paymentLine(method)
             drawText(text, x: margin, y: curY, width: listW, font: bodyFont(10.5), color: color)
             curY += 17
+            // Where to send the check.
+            if method.isCheck && !mailTo.isEmpty {
+                // One line, cut short if it can't fit: wrapped, its second
+                // line was drawn over the next payment method.
+                drawText("Mail to: \(mailTo)", x: margin, y: curY, width: listW, font: bodyFont(10.5), color: inkDark,
+                         singleLine: true)
+                curY += 17
+            }
         }
 
         if let urlMethod = firstURL, let qrImg = makeQRCode(from: urlMethod.value, size: qrSize) {
@@ -930,8 +968,7 @@ struct PDFGenerator {
         }
         var bottom = y + 14 + 26
         if figures.minutes > 0 {
-            let h = Int(figures.minutes) / 60, m = Int(figures.minutes) % 60
-            let t = h > 0 ? "\(h)h \(m)m total on-site" : "\(m) min total on-site"
+            let t = ServiceLog.totalTimeText(minutes: figures.minutes)
             drawText(t, x: margin, y: bottom + 4, width: contentW, font: bodyFont(10), color: inkMid)
             bottom += 18
         }

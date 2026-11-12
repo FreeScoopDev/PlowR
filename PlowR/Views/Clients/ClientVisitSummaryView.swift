@@ -50,7 +50,7 @@ struct ClientVisitSummaryView: View {
     // MARK: - Sections
 
     private var visitSection: some View {
-        Section("Service History") {
+        Section(title: "Service History") {
             LabeledContent("Total Visits", value: "\(client.totalVisits) visit\(client.totalVisits == 1 ? "" : "s")")
             if let last = client.lastServiceDate {
                 LabeledContent("Last Service") {
@@ -58,7 +58,7 @@ struct ClientVisitSummaryView: View {
                 }
             }
             if client.averageServiceMinutes > 0 {
-                LabeledContent("Average Time") {
+                LabeledContent(ServiceLog.averageTimeLabel) {
                     Text(String(format: "~%.0f min", client.averageServiceMinutes))
                 }
             }
@@ -81,7 +81,7 @@ struct ClientVisitSummaryView: View {
     }
 
     private var invoiceSection: some View {
-        Section("Invoices") {
+        Section(title: "Invoices") {
             if outstanding > 0 {
                 LabeledContent("Outstanding") {
                     Text(Money.text(outstanding))

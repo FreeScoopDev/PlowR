@@ -8,10 +8,8 @@ struct AddClientView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AuthManager.self) private var authManager
 
-    @State private var name = ""
-    @State private var phone = ""
-    @State private var email = ""
-    @State private var address = ""
+    @State private var draft: NewClientDraft
+    @State private var asking = false
     @State private var geocodedCoordinate: CLLocationCoordinate2D? = nil
     @State private var isSaving = false
     @State private var addressCompleter = AddressCompleter()
@@ -20,26 +18,39 @@ struct AddClientView: View {
     @State private var unplacedClient: Client?
     @State private var lookupProblem: AddressPin.Problem?
 
+    /// `kind` is what the form opens on; the user can still change it.
+    init(kind: NewClientDraft.Kind = .existingCustomer) {
+        _draft = State(initialValue: NewClientDraft(kind: kind))
+    }
+
     var body: some View {
         NavigationStack {
             Form {
-                Section("Client Info") {
-                    TextField("Full Name", text: $name)
+                Section(title: "Client Type") {
+                    Picker("Client Type", selection: $draft.kind) {
+                        ForEach(NewClientDraft.Kind.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                }
+                .listRowBackground(PlowRColor.surface)
+
+                Section(title: "Client Info") {
+                    TextField("Full Name", text: $draft.name)
                         .textContentType(.name)
-                    TextField("Phone Number", text: $phone)
+                    TextField("Phone Number (optional)", text: $draft.phone)
                         .textContentType(.telephoneNumber)
                         .keyboardType(.phonePad)
-                    TextField("Email (optional)", text: $email)
+                    TextField("Email (optional)", text: $draft.email)
                         .textContentType(.emailAddress)
                         .keyboardType(.emailAddress)
                         .textInputAutocapitalization(.never)
                 }
                 .listRowBackground(PlowRColor.surface)
 
-                Section("Service Address") {
-                    TextField("Street Address", text: $address)
+                Section(title: "Service Address") {
+                    TextField("Street Address", text: $draft.address)
                         .textContentType(.fullStreetAddress)
-                        .onChange(of: address) { _, v in
+                        .onChange(of: draft.address) { _, v in
                             if addressCompleter.fieldChanged(to: v) { geocodedCoordinate = nil }
                         }
 
@@ -48,7 +59,7 @@ struct AddClientView: View {
                             Button {
                                 Task {
                                     let result = await addressCompleter.resolve(completion)
-                                    address = result.address
+                                    draft.address = result.address
                                     geocodedCoordinate = result.coordinate
                                     addressCompleter.clear()
                                 }
@@ -59,12 +70,22 @@ struct AddClientView: View {
                                     if !completion.subtitle.isEmpty {
                                         Text(completion.subtitle)
                                             .font(.caption)
-                                            .foregroundStyle(.secondary)
+                                            .foregroundStyle(PlowRColor.inkSecondary)
                                     }
                                 }
                             }
                         }
                     }
+                }
+                .listRowBackground(PlowRColor.surface)
+
+                Section {
+                    TextField("Gate code, dog in the yard…", text: $draft.routeNotes, axis: .vertical)
+                        .lineLimit(3...8)
+                } header: {
+                    SectionTitle("Route Notes")
+                } footer: {
+                    SectionNote("Shown at this client's stops on a route.")
                 }
                 .listRowBackground(PlowRColor.surface)
             }
@@ -73,7 +94,9 @@ struct AddClientView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel") {
+                        if draft.hasTypedWork { asking = true } else { dismiss() }
+                    }
                         .disabled(isSaving)
                 }
                 ToolbarItem(placement: .topBarLeading) {
@@ -89,11 +112,17 @@ struct AddClientView: View {
                         ProgressView().scaleEffect(0.8)
                     } else {
                         Button("Save") { saveClient() }
-                            .disabled(name.isEmpty || phone.isEmpty)
+                            .disabled(!draft.canSave)
                     }
                 }
             }
-            .interactiveDismissDisabled(isSaving)
+            .interactiveDismissDisabled(isSaving || draft.hasTypedWork)
+            .confirmationDialog("Discard this client?", isPresented: $asking, titleVisibility: .visible) {
+                Button("Discard", role: .destructive) { dismiss() }
+                Button("Keep Editing", role: .cancel) {}
+            } message: {
+                Text("What you typed hasn't been saved.")
+            }
             .addressLookupAlert($lookupProblem) {
                 if let client = unplacedClient { modelContext.insert(client) }
                 unplacedClient = nil
@@ -103,10 +132,10 @@ struct AddClientView: View {
             }
             .sheet(isPresented: $showingContactPicker) {
                 ContactPickerView { importedName, importedPhone, importedEmail, importedAddress in
-                    name = importedName
-                    phone = importedPhone
-                    email = importedEmail
-                    address = importedAddress
+                    draft.name = importedName
+                    draft.phone = importedPhone
+                    draft.email = importedEmail
+                    draft.address = importedAddress
                     showingContactPicker = false
                 } onCancel: {
                     showingContactPicker = false
@@ -117,13 +146,7 @@ struct AddClientView: View {
 
     private func saveClient() {
         isSaving = true
-        let client = Client(
-            name: name,
-            phone: phone,
-            address: address,
-            operatorID: authManager.userID
-        )
-        client.email = email
+        let client = draft.makeClient(operatorID: authManager.userID, now: .now)
 
         if let coord = geocodedCoordinate {
             client.latitude = coord.latitude
@@ -134,7 +157,7 @@ struct AddClientView: View {
             return
         }
 
-        guard !address.isEmpty else {
+        guard !client.address.isEmpty else {
             modelContext.insert(client)
             isSaving = false
             dismiss()

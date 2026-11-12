@@ -26,7 +26,7 @@ struct ExportDataView: View {
                         Label("Share All \(files.count) Files", systemImage: "square.and.arrow.up.on.square")
                     }
                 } footer: {
-                    Text("Every file at once, to Files, Mail or AirDrop.")
+                    SectionNote("Every file at once, to Files, Mail or AirDrop.")
                 }
                 .listRowBackground(PlowRColor.surface)
             }
@@ -34,19 +34,22 @@ struct ExportDataView: View {
                 ForEach(files) { export in
                     ShareLink(item: export.url) {
                         HStack(spacing: 12) {
-                            IconBadge(systemImage: export.systemImage, size: 36)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(export.title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
-                                Text(export.detail).font(.caption).foregroundStyle(.secondary)
+                            IconRow(spacing: 12) {
+                                IconBadge(systemImage: export.systemImage, size: 36)
+                            } content: {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(export.title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
+                                    Text(export.detail).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
+                                }
                             }
                             Spacer()
-                            Image(systemName: "square.and.arrow.up").foregroundStyle(.secondary)
+                            Image(systemName: "square.and.arrow.up").foregroundStyle(PlowRColor.inkSecondary)
                         }
                     }
                 }
             } footer: {
-                Text(failed ? "The files couldn't be made. Try again."
-                     : "Spreadsheet (CSV) files that open in Numbers, Excel or Google Sheets, and import into most accounting software. Money has two decimals; dates are year-month-day. Invoice Lines has the services on invoices billed (not drafts, or void ones with no money on them), before discount and tax, which are in Invoices. They're a copy to keep: routes, photos and settings aren't in them. Import Clients can bring back the Clients file's names, phones, emails, addresses, tags and notes (not whether a client is inactive or comped, their discount, or their other properties); the other files can't be loaded into PlowR.")
+                SectionNote(Text(failed ? "The files couldn't be made. Try again."
+                     : "Spreadsheet (CSV) files that open in Numbers, Excel or Google Sheets, and import into most accounting software. Money has two decimals; dates are year-month-day. Invoice Lines has the services on invoices billed (not drafts, or void ones with no money on them), before discount and tax, which are in Invoices. They're a copy to keep: routes, photos and settings aren't in them. Import Clients can bring back the Clients file's names, phones, emails, addresses, tags and notes (not whether a client is inactive or comped, their discount, or their other properties); the other files can't be loaded into PlowR."))
             }
             .listRowBackground(PlowRColor.surface)
         }

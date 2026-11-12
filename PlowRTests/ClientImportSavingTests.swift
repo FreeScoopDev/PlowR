@@ -58,7 +58,7 @@ struct ClientImportSavingTests {
         let sam = try #require(try clients().first { $0.name == "Sam Roe" })
         #expect(sam.tags == ["Weekly", result.tag])          // its own tags once, then the import's
         #expect(sam.operatorID == "op" && sam.address == "2 Elm St" && sam.createdAt == now)
-        #expect(sam.email == "sam@example.com" && sam.notes == "Gate 1234")
+        #expect(sam.email == "sam@example.com" && sam.defaultStopNotes == "Gate 1234" && sam.notes.isEmpty)
         #expect(try clients().count == 2)
         #expect(existing.tags.isEmpty)                       // an existing client isn't touched
     }
@@ -344,12 +344,55 @@ struct ClientImportSavingTests {
         let fields = ClientImport.guess(table.header, rows: table.rows)
         let draft = ClientImport.draft(from: try #require(table.rows.first), fields: fields)
         #expect(draft == ClientImport.Draft(name: "Pat Doe", phone: "603-555-0100", email: "pat@example.com",
-                                            address: "1 Main St, Claremont, NH 03743", notes: "Gate 1234",
+                                            address: "1 Main St, Claremont, NH 03743", routeNotes: "Gate 1234",
                                             tags: ["Weekly", "VIP"]))
         // Into another business's PlowR, as a new client; into this one, a duplicate.
         #expect(ClientImport.preview(table, fields: fields, existing: []).new.count == 1)
         #expect(ClientImport.preview(table, fields: fields,
                                      existing: ClientImport.known(in: context, operatorID: "op")).duplicates == 1)
+    }
+
+    // The notes column is Route Notes; a company column's line is about the
+    // client, so it stays private.
+    @Test func notesAreRouteNotesAndTheCompanyIsPrivate() throws {
+        let table = CSVReader.Table(header: ["Name", "Company", "Notes", "Comments"],
+                                    rows: [["Pat Doe", "Doe Farms", "Gate 1234", "Dog loose"], ["Sam Roe", "", "", ""]])
+        let preview = ClientImport.preview(table, fields: [.name, .company, .notes, .notes], existing: [])
+        try save(preview)
+        let pat = try #require(try clients().first { $0.name == "Pat Doe" })
+        #expect(pat.defaultStopNotes == "Gate 1234\nDog loose")
+        #expect(pat.notes == "Company: Doe Farms")
+        let sam = try #require(try clients().first { $0.name == "Sam Roe" })
+        #expect(sam.defaultStopNotes.isEmpty && sam.notes.isEmpty)
+    }
+
+    // Undo asks what PlowR holds for the client (stops, visits, documents...),
+    // never their fields: Route Notes the import wrote are not "touched". (An
+    // edit to a field alone is not either; Undo checks no fields.)
+    @Test func undoRemovesAnImportedClientWithRouteNotes() throws {
+        let result = try save(preview([["Sam Roe", "", "2 Elm St", "", "", "Gate 1234"]]))
+        #expect(try clients().first?.defaultStopNotes == "Gate 1234")
+        let plan = try undo(result)
+        #expect(plan.kept == 0 && plan.removable.count == 1)
+        #expect(try clients().isEmpty)
+    }
+
+    @Test func routeNotesFollowToAStopAndUndoKeepsThatClient() throws {
+        let result = try save(preview([["Sam Roe", "", "2 Elm St", "", "", "Gate 1234"]]))
+        let sam = try #require(try clients().first)
+        let route = PlowRoute(name: "Mon", operatorID: "op")
+        context.insert(route)
+        let stop = RouteStop(order: 0, client: sam)
+        stop.route = route
+        context.insert(stop)
+        try context.save()
+        #expect(stop.placeNotes == "Gate 1234")           // criterion: the notes show at the stop
+        sam.defaultStopNotes = "Gate 9999"
+        ClientStops.update(for: sam)
+        #expect(stop.placeNotes == "Gate 9999")
+        let plan = try undo(result)
+        #expect(plan.kept == 1)
+        #expect(try clients().count == 1)
     }
 
     // Only PlowR's own import tags are dropped from a file; the user's are kept.

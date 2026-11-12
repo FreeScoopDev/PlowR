@@ -1,6 +1,8 @@
 import SwiftUI
 import TipKit
 import SwiftData
+import CoreData
+import Combine
 import MapKit
 import CoreLocation
 import StoreKit
@@ -19,6 +21,8 @@ struct ActiveRouteView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.requestReview) private var requestReview
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.openURL) private var openURL
 
     @Query private var allClients: [Client]
     @Query private var allServices: [ServiceItem]
@@ -48,15 +52,29 @@ struct ActiveRouteView: View {
     /// The stop Below Trigger moved past, for the heads-up offered after it.
     @State private var belowTriggerPassedID: UUID?
     @State private var showingBelowTriggerChangedAlert = false
+    /// The stop Can't Service opened for, pinned like Below Trigger's.
+    @State private var cantServiceStop: RouteStop?
+    /// What Can't Service did, acted on once its sheet has closed.
+    @State private var cantServiceResult: ActiveRouteStore.CompletionResult?
+    /// The stop Can't Service moved past, for the heads-up offered after it.
+    @State private var cantServicePassedID: UUID?
     @State private var showingMassMessage = false
     @State private var showingFirstStopPrompt = false
     /// Siri's "Notify next client": a text to this stop's client, completing
     /// nothing (NotifyNextAction).
     @State private var textOnlyStop: RouteStop?
-    /// The stop that was current when the notify prompt opened. Advancing
-    /// completes that stop only; if sync has changed it meanwhile, nothing is
-    /// recorded (ActiveRouteStore.CompletionResult.stopChanged).
-    @State private var promptStopID: UUID?
+    /// What the notify prompt's Send or Skip completes: the stop drawn on
+    /// the card when its button was tapped (or, offered after leaving the
+    /// stop's area, the current one), and the services a "Done:" button
+    /// named. If sync has changed the stop meanwhile, nothing is recorded
+    /// (ActiveRouteStore.CompletionResult.stopChanged). Made anew by every
+    /// way of opening the prompt; Cancel drops it.
+    @State private var promptCompletion = NotifyAdvance.Completion.nothing
+    /// The copper button's last form, kept between redraws (each GPS fix
+    /// redraws the screen) until the stop, its services or the database change.
+    @State private var buttonMemo = MainButtonMemo()
+    /// Counts the database's saves and synced changes, for `buttonMemo`.
+    @State private var dataVersion = 0
     /// The client the notify prompt opened for, pinned so a sync change can't
     /// swap the recipient while the sheet is up.
     @State private var promptNextStop: RouteStop?
@@ -64,8 +82,16 @@ struct ActiveRouteView: View {
     /// Set while the notify sheet is up; the alert shows once it closes
     /// (iOS won't present an alert over a view that is presenting a sheet).
     @State private var routeChangedAfterSheet = false
+    /// After the exit offer's Send or Skip recorded less than its sheet
+    /// named: which services weren't (OneTapServices.notRecordedNote).
+    /// Shown once the sheet closes.
+    @State private var notRecordedNote: String?
+    @State private var showingNotRecordedAlert = false
 
     @AppStorage("completedRoutesCount") private var completedRoutesCount = 0
+    /// The completion the Undo bar offers, while its window is open
+    /// (ActiveRouteStore.undoOffer); cleared when the window ends.
+    @State private var shownUndo: ActiveRouteStore.UndoOffer?
 
     // Map camera state
     @State private var mapCameraPosition: MapCameraPosition = .automatic
@@ -86,17 +112,33 @@ struct ActiveRouteView: View {
     /// added here, or Control Center's message can try to show over it.
     private var isPresentingSomething: Bool {
         showingFirstStopPrompt || showingNotifyPrompt || textOnlyStop != nil || recorderStop != nil || showingMassMessage
-            || belowTriggerStop != nil || showingBelowTriggerChangedAlert
+            || belowTriggerStop != nil || showingBelowTriggerChangedAlert || cantServiceStop != nil
             || showingRouteRecap || showingNavPicker || showingRouteChangedAlert || showingLocationDeniedAlert
+            || showingNotRecordedAlert
             || gate != nil
     }
 
-    /// The names of the active services `stop` is expected to need.
+    /// The names of the active services `stop` is expected to need, a
+    /// per-square-foot one with no measured area marked (`expectedNames`).
     private func expectedServiceNames(for stop: RouteStop) -> [String] {
-        let operatorID = route.operatorID
-        return ServiceLog.activeServices(allServices, operatorID: operatorID)
-            .filter { StopServices.expected(for: stop, client: client(for: stop)).contains($0.id) }
-            .map(\.name)
+        let client = client(for: stop)
+        return OneTapServices.expectedNames(expected: StopServices.expected(for: stop, client: client),
+                                            active: ServiceLog.activeServices(allServices, operatorID: route.operatorID),
+                                            zones: client.map { Place.zones(of: $0, propertyID: stop.propertyID) } ?? [],
+                                            hasClient: client != nil)
+    }
+
+    /// The current stop's copper button: "Done:" with the services it
+    /// records, when the stop expects some and nothing is recorded yet
+    /// (OneTapServices); otherwise the ordinary Complete. The card's and the
+    /// exit offer's both come from here. `memoized`: the card, drawn on every
+    /// GPS fix, keeps the last answer until something it depends on changes;
+    /// the exit offer asks afresh, as the memo may not have seen a save made
+    /// a moment ago.
+    private func mainButton(for stop: RouteStop, memoized: Bool = true) -> OneTapServices.MainButton {
+        OneTapServices.mainButton(for: stop, client: client(for: stop), catalog: allServices,
+                                  operatorID: route.operatorID, store: store, skipsText: shouldSkipNextNotify,
+                                  in: modelContext, memo: memoized ? buttonMemo : nil, dataVersion: dataVersion)
     }
 
     private func client(for stop: RouteStop) -> Client? {
@@ -109,6 +151,7 @@ struct ActiveRouteView: View {
     /// says Complete Stop and moves on.
     private var shouldSkipNextNotify: Bool {
         nextStopClient?.skipNotificationPrompt == true || !MFMessageComposeViewController.canSendText()
+            || (nextStop?.clientPhone.isEmpty ?? false)    // no number to text
     }
 
     var upcomingStops: [RouteStop] {
@@ -167,29 +210,33 @@ struct ActiveRouteView: View {
                 }
             }
         }
+        .alert("Not Recorded", isPresented: $showingNotRecordedAlert) {
+            Button("OK", role: .cancel) { notRecordedNote = nil }
+        } message: {
+            Text(notRecordedNote ?? "")
+        }
         .alert("Route Changed", isPresented: $showingRouteChangedAlert) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text("This route was changed on another device, so that stop wasn't marked complete. Check the current stop and try again.")
+            Text("This route was changed on another device, so the route didn't move on and nothing was recorded for that stop. Check the current stop and try again.")
         }
-        .alert("Location Access Required", isPresented: $showingLocationDeniedAlert) {
+        // Location off used to offer only Open Settings or End Route, which
+        // threw away the run. The route works without it, by hand, so
+        // carrying on is the default; the note on the screen says what's missing.
+        .alert("Location Is Off", isPresented: $showingLocationDeniedAlert) {
             Button("Open Settings") {
                 if let url = URL(string: UIApplication.openSettingsURLString) {
                     UIApplication.shared.open(url)
                 }
             }
-            Button("End Route", role: .cancel) { store.end() }
+            Button("Continue Without Location", role: .cancel) {}
         } message: {
-            Text("PlowR needs location access to track your route. Enable it in Settings > Privacy > Location Services.")
+            Text("Without location, PlowR can't show ETAs or record when you arrive at and leave each stop. You can still complete stops by hand. To turn it on: Settings > Privacy & Security > Location Services > PlowR.")
         }
         .confirmationDialog("Open in Maps", isPresented: $showingNavPicker, titleVisibility: .visible) {
             if let stop = navStop {
-                Button("Apple Maps") { openInAppleMaps(stop) }
-                if canOpen("comgooglemaps://") {
-                    Button("Google Maps") { openInGoogleMaps(stop) }
-                }
-                if canOpen("waze://") {
-                    Button("Waze") { openInWaze(stop) }
+                ForEach(MapLinks.installedApps(for: stop.mapDestination), id: \.self) { app in
+                    Button(app.title) { MapLinks.open(app, to: stop.mapDestination) }
                 }
                 Button("Cancel", role: .cancel) {}
             }
@@ -209,11 +256,17 @@ struct ActiveRouteView: View {
                      settingsLabel: "Open Settings to turn on Precise Location")
     }
 
+    /// Location off (RouteGPS.isOff): the route carries on, by hand.
+    private var locationOffNote: some View {
+        locationNote("Location is off: no ETAs, arrival or departure times. Complete each stop by hand.",
+                     settingsLabel: "Open Settings to turn on Location")
+    }
+
     private func locationNote(_ text: String, settingsLabel: String) -> some View {
         HStack(alignment: .top, spacing: 8) {
             Label(text, systemImage: "location.circle")
                 .font(.footnote)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(PlowRColor.inkSecondary)
             Spacer(minLength: 0)
             Button {
                 if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
@@ -234,41 +287,70 @@ struct ActiveRouteView: View {
     /// chain of all the screen's modifiers grew too long to type-check.
     private var screenWithSheets: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 0) {
-                    progressHeader
-                    if OnMac.isMac {
-                        // No GPS route-following or texting on a Mac (OnMac).
-                        Label("On a Mac, GPS arrival times and texting aren't available. Run routes on your iPhone.",
-                              systemImage: "laptopcomputer")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal)
-                            .padding(.vertical, 8)
-                    }
-                    if RouteGPS.needsPrecise(status: locationManager.authorizationStatus,
-                                             accuracy: locationManager.accuracyAuthorization,
-                                             areasLimited: SiteMonitor.shared.accuracyLimited, isMac: OnMac.isMac) {
-                        preciseLocationNote
-                    } else if RouteGPS.needsAlways(status: locationManager.authorizationStatus, isMac: OnMac.isMac) {
-                        alwaysLocationNote
-                    }
-                    VStack(spacing: PlowRLayout.space3) {
-                        routeMap
-                        weatherStrip
-                        if let stop = currentStop {
-                            currentStopCard(stop)
-                        } else {
-                            routeCompleteCard
+            // The Undo bar under the scrolling content, not over it: nothing on
+            // the screen is hidden or hard to reach while it shows.
+            VStack(spacing: 0) {
+                ScrollView {
+                    VStack(spacing: 0) {
+                        progressHeader
+                        if OnMac.isMac {
+                            // No GPS route-following or texting on a Mac (OnMac).
+                            Label("On a Mac, GPS arrival times and texting aren't available. Run routes on your iPhone.",
+                                  systemImage: "laptopcomputer")
+                                .font(.caption)
+                                .foregroundStyle(PlowRColor.inkSecondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal)
+                                .padding(.vertical, 8)
                         }
-                        if !upcomingStops.isEmpty {
-                            upcomingStopsSection
+                        if RouteGPS.isOff(status: locationManager.authorizationStatus, isMac: OnMac.isMac) {
+                            locationOffNote
+                        } else if RouteGPS.needsPrecise(status: locationManager.authorizationStatus,
+                                                 accuracy: locationManager.accuracyAuthorization,
+                                                 areasLimited: SiteMonitor.shared.accuracyLimited, isMac: OnMac.isMac) {
+                            preciseLocationNote
+                        } else if RouteGPS.needsAlways(status: locationManager.authorizationStatus, isMac: OnMac.isMac) {
+                            alwaysLocationNote
                         }
+                        VStack(spacing: PlowRLayout.space3) {
+                            routeMap
+                            weatherStrip
+                            if let stop = currentStop {
+                                currentStopCard(stop)
+                            } else {
+                                routeCompleteCard
+                            }
+                            if !upcomingStops.isEmpty {
+                                upcomingStopsSection
+                            }
+                        }
+                        .padding(.horizontal, PlowRLayout.space4)
+                        .padding(.bottom, PlowRLayout.space6)
                     }
-                    .padding(.horizontal, PlowRLayout.space4)
-                    .padding(.bottom, PlowRLayout.space6)
                 }
+                if let offer = shownUndo { undoBar(offer) }
+            }
+            .animation(.easeInOut(duration: 0.2), value: shownUndo)
+            // Shown for as long as the store allows an undo (its window, the
+            // same with VoiceOver), from this screen's Complete, the notify
+            // sheet, Siri or Control Center. The task ends with the offer or
+            // the screen: no timer is left.
+            .task(id: store.undoOffer) {
+                guard let offer = store.undoOffer else {
+                    shownUndo = nil
+                    return
+                }
+                let wait = offer.expiresAt.timeIntervalSinceNow
+                guard wait > 0 else {
+                    shownUndo = nil
+                    return
+                }
+                if shownUndo != offer {
+                    AccessibilityNotification.Announcement("Completed \(offer.clientName). Undo available.").post()
+                }
+                shownUndo = offer
+                do { try await Task.sleep(for: .seconds(wait)) } catch { return }
+                if shownUndo == offer { shownUndo = nil }
             }
             // On this screen's content only: a tint here reached the sheets
             // it opens, which aren't in the new design yet.
@@ -286,6 +368,10 @@ struct ActiveRouteView: View {
             }
         }
         .onAppear {
+            // The screen stays on while a route is up: a crew glancing at the
+            // next stop shouldn't have to unlock the phone in gloves. iOS
+            // ignores this while the app isn't in front; Lock still locks.
+            UIApplication.shared.isIdleTimerDisabled = true
             beginTracking()
             // Built with the app in the background (a location relaunch), it
             // hasn't been seen: that waits for the app to come to the front.
@@ -293,6 +379,7 @@ struct ActiveRouteView: View {
             openRequestedText()
         }
         .onDisappear {
+            UIApplication.shared.isIdleTimerDisabled = false
             // Stops GPS for this screen only. The route itself carries on: only
             // End Route (store.end()) finishes it.
             locationManager.stopTracking()
@@ -333,12 +420,24 @@ struct ActiveRouteView: View {
         // stayed out (ExitPrompt); it never completes the stop. A newer exit
         // restarts the wait.
         .task(id: SiteMonitor.shared.lastExit) { await offerTextAfterExit() }
+        // The copper button's record and invoice checks read the database:
+        // worked out again after it changes (here or synced), not on every redraw.
+        // Combine's `receive(on: DispatchQueue.main)` only queues the bump for
+        // later, so whoever posted (a save on any thread, CloudKit's import)
+        // never waits for this screen. It must not become
+        // `NotificationCenter.addObserver(forName:object:queue: .main)`: that
+        // makes a poster off the main thread wait for the main queue, which
+        // deadlocked when the main thread was itself waiting on that poster
+        // (fixed in #194; MainActorNotice is the other safe form).
+        .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave)
+            .merge(with: NotificationCenter.default.publisher(for: .NSPersistentStoreRemoteChange))
+            .receive(on: DispatchQueue.main)) { _ in dataVersion &+= 1 }
         // Siri's "Notify next client", once nothing else is up.
         .onChange(of: RouteSessionManager.shared.textRequest) { _, _ in openRequestedText() }
         .onChange(of: isPresentingSomething) { _, _ in openRequestedText() }
         // Each sheet, dialog and alert on this screen is in isPresentingSomething.
         .sheet(item: $textOnlyStop) { stop in
-            // A text only: Send, Skip and Cancel complete nothing.
+            // A text only: Send, No Text and Cancel complete nothing.
             NotifyPromptView(stop: stop, locationManager: locationManager, onAdvance: {},
                              promptTitle: "Text Current Stop?")
         }
@@ -353,13 +452,21 @@ struct ActiveRouteView: View {
             }
         }
         .sheet(isPresented: $showingNotifyPrompt, onDismiss: {
+            // Sent, skipped or cancelled: nothing is left for a later sheet.
+            promptCompletion = promptCompletion.cancelled()
             if routeChangedAfterSheet {
                 routeChangedAfterSheet = false
                 showingRouteChangedAlert = true
+            } else if notRecordedNote != nil {
+                showingNotRecordedAlert = true
             }
         }) {
             if let next = promptNextStop {
-                NotifyPromptView(stop: next, locationManager: locationManager, onAdvance: { advance(completing: promptStopID) })
+                // The exit offer says what Send or Skip completes and records
+                // (promptCompletion.notice); from a button, nothing more.
+                NotifyPromptView(stop: next, locationManager: locationManager, onAdvance: {
+                    advance(promptCompletion)
+                }, skipLabel: promptCompletion.skipLabel, completionNotice: promptCompletion.notice)
             }
         }
         .background(
@@ -381,6 +488,9 @@ struct ActiveRouteView: View {
         .sheet(item: $belowTriggerStop, onDismiss: belowTriggerDismissed) { stop in
             BelowTriggerSheet(clientName: stop.clientName, triggerLabel: belowTrigger(for: stop)?.label ?? "",
                               save: { passBelowTrigger(stop, note: $0, photos: $1) })
+        }
+        .sheet(item: $cantServiceStop, onDismiss: cantServiceDismissed) { stop in
+            CantServiceSheet(clientName: stop.clientName, save: { skip(stop, reason: $0) })
         }
         .alert("Route Changed", isPresented: $showingBelowTriggerChangedAlert) {
             Button("OK", role: .cancel) {}
@@ -405,11 +515,15 @@ struct ActiveRouteView: View {
     /// or a bar on a long route, where segments would be slivers.
     private var progressHeader: some View {
         VStack(alignment: .leading, spacing: PlowRLayout.space2) {
-            HStack(alignment: .firstTextBaseline) {
+            // Large text: "N done" goes under "Stop N of M", not beside it.
+            let headerLayout = typeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2))
+                : AnyLayout(HStackLayout(alignment: .firstTextBaseline))
+            headerLayout {
                 Text("Stop \(min(currentStopIndex + 1, sortedStops.count)) of \(sortedStops.count)")
                     .font(PlowRFont.number)
                     .monospacedDigit()
-                Spacer()
+                if !typeSize.isAccessibilitySize { Spacer() }
                 Text("\(min(currentStopIndex, sortedStops.count)) done")
                     .font(.subheadline)
                     .monospacedDigit()
@@ -466,7 +580,7 @@ struct ActiveRouteView: View {
                 }
             }
             .mapStyle(.standard(pointsOfInterest: .excludingAll))
-            .frame(height: 240)
+            .frame(height: typeSize.isAccessibilitySize ? 150 : 240)   // large text: the stop card starts higher
             .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
             // Frame the driver and the stop from the start: MapKit's
             // automatic framing put the stop's pin on the top edge.
@@ -502,9 +616,9 @@ struct ActiveRouteView: View {
         }
     }
 
-    // The driver: forest green, the brand. The pins use the same colors as
+    // The driver: the brand. The pins use the same colors as
     // the rest of the route: copper for where you're going now, outlined
-    // green for what's ahead (RouteDetailView's pins follow in its own PR).
+    // brand for what's ahead (RouteDetailView's pins follow in its own PR).
     private var driverAnnotationView: some View {
         ZStack {
             Circle()
@@ -628,7 +742,11 @@ struct ActiveRouteView: View {
     private func currentStopCard(_ stop: RouteStop) -> some View {
         VStack(alignment: .leading, spacing: PlowRLayout.space4) {
             // Who and where, with the time to get there as big as the name.
-            HStack(alignment: .top, spacing: PlowRLayout.space3) {
+            // Large text: the minutes away go under the name, not beside it.
+            let whoLayout = typeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: PlowRLayout.space3))
+                : AnyLayout(HStackLayout(alignment: .top, spacing: PlowRLayout.space3))
+            whoLayout {
                 VStack(alignment: .leading, spacing: PlowRLayout.space1) {
                     Text("NOW · STOP \(currentStopIndex + 1)")
                         .font(PlowRFont.label)
@@ -641,6 +759,13 @@ struct ActiveRouteView: View {
                         .font(PlowRFont.stopName)
                         .foregroundStyle(PlowRColor.ink)
                         .fixedSize(horizontal: false, vertical: true)
+                        // While the Undo bar shows, VoiceOver can undo from
+                        // the stop's name too, without finding the bar.
+                        .accessibilityActions {
+                            if let offer = shownUndo {
+                                Button("Undo completing \(offer.clientName)") { undo(offer) }
+                            }
+                        }
                     if !stop.clientAddress.isEmpty {
                         Text(stop.clientAddress)
                             .font(.body)
@@ -650,11 +775,12 @@ struct ActiveRouteView: View {
                         Text(stop.clientPhone)
                             .font(.subheadline)
                             .foregroundStyle(PlowRColor.inkSecondary)
+                            .wholeValue()
                     }
                 }
-                Spacer(minLength: 0)
+                if !typeSize.isAccessibilitySize { Spacer(minLength: 0) }
                 if let eta = etaMinutes {
-                    VStack(alignment: .trailing, spacing: 0) {
+                    VStack(alignment: typeSize.trailingColumnAlignment, spacing: 0) {
                         Text("\(eta)")
                             .font(PlowRFont.bigNumber)
                             .monospacedDigit()
@@ -675,7 +801,7 @@ struct ActiveRouteView: View {
             if !expected.isEmpty || target > 0 {
                 VStack(alignment: .leading, spacing: PlowRLayout.space2) {
                     if !expected.isEmpty {
-                        Label(expected.formatted(.list(type: .and)), systemImage: "checklist")
+                        Label(OneTapServices.englishList(expected), systemImage: PlowRSymbol.services.name)
                             .font(.subheadline.weight(.medium))
                             .foregroundStyle(PlowRColor.ink)
                     }
@@ -687,12 +813,17 @@ struct ActiveRouteView: View {
                 }
             }
 
-            if !stop.stopNotes.isEmpty || !stop.equipmentNotes.isEmpty {
+            // The place's Route Notes (they follow the client's page) and, when
+            // it says something else, this stop's own note: each labelled.
+            let ownNotes = stop.shownOwnNotes.trimmingCharacters(in: .whitespacesAndNewlines)
+            let placeNotes = stop.placeNotes.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !placeNotes.isEmpty || !ownNotes.isEmpty || !stop.equipmentNotes.isEmpty {
                 VStack(alignment: .leading, spacing: PlowRLayout.space2) {
-                    if !stop.stopNotes.isEmpty {
-                        Label(stop.stopNotes, systemImage: "note.text")
-                            .font(.subheadline)
-                            .foregroundStyle(PlowRColor.ink)
+                    if !placeNotes.isEmpty {
+                        StopCardNote(title: "Route Notes", text: placeNotes, symbol: .routeNotes)
+                    }
+                    if !ownNotes.isEmpty {
+                        StopCardNote(title: "This Stop Only", text: ownNotes, symbol: .stopNote)
                     }
                     if !stop.equipmentNotes.isEmpty {
                         Label(stop.equipmentNotes, systemImage: "wrench.and.screwdriver")
@@ -705,48 +836,27 @@ struct ActiveRouteView: View {
                 .background(PlowRColor.raised, in: RoundedRectangle(cornerRadius: PlowRLayout.cornerMedium, style: .continuous))
             }
 
-            // Getting there, and the record of the work: the quieter choices.
-            HStack(spacing: PlowRLayout.space2) {
-                Button { openNavigation(for: stop) } label: {
-                    Label("Navigate", systemImage: PlowRSymbol.navigate.name)
+            // The one main action, in copper, glove-sized, first: it stays near the
+            // top when the buttons below stack or a location note shows (Joe, 2026-11-07).
+            let main = mainButton(for: stop)
+            Button { complete(stop, recording: main.recordedServiceIDs) } label: {
+                mainButtonLabel(main)
+            }
+            .buttonStyle(.plowRAction)
+
+            // "Done:" records the services it names; this completes as the
+            // ordinary button would, with nothing recorded (the work wasn't
+            // the usual, or Record Services will say what it was).
+            if main.offersCompletingWithout {
+                Button { complete(stop, recording: []) } label: {
+                    Label("Complete Without Services", systemImage: PlowRSymbol.complete.name)
                 }
                 .buttonStyle(.plowRSecondary)
-                .disabled(stop.latitude == 0 && stop.clientAddress.isEmpty)
-                if !stop.isCustomStop {
-                    // Keeps its name once work is recorded: it's still the
-                    // way back in to add a service or a photo.
-                    let recorded = stop.completedServiceIDs.count
-                    // The count sits in the icon's place, so the title
-                    // doesn't wrap at half the card's width.
-                    Button { recorderStop = stop } label: {
-                        Label {
-                            Text("Record Services")
-                        } icon: {
-                            if recorded == 0 {
-                                Image(systemName: "doc.badge.plus")
-                            } else {
-                                Text("\(recorded)")
-                                    .font(PlowRFont.label)
-                                    .monospacedDigit()
-                                    .foregroundStyle(PlowRColor.onBrand)
-                                    .frame(minWidth: 20, minHeight: 20)
-                                    .background(PlowRColor.brand, in: Circle())
-                            }
-                        }
-                    }
-                    .buttonStyle(.plowRSecondary)
-                    .accessibilityLabel("Record Services")
-                    .accessibilityValue(recorded == 0 ? "" : "\(recorded) recorded")
-                }
+                .accessibilityHint(isLastStop ? "Completes the route without recording services."
+                                   : "Completes the stop without recording services.")
             }
 
-            // The first route only, inline under the button it's about:
-            // never over Complete Stop (RouteTips).
-            if !stop.isCustomStop {
-                TipView(recordServicesTip)
-            }
-
-            // A contract with a snow trigger in force today: less may have
+            // Instead of completing it: a contract with a snow trigger in force today, where less may have
             // fallen here than the forecast said.
             if belowTrigger(for: stop) != nil {
                 Button {
@@ -757,38 +867,188 @@ struct ActiveRouteView: View {
                 .buttonStyle(.plowRSecondary)
             }
 
-            // The one main action, in copper, glove-sized.
-            if isLastStop {
-                Button {
-                    switch store.completeCurrentStop(expecting: stop.id) {
-                    case .finishedLastStop, .allStopsAlreadyDone:
-                        hapticSuccess()
-                        showingRouteRecap = true
-                    case .stopChanged:
-                        showingRouteChangedAlert = true
-                    case .advanced:
-                        didAdvance()   // a stop was added after this one elsewhere; it's next
-                    case .noActiveRoute:
-                        break
-                    }
-                } label: {
-                    Label("Complete Route", systemImage: PlowRSymbol.complete.name)
+            // Couldn't do it at all (a vehicle in the way, a locked gate): moves on
+            // with nothing recorded. Not beside work already recorded here.
+            if !isWorkRecorded(at: stop) {
+                Button { cantServiceStop = stop } label: {
+                    Label("Can't Service", systemImage: PlowRSymbol.cantService.name)
                 }
-                .buttonStyle(.plowRAction)
-            } else {
-                Button { triggerNotifyPrompt() } label: {
-                    Label(
-                        shouldSkipNextNotify ? "Complete Stop" : "Complete · Text Next Client",
-                        systemImage: shouldSkipNextNotify ? PlowRSymbol.complete.name : "arrow.right.circle.fill"
-                    )
+                .buttonStyle(.plowRSecondary)
+                .accessibilityHint("Moves on without recording a visit, time or services.")
+            }
+
+            // Calling the client (about a locked gate, say): only with a number
+            // and a device that can place a call. Read only: it changes nothing
+            // on the route and records nothing.
+            if let callURL = MapLinks.callLink(stop.clientPhone), MapLinks.canCall(phone: stop.clientPhone) {
+                Button { openURL(callURL) } label: {
+                    Label("Call", systemImage: PlowRSymbol.call.name)
                 }
-                .buttonStyle(.plowRAction)
+                .buttonStyle(.plowRSecondary)
+                .accessibilityLabel("Call \(stop.clientName)")
+            }
+
+            // Getting there, and the record of the work: the quieter choices.
+            // Side by side, in equal halves, while the wider label fits on one
+            // line in half the row; stacked, full width, when it doesn't (a
+            // narrow phone, large text), so a label never wraps inside its button.
+            ViewThatFits(in: .horizontal) {
+                EqualWidthRow(spacing: PlowRLayout.space2) { stopActionButtons(stop) }
+                VStack(spacing: PlowRLayout.space2) { stopActionButtons(stop) }
+            }
+
+            // The first route only, inline under the button it's about:
+            // never over Complete Stop (RouteTips).
+            if !stop.isCustomStop {
+                TipView(recordServicesTip)
             }
         }
         .padding(PlowRLayout.space4)
         .background(PlowRColor.surface, in: RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous)
             .stroke(PlowRColor.line, lineWidth: 1))
+    }
+
+    /// The copper button's label. "Done:" shows every name that fits on one
+    /// line, then fewer names and "+N more" (OneTapServices.doneTitles):
+    /// never wrapped, so no name is split; at the largest sizes the last
+    /// form shrinks to fit. VoiceOver reads every name.
+    @ViewBuilder
+    private func mainButtonLabel(_ main: OneTapServices.MainButton) -> some View {
+        switch main {
+        case .done(_, let names):
+            let titles = OneTapServices.doneTitles(names)
+            ViewThatFits(in: .horizontal) {
+                ForEach(Array(titles.enumerated()), id: \.offset) { index, title in
+                    Label(title, systemImage: PlowRSymbol.complete.name)
+                        .lineLimit(1)
+                        .minimumScaleFactor(index == titles.count - 1 ? 0.5 : 1)
+                }
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(OneTapServices.doneAccessibilityLabel(names))
+            .accessibilityHint(isLastStop || shouldSkipNextNotify ? "" : "Then offers to text the next client.")
+        case .completeRoute, .completeStop:
+            Label(OneTapServices.ordinaryTitle(isLastStop: isLastStop, skipsText: shouldSkipNextNotify),
+                  systemImage: PlowRSymbol.complete.name)
+        case .completeAndText:
+            Label(OneTapServices.ordinaryTitle(isLastStop: false, skipsText: false),
+                  systemImage: "arrow.right.circle.fill")
+        }
+    }
+
+    /// The copper button and Complete Without Services: the last stop
+    /// completes the route; any other offers the text to the next client
+    /// first, when there's one to text. `services`: what "Done:" named.
+    private func complete(_ stop: RouteStop, recording services: [String]) {
+        guard isLastStop else {
+            triggerNotifyPrompt(.button(drawnStop: stop.id, recording: services))
+            return
+        }
+        switch store.completeCurrentStop(expecting: stop.id, recordingServices: services) {
+        case .finishedLastStop, .allStopsAlreadyDone:
+            hapticSuccess()
+            showingRouteRecap = true
+        case .stopChanged:
+            showingRouteChangedAlert = true
+        case .advanced:
+            didAdvance()   // a stop was added after this one elsewhere; it's next
+        case .noActiveRoute:
+            break
+        }
+    }
+
+    /// "Completed <client> · Undo", for `ActiveRouteStore.undoWindow` after a
+    /// stop is completed. Undo takes back that stop only; a text already
+    /// sent to the next client stays sent, so the bar says nothing about it.
+    @ViewBuilder
+    private func undoBar(_ offer: ActiveRouteStore.UndoOffer) -> some View {
+        // Large text: the words above the button, so the name has the full width.
+        let barLayout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 0))
+            : AnyLayout(HStackLayout(spacing: PlowRLayout.space3))
+        barLayout {
+            Label("Completed \(offer.clientName)", systemImage: PlowRSymbol.complete.name)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(PlowRColor.onBrand)
+                .lineLimit(typeSize.isAccessibilitySize ? 3 : 2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, typeSize.isAccessibilitySize ? PlowRLayout.space3 : 0)
+            Button {
+                undo(offer)
+            } label: {
+                Text("Undo")
+                    .font(PlowRFont.button)
+                    .foregroundStyle(PlowRColor.onBrand)
+                    .padding(.horizontal, PlowRLayout.space4)
+                    .frame(minWidth: PlowRLayout.gloveTapTarget, minHeight: PlowRLayout.gloveTapTarget)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Undo completing \(offer.clientName)")
+            .frame(maxWidth: typeSize.isAccessibilitySize ? .infinity : nil, alignment: .trailing)
+        }
+        .padding(.leading, PlowRLayout.space4)
+        .padding(.trailing, PlowRLayout.space1)
+        .background(PlowRColor.brand, in: RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
+        .padding(.horizontal, PlowRLayout.space4)
+        .padding(.top, PlowRLayout.space2)
+        .padding(.bottom, PlowRLayout.space2)
+        .transition(.move(edge: .bottom).combined(with: .opacity))
+    }
+
+    /// The Undo bar's button (or the stop card's VoiceOver action): the stop
+    /// it named goes back to being current. Refused, the bar just closes,
+    /// with a word for VoiceOver.
+    private func undo(_ offer: ActiveRouteStore.UndoOffer) {
+        shownUndo = nil
+        let refusal: String
+        switch store.undoLastCompletion(expecting: offer.stopID) {
+        case .undone:
+            haptic()
+            return
+        case .expired: refusal = "Too late to undo."
+        case .recordChanged: refusal = "Can't undo: work was saved on that stop since."
+        case .stopChanged, .nothingToUndo: refusal = "Can't undo: the route has moved on."
+        }
+        UINotificationFeedbackGenerator().notificationOccurred(.warning)
+        AccessibilityNotification.Announcement(refusal).post()
+    }
+
+    /// Navigate and Record Services, for the current stop card's row.
+    @ViewBuilder
+    private func stopActionButtons(_ stop: RouteStop) -> some View {
+        Button { openNavigation(for: stop) } label: {
+            Label("Navigate", systemImage: PlowRSymbol.navigate.name)
+        }
+        .buttonStyle(.plowRSecondary)
+        .disabled(!stop.mapDestination.isReachable)
+        if !stop.isCustomStop {
+            // Keeps its name once work is recorded: it's still the
+            // way back in to add a service or a photo.
+            let recorded = stop.completedServiceIDs.count
+            // The count sits in the icon's place, so the label stays
+            // as short as it can.
+            Button { recorderStop = stop } label: {
+                Label {
+                    Text("Record Services")
+                } icon: {
+                    if recorded == 0 {
+                        Image(systemName: "doc.badge.plus")
+                    } else {
+                        Text("\(recorded)")
+                            .font(PlowRFont.label)
+                            .monospacedDigit()
+                            .foregroundStyle(PlowRColor.onBrand)
+                            .frame(minWidth: 20, minHeight: 20)
+                            .background(PlowRColor.brand, in: Circle())
+                    }
+                }
+            }
+            .buttonStyle(.plowRSecondary)
+            .accessibilityLabel("Record Services")
+            .accessibilityValue(recorded == 0 ? "" : "\(recorded) recorded")
+        }
     }
 
     private var routeCompleteCard: some View {
@@ -814,13 +1074,17 @@ struct ActiveRouteView: View {
 
     private var upcomingStopsSection: some View {
         VStack(alignment: .leading, spacing: PlowRLayout.space2) {
-            HStack {
+            // Large text: the Message All pill goes under the label.
+            let headerLayout = typeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: PlowRLayout.space2))
+                : AnyLayout(HStackLayout())
+            headerLayout {
                 Text("NEXT UP")
                     .font(PlowRFont.label)
                     .tracking(0.8)
                     .foregroundStyle(PlowRColor.inkSecondary)
                     .accessibilityAddTraits(.isHeader)
-                Spacer()
+                if !typeSize.isAccessibilitySize { Spacer() }
                 Button {
                     showingMassMessage = true
                 } label: {
@@ -830,33 +1094,54 @@ struct ActiveRouteView: View {
                         .padding(.horizontal, PlowRLayout.space3)
                         .frame(minHeight: PlowRLayout.minTapTarget)
                         .background(PlowRColor.raised, in: Capsule())
+                        // Wraps at the space, never inside "Message".
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .buttonStyle(.plain)
             }
             ForEach(Array(upcomingStops.enumerated()), id: \.element.id) { index, stop in
-                HStack(spacing: PlowRLayout.space3) {
-                    StopNumberBadge(number: currentStopIndex + 2 + index)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(stop.clientName)
-                            .font(.body.weight(.semibold))
-                            .foregroundStyle(PlowRColor.ink)
-                        if !stop.clientAddress.isEmpty {
-                            Text(stop.clientAddress)
-                                .font(.subheadline)
-                                .foregroundStyle(PlowRColor.inkSecondary)
+                // Large text: the number and the navigate button on one line,
+                // the name and address under them at the full width.
+                let badge = StopNumberBadge(number: currentStopIndex + 2 + index)
+                let details = VStack(alignment: .leading, spacing: 2) {
+                    Text(stop.clientName)
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(PlowRColor.ink)
+                    if !stop.clientAddress.isEmpty {
+                        Text(stop.clientAddress)
+                            .font(.subheadline)
+                            .foregroundStyle(PlowRColor.inkSecondary)
+                    }
+                }
+                let navigate = Button { openNavigation(for: stop) } label: {
+                    Image(systemName: PlowRSymbol.navigate.name)
+                        .font(.title2)
+                        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)   // the glyph stays inside its tap target
+                        .foregroundStyle(PlowRColor.brand)
+                        .frame(width: PlowRLayout.minTapTarget, height: PlowRLayout.minTapTarget)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(!stop.mapDestination.isReachable)
+                .accessibilityLabel("Directions to \(stop.clientName)")
+                Group {
+                    if typeSize.isAccessibilitySize {
+                        VStack(alignment: .leading, spacing: PlowRLayout.space1) {
+                            HStack {
+                                badge
+                                Spacer(minLength: 0)
+                                navigate
+                            }
+                            details
+                        }
+                    } else {
+                        HStack(spacing: PlowRLayout.space3) {
+                            badge
+                            details
+                            Spacer()
+                            navigate
                         }
                     }
-                    Spacer()
-                    Button { openNavigation(for: stop) } label: {
-                        Image(systemName: PlowRSymbol.navigate.name)
-                            .font(.title2)
-                            .foregroundStyle(PlowRColor.brand)
-                            .frame(width: PlowRLayout.minTapTarget, height: PlowRLayout.minTapTarget)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(stop.latitude == 0 && stop.clientAddress.isEmpty)
-                    .accessibilityLabel("Directions to \(stop.clientName)")
                 }
                 .padding(.vertical, PlowRLayout.space1)
                 .padding(.leading, PlowRLayout.space3)
@@ -894,39 +1179,14 @@ struct ActiveRouteView: View {
         }
     }
 
-    /// Whether an app for this URL scheme is installed. The scheme must be in
-    /// `LSApplicationQueriesSchemes` (Info.plist), or iOS always answers no.
-    private func canOpen(_ scheme: String) -> Bool {
-        guard let url = URL(string: scheme) else { return false }
-        return UIApplication.shared.canOpenURL(url)
-    }
-
     private func openNavigation(for stop: RouteStop) {
-        let hasGoogle = canOpen("comgooglemaps://")
-        let hasWaze   = canOpen("waze://")
-        if !hasGoogle && !hasWaze {
-            openInAppleMaps(stop)
+        let apps = MapLinks.installedApps(for: stop.mapDestination)
+        if apps.count <= 1 {
+            MapLinks.open(.appleMaps, to: stop.mapDestination)
         } else {
             navStop = stop
             showingNavPicker = true
         }
-    }
-
-    private func openInAppleMaps(_ stop: RouteStop) {
-        if let url = stop.appleMapsDirectionsURL { UIApplication.shared.open(url) }
-    }
-
-    private func openInGoogleMaps(_ stop: RouteStop) {
-        let urlStr = stop.latitude != 0
-            ? "comgooglemaps://?daddr=\(stop.latitude),\(stop.longitude)&directionsmode=driving"
-            : "comgooglemaps://?daddr=\(stop.clientAddress.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"
-        if let url = URL(string: urlStr) { UIApplication.shared.open(url) }
-    }
-
-    private func openInWaze(_ stop: RouteStop) {
-        guard stop.latitude != 0,
-              let url = URL(string: "waze://?ll=\(stop.latitude),\(stop.longitude)&navigate=yes") else { return }
-        UIApplication.shared.open(url)
     }
 
     // MARK: - Haptics
@@ -979,7 +1239,9 @@ struct ActiveRouteView: View {
 
     /// After the phone left the current stop's area: the text to the next
     /// client, offered once it has stayed out (ExitPrompt). Opens the prompt
-    /// and nothing else: leaving never completes a stop.
+    /// and nothing else: leaving never completes a stop. Its Send or Skip
+    /// completes the stop left, recording what that stop's copper button
+    /// would, and the sheet says so (NotifyAdvance.Completion.exitOffer).
     private func offerTextAfterExit() async {
         guard let exit = SiteMonitor.shared.lastExit else { return }
         let wait = ExitPrompt.delay - Date().timeIntervalSince(exit.time)
@@ -988,24 +1250,29 @@ struct ActiveRouteView: View {
         }
         // A next stop with no number can't be texted, as the first stop's prompt says.
         let canText = !shouldSkipNextNotify && !(nextStop?.clientPhone.isEmpty ?? true)
+        // The stop left: shouldOffer checks it's the exit's stop.
+        let left = currentStop
         guard ExitPrompt.shouldOffer(exitStopID: exit.stopID, exitedAt: exit.time,
-                                     currentStopID: currentStop?.id, site: store.site,
+                                     currentStopID: left?.id, site: store.site,
                                      hasNextStop: nextStop != nil, canText: canText,
-                                     isPresentingSomething: isPresentingSomething, now: Date()) else { return }
-        openNotifyPrompt()
+                                     isPresentingSomething: isPresentingSomething, now: Date()),
+              let left else { return }
+        openNotifyPrompt(.exitOffer(leftStop: left.id, clientName: left.clientName,
+                                    main: mainButton(for: left, memoized: false)))
     }
 
     /// The Complete button only: a tap. Leaving the stop's area goes to
     /// `openNotifyPrompt` instead, and never completes a stop.
-    private func triggerNotifyPrompt() {
+    /// `completion` names the stop drawn on the card that was tapped.
+    private func triggerNotifyPrompt(_ completion: NotifyAdvance.Completion) {
         // Nothing to notify on the last stop or once every stop is done (it
         // used to open an empty sheet then).
         guard nextStop != nil, !showingNotifyPrompt else { return }
         if shouldSkipNextNotify {
-            advance(completing: currentStop?.id)
+            advance(completion)
             return
         }
-        openNotifyPrompt()
+        openNotifyPrompt(completion)
     }
 
     /// Opens the text Siri asked for, when nothing else is up, if it's still
@@ -1024,14 +1291,15 @@ struct ActiveRouteView: View {
 
     /// After Below Trigger moved on: the client now current is offered the
     /// "on my way" text, as after Done (unless they'd rather not be texted).
-    /// It names no stop to complete (`promptStopID` nil), so its Send or
+    /// It names no stop to complete (`Completion.headsUp`), so its Send or
     /// Skip completes nothing, even if iCloud brings the passed stop back.
     /// Returns whether it was offered.
     private func offerHeadsUp(after passedID: UUID) -> Bool {
         guard MFMessageComposeViewController.canSendText(),
               let next = currentStop, !showingNotifyPrompt, store.isBehindCurrentStop(passedID),
-              client(for: next)?.skipNotificationPrompt != true else { return false }
-        promptStopID = nil
+              client(for: next)?.skipNotificationPrompt != true,
+              !next.clientPhone.isEmpty else { return false }
+        promptCompletion = .headsUp
         promptNextStop = next
         haptic(.light)
         showingNotifyPrompt = true
@@ -1039,18 +1307,22 @@ struct ActiveRouteView: View {
     }
 
     /// The Complete button and leaving a stop's geofence land here.
-    private func openNotifyPrompt() {
+    private func openNotifyPrompt(_ completion: NotifyAdvance.Completion) {
         guard let next = nextStop, !showingNotifyPrompt else { return }
-        promptStopID = currentStop?.id
+        promptCompletion = completion
         promptNextStop = next
         haptic(.light)
         showingNotifyPrompt = true
     }
 
-    /// `stopID`: the stop to complete; nil for the heads-up after Below
-    /// Trigger, which completes nothing (NotifyAdvance).
-    private func advance(completing stopID: UUID?) {
-        if NotifyAdvance.run(completing: stopID, store: store) == .stopChanged {
+    /// Completes what `completion` names; the heads-up after Below Trigger
+    /// completes nothing (NotifyAdvance). After the exit offer, says which
+    /// of the services its sheet named weren't recorded, if any.
+    private func advance(_ completion: NotifyAdvance.Completion) {
+        let result = completion.runNotingUnrecorded(store: store)
+        // Shown once the sheet has closed, like Route Changed (nil: nothing missing).
+        notRecordedNote = OneTapServices.notRecordedNote(clientName: completion.clientName, names: result.notRecorded)
+        if result.outcome == .stopChanged {
             if showingNotifyPrompt { routeChangedAfterSheet = true } else { showingRouteChangedAlert = true }
             return
         }
@@ -1061,13 +1333,50 @@ struct ActiveRouteView: View {
     /// Record Services already saved work there this run: that record (and
     /// any invoice) would stand beside a "not cleared" check.
     private func belowTrigger(for stop: RouteStop) -> StormWatch.Trigger? {
-        guard let client = client(for: stop), stop.completedServiceIDs.isEmpty else { return nil }
-        if let run = store.runID,
-           ServiceLog.existingRecordForStop(stop, of: client, run: run,
-                                            startedAt: store.stopStartedAt ?? store.runStartedAt ?? .now,
-                                            in: modelContext) != nil { return nil }
+        guard let client = client(for: stop), !isWorkRecorded(at: stop) else { return nil }
         return TriggerChecks.trigger(for: stop, client: client, on: store.runStartedAt ?? .now,
                                      contracts: allContracts, services: allServices)
+    }
+
+    /// Whether Record Services already saved work at `stop` this run (services
+    /// on the stop, or its Service Log record): then neither Below Trigger nor
+    /// Can't Service is offered (CantService.isWorkRecorded).
+    private func isWorkRecorded(at stop: RouteStop) -> Bool {
+        var hasRecord = false
+        if let client = client(for: stop), let run = store.runID {
+            hasRecord = ServiceLog.existingRecordForStop(stop, of: client, run: run,
+                                                         startedAt: store.stopStartedAt ?? store.runStartedAt ?? .now,
+                                                         in: modelContext) != nil
+        }
+        return CantService.isWorkRecorded(completedServiceIDs: stop.completedServiceIDs, hasRunRecord: hasRecord)
+    }
+
+    /// Can't Service, saved: the store skips the stop the sheet opened for,
+    /// if it's still the current one. A stop already behind (a double tap,
+    /// Siri) changes nothing. What follows waits for the sheet to close.
+    private func skip(_ stop: RouteStop, reason: String) {
+        guard !store.isBehindCurrentStop(stop.id) else { return }
+        cantServicePassedID = stop.id
+        cantServiceResult = store.skipCurrentStop(expecting: stop.id, reason: reason)
+    }
+
+    private func cantServiceDismissed() {
+        let passed = cantServicePassedID
+        defer {
+            cantServiceResult = nil
+            cantServicePassedID = nil
+        }
+        switch cantServiceResult {
+        case .advanced:
+            // As after Below Trigger: a heads-up that completes nothing.
+            if let passed, offerHeadsUp(after: passed) { break }
+            didAdvance()
+        case .finishedLastStop:
+            hapticSuccess()
+            showingRouteRecap = true
+        case .stopChanged: showingRouteChangedAlert = true
+        case .noActiveRoute, .allStopsAlreadyDone, nil: break
+        }
     }
 
     /// Below Trigger, saved (TriggerChecks.passBelowTrigger). What follows
@@ -1103,5 +1412,59 @@ struct ActiveRouteView: View {
     /// also moves when Siri or Control Center completes a stop.
     private func didAdvance() {
         haptic()
+    }
+}
+
+/// One of the stop card's labelled notes (Route Notes, This Stop Only): its
+/// title above its text, read as one by VoiceOver.
+private struct StopCardNote: View {
+    let title: String
+    let text: String
+    let symbol: PlowRSymbol
+
+    var body: some View {
+        Label {
+            VStack(alignment: .leading, spacing: PlowRLayout.space1) {
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(PlowRColor.inkSecondary)
+                Text(text)
+                    .font(.subheadline)
+                    .foregroundStyle(PlowRColor.ink)
+            }
+        } icon: {
+            Image(systemName: symbol.name)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// Children side by side in equal widths. Its ideal width is the widest
+/// child's ideal width times the count (plus spacing), not the sum, so
+/// `ViewThatFits` takes it only when every child fits its share on one line.
+private struct EqualWidthRow: Layout {
+    var spacing: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard !subviews.isEmpty else { return .zero }
+        let gaps = spacing * CGFloat(subviews.count - 1)
+        let ideal = subviews.map { $0.sizeThatFits(.unspecified) }
+        let widest = ideal.map(\.width).max() ?? 0
+        let width = proposal.width ?? widest * CGFloat(subviews.count) + gaps
+        let share = (width - gaps) / CGFloat(subviews.count)
+        let height = subviews.map { $0.sizeThatFits(ProposedViewSize(width: share, height: nil)).height }.max() ?? 0
+        return CGSize(width: width, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard !subviews.isEmpty else { return }
+        let gaps = spacing * CGFloat(subviews.count - 1)
+        let share = (bounds.width - gaps) / CGFloat(subviews.count)
+        var x = bounds.minX
+        for subview in subviews {
+            subview.place(at: CGPoint(x: x, y: bounds.minY), anchor: .topLeading,
+                          proposal: ProposedViewSize(width: share, height: bounds.height))
+            x += share + spacing
+        }
     }
 }

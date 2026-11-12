@@ -128,6 +128,111 @@ struct ClientStopsTests {
         #expect(!context.hasChanges)             // saved
     }
 
+    // MARK: - Route Notes
+
+    // A gate code changed on the client's page reaches every route they're
+    // on: the stops used to keep the notes copied when they were made.
+    @Test func routeNotesFollowToEveryStop() throws {
+        pat.defaultStopNotes = "Gate 1234"
+        ClientStops.update(for: pat)
+        #expect(try stops(of: pat).allSatisfy { $0.placeNotes == "Gate 1234" })
+        let samStop = try #require(try stops(of: sam).first)
+        #expect(samStop.placeNotes.isEmpty)
+        let custom = try #require(monday.sortedStops.first { $0.isCustomStop })
+        #expect(custom.placeNotes.isEmpty)
+    }
+
+    // Only a change is written: a stop whose notes are already in step isn't.
+    @Test func followReportsANotesChangeOnlyWhenThereIsOne() throws {
+        let stop = try #require(try stops(of: pat).first)
+        pat.defaultStopNotes = "Gate 1234"
+        #expect(ClientStops.follow(stop, pat))
+        #expect(!ClientStops.follow(stop, pat))
+    }
+
+    // At launch or after iCloud: a stop that only lags on its notes catches
+    // up, and that is saved.
+    @Test func updateAllSavesWhenOnlyNotesChanged() throws {
+        pat.defaultStopNotes = "Gate 1234"           // changed without update(for:)
+        try context.save()
+        ClientStops.updateAll(in: context)
+        #expect(try stops(of: pat).allSatisfy { $0.placeNotes == "Gate 1234" })
+        #expect(!context.hasChanges)                 // saved
+    }
+
+    // Rule 2: a stop's own note that is exactly the place's previous notes
+    // was only ever the copy stops used to start with, and is cleared when
+    // the place's notes change; any other note is the user's and is kept.
+    @Test(arguments: [
+        // own, old place notes, new place notes, own afterwards
+        ("Gate 1234", "Gate 1234", "Gate 5678", ""),                      // a pure copy goes
+        ("  Gate 1234\n", "Gate 1234", "Gate 5678", ""),                  // trimmed, still the copy
+        ("Gate 1234", "Gate 1234", "", ""),                               // emptied place notes: the copy still goes
+        ("Gate 1234, dog", "Gate 1234", "Gate 5678", "Gate 1234, dog"),   // edited: the user's
+        ("gate 1234", "Gate 1234", "Gate 5678", "gate 1234"),             // any difference keeps it
+        ("Gate 1234", "", "Gate 1234", "Gate 1234"),                      // a first follow clears nothing
+        ("", "Gate 1234", "Gate 5678", ""),
+        ("Blade", "Gate 1234", "Gate 5678", "Blade"),
+    ])
+    func ownNoteFollowingPlaceNotes(_ row: (String, String, String, String)) {
+        #expect(ClientStops.ownNote(row.0, following: row.1, to: row.2) == row.3)
+    }
+
+    // Rule 2 through follow, as a stop made before this change meets it.
+    @Test func anOldStopsCopyIsClearedWhenTheNotesChange() throws {
+        let stop = try #require(try stops(of: pat).first)
+        let other = try #require(try stops(of: pat).last { $0.id != stop.id })
+        pat.defaultStopNotes = "Gate 1234"
+        stop.stopNotes = "Gate 1234"                 // the copy it was made with
+        other.stopNotes = "Gate 1234, ring first"    // the user's own words
+        ClientStops.update(for: pat)                 // first follow
+        #expect(stop.stopNotes == "Gate 1234")
+        #expect(stop.shownOwnNotes.isEmpty)          // not shown twice
+        pat.defaultStopNotes = "Gate 5678"
+        ClientStops.update(for: pat)
+        #expect(stop.placeNotes == "Gate 5678")
+        #expect(stop.stopNotes.isEmpty)
+        #expect(other.stopNotes == "Gate 1234, ring first")
+        #expect(other.shownOwnNotes == "Gate 1234, ring first")
+    }
+
+    // Rule 1: the stop's own note isn't shown when it says what the place's
+    // notes say.
+    @Test func anOwnNoteRepeatingThePlacesIsntShown() {
+        #expect(ClientStops.shownOwnNote("Gate 1234", placeNotes: "Gate 1234").isEmpty)
+        #expect(ClientStops.shownOwnNote(" Gate 1234\n", placeNotes: "Gate 1234").isEmpty)
+        #expect(ClientStops.shownOwnNote("Ring first", placeNotes: "Gate 1234") == "Ring first")
+        #expect(ClientStops.shownOwnNote("Ring first", placeNotes: "") == "Ring first")
+        #expect(ClientStops.shownOwnNote("", placeNotes: "Gate 1234").isEmpty)
+    }
+
+    // Duplicate Route: a stop's own note that only copies the place's notes
+    // isn't carried to the copy (the place's notes come with the place); a
+    // real one is, and a custom stop keeps its note.
+    @Test func duplicateRouteCarriesOnlyARealOwnNote() throws {
+        pat.defaultStopNotes = "Gate 1234"
+        sam.defaultStopNotes = "Dog in yard"
+        ClientStops.updateAll(in: context)
+        let original = monday.sortedStops
+        original[0].stopNotes = " Gate 1234\n"
+        original[1].stopNotes = "Ring first"
+        original[2].stopNotes = "Key under mat"
+        let copy = ClientStops.duplicate(monday, clients: [pat, sam], in: context)
+        try context.save()
+        #expect(copy.name == "Monday (Copy)")
+        let copied = copy.sortedStops
+        #expect(copied.map(\.clientName) == ["Pat Doe", "Sam Roe", "Salt shed"])
+        #expect(copied.map(\.stopNotes) == ["", "Ring first", "Key under mat"])
+        #expect(copied.map(\.placeNotes) == ["Gate 1234", "Dog in yard", ""])
+    }
+
+    // An inactive client stays off the copy, as off every new route.
+    @Test func duplicateRouteLeavesInactiveClientsOff() throws {
+        sam.isActive = false
+        let copy = ClientStops.duplicate(monday, clients: [pat, sam], in: context)
+        #expect(copy.sortedStops.map(\.clientName) == ["Pat Doe", "Salt shed"])
+    }
+
     // A client changed on another device arrives through iCloud: the stops
     // follow then, not only at the next launch. A route app stays open for
     // days.

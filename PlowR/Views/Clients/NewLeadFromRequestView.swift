@@ -60,11 +60,11 @@ struct NewLeadFromRequestView: View {
                     Label("\(existing.name) already has this phone number.", systemImage: "person.crop.circle.badge.checkmark")
                     NavigationLink("Open \(existing.name)") { EditClientView(client: existing) }
                 } footer: {
-                    Text("A returning client, or someone who asked before. Save Lead adds a new lead anyway.")
+                    SectionNote("A returning client, or someone who asked before. Save Lead adds a new lead anyway.")
                 }
                 .listRowBackground(PlowRColor.surface)
             }
-            Section("Contact") {
+            Section(title: "Contact") {
                 TextField("Name", text: $request.name).textContentType(.name)
                 TextField("Phone", text: $request.phone).textContentType(.telephoneNumber).keyboardType(.phonePad)
                 TextField("Email (optional)", text: $request.email)
@@ -73,13 +73,13 @@ struct NewLeadFromRequestView: View {
             }
             .listRowBackground(PlowRColor.surface)
             if !request.service.isEmpty || request.when != nil {
-                Section("Asked For") {
+                Section(title: "Asked For") {
                     if !request.service.isEmpty { LabeledContent("Service", value: request.service) }
                     if let when = request.when { LabeledContent("How often", value: when.title) }
                 }
                 .listRowBackground(PlowRColor.surface)
             }
-            Section("Their Notes") {
+            Section(title: "Their Notes") {
                 TextField("Notes", text: $request.notes, axis: .vertical).lineLimit(2...8)
             }
             .listRowBackground(PlowRColor.surface)

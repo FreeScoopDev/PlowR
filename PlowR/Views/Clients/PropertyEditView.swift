@@ -43,7 +43,7 @@ struct PropertyEditView: View {
     private var services: [ServiceItem] {
         allServiceItems
             .filter { $0.operatorID == client.operatorID && $0.isActive }
-            .sorted { $0.sortOrder < $1.sortOrder }
+            .sorted { ServiceLog.catalogOrder($0, $1) }
     }
 
     @Environment(\.access) private var access
@@ -72,8 +72,9 @@ struct PropertyEditView: View {
                         .textInputAutocapitalization(.words)
                 } header: {
                     Text("Name")
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 } footer: {
-                    Text("How it shows on routes and the schedule, after \(client.name)'s name.")
+                    SectionNote("How it shows on routes and the schedule, after \(client.name)'s name.")
                 }
                 .listRowBackground(PlowRColor.surface)
                 addressSection
@@ -86,15 +87,16 @@ struct PropertyEditView: View {
                     }
                 } header: {
                     Text("Route")
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 } footer: {
-                    Text("Copied to new route stops here, as a client's own are.")
+                    SectionNote("The notes show at every stop here, on every route, and changes reach those stops too.")
                 }
                 .listRowBackground(PlowRColor.surface)
                 if !services.isEmpty { servicesSection }
                 Section {
                     Toggle("Active", isOn: $draft.isActive)
                 } footer: {
-                    Text("An inactive property comes off its routes and isn't offered for new stops and visits. Visits already booked there stay.")
+                    SectionNote("An inactive property comes off its routes and isn't offered for new stops and visits. Visits already booked there stay.")
                 }
                 .listRowBackground(PlowRColor.surface)
                 }
@@ -202,7 +204,7 @@ struct PropertyEditView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(completion.title).foregroundStyle(.primary)
                         if !completion.subtitle.isEmpty {
-                            Text(completion.subtitle).font(.caption).foregroundStyle(.secondary)
+                            Text(completion.subtitle).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
                         }
                     }
                 }
@@ -212,6 +214,7 @@ struct PropertyEditView: View {
             }
         } header: {
             Text("Address")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
             if property?.needsAddressFix == true, !draft.hasPin {
                 AddressNotFoundLabel(detail: "The map couldn't find this address, so this property has no pin and isn't on route maps. Correct the address, or set the pin on the map.")
@@ -231,15 +234,16 @@ struct PropertyEditView: View {
                 } label: {
                     HStack(spacing: 12) {
                         Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                            .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+                            .foregroundStyle(isSelected ? Color.accentColor : PlowRColor.inkSecondary)
                         Text(service.name).foregroundStyle(.primary)
                     }
                 }
             }
         } header: {
             Text("Default Services")
+                .foregroundStyle(PlowRColor.inkSecondary)
         } footer: {
-            Text("Services this property typically needs. Its route stops expect these, except a stop given its own services on its route.")
+            SectionNote("Services this property typically needs. Its route stops expect these, except a stop given its own services on its route.")
         }
         .listRowBackground(PlowRColor.surface)
     }

@@ -18,7 +18,7 @@ struct CreateRouteView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Route Name") {
+                Section(title: "Route Name") {
                     TextField("e.g. Monday North Side", text: $routeName)
                 }
                 .listRowBackground(PlowRColor.surface)
@@ -26,14 +26,14 @@ struct CreateRouteView: View {
                 Section {
                     ForEach(Array(selectedStops.enumerated()), id: \.element.id) { index, stop in
                         HStack(spacing: 12) {
-                            StopNumberBadge(number: index + 1)
+                            StopNumberBadge(number: index + 1, growsWithText: false)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(stop.clientName)
                                     .font(.subheadline.weight(.semibold))
                                 if !stop.clientAddress.isEmpty {
                                     Text(stop.clientAddress)
                                         .font(.caption)
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(PlowRColor.inkSecondary)
                                 }
                             }
                         }
@@ -55,9 +55,10 @@ struct CreateRouteView: View {
                     }
                 } header: {
                     Text("Stops")
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 } footer: {
                     if selectedStops.count > 1 {
-                        Text("Drag to reorder stops.")
+                        SectionNote("Drag to reorder stops.")
                     }
                 }
                 .listRowBackground(PlowRColor.surface)

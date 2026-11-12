@@ -35,12 +35,12 @@ struct ClientPickerView: View {
                             .foregroundStyle(.primary)
                     }
                 } footer: {
-                    Text("For one-time customers or stops that aren't set up as clients.")
+                    SectionNote("For one-time customers or stops that aren't set up as clients.")
                 }
                 .listRowBackground(PlowRColor.surface)
 
                 if !clients.isEmpty {
-                    Section("Your Clients") {
+                    Section(title: "Your Clients") {
                         ForEach(clients) { client in
                             ForEach(Place.all(of: client), id: \.id) { place in
                                 row(client, place)
@@ -81,11 +81,11 @@ struct ClientPickerView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(place.title(for: client.name))
                         .font(.headline)
-                        .foregroundStyle(isAdded ? .secondary : .primary)
+                        .foregroundStyle(isAdded ? PlowRColor.inkSecondary : Color.primary)
                     if !place.address.isEmpty {
                         Text(place.address)
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(PlowRColor.inkSecondary)
                     }
                 }
                 Spacer()
@@ -112,7 +112,7 @@ struct CustomStopFormView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Stop Details") {
+                Section(title: "Stop Details") {
                     TextField("Name or Description", text: $name)
                         .textContentType(.name)
                     TextField("Address (optional)", text: $address)
@@ -125,7 +125,7 @@ struct CustomStopFormView: View {
                 Section {
                     Text("Use this for gas stations, supply pickups, one-time customers, or any stop that isn't saved as a client.")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PlowRColor.inkSecondary)
                 }
                 .listRowBackground(PlowRColor.surface)
             }

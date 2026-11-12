@@ -4,6 +4,7 @@ import SwiftUI
 /// new business does in PlowR, each a tap away, ticked off as they happen.
 /// Hidden once they're all done, or by its Hide button.
 struct GetStartedCard: View {
+    @Environment(\.access) private var access
     let checklist: FirstRun.Checklist
     let addClient: () -> Void
     let newRoute: () -> Void
@@ -37,7 +38,13 @@ struct GetStartedCard: View {
                 .buttonStyle(.plain)
                 divider
                 Button(action: addClient) {
-                    row("Add your first client", detail: "Or import them from a spreadsheet, in Clients.",
+                    // Adding a client is free; importing is a Pro tool, so the
+                    // hint says so in words. A Pro chip here read as if the
+                    // whole step needed Pro.
+                    row("Add your first client",
+                        detail: FirstRunOffers.showsProMark(access)
+                            ? "Or, with PlowR Pro, import them from a spreadsheet in Clients."
+                            : "Or import them from a spreadsheet, in Clients.",
                         symbol: PlowRSymbol.addClient.name, done: checklist.clientAdded)
                 }
                 .buttonStyle(.plain)
@@ -76,14 +83,17 @@ struct GetStartedCard: View {
 
     private func row(_ title: String, detail: String, symbol: String, done: Bool) -> some View {
         HStack(spacing: PlowRLayout.space3) {
-            IconBadge(systemImage: done ? PlowRSymbol.complete.name : symbol, status: done ? .done : nil, size: 36)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(done ? PlowRColor.inkSecondary : PlowRColor.ink)
-                    .strikethrough(done)
-                if !done {
-                    Text(detail).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
+            IconRow {
+                IconBadge(systemImage: done ? PlowRSymbol.complete.name : symbol, status: done ? .done : nil, size: 36)
+            } content: {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(done ? PlowRColor.inkSecondary : PlowRColor.ink)
+                        .strikethrough(done)
+                    if !done {
+                        Text(detail).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
+                    }
                 }
             }
             Spacer(minLength: 0)

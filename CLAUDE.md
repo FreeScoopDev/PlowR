@@ -350,7 +350,7 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   path list, and without `-e` a grep that finds nothing hides a failure).
   Snow-only features go in their own files.
 - **Colours come from `PlowR/DesignSystem.swift`** (`PlowRColor`). The accent is
-  the brand forest green since 1.7 (`PlowRColor.accent` = `brand`, applied
+  the brand since 1.7: forest green in light mode, muted sage in dark (`PlowRColor.accent` = `brand`, applied
   once with `.tint()` in `PlowRApp`; the asset catalog's AccentColor holds the
   same two colours, so `Color.accentColor` matches). Navy remains only for a
   business's own documents: `navyUIColor` (PDFs), `navyHex`
@@ -368,19 +368,24 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   pipeline stages say theirs with `chipStatus`. Main buttons are
   `.plowRAction` (copper), `.plowRSecondary`, and `.plowRProminent()` (the
   system's prominent button with a label readable on the brand; never
-  `.white` on the accent, which is pale green in dark mode); cards are
+  `.white` on the accent, which is pale sage in dark mode); cards are
   `PlowRCard`. Every List and Form takes `.plowRGrouped()` and every
   Section (and ForEach straight in a List) `.listRowBackground(PlowRColor.surface)`:
   the guard step "List rows check" (`scripts/check_list_rows.py --check`)
   fails a PR that misses one of those, and the script without `--check`
   adds them. It can't see rows of `List(data) { row }`, bare rows straight
   in a List/Form, or rows built in helper properties: put those in a
-  Section, or add the modifier by hand. iOS 26 ignores UIKit's title
+  Section, or add the modifier by hand. A Section's title is written
+  `Section(title: "…") { }` (`SectionTitle`, in `PlowRColor.inkSecondary`),
+  never bare `Section("…")`, which iOS draws in its own pale grey; the same
+  guard fails a bare one, and a custom `header:` colours its own text. A
+  `footer:` note is `SectionNote("…")` (or `SectionNote(Text(…))`,
+  `SectionNote(verbatim:)`), never a bare `Text`: the guard fails that too. iOS 26 ignores UIKit's title
   fonts and crashes on a flexible view in the `.largeTitle` toolbar slot, so
   a Barlow screen heading goes in the content, as the route screen does.
   **1.7 design (Evergreen & Copper, Joe 2026-10-10):** the tokens screens move
   to are in the same file: surfaces (`ground`, `surface`, `raised`, `line`),
-  text (`ink`, `inkSecondary`), `brand` (forest green), `action` (copper, the
+  text (`ink`, `inkSecondary`), `brand` (forest green; muted sage in dark), `action` (copper, the
   one main action per screen), `PlowRColor.Status` (done, scheduled, owed,
   overdue, lead, void: fill, soft, text) and `PlowRColor.Service` (snow, lawn,
   landscaping); `PlowRFont` roles (Barlow headings, numbers and buttons,
@@ -388,16 +393,24 @@ key `todayRoute`, read by the widget). Views are grouped by feature under
   `space1`, `2`, `3`, `4`, `6` (4–24 pt, no 20) and tap targets; `PlowRSymbol`,
   one SF Symbol per idea (no snow symbol: snow-only icons stay with snow-only
   features; `check_symbols.py` checks its cases). `DesignTokensTests` checks
+  that dark surfaces stay neutral graphite (Joe, 2026-11-06: no green cast, and
+  the sage brand stays apart from the done green), and
   every text token on every surface at 4.5:1 in light and dark: a new token
   goes in its lists. Screens move over one PR at a
   time; until then they keep the older colors.
 - **Help copy has one source: `PlowR/Help/HelpGuide.json`** (since 1.8).
   The app bundles it (`HelpGuide`: Settings → Help, each screen's Help
-  item via `HelpScreen`, and the tips), and `scripts/help_guide.py` makes
-  `docs/help.html` from it. Edit the JSON and run the script, never the
-  page: `HelpGuideTests` checks the hashes the page records, and holds
-  topics not marked `snowOnly` to the service-language rule (the guard
-  reads only Swift). Markup: `**UI label**`, `[text](https://…)`, `[PRO]`.
+  item via `HelpScreen`, and the tips). The website describes the version
+  on the App Store, not `main`: `scripts/help_guide.py` makes
+  `docs/help.html` from `scripts/help_guide_published.json`, a copy of the
+  JSON as the newest release shipped (its `version` key). **The release PR
+  moves the pin:** copy `HelpGuide.json` over it, set `version`, run the
+  script. `HelpGuideTests` fails until `version` is the newest `## [x.y.z]`
+  in `CHANGELOG.md`, and checks the hashes the page records. Between
+  releases, edit the copy only to fix what the live version's page says
+  wrong. Never edit the page. Both files are held to the service-language
+  rule outside `snowOnly` topics (the guard reads only Swift). Markup:
+  `**UI label**`, `[text](https://…)`, `[PRO]`.
 - **Tips (TipKit, since 1.8) live in `Services/Tips`**: `PlowRTips` sets
   TipKit up in `PlowRApp.init` (never under tests; `.applicationDefault`
   store; demo launches hide tips, Debug `-PlowRShowTips YES` shows all) and

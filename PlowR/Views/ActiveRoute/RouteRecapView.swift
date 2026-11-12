@@ -1,6 +1,8 @@
 import SwiftUI
 import TipKit
 import SwiftData
+import CoreData
+import Combine
 import MapKit
 
 struct RouteRecapView: View {
@@ -20,10 +22,23 @@ struct RouteRecapView: View {
     var runStartedAt: Date?
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var editingStop: RouteStop?
     /// This run's Service Log records, live: a departure GPS catches while
     /// the recap is open shows.
     @Query private var runRecords: [ServiceRecord]
+    @Environment(\.modelContext) private var modelContext
+    /// The catalog, for Record Expected Services (RecapServiceRecorder).
+    @Query private var allServices: [ServiceItem]
+    /// Record Expected Services' confirmation, with the stops it names.
+    @State private var confirmingExpected: ExpectedServicesPlan?
+    /// What Confirm left to say, shown once its sheet has closed.
+    @State private var expectedNote: String?
+    @State private var shownExpectedNote: String?
+    /// Record Expected Services' plan, kept until something it depends on changes.
+    @State private var planMemo = RecapPlanMemo()
+    /// Counts the database's saves and synced changes, for `planMemo`.
+    @State private var dataVersion = 0
 
     init(route: PlowRoute, stops: [RouteStop], allClients: [Client], onEndRoute: @escaping () -> Void,
          runID: UUID? = nil, runStartedAt: Date? = nil) {
@@ -84,7 +99,7 @@ struct RouteRecapView: View {
 
                 if !completedStops.isEmpty {
                     let onSite = timesOnSite
-                    Section("Completed Stops") {
+                    Section(title: "Completed Stops") {
                         ForEach(Array(completedStops.enumerated()), id: \.element.id) { idx, stop in
                             stopRow(stop, index: idx + 1, completed: true, onSite: onSite)
                         }
@@ -92,8 +107,29 @@ struct RouteRecapView: View {
                     .listRowBackground(PlowRColor.surface)
                 }
 
+                // Not gated: Record Services here isn't (a running route never is).
+                let expectedPlan = RecapServiceRecorder.plan(stops: stops, catalog: allServices,
+                                                             operatorID: route.operatorID, run: runID,
+                                                             records: runRecords, in: modelContext,
+                                                             memo: planMemo, dataVersion: dataVersion)
+                if !expectedPlan.isEmpty {
+                    Section {
+                        Button {
+                            confirmingExpected = ExpectedServicesPlan(stops: expectedPlan)
+                        } label: {
+                            Label(RecapServices.buttonTitle(count: expectedPlan.count),
+                                  systemImage: PlowRSymbol.services.name)
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.plowRSecondary)
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+                    }
+                    .listRowBackground(PlowRColor.surface)
+                }
+
                 if !skippedStops.isEmpty {
-                    Section("Not Serviced") {
+                    Section(title: "Not Serviced") {
                         ForEach(Array(skippedStops.enumerated()), id: \.element.id) { idx, stop in
                             stopRow(stop, index: completedStops.count + idx + 1, completed: false)
                         }
@@ -118,6 +154,11 @@ struct RouteRecapView: View {
             .plowRGrouped()
             // The widget's tip is for someone without the widget.
             .task { await PlowRTips.checkRouteWidget() }
+            // Delivered later on the main queue, as the route screen's: a
+            // poster off the main thread never waits for this screen (#194).
+            .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave)
+                .merge(with: NotificationCenter.default.publisher(for: .NSPersistentStoreRemoteChange))
+                .receive(on: DispatchQueue.main)) { _ in dataVersion &+= 1 }
             .navigationTitle("Route Recap")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -135,6 +176,32 @@ struct RouteRecapView: View {
                 stopStartedAt: runStartedAt
             )
         }
+        .sheet(item: $confirmingExpected, onDismiss: showExpectedNote) { plan in
+            RecordExpectedServicesSheet(planned: plan.stops) {
+                let outcome = RecapServiceRecorder.record(plan.stops, stops: stops, catalog: allServices,
+                                                          operatorID: route.operatorID, run: runID, in: modelContext)
+                expectedNote = RecapServices.afterConfirm(saveFailed: outcome.saveFailed,
+                                                          notRecorded: outcome.notRecorded)
+            }
+        }
+        .alert("Not Recorded", isPresented: Binding(get: { shownExpectedNote != nil },
+                                                    set: { if !$0 { shownExpectedNote = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(shownExpectedNote ?? "")
+        }
+    }
+
+    /// Once the confirmation has closed: an alert can't show over a closing sheet.
+    private func showExpectedNote() {
+        shownExpectedNote = expectedNote
+        expectedNote = nil
+    }
+
+    /// Record Expected Services' confirmation, as a sheet item.
+    private struct ExpectedServicesPlan: Identifiable {
+        let id = UUID()
+        let stops: [RecapServices.Planned]
     }
 
     // MARK: - Summary
@@ -146,7 +213,9 @@ struct RouteRecapView: View {
                 if skippedStops.count > 0 {
                     StatTile(value: "\(skippedStops.count)", label: "Skipped", status: .owed)
                 }
-                let totalMin = stops.reduce(0) { $0 + $1.actualMinutes }
+                let totalMin = StopMinutes.onRoute(runStartedAt: runStartedAt,
+                                                   completions: runRecords.map(\.performedAt),
+                                                   stopMinutes: stops.reduce(0) { $0 + $1.actualMinutes })
                 if totalMin > 0 {
                     let h = totalMin / 60, m = totalMin % 60
                     let label = h > 0 ? "\(h)h \(m)m" : "\(m)m"
@@ -208,59 +277,82 @@ struct RouteRecapView: View {
         Button {
             editingStop = stop
         } label: {
-            HStack(spacing: 12) {
-                ZStack {
-                    Circle()
-                        .fill(completed ? PlowRColor.Status.done.soft : PlowRColor.raised)
-                        .frame(width: 32, height: 32)
-                    Image(systemName: completed ? "checkmark" : "minus")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(completed ? PlowRColor.Status.done.text : PlowRColor.inkSecondary)
-                }
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(stop.clientName)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.primary)
-                    if !stop.clientAddress.isEmpty {
-                        Text(stop.clientAddress)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                }
-
-                Spacer()
-
-                VStack(alignment: .trailing, spacing: 2) {
-                    if !stop.completedServiceIDs.isEmpty {
-                        Text("\(stop.completedServiceIDs.count) service\(stop.completedServiceIDs.count == 1 ? "" : "s")")
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(PlowRColor.Status.done.text)
-                    } else {
-                        Text("No services")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    if stop.actualMinutes > 0 {
-                        Text("\(stop.actualMinutes) min")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                    // GPS's time at the job site, once it has seen the crew
-                    // arrive and leave (a departure seen later shows then).
-                    if completed, let onSite = onSite[stop.id] {
-                        Text(ProofOfService.onSiteListText(onSite))
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                Image(systemName: "pencil.circle")
-                    .foregroundStyle(PlowRColor.brand.opacity(0.7))
-                    .font(.subheadline)
+            let large = typeSize.isAccessibilitySize
+            let mark = ZStack {
+                Circle()
+                    .fill(completed ? PlowRColor.Status.done.soft : PlowRColor.raised)
+                    .frame(width: 32, height: 32)
+                Image(systemName: completed ? "checkmark" : "minus")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(completed ? PlowRColor.Status.done.text : PlowRColor.inkSecondary)
             }
-            .padding(.vertical, 2)
+            let main = VStack(alignment: .leading, spacing: 2) {
+                Text(stop.clientName)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                if !stop.clientAddress.isEmpty {
+                    Text(stop.clientAddress)
+                        .font(.caption)
+                        .foregroundStyle(PlowRColor.inkSecondary)
+                        .lineLimit(large ? nil : 1)
+                }
+                // Can't Service on this run only, never an older run's reason.
+                if !completed, let line = CantService.recapLine(reason: stop.cantServiceReason,
+                                                                at: stop.cantServiceAt, runStartedAt: runStartedAt) {
+                    Text(line)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(PlowRColor.Status.owed.text)
+                }
+            }
+            let details = VStack(alignment: typeSize.trailingColumnAlignment, spacing: 2) {
+                if !stop.completedServiceIDs.isEmpty {
+                    Text("\(stop.completedServiceIDs.count) service\(stop.completedServiceIDs.count == 1 ? "" : "s")")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(PlowRColor.Status.done.text)
+                } else {
+                    Text("No services")
+                        .font(.caption)
+                        .foregroundStyle(PlowRColor.inkSecondary)
+                }
+                if stop.actualMinutes > 0 {
+                    Text("\(stop.actualMinutes) min")
+                        .font(.caption2)
+                        .foregroundStyle(PlowRColor.inkSecondary)
+                }
+                // GPS's time at the job site, once it has seen the crew
+                // arrive and leave (a departure seen later shows then).
+                if completed, let onSite = onSite[stop.id] {
+                    Text(ProofOfService.onSiteListText(onSite))
+                        .font(.caption2)
+                        .foregroundStyle(PlowRColor.inkSecondary)
+                }
+            }
+            let pencil = Image(systemName: "pencil.circle")
+                .foregroundStyle(PlowRColor.brand.opacity(0.7))
+                .font(.subheadline)
+            // Large text: the pencil sits on the mark's line, so the name,
+            // address and services get the full width.
+            if large {
+                VStack(alignment: .leading, spacing: PlowRLayout.space2) {
+                    HStack {
+                        mark
+                        Spacer(minLength: 0)
+                        pencil
+                    }
+                    main
+                    details
+                }
+                .padding(.vertical, 2)
+            } else {
+                HStack(spacing: 12) {
+                    mark
+                    main
+                    Spacer()
+                    details
+                    pencil
+                }
+                .padding(.vertical, 2)
+            }
         }
         .buttonStyle(.plain)
     }

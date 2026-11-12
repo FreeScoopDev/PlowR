@@ -70,8 +70,19 @@ struct ExitPromptTests {
         let start = try #require(source.range(of: "private func offerTextAfterExit() async {"))
         let end = try #require(source.range(of: "    private func ", range: start.upperBound..<source.endIndex))
         let handler = source[start.lowerBound..<end.lowerBound]
-        #expect(handler.contains("openNotifyPrompt()"))
-        for call in ["advance(", "triggerNotifyPrompt(", "completeCurrentStop", "passCurrentStop"] {
+        // The exit offer only opens the sheet, for the stop left, with what
+        // that stop's button would record (NotifyAdvance.Completion.exitOffer):
+        // only Send or Skip there completes it.
+        #expect(handler.contains("openNotifyPrompt(.exitOffer(leftStop: left.id, clientName: left.clientName,"))
+        #expect(handler.components(separatedBy: "openNotifyPrompt(").count == 2)
+        // That button is worked out afresh (`memoized: false`): the card's memo
+        // may not have seen a save made a moment ago.
+        #expect(handler.contains("main: mainButton(for: left, memoized: false)"))
+        // Nothing that runs a completion either: since the exit offer
+        // records services, one run here would record them with no tap.
+        for call in ["advance(", "triggerNotifyPrompt(", "completeCurrentStop", "passCurrentStop", "skipCurrentStop", ".button(",
+                     ".run(", "runNotingUnrecorded", "NotifyAdvance.run", "CompleteStopAction", "completeShownStop",
+                     "undoLastCompletion"] {
             #expect(!handler.contains(call), "exit handler calls \(call)")
         }
         #expect(!source.contains("onChange(of: SiteMonitor.shared.lastExit"))
