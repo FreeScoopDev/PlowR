@@ -127,6 +127,10 @@ New entries go in `changelog.d/` (see its README) and are gathered here when a v
 - Duplicate Route moved into `ClientStops.duplicate`, tested: a stop's own note that only copies the place's Route Notes isn't carried to the copy; a real one is. `NewClientDraft.notes` is now `routeNotes`, as it feeds Route Notes. The stop page uses `Place.isMain`. New `PlowRSymbol` cases for Route Notes, a stop's own note and services replace the literals; the stop card's two notes share one view on `PlowRLayout` spacing.
 - New tests: the one tap with only a per-square-foot service whose area went before the tap records the visit and nothing else, and Undo leaves the stop's services alone; an invoice whose only payment method isn't a check prints no "Mail to". No CloudKit change.
 - The version on `main` moves to 1.9.0. 1.8 went live on the App Store, and App Store Connect takes no more builds under a released version, so TestFlight needs a new number to try the graphite dark mode on a real phone.
+- `.gitignore` keeps Apple signing keys and provisioning profiles (`.p8`,
+  `.p12`, `.cer`, `.mobileprovision`, `.provisionprofile`, `AuthKey_*`) out of git. None has ever
+  been committed; the rule makes sure a file dropped into the project folder
+  stays out.
 
 ## [1.8.0] - 2026-10-19
 
