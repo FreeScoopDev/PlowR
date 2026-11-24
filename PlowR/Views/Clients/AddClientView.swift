@@ -18,9 +18,14 @@ struct AddClientView: View {
     @State private var unplacedClient: Client?
     @State private var lookupProblem: AddressPin.Problem?
 
+    /// Told about the client once they're saved (a client picker goes
+    /// straight on with them).
+    private let onAdded: ((Client) -> Void)?
+
     /// `kind` is what the form opens on; the user can still change it.
-    init(kind: NewClientDraft.Kind = .existingCustomer) {
+    init(kind: NewClientDraft.Kind = .existingCustomer, onAdded: ((Client) -> Void)? = nil) {
         _draft = State(initialValue: NewClientDraft(kind: kind))
+        self.onAdded = onAdded
     }
 
     var body: some View {
@@ -124,9 +129,9 @@ struct AddClientView: View {
                 Text("What you typed hasn't been saved.")
             }
             .addressLookupAlert($lookupProblem) {
-                if let client = unplacedClient { modelContext.insert(client) }
+                let client = unplacedClient
                 unplacedClient = nil
-                dismiss()
+                if let client { add(client) } else { dismiss() }
             } tryAgain: {
                 if let client = unplacedClient { place(client) }
             }
@@ -151,16 +156,14 @@ struct AddClientView: View {
         if let coord = geocodedCoordinate {
             client.latitude = coord.latitude
             client.longitude = coord.longitude
-            modelContext.insert(client)
             isSaving = false
-            dismiss()
+            add(client)
             return
         }
 
         guard !client.address.isEmpty else {
-            modelContext.insert(client)
             isSaving = false
-            dismiss()
+            add(client)
             return
         }
 
@@ -180,10 +183,16 @@ struct AddClientView: View {
                 unplacedClient = client
                 lookupProblem = problem
             } else {
-                modelContext.insert(client)
-                dismiss()
+                add(client)
             }
         }
+    }
+
+    /// Saves the new client and closes the form.
+    private func add(_ client: Client) {
+        modelContext.insert(client)
+        onAdded?(client)
+        dismiss()
     }
 }
 

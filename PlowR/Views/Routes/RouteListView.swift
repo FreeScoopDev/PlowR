@@ -22,11 +22,14 @@ struct RouteListView: View {
     var body: some View {
         Group {
             if routes.isEmpty {
-                ContentUnavailableView(
-                    "No Routes Yet",
-                    systemImage: "point.topleft.down.to.point.bottomright.curvepath",
-                    description: Text("Create a route to organize your stops.")
-                )
+                ContentUnavailableView {
+                    Label("No Routes Yet", systemImage: "point.topleft.down.to.point.bottomright.curvepath")
+                } description: {
+                    Text("Create a route to organize your stops.")
+                } actions: {
+                    Button("New Route") { newRoute() }
+                        .plowRProminent()
+                }
             } else {
                 let lastRuns = RouteFacts.lastRuns(in: records)
                 List {
@@ -87,11 +90,7 @@ struct RouteListView: View {
         .navigationTitle("Routes")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button {
-                    $gate.unless(ProGate.createRoute(access, routes: allRoutes, operatorID: authManager.userID)) {
-                        showingCreateRoute = true
-                    }
-                } label: {
+                Button { newRoute() } label: {
                     Image(systemName: "plus")
                 }
             }
@@ -120,6 +119,13 @@ struct RouteListView: View {
             Button("Cancel", role: .cancel) { routeToDelete = nil }
         } message: {
             Text("This will permanently delete the route and all its stops.")
+        }
+    }
+
+    /// New Route: the empty page's button and the toolbar's +, one gate.
+    private func newRoute() {
+        $gate.unless(ProGate.createRoute(access, routes: allRoutes, operatorID: authManager.userID)) {
+            showingCreateRoute = true
         }
     }
 

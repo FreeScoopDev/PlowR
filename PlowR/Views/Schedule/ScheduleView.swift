@@ -6,6 +6,7 @@ import CoreLocation
 
 struct ScheduleView: View {
     @Environment(AuthManager.self) private var authManager
+    @Environment(ActiveRouteStore.self) private var activeRoute
     @Environment(\.access) private var access
     @Environment(\.dynamicTypeSize) private var typeSize
     @Query private var allRoutes: [PlowRoute]
@@ -25,6 +26,10 @@ struct ScheduleView: View {
     @State private var visitToDelete: ScheduledVisit?
     @State private var showingRouteCreated = false
     @State private var createdRouteName = ""
+    /// The route Create Route just made, for Open Route and Start Route.
+    @State private var createdRoute: PlowRoute?
+    /// Open Route: its page, pushed here.
+    @State private var openedRoute: PlowRoute?
     /// Scheduled visits left off the new route because their client is inactive.
     @State private var skippedInactiveVisits = 0
 
@@ -152,9 +157,20 @@ struct ScheduleView: View {
                 Text("A deleted visit can't be brought back.")
             }
             .alert(createdRouteName.isEmpty ? "No Route Created" : "Route Created", isPresented: $showingRouteCreated) {
-                Button("OK", role: .cancel) { }
+                if let route = createdRoute {
+                    Button("Open Route") { openedRoute = route }
+                    if offersStart(route) {
+                        Button("Start Route") { start(route) }
+                    }
+                    Button("Done", role: .cancel) { }
+                } else {
+                    Button("OK", role: .cancel) { }
+                }
             } message: {
                 Text(routeCreatedMessage)
+            }
+            .navigationDestination(item: $openedRoute) { route in
+                RouteDetailView(route: route)
             }
         }
     }
@@ -444,6 +460,7 @@ struct ScheduleView: View {
         // No stops left: say why instead of saving an empty route.
         guard !stops.isEmpty else {
             createdRouteName = ""
+            createdRoute = nil
             showingRouteCreated = true
             return
         }
@@ -456,9 +473,32 @@ struct ScheduleView: View {
             modelContext.insert(stop)
         }
         createdRouteName = name
+        createdRoute = route
         showingRouteCreated = true
         PlowRTips.done(RouteFromDayTip(), RouteFromDayTip.routeMade)
         Haptics.success()
+    }
+
+    /// The run the route's page would start today (TodaysRun.opening):
+    /// stops marked below their trigger today left out.
+    private func todaysRun(of route: PlowRoute) -> TodaysRun {
+        let checks = (try? modelContext.fetch(FetchDescriptor<TriggerCheck>())) ?? []
+        return TodaysRun.opening(route, on: .now, checks: checks)
+    }
+
+    /// Start Route, after Create Route: a route for today, nothing running
+    /// (RouteFromDay.offersStart).
+    private func offersStart(_ route: PlowRoute) -> Bool {
+        RouteFromDay.offersStart(day: selectedDate, now: .now, routeRunning: activeRoute.isActive,
+                                 stopsToRun: todaysRun(of: route).stops.count)
+    }
+
+    /// As the route page's Start: PlowR Pro's check, then the store, which
+    /// opens the route screen (and its location prompt).
+    private func start(_ route: PlowRoute) {
+        $gate.unless(ProGate.startRoute(route, access: access, routes: allRoutes, operatorID: route.operatorID)) {
+            activeRoute.start(route, skipping: todaysRun(of: route).skippedOnRoute)
+        }
     }
 
     /// What Create Route did, including any visits it left off.

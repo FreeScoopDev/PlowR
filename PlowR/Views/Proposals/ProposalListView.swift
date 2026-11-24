@@ -470,13 +470,21 @@ struct ProposalCreationContext: Identifiable {
     let isInvoice: Bool
 }
 
+/// Select Client, then on to what it was opened for (a new document, Log
+/// Work): picking a client, or adding one with New Client, goes straight on.
 struct ClientPickerForProposalView: View {
+    /// What New Client's form opens on.
+    var newClientKind: NewClientDraft.Kind = .newLead
+    /// What the empty list says, for what the client is being picked for.
+    var emptyMessage = "Add a client to create a proposal or invoice."
     let onSelect: (Client) -> Void
     @Environment(AuthManager.self) private var authManager
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \Client.name) private var allClients: [Client]
     @Environment(\.access) private var access
     @State private var showingAddClient = false
+    /// Saved from New Client: picked once its form has closed.
+    @State private var addedClient: Client?
     @State private var gate: ProGate?
 
     private var myClients: [Client] {
@@ -490,7 +498,7 @@ struct ClientPickerForProposalView: View {
                     ContentUnavailableView(
                         "No Clients Yet",
                         systemImage: "person.badge.plus",
-                        description: Text("Add a client to create a proposal.")
+                        description: Text(emptyMessage)
                     )
                 } else {
                     // Picking one closes this sheet (ClientSearchList).
@@ -514,11 +522,20 @@ struct ClientPickerForProposalView: View {
                     }
                 }
             }
-            .sheet(isPresented: $showingAddClient) {
-                // Someone added here is being quoted: a lead until they're won.
-                AddClientView(kind: .newLead)
+            .sheet(isPresented: $showingAddClient, onDismiss: pickAddedClient) {
+                // From Documents, someone added here is being quoted: a lead
+                // until they're won.
+                AddClientView(kind: newClientKind) { addedClient = $0 }
             }
             .proGateSheet($gate)
         }
+    }
+
+    /// New Client's form closed: a client it saved is the one picked.
+    private func pickAddedClient() {
+        guard let client = addedClient else { return }
+        addedClient = nil
+        onSelect(client)
+        dismiss()
     }
 }
