@@ -66,19 +66,19 @@ struct FirstRunOffersTests {
 
     /// The keyboard leaves a space after a suggested word.
     @Test func aSpaceAfterTheWordStillFindsTheClient() {
-        #expect(FirstRunOffers.search("Smith ", finds: "John Smith", address: "", phone: "", tags: []))
-        #expect(FirstRunOffers.search("  smith", finds: "John Smith", address: "", phone: "", tags: []))
+        #expect(ClientSearch.matches("Smith ", name: "John Smith", address: "", phone: "", tags: []))
+        #expect(ClientSearch.matches("  smith", name: "John Smith", address: "", phone: "", tags: []))
     }
 
     @Test func aSearchLooksInNameAddressPhoneAndTags() {
-        #expect(FirstRunOffers.search("alder", finds: "Ellen Park", address: "7 Alder Ct", phone: "", tags: []))
-        #expect(FirstRunOffers.search("0142", finds: "Ellen Park", address: "", phone: "555-0142", tags: []))
-        #expect(FirstRunOffers.search("WEEKLY", finds: "Ellen Park", address: "", phone: "", tags: ["Weekly"]))
-        #expect(!FirstRunOffers.search("jones", finds: "Ellen Park", address: "7 Alder Ct", phone: "555-0142", tags: ["Weekly"]))
+        #expect(ClientSearch.matches("alder", name: "Ellen Park", address: "7 Alder Ct", phone: "", tags: []))
+        #expect(ClientSearch.matches("0142", name: "Ellen Park", address: "", phone: "555-0142", tags: []))
+        #expect(ClientSearch.matches("WEEKLY", name: "Ellen Park", address: "", phone: "", tags: ["Weekly"]))
+        #expect(!ClientSearch.matches("jones", name: "Ellen Park", address: "7 Alder Ct", phone: "555-0142", tags: ["Weekly"]))
     }
 
     @Test func onlySpacesIsNoSearch() {
         #expect(FirstRunOffers.searchQuery("   ").isEmpty)
-        #expect(FirstRunOffers.search("   ", finds: "Ellen Park", address: "", phone: "", tags: []))
+        #expect(ClientSearch.matches("   ", name: "Ellen Park", address: "", phone: "", tags: []))
     }
 }
