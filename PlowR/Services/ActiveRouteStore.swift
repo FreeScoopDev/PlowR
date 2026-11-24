@@ -136,13 +136,8 @@ final class ActiveRouteStore {
         var finishedAt: Date
     }
 
-    /// A day's visit before a completion completed it.
-    struct UndoVisitState {
-        var visit: ScheduledVisit
-        var status: VisitStatus
-        var completedAt: Date?
-        var serviceLogged: Bool
-    }
+    // A day's visit before a completion completed it: `UndoVisitState`
+    // (VisitCompletionUndo.swift), shared with the Schedule's Undo.
 
     private(set) var route: PlowRoute?
     /// Copied at start/restore so ending a route never has to read a model

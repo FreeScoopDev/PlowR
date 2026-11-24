@@ -419,4 +419,27 @@ struct AccountEraserTests {
         #expect(FileManager.default.fileExists(atPath: inbox.appending(path: "Received.pdf").path))
         #expect(AccountEraser.removeSharedFiles(in: folder.appending(path: "gone")) == 0)
     }
+
+    // Both paths drop the Undo offer and its pending delete first, without
+    // doing it: Remove from This Device deletes no record, so the visit stays.
+    @Test(arguments: [false, true])
+    func theUndoOfferIsDroppedNotDone(removeFromDevice: Bool) throws {
+        let account = try Account()
+        defer { account.removeFiles() }
+        let center = UndoCenter(autoExpire: false, announce: { _ in })
+        center.configure(context: account.context)
+        let visits = try account.context.fetch(FetchDescriptor<ScheduledVisit>())
+        let visit = try #require(visits.first)
+        center.delete(visit, scope: .thisVisit, among: visits)
+        var eraser = account.eraser()
+        eraser.undoCenter = center
+        if removeFromDevice {
+            _ = eraser.removeFromThisDevice()
+            #expect(try count(ScheduledVisit.self, in: account.context) == visits.count)
+        } else {
+            _ = eraser.eraseAll()
+        }
+        #expect(center.offer == nil)
+        #expect(center.pendingDeletions.isEmpty)
+    }
 }

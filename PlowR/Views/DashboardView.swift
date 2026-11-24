@@ -13,6 +13,8 @@ struct DashboardView: View {
     @Query private var allProfiles: [BusinessProfile]
     @Query private var allClients: [Client]
     @Query(sort: \ScheduledVisit.scheduledDate) private var allVisits: [ScheduledVisit]
+    /// A visit a delete is holding back for its Undo isn't shown (UndoCenter).
+    @Environment(UndoCenter.self) private var undoCenter
     @Query(sort: \PlowRoute.createdAt, order: .reverse) private var allRoutes: [PlowRoute]
     @Query private var allProposals: [Proposal]
     @Query private var allRecords: [ServiceRecord]
@@ -65,6 +67,7 @@ struct DashboardView: View {
         allVisits.filter {
             $0.operatorID == authManager.userID &&
             $0.status == .scheduled &&
+            !undoCenter.isPendingDeletion($0) &&
             Calendar.current.isDate($0.scheduledDate, inSameDayAs: now)
         }
     }
@@ -75,6 +78,7 @@ struct DashboardView: View {
         return allVisits.filter {
             $0.operatorID == authManager.userID &&
             $0.status == .scheduled &&
+            !undoCenter.isPendingDeletion($0) &&
             $0.scheduledDate >= tomorrow &&
             $0.scheduledDate < weekEnd
         }.prefix(5).map { $0 }
