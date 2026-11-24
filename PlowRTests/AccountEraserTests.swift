@@ -61,6 +61,14 @@ struct AccountEraserTests {
         let cache = URLCache(memoryCapacity: 1_000_000, diskCapacity: 0)
         let cachedRequest = URLRequest(url: URL(filePath: "/forecast/1-Main-St"))
 
+        /// An expense with a receipt photo: external storage, erased with it.
+        static func expenseWithReceipt() -> Expense {
+            let expense = Expense(operatorID: "op", amount: 45.2, category: .fuel)
+            expense.receiptData = Data(repeating: 7, count: 200_000)
+            expense.receiptCapturedAt = Date()
+            return expense
+        }
+
         init() throws {
             let suite = "AccountEraserTests-\(UUID().uuidString)"
             let defaults = try #require(UserDefaults(suiteName: suite))
@@ -104,6 +112,8 @@ struct AccountEraserTests {
                 SentText(clientID: client.id.uuidString, kind: "text", body: "Hi", sentAt: Date()),
                 TriggerCheck(operatorID: "op", clientID: client.id.uuidString, clientName: client.name,
                              placeID: client.id.uuidString, day: Date()),
+                Self.expenseWithReceipt(),
+                MileageEntry(operatorID: "op", distance: 12, unit: .miles, purpose: "Supply run"),
             ]
             others.forEach { context.insert($0) }
             let property = Property(label: "North lot", address: "2 Elm St", operatorID: "op")

@@ -188,6 +188,7 @@ struct BusinessProfilesTests {
         b.defaultTaxRate = 6.25
         b.logoData = Data([9])
         b.customVisitReasons = ["Salt only"]
+        b.seasonStartMonth = 10
         let other = BusinessProfile(operatorID: "other")
         [a, b, other].forEach { context.insert($0) }
         let keep = try #require(BusinessProfiles.current([a, b], operatorID: "op"))
@@ -199,6 +200,7 @@ struct BusinessProfilesTests {
         #expect(keep.defaultTaxRate == 6.25)
         #expect(keep.logoData == Data([9]))
         #expect(keep.customVisitReasons == ["Salt only"])
+        #expect(keep.seasonStartMonth == 10)
         #expect(try context.fetch(FetchDescriptor<BusinessProfile>()).count == 2)   // "other" untouched
     }
 }

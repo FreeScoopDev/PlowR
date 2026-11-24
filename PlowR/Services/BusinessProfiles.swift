@@ -42,6 +42,7 @@ enum BusinessProfiles {
         text(\.address)
         // nil is "never chosen": a choice made on the other device counts.
         if keep.paymentTermsDays == nil { keep.paymentTermsDays = other.paymentTermsDays }
+        if keep.seasonStartMonth == 0 { keep.seasonStartMonth = other.seasonStartMonth }
         if keep.logoData == nil { keep.logoData = other.logoData }
         if keep.defaultTaxRate == 0 { keep.defaultTaxRate = other.defaultTaxRate }
         if keep.accentColorHex == PlowRColor.navyHex { keep.accentColorHex = other.accentColorHex }

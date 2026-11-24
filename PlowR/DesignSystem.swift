@@ -318,6 +318,15 @@ nonisolated enum PlowRSymbol: String, CaseIterable {
     case services = "checklist"
     /// Log Work: record a visit's work for a client.
     case logWork = "list.bullet.clipboard"
+    /// Expenses and mileage (Home's Expenses).
+    case expense = "creditcard.and.123"
+    /// An expense's category (ExpenseCategory).
+    case fuel = "fuelpump.fill"
+    case materials = "shippingbox.fill"
+    case equipment = "wrench.and.screwdriver.fill"
+    case otherExpense = "tag.fill"
+    /// A trip in the mileage log.
+    case mileage = "car.fill"
 
     /// The name, for `Image(systemName:)` and `Label(_:systemImage:)`.
     var name: String { rawValue }

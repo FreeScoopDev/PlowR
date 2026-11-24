@@ -30,6 +30,8 @@ struct PlowRApp: App {
         SentText.self,
         Contract.self,
         TriggerCheck.self,
+        Expense.self,
+        MileageEntry.self,
     ]
 
     init() {
