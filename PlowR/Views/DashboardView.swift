@@ -322,7 +322,7 @@ struct DashboardView: View {
                                }
                            },
                            hide: {
-                               UserDefaults.standard.set(true, forKey: FirstRun.checklistHiddenKey(authManager.userID))
+                               FirstRun.hideChecklist(operatorID: authManager.userID)
                                withAnimation { checklistHidden = true }
                            },
                            alertsUndecided: $alertsUndecided,

@@ -359,7 +359,7 @@ struct SettingsView: View {
     private func readGetStarted() async {
         let id = authManager.userID
         let defaults = UserDefaults.standard
-        guard defaults.bool(forKey: FirstRun.checklistHiddenKey(id)) else {
+        guard FirstRun.isChecklistHidden(operatorID: id, defaults: defaults) else {
             offersGetStarted = false
             return
         }

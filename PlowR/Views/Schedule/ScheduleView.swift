@@ -154,8 +154,8 @@ struct ScheduleView: View {
                                                      set: { if !$0 { visitToDelete = nil } }),
                                 titleVisibility: .visible, presenting: visitToDelete) { visit in
                 deleteButtons(for: visit)
-            } message: { _ in
-                Text("A deleted visit can't be brought back.")
+            } message: { visit in
+                Text(VisitDeletion.message(for: visit, among: allVisits))
             }
             .alert(createdRouteName.isEmpty ? "No Route Created" : "Route Created", isPresented: $showingRouteCreated) {
                 Button("OK", role: .cancel) { }
