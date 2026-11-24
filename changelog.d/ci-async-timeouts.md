@@ -1,0 +1,2 @@
+### Internal
+- CI runs the unit tests one at a time, as a local run does. With parallel testing on, all ~1000 tests started at once in one process and queued on the main thread for about 145 seconds, while each test's 2-minute limit counted from launch: about 40 tests a run were cut off without being reported, and now and then one was failed after exactly 120 seconds, a different one each time. Nothing was hung.
