@@ -46,6 +46,8 @@ struct DashboardView: View {
     @State private var showingContactScanner = false
     @State private var showingCreateRoute = false
     @State private var showingAddVisit = false
+    /// A tapped Today visit: its sheet (VisitSheet).
+    @State private var visitToOpen: ScheduledVisit?
 
     // MARK: - Derived Data
 
@@ -205,6 +207,7 @@ struct DashboardView: View {
         .sheet(isPresented: $showingContactScanner) { ContactScannerView() }
         .sheet(isPresented: $showingCreateRoute) { CreateRouteView() }
         .sheet(isPresented: $showingAddVisit)   { AddVisitView() }
+        .sheet(item: $visitToOpen) { VisitSheet(visit: $0) }
         .sheet(isPresented: Binding(get: { stormTextStops != nil }, set: { if !$0 { stormTextStops = nil } })) {
             MassMessageView(stops: stormTextStops ?? [], allClients: myClients,
                             presets: StormCard.presets, kind: .text)
@@ -523,18 +526,13 @@ struct DashboardView: View {
         .padding(PlowRLayout.space4)
     }
 
+    /// Opens the visit's sheet: Record Services, Complete, Complete &
+    /// Invoice, and Open Client for the client's page.
     private func visitRow(_ visit: ScheduledVisit) -> some View {
-        let client = allClients.first { $0.id.uuidString == visit.clientID }
-        return Group {
-            if let client {
-                NavigationLink { EditClientView(client: client) } label: {
-                    visitRowContent(visit)
-                }
-                .buttonStyle(.plain)
-            } else {
-                visitRowContent(visit)
-            }
+        Button { visitToOpen = visit } label: {
+            visitRowContent(visit)
         }
+        .buttonStyle(.plain)
     }
 
     /// Where a row's text starts (row padding, icon column, gap), so a

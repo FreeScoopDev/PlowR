@@ -19,7 +19,9 @@ struct ScheduleView: View {
     @State private var selectedDate = Date()
     @State private var weatherFetcher = WeatherFetcher()
     @State private var showingAddVisit = false
-    @State private var visitToEdit: ScheduledVisit?
+    /// A tapped visit: its sheet (VisitSheet), with Record Services, Complete
+    /// and Complete & Invoice. Edit Visit is there.
+    @State private var visitToOpen: ScheduledVisit?
     @State private var invoicingVisit: ScheduledVisit?
     /// Delete was swiped: asked first (VisitDeletion).
     @State private var visitToDelete: ScheduledVisit?
@@ -128,8 +130,8 @@ struct ScheduleView: View {
             .sheet(isPresented: $showingAddVisit) {
                 AddVisitView(initialDate: selectedDate)
             }
-            .sheet(item: $visitToEdit) { visit in
-                AddVisitView(editing: visit)
+            .sheet(item: $visitToOpen) { visit in
+                VisitSheet(visit: visit)
             }
             .sheet(item: $invoicingVisit) { visit in
                 if let client = clientForVisit(visit) {
@@ -248,7 +250,7 @@ struct ScheduleView: View {
                                 .tint(PlowRColor.Status.scheduled.solid)
                             }
                         }
-                        .onTapGesture { visitToEdit = visit }
+                        .onTapGesture { visitToOpen = visit }
                 }
             }
         } header: {
@@ -502,7 +504,7 @@ struct ScheduleView: View {
     }
 
     private func delete(_ visit: ScheduledVisit, _ scope: VisitDeletion.Scope) {
-        if visitToEdit?.id == visit.id { visitToEdit = nil }
+        if visitToOpen?.id == visit.id { visitToOpen = nil }
         VisitDeletion.delete(visit, scope: scope, among: allVisits, in: modelContext)
     }
 }

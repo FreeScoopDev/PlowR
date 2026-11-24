@@ -385,12 +385,56 @@ enum ServiceLog {
         let (record, _) = recordForStop(stop, of: client, run: run, operatorID: operatorID,
                                         startedAt: startedAt, in: context)
         stop.completedNotes = notes
-        record.notes = notes
-        if servicesLocked(record, in: context) { return record }
-        if invoice(of: record, in: context) == nil { record.invoiceID = "" }
-        record.lines = recording.recordLines
+        guard write(recording, notes: notes, to: record, locked: servicesLocked(record, in: context), in: context)
+        else { return record }
         stop.completedServiceIDs = recording.services.map(\.id).filter { recording.selectedIDs.contains($0) }
         return record
+    }
+
+    /// Saves what Record Services has for `visit` (tapped on the Schedule or
+    /// Home) into its `visit:<id>` record, the one Complete and a route stop
+    /// sharing the visit write. A scheduled visit is completed first, through
+    /// `complete`, so its status, series, `serviceLogged` and invoice are
+    /// exactly as Complete leaves them; saving again doesn't complete it
+    /// again. A completed one keeps its record (a route stop's keeps its
+    /// times, route and source), or gets one as Complete would make it.
+    /// Then the record is written as `saveRecording` writes a stop's: notes
+    /// always; services unless they were already on an invoice before this
+    /// save (lines Complete just filled in, on an invoice made for the visit
+    /// beforehand, aren't the bill's: the recording replaces them).
+    @discardableResult
+    static func saveVisitRecording(_ recording: StopRecording, notes: String, for visit: ScheduledVisit,
+                                   client: Client, operatorID: String, now: Date = .now,
+                                   in context: ModelContext) -> ServiceRecord {
+        let key = visitKey(visit.id)
+        let lockedBefore = record(forKey: key, in: context).map { servicesLocked($0, in: context) } ?? false
+        let record: ServiceRecord
+        if visit.status == .scheduled,
+           let completed = complete(visit, among: series(of: visit, in: context), in: context, now: now) {
+            record = completed
+        } else {
+            let made = Self.record(forKey: key, source: .visit, operatorID: operatorID, client: client, in: context)
+            record = made.record
+            if true {
+                fill(record, from: visit, client: client,
+                     performedAt: min(visit.scheduledDate, visit.completedAt ?? now), in: context)
+            }
+        }
+        write(recording, notes: notes, to: record, locked: servicesLocked(record, in: context), in: context)
+        return record
+    }
+
+    /// Record Services' tail, for a stop and a visit alike: the notes, then,
+    /// unless the services are `locked` (on an invoice), a stale invoice
+    /// cleared and the lines on screen. False when locked.
+    @discardableResult
+    private static func write(_ recording: StopRecording, notes: String, to record: ServiceRecord, locked: Bool,
+                              in context: ModelContext) -> Bool {
+        record.notes = notes
+        if locked { return false }
+        if invoice(of: record, in: context) == nil { record.invoiceID = "" }
+        record.lines = recording.recordLines
+        return true
     }
 
     /// Record Services' invoice for `record`: `recording`'s lines under
