@@ -315,6 +315,8 @@ nonisolated enum PlowRSymbol: String, CaseIterable {
     case services = "checklist"
     /// Log Work: record a visit's work for a client.
     case logWork = "list.bullet.clipboard"
+    /// The Work Log: every job across all clients, by day.
+    case workLog = "list.bullet.rectangle.portrait"
 
     /// The name, for `Image(systemName:)` and `Label(_:systemImage:)`.
     var name: String { rawValue }

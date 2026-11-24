@@ -127,7 +127,7 @@ struct ServiceRecordRow: View {
                     .font(.subheadline)
                     .foregroundStyle(record.isBillable && status != .covered ? Color.primary : PlowRColor.inkSecondary)
             }
-            Text(servicesSummary)
+            Text(Self.servicesSummary(of: record))
                 .font(.caption)
                 .foregroundStyle(PlowRColor.inkSecondary)
                 .lineLimit(2)
@@ -156,7 +156,9 @@ struct ServiceRecordRow: View {
         .padding(.vertical, 2)
     }
 
-    private var servicesSummary: String {
+    /// What was done, as a list of the lines' names (Service History and
+    /// the Work Log).
+    static func servicesSummary(of record: ServiceRecord) -> String {
         let names = record.lines.map(\.name)
         return names.isEmpty ? "No services recorded" : OneTapServices.englishList(names)
     }
