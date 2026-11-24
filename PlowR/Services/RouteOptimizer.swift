@@ -4,7 +4,7 @@ enum RouteOptimizer {
     struct Waypoint {
         let latitude: Double
         let longitude: Double
-        var hasGPS: Bool { latitude != 0 || longitude != 0 }
+        var hasGPS: Bool { AddressPin.exists(latitude: latitude, longitude: longitude) }
     }
 
     /// Nearest-neighbor reordering. Returns original indices in optimized visit order.
@@ -31,6 +31,150 @@ enum RouteOptimizer {
         }
 
         return ordered.map(\.origIdx) + withoutGPS
+    }
+
+    // MARK: - Driving times
+
+    /// What a travel-time provider answers for one leg.
+    enum TravelTime: Equatable {
+        /// The driving time, in seconds.
+        case seconds(TimeInterval)
+        /// No answer for this leg (no route found, a network error).
+        case unavailable
+        /// The map service says it is throttling this app: stop asking.
+        case throttled
+    }
+
+    /// Asks for the driving time from one waypoint to another.
+    typealias TravelTimeProvider = (_ from: Waypoint, _ to: Waypoint) async -> TravelTime
+
+    /// The order a driving-time optimization came to, in original indices,
+    /// and how many of its legs used the straight-line estimate.
+    struct DrivingOrder: Equatable {
+        let order: [Int]
+        /// Legs between stops with GPS in `order`: one fewer than those stops.
+        let legs: Int
+        /// Of those, how many were scored by the straight-line estimate.
+        let estimatedLegs: Int
+    }
+
+    /// At each step only this many of the nearest remaining stops (by
+    /// straight line) are asked about: asking about every one is about
+    /// n²/2 requests, and MapKit throttles an app after a few dozen a minute.
+    static let candidatesPerStep = 5
+    /// After this many unavailable answers in a row, stop asking for the run.
+    static let unavailableCutoff = 3
+    /// Roads wind: a drive is about this much longer than the straight line.
+    static let roadFactor = 1.3
+    /// Average driving speed for the estimate, km/h.
+    static let averageSpeedKmh = 40.0
+
+    /// The estimated driving time in seconds from the straight-line
+    /// distance, so an estimated leg compares with a real one in one unit.
+    static func estimatedSeconds(_ a: Waypoint, _ b: Waypoint) -> TimeInterval {
+        haversineKm(a, b) * roadFactor / averageSpeedKmh * 3_600
+    }
+
+    /// Nearest-neighbour by driving time. The first stop with GPS stays
+    /// first; stops without GPS keep their order after the rest. At each step
+    /// only the `candidatesPerStep` nearest remaining stops by straight line
+    /// are asked about, one request at a time. No pair can come up twice in
+    /// one run: each step asks from the stop just chosen, which is then out of
+    /// `remaining`, so no later step asks from it or about it (and so nothing
+    /// is cached). A leg with no answer is scored by `estimatedSeconds`; after a throttled
+    /// answer or `unavailableCutoff` unavailable ones in a row, the provider
+    /// isn't asked again this run. Throws `CancellationError` if the task is
+    /// cancelled, so a cancelled run returns no order at all.
+    static func drivingOrder(of waypoints: [Waypoint],
+                             travelTime: TravelTimeProvider) async throws -> DrivingOrder {
+        var remaining = waypoints.indices.filter { waypoints[$0].hasGPS }
+        let withoutGPS = waypoints.indices.filter { !waypoints[$0].hasGPS }
+        guard remaining.count >= 2 else {
+            return DrivingOrder(order: remaining + withoutGPS, legs: 0, estimatedLegs: 0)
+        }
+
+        var asking = true
+        var unavailableInARow = 0
+        var estimatedLegs = 0
+
+        var current = remaining.removeFirst()
+        var ordered = [current]
+        while !remaining.isEmpty {
+            try Task.checkCancellation()
+            let from = waypoints[current]
+            let candidates = remaining
+                .sorted { haversineKm(from, waypoints[$0]) < haversineKm(from, waypoints[$1]) }
+                .prefix(candidatesPerStep)
+
+            var best: (index: Int, seconds: TimeInterval, estimated: Bool)?
+            for candidate in candidates {
+                let to = waypoints[candidate]
+                var answer: TravelTime?
+                if asking {
+                    let asked = await travelTime(from, to)
+                    // Stop at once, not after the rest of this step's asks.
+                    try Task.checkCancellation()
+                    answer = asked
+                    switch asked {
+                    case .seconds: unavailableInARow = 0
+                    case .unavailable:
+                        unavailableInARow += 1
+                        if unavailableInARow >= unavailableCutoff { asking = false }
+                    case .throttled: asking = false
+                    }
+                }
+                let seconds: TimeInterval
+                let estimated: Bool
+                if case .seconds(let real)? = answer {
+                    seconds = real
+                    estimated = false
+                } else {
+                    seconds = estimatedSeconds(from, to)
+                    estimated = true
+                }
+                if best.map({ seconds < $0.seconds }) ?? true {
+                    best = (candidate, seconds, estimated)
+                }
+            }
+
+            guard let chosen = best else { break }
+            if chosen.estimated { estimatedLegs += 1 }
+            remaining.removeAll { $0 == chosen.index }
+            ordered.append(chosen.index)
+            current = chosen.index
+        }
+
+        return DrivingOrder(order: ordered + withoutGPS, legs: ordered.count - 1, estimatedLegs: estimatedLegs)
+    }
+
+    /// The note to show after a driving-time run, or nil when every leg
+    /// had a real drive time.
+    static func estimateNote(estimatedLegs: Int, legs: Int) -> String? {
+        guard estimatedLegs > 0 else { return nil }
+        if estimatedLegs >= legs {
+            return "Drive times weren't available, so the order uses straight-line distance."
+        }
+        if estimatedLegs == 1 {
+            return "A drive time wasn't available, so 1 of \(legs) legs used straight-line distance."
+        }
+        return "Some drive times weren't available, so \(estimatedLegs) of \(legs) legs used straight-line distance."
+    }
+
+    // MARK: - Stops changed during a run
+
+    /// Where one stop stood: its place in the order and its pin.
+    struct StopPlace: Equatable {
+        let order: Int
+        let latitude: Double
+        let longitude: Double
+    }
+
+    /// The route's stops keyed by ID, to compare before and after a run.
+    /// Keyed by ID rather than kept in sorted order, because stops with the
+    /// same `order` can come back in either sequence. Two snapshots are equal
+    /// only if the same stops are there with the same order and pins.
+    static func stopSnapshot(_ stops: [(id: UUID, place: StopPlace)]) -> [UUID: StopPlace] {
+        Dictionary(stops.map { ($0.id, $0.place) }, uniquingKeysWith: { first, _ in first })
     }
 
     /// Great-circle distance in kilometres (Haversine formula).
