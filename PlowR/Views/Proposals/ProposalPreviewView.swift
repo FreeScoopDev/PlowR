@@ -15,6 +15,8 @@ struct ProposalPreviewView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.access) private var access
     @State private var showingShare = false
+    /// The PDF couldn't be written: said, and nothing offered to share.
+    @State private var shareFailure: ShareFile.Failure?
     @State private var gate: ProGate?
 
     @State private var shareURL: URL?
@@ -29,6 +31,7 @@ struct ProposalPreviewView: View {
                 .navigationTitle(docTitle)
                 .navigationBarTitleDisplayMode(.inline)
                 .proGateSheet($gate)
+                .shareFileAlert($shareFailure)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Back") { dismiss() }
@@ -75,8 +78,12 @@ struct ProposalPreviewView: View {
         let safe = client.name.replacingOccurrences(of: "/", with: "-")
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("\(filePrefix)-\(safe).pdf")
-        try? pdfData.write(to: url, options: .completeFileProtection)
-        shareURL = url
+        switch ShareFile.write(pdfData, to: url) {
+        case .success(let url): shareURL = url
+        case .failure(let failure):
+            shareURL = nil
+            shareFailure = failure
+        }
     }
 }
 

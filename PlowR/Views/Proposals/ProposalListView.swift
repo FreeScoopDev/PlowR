@@ -21,6 +21,8 @@ struct ProposalListView: View {
     @State private var proposalToVoid: Proposal?
     @State private var filterStatus: FilterStatus = .all
     @State private var reminderProposal: Proposal?
+    /// Mark Paid was chosen: asked first (markPaidConfirmation).
+    @State private var invoiceToMarkPaid: Proposal?
     @Query private var allPaymentMethods: [PaymentMethod]
     /// One money tip at a time, whichever's ready.
     @State private var tips = TipGroup(.firstAvailable) {
@@ -138,6 +140,7 @@ struct ProposalListView: View {
         .background(PlowRColor.ground)
         .navigationTitle(filterStatus == .all ? "Documents" : filterStatus.rawValue)
         .proGateSheet($gate)
+        .markPaidConfirmation($invoiceToMarkPaid, in: modelContext)
         // What the money tips wait on.
         .onChange(of: documentsState, initial: true) { _, state in
             PlowRTips.update {
@@ -339,13 +342,14 @@ struct ProposalListView: View {
                 // As sharing it: an invoice still owed can be sent, read only.
                 $gate.unless(ProGate.shareDocument(access, proposal)) {
                     DocumentSent.markSent(proposal, in: modelContext)
+                    Haptics.success()
                 }
             } label: {
                 Label("Mark Sent", systemImage: "paperplane.fill")
             }
         } else if proposal.invoiceStatus == .sent || proposal.invoiceStatus == .overdue {
             Button {
-                Payments.payInFull(proposal, in: modelContext)
+                invoiceToMarkPaid = proposal
             } label: {
                 Label("Mark Paid", systemImage: "checkmark.seal.fill")
             }

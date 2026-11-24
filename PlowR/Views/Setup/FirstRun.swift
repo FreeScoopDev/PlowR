@@ -32,6 +32,18 @@ enum FirstRun {
         completedSetup && !hidden && !checklist.isComplete
     }
 
+    /// Settings' Show Get Started: offered while the card is hidden and would
+    /// otherwise show (setup done here, steps left). Hide is one tap, so it
+    /// needs a way back.
+    static func offersShowAgain(completedSetup: Bool, hidden: Bool, checklist: Checklist) -> Bool {
+        hidden && showsChecklist(completedSetup: completedSetup, hidden: false, checklist: checklist)
+    }
+
+    /// Show Get Started: the card comes back on Home.
+    static func showChecklistAgain(operatorID: String, defaults: UserDefaults = .standard) {
+        defaults.removeObject(forKey: checklistHiddenKey(operatorID))
+    }
+
     /// Per business, in standard preferences (Delete Account & Data clears them).
     static func completedKey(_ operatorID: String) -> String { "setupCompleted.\(operatorID)" }
     static func checklistHiddenKey(_ operatorID: String) -> String { "getStartedHidden.\(operatorID)" }
@@ -91,6 +103,21 @@ enum FirstRun {
 
         var isComplete: Bool { profileDone && clientAdded && routeMade && invoiceSent && !alertsUndecided }
         var doneCount: Int { [profileDone, clientAdded, routeMade, invoiceSent].filter { $0 }.count }
+    }
+
+    /// `operatorID`'s steps, read from the store: for a screen with no
+    /// queries of its own (Settings), the same as Home's card works out.
+    @MainActor
+    static func checklist(operatorID: String, in context: ModelContext, alertsUndecided: Bool) -> Checklist {
+        let profiles = (try? context.fetch(FetchDescriptor<BusinessProfile>())) ?? []
+        let clients = (try? context.fetch(FetchDescriptor<Client>(predicate: #Predicate { $0.operatorID == operatorID })))?
+            .count ?? 0
+        let routes = (try? context.fetch(FetchDescriptor<PlowRoute>(predicate: #Predicate { $0.operatorID == operatorID })))?
+            .count ?? 0
+        let documents = (try? context.fetch(FetchDescriptor<Proposal>(predicate: #Predicate { $0.operatorID == operatorID })))
+            ?? []
+        return checklist(profile: BusinessProfiles.current(profiles, operatorID: operatorID), clients: clients,
+                         routes: routes, documents: documents, alertsUndecided: alertsUndecided)
     }
 
     static func checklist(profile: BusinessProfile?, clients: Int, routes: Int, documents: [Proposal],

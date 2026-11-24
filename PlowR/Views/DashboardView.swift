@@ -212,6 +212,11 @@ struct DashboardView: View {
         .sheet(item: $overpaidInvoice) { InvoicePaymentsView(invoice: $0) }
         // No tips while Get Started has steps left: it's the one thing to do.
         .onChange(of: showsGetStarted, initial: true) { _, shows in PlowRTips.update { PlowRTips.gettingStarted = shows } }
+        // Settings' Show Get Started clears the flag while this page waits
+        // in its tab.
+        .onAppear {
+            checklistHidden = UserDefaults.standard.bool(forKey: FirstRun.checklistHiddenKey(authManager.userID))
+        }
         .task {
             iCloud.watch()
             // Notifications are asked for in setup and from Get Started,
