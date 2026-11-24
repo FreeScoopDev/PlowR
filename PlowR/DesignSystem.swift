@@ -320,6 +320,15 @@ nonisolated enum PlowRSymbol: String, CaseIterable {
     case logWork = "list.bullet.clipboard"
     /// The Work Log: every job across all clients, by day.
     case workLog = "list.bullet.rectangle.portrait"
+    /// Expenses and mileage (Home's Expenses).
+    case expense = "receipt"
+    /// An expense's category (ExpenseCategory).
+    case fuel = "fuelpump.fill"
+    case materials = "shippingbox.fill"
+    case equipment = "wrench.and.screwdriver.fill"
+    case otherExpense = "tag.fill"
+    /// A trip in the mileage log.
+    case mileage = "car.fill"
     /// Home's Search: clients, documents, routes and jobs at once.
     case search = "magnifyingglass"
 

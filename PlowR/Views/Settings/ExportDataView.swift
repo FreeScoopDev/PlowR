@@ -1,9 +1,9 @@
 import SwiftUI
 import SwiftData
 
-/// Settings → Export Data: clients, invoices and the Service History as
-/// spreadsheet files (CSVExport), to share, save to Files, or send to an
-/// accountant.
+/// Settings → Export Data: clients, invoices, the Service History, expenses
+/// and mileage as spreadsheet files (CSVExport), to share, save to Files, or
+/// send to an accountant.
 struct ExportDataView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AuthManager.self) private var authManager
@@ -49,7 +49,7 @@ struct ExportDataView: View {
                 }
             } footer: {
                 SectionNote(Text(failed ? "The files couldn't be made. Try again."
-                     : "Spreadsheet (CSV) files that open in Numbers, Excel or Google Sheets, and import into most accounting software. Money has two decimals; dates are year-month-day. Invoice Lines has the services on invoices billed (not drafts, or void ones with no money on them), before discount and tax, which are in Invoices. They're a copy to keep: routes, photos and settings aren't in them. Import from Spreadsheet can bring back the Clients file's names, phones, emails, addresses, tags and notes (not whether a client is inactive or comped, their discount, or their other properties); the other files can't be loaded into PlowR."))
+                     : "Spreadsheet (CSV) files that open in Numbers, Excel or Google Sheets, and import into most accounting software. Money has two decimals; dates are year-month-day. Invoice Lines has the services on invoices billed (not drafts, or void ones with no money on them), before discount and tax, which are in Invoices. Expenses and Mileage list what you logged on Home's Expenses; receipt photos aren't in the files. They're a copy to keep: routes, photos and settings aren't in them. Import from Spreadsheet can bring back the Clients file's names, phones, emails, addresses, tags and notes (not whether a client is inactive or comped, their discount, or their other properties); the other files can't be loaded into PlowR."))
             }
             .listRowBackground(PlowRColor.surface)
         }
@@ -67,6 +67,9 @@ struct ExportDataView: View {
         let contracts = Contracts.all(in: modelContext)
         let visits = (try? modelContext.fetch(FetchDescriptor<ScheduledVisit>())) ?? []
         let catalog = (try? modelContext.fetch(FetchDescriptor<ServiceItem>())) ?? []
+        let expenses = ((try? modelContext.fetch(FetchDescriptor<Expense>())) ?? []).filter { $0.operatorID == operatorID }
+        let trips = ((try? modelContext.fetch(FetchDescriptor<MileageEntry>())) ?? []).filter { $0.operatorID == operatorID }
+        let distanceUnit = DistanceUnit.default(for: .current)
         do {
             files = [
                 Export(title: "Clients", detail: "\(clients.filter { $0.operatorID == operatorID }.count) clients",
@@ -107,7 +110,15 @@ struct ExportDataView: View {
                        systemImage: "list.bullet.clipboard",
                        url: try CSVExport.file("Service History",
                                                contents: CSVExport.serviceHistory(records, operatorID: operatorID,
-                                                                                  in: modelContext)))
+                                                                                  in: modelContext))),
+                Export(title: "Expenses",
+                       detail: "\(expenses.count) expenses, \(Money.text(Expenses.total(expenses))) in all",
+                       systemImage: PlowRSymbol.expense.name,
+                       url: try CSVExport.file("Expenses", contents: CSVExport.expenses(expenses, operatorID: operatorID))),
+                Export(title: "Mileage",
+                       detail: "\(trips.count) trips, \(Mileage.text(Mileage.total(trips, in: distanceUnit), unit: distanceUnit)) in all",
+                       systemImage: PlowRSymbol.mileage.name,
+                       url: try CSVExport.file("Mileage", contents: CSVExport.mileage(trips, operatorID: operatorID)))
             ]
             failed = false
         } catch {

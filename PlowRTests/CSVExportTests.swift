@@ -262,3 +262,61 @@ struct CSVExportTests {
         #expect(lines[2].contains("Later") && lines[2].contains("Mowing"))
     }
 }
+
+/// Export Data's Expenses and Mileage files.
+@MainActor
+struct ExpenseExportTests {
+    typealias Harness = ActiveRouteStoreTests.Harness
+
+    private func rows(_ csv: String) -> [String] {
+        #expect(csv.hasPrefix("\u{FEFF}"))
+        return csv.dropFirst().components(separatedBy: "\r\n").filter { !$0.isEmpty }
+    }
+
+    private func day(_ year: Int, _ month: Int, _ day: Int) throws -> Date {
+        try #require(Calendar.current.date(from: DateComponents(year: year, month: month, day: day, hour: 12)))
+    }
+
+    @Test func expensesAreThisOperatorsOldestFirst() throws {
+        let h = try Harness(stopCount: 1)
+        let salt = Expense(operatorID: "op", date: try day(2026, 11, 20), amount: 120.5, category: .materials)
+        salt.item = "Bagged mulch, 40 lb"
+        salt.quantity = 12
+        salt.unit = "bags"
+        salt.clientName = "Pat Doe"
+        salt.routeName = "North"
+        salt.note = "=SUM(A1:A9)"
+        salt.receiptData = Data([1, 2, 3])
+        salt.receiptCapturedAt = try day(2026, 11, 20)
+        // Receipt reads when the photo was taken, so the export never loads
+        // the photo itself (receiptData alone isn't looked at).
+        let fuel = Expense(operatorID: "op", date: try day(2026, 11, 2), amount: 45.2, category: .fuel)
+        fuel.receiptData = Data([4])
+        let theirs = Expense(operatorID: "someone else", date: try day(2026, 11, 10), amount: 9, category: .other)
+        [salt, fuel, theirs].forEach { h.context.insert($0) }
+        let lines = rows(CSVExport.expenses([salt, fuel, theirs], operatorID: "op"))
+        #expect(lines.count == 3)
+        #expect(lines[0] == "Date,Category,Item,Quantity,Unit,Amount,Client,Route,Note,Receipt")
+        #expect(lines[1] == "2026-11-02,Fuel,,,,45.20,,,,")
+        // The note can't run as a formula; the item's comma is quoted.
+        #expect(lines[2] == "2026-11-20,Materials,\"Bagged mulch, 40 lb\",12,bags,120.50,Pat Doe,North,'=SUM(A1:A9),Yes")
+    }
+
+    @Test func mileageIsThisOperatorsOldestFirstInItsOwnUnit() throws {
+        let h = try Harness(stopCount: 1)
+        let later = MileageEntry(operatorID: "op", date: try day(2026, 11, 20), distance: 12.5, unit: .miles,
+                                 purpose: "Supply run")
+        later.routeName = "North"
+        later.clientName = "Pat Doe"
+        later.note = "+1 stop"
+        let earlier = MileageEntry(operatorID: "op", date: try day(2026, 11, 3), distance: 30, unit: .kilometers,
+                                   purpose: "=cmd")
+        let theirs = MileageEntry(operatorID: "someone else", date: try day(2026, 11, 5), distance: 1, purpose: "Theirs")
+        [later, earlier, theirs].forEach { h.context.insert($0) }
+        let lines = rows(CSVExport.mileage([later, earlier, theirs], operatorID: "op"))
+        #expect(lines.count == 3)
+        #expect(lines[0] == "Date,Distance,Unit,Purpose,Route,Client,Note")
+        #expect(lines[1] == "2026-11-03,30,km,'=cmd,,,")
+        #expect(lines[2] == "2026-11-20,12.5,mi,Supply run,North,Pat Doe,'+1 stop")
+    }
+}

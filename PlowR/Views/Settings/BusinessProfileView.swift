@@ -49,6 +49,8 @@ struct BusinessProfileView: View {
     /// The terms picked; nil while the profile never chose and the picker
     /// wasn't touched, so saving doesn't turn "never chosen" into a choice.
     @State private var paymentTerms: Int?
+    /// 0: not set; 1–12: the month the season starts.
+    @State private var seasonStartMonth = 0
     @State private var defaultDisclaimer = ""
     @State private var defaultTaxRate = ""
     @State private var accentColor: Color = Self.accent(for: nil)
@@ -137,6 +139,20 @@ struct BusinessProfileView: View {
             }
             .listRowBackground(PlowRColor.surface)
 
+            Section {
+                Picker("Season Starts", selection: $seasonStartMonth) {
+                    Text("None").tag(0)
+                    ForEach(Array(BusinessProfiles.seasonMonthNames().enumerated()), id: \.offset) { index, name in
+                        Text(name).tag(index + 1)
+                    }
+                }
+            } header: {
+                SectionTitle("Season")
+            } footer: {
+                SectionNote("The month your work year begins, for season totals of your expenses.")
+            }
+            .listRowBackground(PlowRColor.surface)
+
             Section(title: "Optional") {
                 GrowingTextField("License / Certification Number", text: $licenseNumber)
             }
@@ -216,6 +232,7 @@ struct BusinessProfileView: View {
         licenseNumber = p.licenseNumber
         address = p.address
         paymentTerms = p.paymentTermsDays
+        seasonStartMonth = BusinessProfiles.seasonStartMonth(p)
         defaultDisclaimer = p.defaultDisclaimer
         defaultTaxRate = p.defaultTaxRate > 0 ? Proposal.percentText(p.defaultTaxRate) : ""
         colorPDFs = p.colorPDFs
@@ -240,6 +257,7 @@ struct BusinessProfileView: View {
         p.licenseNumber = licenseNumber
         p.address = address.trimmingCharacters(in: .whitespacesAndNewlines)
         if let paymentTerms { p.paymentTermsDays = paymentTerms }
+        if p.seasonStartMonth != seasonStartMonth { p.seasonStartMonth = seasonStartMonth }
         p.defaultDisclaimer = defaultDisclaimer
         p.defaultTaxRate = Proposal.taxRate(typed: defaultTaxRate)
         p.colorPDFs = colorPDFs

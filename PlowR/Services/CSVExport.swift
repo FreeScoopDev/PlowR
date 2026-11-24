@@ -1,8 +1,8 @@
 import Foundation
 import SwiftData
 
-/// The business's data as spreadsheet files (CSV): clients, invoices and the
-/// Service History, for an accountant, for importing elsewhere, or to keep.
+/// The business's data as spreadsheet files (CSV): clients, invoices, the
+/// Service History, expenses and mileage, for an accountant, for importing elsewhere, or to keep.
 /// Money is plain numbers with two decimals and dates are year-month-day, so
 /// a spreadsheet reads them as numbers and dates.
 enum CSVExport {
@@ -237,6 +237,35 @@ enum CSVExport {
             }
         return document(header: ["Contract", "Client", "Status", "Starts", "Ends", "Pricing", "Price", "Payments",
                                  "Services", "Visits", "Signed", "Cancelled", "Notes"], rows: rows)
+    }
+
+    /// Every expense logged, oldest first. Receipt says whether a photo of
+    /// it is kept in PlowR; the photos aren't in the file. It reads
+    /// `receiptCapturedAt`, not `receiptData`, so the export doesn't load
+    /// every photo from external storage (the receipts change sets both
+    /// together).
+    static func expenses(_ expenses: [Expense], operatorID: String) -> String {
+        let rows = expenses.filter { $0.operatorID == operatorID }
+            .sorted { ($0.date, $0.createdAt) < ($1.date, $1.createdAt) }
+            .map { expense -> [Cell] in
+                [day(expense.date), .plain(expense.category.title), .text(expense.item),
+                 .plain(expense.quantity > 0 ? DecimalText.trimmed(expense.quantity) : ""), .text(expense.unit),
+                 money(expense.amount), .text(expense.clientName), .text(expense.routeName), .text(expense.note),
+                 .plain(expense.receiptCapturedAt == nil ? "" : "Yes")]
+            }
+        return document(header: ["Date", "Category", "Item", "Quantity", "Unit", "Amount", "Client", "Route", "Note",
+                                 "Receipt"], rows: rows)
+    }
+
+    /// Every trip in the mileage log, oldest first, in the unit it was typed in.
+    static func mileage(_ entries: [MileageEntry], operatorID: String) -> String {
+        let rows = entries.filter { $0.operatorID == operatorID }
+            .sorted { ($0.date, $0.createdAt) < ($1.date, $1.createdAt) }
+            .map { entry -> [Cell] in
+                [day(entry.date), .plain(DecimalText.trimmed(entry.distance, places: 2)), .plain(entry.unit.rawValue),
+                 .text(entry.purpose), .text(entry.routeName), .text(entry.clientName), .text(entry.note)]
+            }
+        return document(header: ["Date", "Distance", "Unit", "Purpose", "Route", "Client", "Note"], rows: rows)
     }
 
     /// `contents` written to a temporary file named for PlowR, `kind` and the
