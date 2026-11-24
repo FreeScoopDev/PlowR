@@ -65,6 +65,8 @@ struct PlowRApp: App {
         // Before any view: a Siri or Control Center launch acts on the route
         // without the UI, and a killed app should come back mid-route.
         ActiveRouteStore.shared.configure(context: container.mainContext)
+        // The Undo toast's offers and the deletes they hold back (UndoCenter).
+        UndoCenter.shared.configure(context: container.mainContext)
         // PlowR Pro: the plan kept from last time until StoreKit answers.
         Subscription.shared.start()
         // Tips (after a reset Delete Account & Data asked for), before any view.
@@ -208,6 +210,7 @@ struct PlowRApp: App {
             ContentView()
                 .environment(authManager)
                 .environment(ActiveRouteStore.shared)
+                .environment(UndoCenter.shared)
                 .environment(CalendarSync.shared)
                 .tint(PlowRColor.accent)
         }
@@ -230,6 +233,12 @@ struct PlowRApp: App {
                 ActiveRouteStore.shared.validate()
                 authManager.recheckIfSignedOut()
                 CalendarSync.shared.refresh()
+            }
+            // The Undo offer ends: a delete it held back is done now, before
+            // iOS can suspend the app, and before the reminders and the
+            // calendar sync below read the visits.
+            if phase == .background {
+                UndoCenter.shared.sceneDidEnterBackground()
             }
             // Follow-up reminders from what's on file now: on the way in,
             // and on the way out, so what's due while away is right.

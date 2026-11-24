@@ -14,28 +14,37 @@ struct MainTabView: View {
     }
 
     var body: some View {
+        // Each tab hosts the Undo toast (UndoCenter) under its content, above
+        // the tab bar: an offer made on one tab still shows on another (Home
+        // hides a pending delete too). Never over the route screen, which
+        // covers the tabs.
         TabView(selection: $selectedTab) {
             DashboardView(openTodayInSchedule: {
                 scheduleTodayRequests += 1
                 selectedTab = 4
             })
+                .undoToast()
                 .tabItem { Label("Home", systemImage: PlowRSymbol.home.name) }
                 .tag(0)
 
             NavigationStack { ClientListView() }
+                .undoToast()
                 .tabItem { Label("Clients", systemImage: PlowRSymbol.client.name) }
                 .tag(1)
 
             NavigationStack { RouteListView() }
+                .undoToast()
                 .tabItem { Label("Routes", systemImage: PlowRSymbol.route.name) }
                 .tag(2)
 
             NavigationStack { ProposalListView() }
+                .undoToast()
                 .tabItem { Label("Documents", systemImage: PlowRSymbol.document.name) }
                 .badge(documentsBadge > 0 ? documentsBadge : 0)
                 .tag(3)
 
             ScheduleView(todayRequests: scheduleTodayRequests)
+                .undoToast()
                 .tabItem { Label("Schedule", systemImage: PlowRSymbol.schedule.name) }
                 .tag(4)
         }
@@ -69,4 +78,5 @@ enum DocumentsBadge {
     MainTabView(selectedTab: .constant(0))
         .environment(AuthManager())
         .environment(ActiveRouteStore.shared)
+        .environment(UndoCenter.shared)
 }

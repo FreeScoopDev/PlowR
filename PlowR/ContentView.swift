@@ -169,5 +169,6 @@ struct RemovedFromDeviceView: View {
     ContentView()
         .environment(AuthManager())
         .environment(ActiveRouteStore.shared)
+        .environment(UndoCenter.shared)
         .environment(CalendarSync.shared)
 }

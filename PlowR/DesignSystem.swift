@@ -301,6 +301,9 @@ nonisolated enum PlowRSymbol: String, CaseIterable {
     case text = "message.fill"
     case email = "envelope.fill"
     case complete = "checkmark.circle.fill"
+    /// Skipping a visit: not done, not cancelled.
+    case skip = "arrow.right.circle"
+    case delete = "trash"
     case cantService = "xmark.circle"
     case settings = "gearshape.fill"
     case pro = "star.circle.fill"

@@ -67,6 +67,8 @@ struct AccountEraser {
     /// own, and PlowR's record of them.
     var sites: any SiteErasing = SiteMonitor.shared
     var routeStore: ActiveRouteStore = .shared
+    /// The Undo offer and any delete it holds back: dropped, not done.
+    var undoCenter: UndoCenter = .shared
     var clearWidget: @MainActor () -> Void = WidgetDataStore.clear
     /// Map pins an import is still looking up, and the addresses it missed.
     var stopImportPins: @MainActor () -> Void = { ImportPins.shared.stop() }
@@ -85,6 +87,8 @@ struct AccountEraser {
         func attempt(_ step: String, _ body: () throws -> Void) {
             do { try body() } catch { failures.append(Failure(step: step, reason: error.localizedDescription)) }
         }
+        // Before anything: a pending delete mustn't run into the erase.
+        undoCenter.discardAll()
         // The route first: ending it shows its last progress, read from its models.
         routeStore.eraseAll()
         stopImportPins()
@@ -117,6 +121,7 @@ struct AccountEraser {
     /// would remove it on their other devices too.
     func removeFromThisDevice() -> [Failure] {
         var failures: [Failure] = []
+        undoCenter.discardAll()
         routeStore.eraseAll()
         stopImportPins()
         failures += eraseFromDevice()
