@@ -83,6 +83,11 @@ struct VisitSheet: View {
         .sheet(item: $invoiceToShow, onDismiss: { revision += 1 }, content: { invoice in
             NavigationStack {
                 ProposalDetailView(proposal: invoice)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Close") { invoiceToShow = nil }
+                        }
+                    }
             }
         })
         .alert("Work Saved", isPresented: Binding(get: { nothingToBill != nil },
