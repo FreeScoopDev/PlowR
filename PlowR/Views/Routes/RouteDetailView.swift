@@ -26,6 +26,10 @@ struct RouteDetailView: View {
     }
     @State private var showingOptimizeConfirm = false
     @State private var isOptimizing = false
+    /// The driving-distance run, cancelled when the page goes away.
+    @State private var optimizeTask: Task<Void, Never>?
+    /// What the last driving-distance run has to say, if anything.
+    @State private var optimizeNote: String?
     @State private var editingStop: RouteStop?
     @State private var showingMessageAll = false
     /// Stops left out of the run about to start (Skip Today). They stay on
@@ -201,7 +205,7 @@ struct RouteDetailView: View {
         .confirmationDialog("Optimize Stop Order?", isPresented: $showingOptimizeConfirm, titleVisibility: .visible) {
             Button("Optimize (Driving Distances)") {
                 PlowRTips.done(OptimizeOrderTip(), OptimizeOrderTip.routeOptimized)
-                Task { await optimizeWithDrivingDistances() }
+                optimizeTask = Task { await optimizeWithDrivingDistances() }
             }
             Button("Quick Optimize (Straight-Line)") {
                 PlowRTips.done(OptimizeOrderTip(), OptimizeOrderTip.routeOptimized)
@@ -247,7 +251,19 @@ struct RouteDetailView: View {
             PlowRTips.update { PlowRTips.pinnedStopsReady = ready }
         }
         // Every route page starts from its own stops, not the last page's.
-        .onDisappear { PlowRTips.update { PlowRTips.pinnedStopsReady = false } }
+        .onDisappear {
+            PlowRTips.update { PlowRTips.pinnedStopsReady = false }
+            // A run finishing after the page has gone would reorder from a stale snapshot.
+            optimizeTask?.cancel()
+        }
+        .alert("Optimize Order", isPresented: Binding(
+            get: { optimizeNote != nil },
+            set: { if !$0 { optimizeNote = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(optimizeNote ?? "")
+        }
         .sheet(isPresented: $showingHelp) {
             HelpTopicsSheet(screen: .routeDetail)
         }
@@ -494,48 +510,66 @@ struct RouteDetailView: View {
 
     // MARK: - Route Optimization
 
-    /// Async nearest-neighbor optimization using actual MKDirections driving times.
-    /// Falls back to haversine per segment if a request fails.
+    /// Nearest-neighbour by MapKit driving times (RouteOptimizer.drivingOrder).
+    /// Nothing is saved if the run is cancelled or the stops changed under it.
     private func optimizeWithDrivingDistances() async {
-        var withGPS = route.sortedStops.filter { $0.latitude != 0 }
-        let withoutGPS = route.sortedStops.filter { $0.latitude == 0 }
-        guard withGPS.count >= 2 else { return }
+        let stops = route.sortedStops
+        let before = stops.map { StopKey($0) }
+        let waypoints = stops.map { RouteOptimizer.Waypoint(latitude: $0.latitude, longitude: $0.longitude) }
+        guard waypoints.filter(\.hasGPS).count >= 2 else { return }
 
         isOptimizing = true
-        defer { isOptimizing = false }
-
-        var ordered: [RouteStop] = [withGPS.removeFirst()]
-
-        while !withGPS.isEmpty, let last = ordered.last {
-            let lastCoord = CLLocationCoordinate2D(latitude: last.latitude, longitude: last.longitude)
-            var bestIdx = withGPS.startIndex
-            var bestScore = Double.infinity
-
-            for (idx, candidate) in withGPS.enumerated() {
-                let candCoord = CLLocationCoordinate2D(latitude: candidate.latitude, longitude: candidate.longitude)
-                let req = MKDirections.Request()
-                req.source = MKMapItem(location: CLLocation(latitude: lastCoord.latitude, longitude: lastCoord.longitude),
-                                       address: nil)
-                req.destination = MKMapItem(location: CLLocation(latitude: candCoord.latitude,
-                                                                 longitude: candCoord.longitude), address: nil)
-                req.transportType = .automobile
-                let score: Double
-                if let resp = try? await MKDirections(request: req).calculate(),
-                   let time = resp.routes.first?.expectedTravelTime {
-                    score = time
-                } else {
-                    score = haversineRadians(last, candidate) * 1_000_000
-                }
-                if score < bestScore {
-                    bestScore = score
-                    bestIdx = withGPS.index(withGPS.startIndex, offsetBy: idx)
-                }
-            }
-            ordered.append(withGPS.remove(at: bestIdx))
+        defer {
+            isOptimizing = false
+            optimizeTask = nil
         }
 
-        for (index, stop) in (ordered + withoutGPS).enumerated() {
-            stop.order = index
+        let run = try? await RouteOptimizer.drivingOrder(of: waypoints) { await Self.mapKitTravelTime($0, $1) }
+        guard let result = run, !Task.isCancelled else { return }
+        guard route.modelContext != nil, !route.isDeleted,
+              route.sortedStops.map({ StopKey($0) }) == before else {
+            optimizeNote = "The route's stops changed while optimizing, so the order wasn't changed. Try again."
+            return
+        }
+
+        for (newOrder, origIdx) in result.order.enumerated() {
+            stops[origIdx].order = newOrder
+        }
+        if result.estimatedLegs > 0 {
+            optimizeNote = "Some drive times weren't available, so \(result.estimatedLegs) of \(result.legs) "
+                + "legs used straight-line distance."
+        }
+    }
+
+    /// One stop as it stood when optimizing began.
+    private struct StopKey: Equatable {
+        let id: UUID
+        let order: Int
+        let latitude: Double
+        let longitude: Double
+        init(_ stop: RouteStop) {
+            id = stop.id
+            order = stop.order
+            latitude = stop.latitude
+            longitude = stop.longitude
+        }
+    }
+
+    /// MapKit's driving time for one leg. `calculateETA` is lighter than
+    /// full directions and gives the expected travel time.
+    nonisolated private static func mapKitTravelTime(
+        _ from: RouteOptimizer.Waypoint, _ to: RouteOptimizer.Waypoint
+    ) async -> RouteOptimizer.TravelTime {
+        let request = MKDirections.Request()
+        request.source = MKMapItem(location: CLLocation(latitude: from.latitude, longitude: from.longitude), address: nil)
+        request.destination = MKMapItem(location: CLLocation(latitude: to.latitude, longitude: to.longitude), address: nil)
+        request.transportType = .automobile
+        do {
+            return .seconds(try await MKDirections(request: request).calculateETA().expectedTravelTime)
+        } catch let error as MKError where error.code == .loadingThrottled {
+            return .throttled
+        } catch {
+            return .unavailable
         }
     }
 
@@ -547,14 +581,5 @@ struct RouteDetailView: View {
         for (newOrder, origIdx) in order.enumerated() {
             stops[origIdx].order = newOrder
         }
-    }
-
-    private func haversineRadians(_ a: RouteStop, _ b: RouteStop) -> Double {
-        let dLat = (b.latitude - a.latitude) * .pi / 180
-        let dLon = (b.longitude - a.longitude) * .pi / 180
-        let sinLat = sin(dLat / 2)
-        let sinLon = sin(dLon / 2)
-        let h = sinLat * sinLat + cos(a.latitude * .pi / 180) * cos(b.latitude * .pi / 180) * sinLon * sinLon
-        return 2 * asin(sqrt(h))
     }
 }
