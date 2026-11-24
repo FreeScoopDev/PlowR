@@ -68,3 +68,30 @@ extension ButtonStyle where Self == PlowRActionButtonStyle {
 extension ButtonStyle where Self == PlowRSecondaryButtonStyle {
     static var plowRSecondary: PlowRSecondaryButtonStyle { PlowRSecondaryButtonStyle() }
 }
+
+/// A small action inside a list row (a document's Paid, a past-due visit's
+/// Complete): drawn as a small tinted capsule, as `.bordered` with
+/// `.controlSize(.small)` was, but tapped anywhere in a 44 pt square round
+/// it (`PlowRLayout.minTapTarget`), so it can be hit in gloves.
+struct PlowRRowActionButtonStyle: ButtonStyle {
+    var tint: Color
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(isEnabled ? tint : PlowRColor.inkSecondary)
+            .padding(.horizontal, PlowRLayout.space3)
+            .padding(.vertical, PlowRLayout.space1)
+            .background(tint.opacity(0.15), in: Capsule())
+            .frame(minWidth: PlowRLayout.minTapTarget, minHeight: PlowRLayout.minTapTarget)
+            .contentShape(Rectangle())
+            .opacity(configuration.isPressed ? 0.6 : (isEnabled ? 1 : 0.6))
+    }
+}
+
+extension ButtonStyle where Self == PlowRRowActionButtonStyle {
+    static func plowRRowAction(_ tint: Color = PlowRColor.brand) -> PlowRRowActionButtonStyle {
+        PlowRRowActionButtonStyle(tint: tint)
+    }
+}

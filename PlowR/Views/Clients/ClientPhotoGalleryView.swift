@@ -267,6 +267,7 @@ private struct PhotoDetailView: View {
                     Button { showingShareSheet = true } label: {
                         Image(systemName: "square.and.arrow.up")
                     }
+                    .accessibilityLabel("Share Photo")
                     .disabled(image == nil)
                 }
                 ToolbarItem(placement: .destructiveAction) {
@@ -276,6 +277,7 @@ private struct PhotoDetailView: View {
                     } label: {
                         Image(systemName: "trash")
                     }
+                    .accessibilityLabel("Delete Photo")
                 }
             }
             .sheet(isPresented: $showingShareSheet) {

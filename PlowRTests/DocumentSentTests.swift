@@ -180,7 +180,7 @@ struct DocumentSentTests {
         #expect(pat.lastMessageSentAt == nil)
     }
 
-    // Joe's call: the share sheet's Mark as Sent switch, off, is for a copy
+    // Joe's call: the share sheet's Mark Sent switch, off, is for a copy
     // that isn't going to the client (a partner, an accountant, the
     // business's own files). Nothing is marked: a draft invoice stays a
     // draft, a sent one keeps its dates, and no client is awaiting.

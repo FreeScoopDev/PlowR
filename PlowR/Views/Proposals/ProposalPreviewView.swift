@@ -6,7 +6,7 @@ struct ProposalPreviewView: View {
     let pdfData: Data
     let client: Client
     var isInvoice: Bool = false
-    /// The PDF was sent to the client from the share sheet (Mark as Sent
+    /// The PDF was sent to the client from the share sheet (Mark Sent
     /// on), before the document was saved.
     var onShared: () -> Void = {}
     let onSave: () -> Void
@@ -56,7 +56,7 @@ struct ProposalPreviewView: View {
                 }
         }
         .onAppear { prepareShareURL() }
-        // Sent to the client from the share sheet (Mark as Sent on): they're
+        // Sent to the client from the share sheet (Mark Sent on): they're
         // awaiting a response, and the builder saves it as shared.
         .sheet(isPresented: $showingShare) {
             if let url = shareURL {

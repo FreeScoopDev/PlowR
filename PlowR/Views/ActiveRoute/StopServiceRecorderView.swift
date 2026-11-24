@@ -287,9 +287,16 @@ struct StopServiceRecorderView: View {
                                         .foregroundStyle(.white)
                                         .background(Color.black.opacity(0.4))
                                         .clipShape(Circle())
+                                        // Looks as before, in the corner of
+                                        // a 44 pt square that takes the tap
+                                        // (gloves).
+                                        .frame(width: PlowRLayout.minTapTarget, height: PlowRLayout.minTapTarget,
+                                               alignment: .topTrailing)
+                                        .contentShape(Rectangle())
                                 }
                                 .buttonStyle(.plain)
                                 .offset(x: 4, y: -4)
+                                .accessibilityLabel(isBefore ? "Remove Before Photo" : "Remove After Photo")
                             }
                         }
                     }

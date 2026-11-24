@@ -172,11 +172,11 @@ struct ClientListView: View {
                         : "Add your first client to get started, or bring in your client list from a spreadsheet.")
                 } actions: {
                     if !isFiltered {
-                        Button("Add a Client") { addClient() }
+                        Button("New Client") { addClient() }
                             .plowRProminent()
                         Button { importClients() } label: {
                             HStack(spacing: PlowRLayout.space2) {
-                                Text("Import from a Spreadsheet")
+                                Text("Import from Spreadsheet")
                                 if FirstRunOffers.showsProMark(access) { ProMark() }
                             }
                         }
@@ -310,6 +310,8 @@ struct ClientListView: View {
                           ? "line.3.horizontal.decrease.circle.fill"
                           : "line.3.horizontal.decrease.circle")
                 }
+                .accessibilityLabel("Filter")
+                .accessibilityValue(isFiltered ? "On" : "Off")
             }
         }
         .sheet(isPresented: $showingAddClient) {

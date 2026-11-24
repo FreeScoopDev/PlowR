@@ -158,11 +158,11 @@
           "lead": "For clients you serve on a regular schedule, like a weekly mow. Routes don't repeat on their own; repeating visits live in Schedule.",
           "shots": [
             { "file": "routes-schedule-tab.jpg", "alt": "Schedule tab" },
-            { "file": "routes-add-visit-recurrence.jpg", "alt": "Add Visit, Recurrence" }
+            { "file": "routes-add-visit-recurrence.jpg", "alt": "Schedule Visit, Recurrence" }
           ],
           "steps": [
             "Open the **Schedule** tab and tap **+**.",
-            "In **Add Visit**, choose the **Client** and the **Date**.",
+            "In **Schedule Visit**, choose the **Client** and the **Date**.",
             "Under **Recurrence**, turn on **Repeat** and pick a **Frequency**: Daily, Weekly, Every 2 Weeks or Monthly. For Weekly, choose the days.",
             "Turn on **End Date** if the work stops at the end of a season, then tap **Add**."
           ],

@@ -19,6 +19,8 @@ struct DashboardView: View {
     @Query private var allContracts: [Contract]
     @Query private var allServices: [ServiceItem]
     @Query private var allChecks: [TriggerCheck]
+    /// Today's "+ N more": the Schedule tab, on today (MainTabView).
+    var openTodayInSchedule: () -> Void = {}
 
     /// An invoice paid more than its total, its payments open (needsALookRows).
     @State private var overpaidInvoice: Proposal?
@@ -410,11 +412,17 @@ struct DashboardView: View {
                     }
                     if todayVisits.count > 5 {
                         Divider().overlay(PlowRColor.line)
-                        Text("+ \(todayVisits.count - 5) more")
-                            .font(.caption)
-                            .foregroundStyle(PlowRColor.inkSecondary)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, PlowRLayout.space2)
+                        // The rest are on the Schedule, which opens on today.
+                        Button(action: openTodayInSchedule) {
+                            Text("+ \(todayVisits.count - 5) more")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(PlowRColor.brand)
+                                .frame(maxWidth: .infinity, minHeight: PlowRLayout.minTapTarget)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("\(todayVisits.count - 5) more visits today")
+                        .accessibilityHint("Opens the Schedule")
                     }
                 }
             }
@@ -488,7 +496,7 @@ struct DashboardView: View {
             switch FirstRunOffers.nothingToday(clients: myClients) {
             case .addClient:
                 Button { $gate.unless(ProGate.addClient(access)) { showingAddClient = true } } label: {
-                    Label("Add Client", systemImage: PlowRSymbol.addClient.name)
+                    Label("New Client", systemImage: PlowRSymbol.addClient.name)
                 }
                 .buttonStyle(.plowRSecondary)
             case .routeOrVisit:

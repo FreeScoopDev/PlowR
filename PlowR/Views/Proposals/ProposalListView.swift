@@ -205,6 +205,8 @@ struct ProposalListView: View {
                 } label: {
                     Image(systemName: "line.3.horizontal.decrease.circle")
                 }
+                .accessibilityLabel("Filter")
+                .accessibilityValue(filterStatus.rawValue)
             }
         }
         .confirmationDialog(

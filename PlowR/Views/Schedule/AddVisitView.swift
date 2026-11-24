@@ -214,7 +214,7 @@ struct AddVisitView: View {
                 }
             }
             .plowRGrouped()
-            .navigationTitle(editing == nil ? "Add Visit" : "Edit Visit")
+            .navigationTitle(editing == nil ? "Schedule Visit" : "Edit Visit")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -321,7 +321,7 @@ struct AddVisitView: View {
             Button {
                 $gate.unless(ProGate.addClient(access)) { showingAddClientSheet = true }
             } label: {
-                Label(myClients.isEmpty ? "Add Client" : "New Client", systemImage: "person.badge.plus")
+                Label("New Client", systemImage: "person.badge.plus")
                     .font(.subheadline)
             }
         }

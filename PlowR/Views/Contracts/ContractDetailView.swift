@@ -87,8 +87,10 @@ struct ContractDetailView: View {
                     // Read only: a contract isn't shared until they subscribe again.
                     if let blocked = ProGate.shareDocument(access, isInvoice: false, owed: 0) {
                         Button { gate = blocked } label: { Image(systemName: "square.and.arrow.up") }
+                            .accessibilityLabel("Share Contract")
                     } else {
                         ShareLink(item: pdfURL) { Image(systemName: "square.and.arrow.up") }
+                            .accessibilityLabel("Share Contract")
                     }
                 }
             }
