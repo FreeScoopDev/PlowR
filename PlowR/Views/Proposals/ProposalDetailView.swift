@@ -19,6 +19,8 @@ struct ProposalDetailView: View {
     @State private var pdfData: Data? = nil
     @State private var shareURL: URL? = nil
     @State private var showingShare = false
+    /// The PDF couldn't be written: said, and nothing offered to share.
+    @State private var shareFailure: ShareFile.Failure?
     @State private var showingEditView = false
     @State private var showingReviseDialog = false
     @State private var showingReminder = false
@@ -150,6 +152,7 @@ struct ProposalDetailView: View {
                 .background(.ultraThinMaterial)
         }
         .proGateSheet($gate)
+        .shareFileAlert($shareFailure)
         .onAppear { generatePDF() }
         .onChange(of: access.showsMadeWithPlowR) { _, _ in generatePDF() }
         .onChange(of: proposal.total) { _, _ in generatePDF() }
@@ -352,8 +355,13 @@ struct ProposalDetailView: View {
             let safe = proposal.clientName.replacingOccurrences(of: "/", with: "-")
             let url = FileManager.default.temporaryDirectory
                 .appendingPathComponent("\(prefix)-\(safe).pdf")
-            try? data.write(to: url, options: .completeFileProtection)
-            shareURL = url
+            switch ShareFile.write(data, to: url) {
+            case .success(let url): shareURL = url
+            case .failure(let failure):
+                // Not the copy written before (a draft before Mark Sent).
+                shareURL = nil
+                shareFailure = failure
+            }
         }
     }
 
@@ -366,6 +374,7 @@ struct ProposalDetailView: View {
 
     private func markSent() {
         DocumentSent.markSent(proposal, in: modelContext)
+        Haptics.success()
         generatePDF()
     }
 

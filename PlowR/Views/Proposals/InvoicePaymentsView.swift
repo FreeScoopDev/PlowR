@@ -49,7 +49,12 @@ struct InvoicePaymentsView: View {
                 // Nothing left to pay but not marked paid (edited down, say).
                 if invoice.balanceDue <= 0, invoice.invoicePaidAt == nil, invoice.voidedAt == nil {
                     Section {
-                        Button("Mark Paid") { Payments.payInFull(invoice, in: modelContext) }
+                        // Not asked: a full-width button on the invoice's own Payments
+                        // screen, with nothing owed to record.
+                        Button("Mark Paid") {
+                            Payments.payInFull(invoice, in: modelContext)
+                            Haptics.success()
+                        }
                     } footer: {
                         SectionNote("Nothing is left to pay on this invoice.")
                     }
@@ -147,7 +152,7 @@ struct InvoicePaymentsView: View {
     private func record() {
         guard let value = typedAmount else { return }
         Payments.record(value, method: method, note: note, receivedAt: receivedAt, on: invoice, in: modelContext)
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        Haptics.success()
         if invoice.balanceDue <= 0 { dismiss() } else { resetForm() }
     }
 

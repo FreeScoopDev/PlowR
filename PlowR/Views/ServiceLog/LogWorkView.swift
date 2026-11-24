@@ -107,7 +107,7 @@ struct LogWorkView: View {
         guard canSave, let minutes = ServiceLog.minutesToSave(typed: minutes) else { return }
         ServiceLog.logWork(recording, notes: notes, performedAt: performedAt, minutes: minutes,
                            for: client, at: placeID, operatorID: client.operatorID, in: modelContext)
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        Haptics.success()
         dismiss()
     }
 }

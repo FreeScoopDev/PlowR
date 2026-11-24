@@ -177,6 +177,9 @@ struct ContractInstallmentsTests {
         let h = try Harness(stopCount: 0)
         let season = contract(h, .season, price: 900, installments: 3, from: date(2026, 11, 15), to: date(2027, 4, 15))
         let first = try firstPayment(h, season)
+        // Made at 8 (its createdAt is the real clock's): the copy, at 9, is
+        // the later one. Left to the clock, this failed from 15 Nov 2026 on.
+        first.createdAt = date(2026, 11, 15, 8)
         let second = secondCopy(of: first, h, at: date(2026, 11, 15, 9))
         let all = [first, second]
         #expect(ContractInstallments.hasDuplicate(first, among: all) && ContractInstallments.hasDuplicate(second, among: all))

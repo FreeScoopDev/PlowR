@@ -21,6 +21,8 @@ struct ScheduleView: View {
     @State private var showingAddVisit = false
     @State private var visitToEdit: ScheduledVisit?
     @State private var invoicingVisit: ScheduledVisit?
+    /// Delete was swiped: asked first (VisitDeletion).
+    @State private var visitToDelete: ScheduledVisit?
     @State private var showingRouteCreated = false
     @State private var createdRouteName = ""
     /// Scheduled visits left off the new route because their client is inactive.
@@ -141,6 +143,14 @@ struct ScheduleView: View {
                     }
                 }
             }
+            .confirmationDialog(visitToDelete.map { VisitDeletion.title(for: $0) } ?? "",
+                                isPresented: Binding(get: { visitToDelete != nil },
+                                                     set: { if !$0 { visitToDelete = nil } }),
+                                titleVisibility: .visible, presenting: visitToDelete) { visit in
+                deleteButtons(for: visit)
+            } message: { _ in
+                Text("A deleted visit can't be brought back.")
+            }
             .alert(createdRouteName.isEmpty ? "No Route Created" : "Route Created", isPresented: $showingRouteCreated) {
                 Button("OK", role: .cancel) { }
             } message: {
@@ -205,20 +215,29 @@ struct ScheduleView: View {
                                 Button { $gate.unless(ProGate.edit(access)) { markComplete(visit) } } label: {
                                     Label("Complete", systemImage: "checkmark.circle.fill")
                                 }
-                                .tint(.green)
+                                .tint(PlowRColor.Status.done.solid)
                             }
                         }
                         .swipeActions(edge: .trailing) {
-                            Button(role: .destructive) {
-                                modelContext.delete(visit)
+                            // Not role: .destructive, which slides the row away
+                            // before the confirmation is answered. Red as the
+                            // system's own Delete: a delete isn't a status.
+                            Button {
+                                visitToDelete = visit
                             } label: {
                                 Label("Delete", systemImage: "trash")
                             }
+                            .tint(.red)
                             if visit.status == .scheduled {
-                                Button { $gate.unless(ProGate.edit(access)) { visit.status = .skipped } } label: {
+                                Button {
+                                    $gate.unless(ProGate.edit(access)) {
+                                        visit.status = .skipped
+                                        Haptics.selection()
+                                    }
+                                } label: {
                                     Label("Skip", systemImage: "arrow.right.circle")
                                 }
-                                .tint(.orange)
+                                .tint(PlowRColor.Status.owed.solid)
                             }
                             // Not when its work is already on an invoice (Bill
                             // Unbilled Work, Record Services).
@@ -226,7 +245,7 @@ struct ScheduleView: View {
                                 Button { invoicingVisit = visit } label: {
                                     Label("Invoice", systemImage: "doc.badge.plus")
                                 }
-                                .tint(.blue)
+                                .tint(PlowRColor.Status.scheduled.solid)
                             }
                         }
                         .onTapGesture { visitToEdit = visit }
@@ -439,6 +458,7 @@ struct ScheduleView: View {
         createdRouteName = name
         showingRouteCreated = true
         PlowRTips.done(RouteFromDayTip(), RouteFromDayTip.routeMade)
+        Haptics.success()
     }
 
     /// What Create Route did, including any visits it left off.
@@ -461,6 +481,29 @@ struct ScheduleView: View {
         // Also continues the series if it needs a next visit, and records the
         // work in the Service Log.
         ServiceLog.complete(visit, among: allVisits, in: modelContext)
+        Haptics.success()
+    }
+
+    /// The confirmation for Delete: a repeating visit with visits still to
+    /// come offers this one or this and the rest, as the visit editor does.
+    private func deleteButtons(for visit: ScheduledVisit) -> some View {
+        Group {
+            if VisitDeletion.offersSeries(visit, among: allVisits) {
+                Button("Delete This Visit Only", role: .destructive) { delete(visit, .thisVisit) }
+                Button("Delete This & All Future Visits", role: .destructive) { delete(visit, .thisAndFuture) }
+            } else {
+                // The last of a series ends it, so it doesn't grow back.
+                Button("Delete Visit", role: .destructive) {
+                    delete(visit, VisitDeletion.singleDeleteScope(for: visit, among: allVisits))
+                }
+            }
+            Button("Cancel", role: .cancel) { }
+        }
+    }
+
+    private func delete(_ visit: ScheduledVisit, _ scope: VisitDeletion.Scope) {
+        if visitToEdit?.id == visit.id { visitToEdit = nil }
+        VisitDeletion.delete(visit, scope: scope, among: allVisits, in: modelContext)
     }
 }
 

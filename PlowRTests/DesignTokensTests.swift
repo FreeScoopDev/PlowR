@@ -78,7 +78,7 @@ struct DesignTokensTests {
         let adaptive: [UIColor] = [C.groundUIColor, C.surfaceUIColor, C.raisedUIColor, C.lineUIColor, C.inkUIColor,
                                    C.inkSecondaryUIColor, C.brandUIColor, C.onBrandUIColor, C.actionUIColor,
                                    C.onActionUIColor, C.actionSoftUIColor, C.actionTextUIColor]
-            + C.Status.allCases.flatMap { [$0.fillUIColor, $0.softUIColor, $0.textUIColor] }
+            + C.Status.allCases.flatMap { [$0.fillUIColor, $0.softUIColor, $0.textUIColor, $0.solidUIColor] }
         for color in adaptive {
             let light = components(color, dark: false), dark = components(color, dark: true)
             #expect(light != dark)
@@ -110,6 +110,14 @@ struct DesignTokensTests {
     @Test func serviceTagsCarryWhiteText() {
         for service in C.Service.allCases {
             #expect(contrast(.white, service.fillUIColor, dark: false) >= 4.5, "\(service)")
+        }
+    }
+
+    // Swipe actions draw their labels white, in both appearances.
+    @Test(arguments: [false, true])
+    func statusSolidsCarryWhiteText(dark: Bool) {
+        for status in C.Status.allCases {
+            #expect(contrast(.white, status.solidUIColor, dark: dark) >= 4.5, "\(status), dark \(dark)")
         }
     }
 
