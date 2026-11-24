@@ -457,8 +457,8 @@ struct ScheduleView: View {
         }
         createdRouteName = name
         showingRouteCreated = true
-        Haptics.success()
         PlowRTips.done(RouteFromDayTip(), RouteFromDayTip.routeMade)
+        Haptics.success()
     }
 
     /// What Create Route did, including any visits it left off.
