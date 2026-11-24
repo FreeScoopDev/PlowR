@@ -64,6 +64,7 @@ struct DesignTokensTests {
     func textOnFillsIsReadable(dark: Bool) {
         let pairs: [(String, UIColor, UIColor)] = [
             ("on-brand on brand", C.onBrandUIColor, C.brandUIColor),
+            ("brand on brand soft", C.brandUIColor, C.brandSoftUIColor),
             ("on-action on action", C.onActionUIColor, C.actionUIColor),
             ("action text on action soft", C.actionTextUIColor, C.actionSoftUIColor)
         ] + C.Status.allCases.map { ("\($0) chip", $0.textUIColor, $0.softUIColor) }
@@ -76,7 +77,7 @@ struct DesignTokensTests {
     // appearance (a broken provider would test the light pair twice).
     @Test func everyAdaptiveTokenHasADarkVersion() {
         let adaptive: [UIColor] = [C.groundUIColor, C.surfaceUIColor, C.raisedUIColor, C.lineUIColor, C.inkUIColor,
-                                   C.inkSecondaryUIColor, C.brandUIColor, C.onBrandUIColor, C.actionUIColor,
+                                   C.inkSecondaryUIColor, C.brandUIColor, C.onBrandUIColor, C.brandSoftUIColor, C.actionUIColor,
                                    C.onActionUIColor, C.actionSoftUIColor, C.actionTextUIColor]
             + C.Status.allCases.flatMap { [$0.fillUIColor, $0.softUIColor, $0.textUIColor, $0.solidUIColor] }
         for color in adaptive {

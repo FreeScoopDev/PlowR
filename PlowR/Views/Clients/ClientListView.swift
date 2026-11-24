@@ -232,7 +232,7 @@ struct ClientListView: View {
                     Button {
                         addClient()
                     } label: {
-                        Label("Add Manually", systemImage: "person.badge.plus")
+                        Label("New Client", systemImage: "person.badge.plus")
                     }
                     Button {
                         importClients()
@@ -249,6 +249,7 @@ struct ClientListView: View {
                 } label: {
                     Image(systemName: "plus")
                 }
+                .accessibilityLabel("Add Clients")
             }
             ToolbarItem(placement: .topBarTrailing) {
                 HelpToolbarButton(screen: .clients)
@@ -463,9 +464,9 @@ extension ClientListView {
         $gate.unless(ProGate.addClient(access)) { showingAddClient = true }
     }
 
-    /// Import Clients is a Pro tool.
+    /// Import from Spreadsheet is a Pro tool.
     private func importClients() {
-        $gate.unless(ProGate.proFeature("Import Clients", access)) { showingImport = true }
+        $gate.unless(ProGate.proFeature("Import from Spreadsheet", access)) { showingImport = true }
     }
 
     private func askToDelete(_ client: Client) {

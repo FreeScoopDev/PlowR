@@ -45,6 +45,7 @@ struct ProposalPreviewView: View {
                                 } label: {
                                     Image(systemName: "square.and.arrow.up")
                                 }
+                                .accessibilityLabel(isInvoice ? "Share Invoice" : "Share Proposal")
                             }
                             Button {
                                 onSave()

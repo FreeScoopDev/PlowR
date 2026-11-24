@@ -52,7 +52,7 @@
             { "file": "clients-client-page.jpg", "alt": "client page" }
           ],
           "steps": [
-            "Open the **Clients** tab, tap **+**, and choose **Add Manually**.",
+            "Open the **Clients** tab, tap **+**, and choose **New Client**.",
             "Choose **Existing Customer** (someone you already work for) or **New Lead** (someone you hope to win). Enter their **Full Name**; a phone number, email and **Route Notes** (a gate code, say: they show at the client's stops on every route) are optional. Or tap **Import Contact** to fill it in from your Contacts.",
             "Type the **Street Address** and pick the match. PlowR pins it on the map.",
             "Tap **Save**.",

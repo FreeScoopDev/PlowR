@@ -90,6 +90,8 @@ nonisolated extension PlowRColor {
     /// Forest green (muted sage in dark): the brand, navigation, the client avatar.
     static let brandUIColor = adaptive(0x1F4D3A, 0xB2C8BA)
     static let onBrandUIColor = adaptive(0xFFFFFF, 0x121416)
+    /// A brand-tinted background (a row action's capsule), with brand text on it.
+    static let brandSoftUIColor = adaptive(0xE2ECE6, 0x1E2A24)
 
     /// Copper: the one main action on a screen (Complete Stop, Resume Route,
     /// Invoice). Its filled, warm block is what stands out on a neutral dark screen.
@@ -113,6 +115,7 @@ nonisolated extension PlowRColor {
     static let inkSecondary = Color(inkSecondaryUIColor)
     static let brand = Color(brandUIColor)
     static let onBrand = Color(onBrandUIColor)
+    static let brandSoft = Color(brandSoftUIColor)
     static let action = Color(actionUIColor)
     static let onAction = Color(onActionUIColor)
     static let actionSoft = Color(actionSoftUIColor)

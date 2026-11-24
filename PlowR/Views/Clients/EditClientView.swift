@@ -488,6 +488,7 @@ struct EditClientView: View {
                                         .font(.caption)
                                 }
                                 .buttonStyle(.plain)
+                                .accessibilityLabel("Remove \(tag)")
                             }
                             .padding(.horizontal, 10)
                             .padding(.vertical, 5)
@@ -1221,7 +1222,7 @@ struct EditClientView: View {
             Button("Paid") {
                 invoiceToMarkPaid = document
             }
-            .buttonStyle(.plowRRowAction(PlowRColor.Status.done.text))
+            .buttonStyle(.plowRRowAction(.done))
             .accessibilityLabel("Mark Paid")
             Button("Revise") {
                 $gate.unless(ProGate.edit(access)) { revisePaidDoc = document }

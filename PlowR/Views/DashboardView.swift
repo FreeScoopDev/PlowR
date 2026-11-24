@@ -433,7 +433,7 @@ struct DashboardView: View {
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel("\(todayVisits.count - 5) more visits today")
+                        .accessibilityLabel(todayVisits.count - 5 == 1 ? "1 more visit today" : "\(todayVisits.count - 5) more visits today")
                         .accessibilityHint("Opens the Schedule")
                     }
                 }
@@ -845,7 +845,7 @@ struct DashboardView: View {
                       spacing: PlowRLayout.tileSpacing) {
                 Menu {
                     Button { $gate.unless(ProGate.addClient(access)) { showingAddClient = true } } label: {
-                        Label("Add Manually", systemImage: PlowRSymbol.addClient.name)
+                        Label("New Client", systemImage: PlowRSymbol.addClient.name)
                     }
                     if CameraPicker.isAvailable {
                         Button { $gate.unless(ProGate.addClient(access)) { showingContactScanner = true } } label: {

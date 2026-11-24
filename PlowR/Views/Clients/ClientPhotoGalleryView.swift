@@ -113,6 +113,7 @@ struct ClientPhotoGalleryView: View {
         } label: {
             Image(systemName: "plus")
         }
+        .accessibilityLabel("Add Photo")
     }
 
     // MARK: - Photo Cell
@@ -158,6 +159,8 @@ struct ClientPhotoGalleryView: View {
         } label: {
             Image(systemName: "line.3.horizontal.decrease.circle")
         }
+        .accessibilityLabel("Filter Photos")
+        .accessibilityValue(filterBefore == nil ? "All Photos" : (filterBefore == true ? "Before Only" : "After Only"))
     }
 
     // MARK: - Empty State

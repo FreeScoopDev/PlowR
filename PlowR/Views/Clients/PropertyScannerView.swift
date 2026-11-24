@@ -486,6 +486,7 @@ struct PropertyScannerView: View {
                             .foregroundStyle(.red)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Remove \(zone.label)")
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 8)

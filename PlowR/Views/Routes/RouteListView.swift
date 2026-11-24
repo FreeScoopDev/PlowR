@@ -94,6 +94,7 @@ struct RouteListView: View {
                 } label: {
                     Image(systemName: "plus")
                 }
+                .accessibilityLabel("New Route")
             }
             ToolbarItem(placement: .topBarTrailing) {
                 HelpToolbarButton(screen: .routes)

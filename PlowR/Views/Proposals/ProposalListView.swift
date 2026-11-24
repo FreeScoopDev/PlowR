@@ -194,6 +194,7 @@ struct ProposalListView: View {
                 } label: {
                     Image(systemName: "plus")
                 }
+                .accessibilityLabel("New Document")
             }
             ToolbarItem(placement: .topBarTrailing) {
                 HelpToolbarButton(screen: .documents)

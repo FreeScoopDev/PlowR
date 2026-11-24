@@ -2,7 +2,7 @@ import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Import Clients: a client list from a spreadsheet (CSV), from Settings or
+/// Import from Spreadsheet: a client list from a spreadsheet (CSV), from Settings or
 /// the empty Clients screen. Choose the file; check the columns PlowR
 /// guessed (ClientImport) and what each row would do; import; then watch the
 /// map pins go in (ImportPins) and undo the import if it wasn't right. An
@@ -49,7 +49,7 @@ struct ImportClientsView: View {
             }
         }
         .plowRGrouped()
-        .navigationTitle("Import Clients")
+        .navigationTitle("Import from Spreadsheet")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if isSheet {
@@ -426,7 +426,7 @@ struct ImportClientsView: View {
             Section {
                 Button("Undo This Import", role: .destructive) { askToUndo(result) }
             } footer: {
-                SectionNote("Removes the clients this import added, unless they've been used since. You can also undo it later from Import Clients.")
+                SectionNote("Removes the clients this import added, unless they've been used since. You can also undo it later from Settings > Import from Spreadsheet.")
             }
             .listRowBackground(PlowRColor.surface)
         }

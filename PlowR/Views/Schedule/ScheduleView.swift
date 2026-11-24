@@ -312,7 +312,7 @@ struct ScheduleView: View {
                         Spacer()
                         // Small to look at, a 44 pt square to tap (gloves).
                         Button("Complete") { $gate.unless(ProGate.edit(access)) { markComplete(visit) } }
-                            .buttonStyle(.plowRRowAction(PlowRColor.Status.done.text))
+                            .buttonStyle(.plowRRowAction(.done))
                             .accessibilityLabel("Complete \(visit.clientName)")
                     }
                 }

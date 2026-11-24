@@ -86,9 +86,12 @@ struct ProposalDetailView: View {
                     } label: {
                         Image(systemName: "square.and.arrow.up")
                     }
+                    .accessibilityLabel(proposal.isInvoice ? "Share Invoice" : "Share Proposal")
                 } else {
                     Image(systemName: "square.and.arrow.up")
                         .foregroundStyle(.tertiary)
+                        .accessibilityLabel(proposal.isInvoice ? "Share Invoice" : "Share Proposal")
+                        .accessibilityValue("Unavailable")
                 }
             }
         }
@@ -326,14 +329,14 @@ struct ProposalDetailView: View {
                 .buttonStyle(.plowRSecondary)
             }
             Button { showingPayments = true } label: {
-                Label("Payments", systemImage: "dollarsign.circle")
+                Label("Payments", systemImage: PlowRSymbol.payment.name)
             }
             .buttonStyle(.plowRSecondary)
 
         case .void:
             // Kept on record: its payments (if any) can still be seen.
             Button { showingPayments = true } label: {
-                Label("Payments", systemImage: "dollarsign.circle")
+                Label("Payments", systemImage: PlowRSymbol.payment.name)
             }
             .buttonStyle(.plowRSecondary)
         }
