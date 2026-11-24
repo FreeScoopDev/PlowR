@@ -88,3 +88,20 @@ extension View {
         modifier(UndoToast())
     }
 }
+
+/// Room for the Undo toast while one is offered, for a page whose own bottom
+/// bar the tab's toast is drawn over (a pushed page's inset isn't lifted by
+/// the tab's): an unseen copy of the bar, so it takes the toast's height at
+/// any text size.
+struct UndoToastSpace: View {
+    @Environment(UndoCenter.self) private var center
+
+    var body: some View {
+        if let offer = center.offer {
+            UndoBar(title: offer.title, systemImage: offer.systemImage,
+                    accessibilityLabel: offer.accessibilityLabel) { }
+                .hidden()
+                .accessibilityHidden(true)
+        }
+    }
+}

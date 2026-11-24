@@ -183,7 +183,7 @@ struct EditClientView: View {
             }
         }
         .proGateSheet($gate)
-        .markPaidConfirmation($invoiceToMarkPaid, in: modelContext)
+        .markPaidConfirmation($invoiceToMarkPaid)
         .shareFileAlert($shareFailure)
         .sheet(isPresented: $showingPropertyScanner, onDismiss: takePinFromClient) {
             PropertyScannerView(client: client, pendingAddress: pendingAddress, startingPin: pendingPin,

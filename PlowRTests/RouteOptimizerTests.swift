@@ -340,4 +340,34 @@ struct RouteOptimizerSnapshotTests {
         #expect(snapshot(start) != snapshot(added))
         #expect(snapshot(start) != snapshot(Array(start.dropLast())))
     }
+    // MARK: - StopOrderSnapshot (Optimize's Undo)
+
+    @MainActor
+    private func stops(_ count: Int) -> [RouteStop] {
+        (0..<count).map { RouteStop(order: $0, customName: "Stop \($0)") }
+    }
+
+    @MainActor
+    @Test func aSnapshotPutsTheOrderBackOnlyOnTheSameStopsAsLeft() {
+        let all = stops(3)
+        let before = StopOrderSnapshot(all)
+        all[0].order = 2; all[2].order = 0
+        let after = StopOrderSnapshot(all)
+        #expect(before != after)
+        #expect(before.restore(on: all, ifStill: after))
+        #expect(all.map(\.order) == [0, 1, 2])
+    }
+
+    @MainActor
+    @Test func aSnapshotIsntRestoredOverAStopRemovedOrMoved() {
+        let all = stops(3)
+        let before = StopOrderSnapshot(all)
+        all[0].order = 2; all[2].order = 0
+        let after = StopOrderSnapshot(all)
+        #expect(!before.restore(on: Array(all.dropLast()), ifStill: after))   // one removed
+        #expect(all.map(\.order) == [2, 1, 0])
+        all[1].order = 5                                                       // moved
+        #expect(!before.restore(on: all, ifStill: after))
+        #expect(all.map(\.order) == [2, 5, 0])
+    }
 }

@@ -356,4 +356,113 @@ struct PaymentsTests {
         let invoices = CSVExport.invoices([bill], operatorID: "op")
         #expect(invoices.contains(",100.00,100.00,0.00,"))
     }
+    // MARK: - Mark Paid's Undo (MarkedPaid)
+
+    @Test func markPaidSaysWhatItDid() throws {
+        let h = try Harness(stopCount: 0)
+        let bill = invoice(h, total: 100)
+        Payments.record(40, method: "Cash", receivedAt: h.clock, on: bill, in: h.context, now: h.clock)
+        let marked = try #require(Payments.payInFull(bill, in: h.context, now: h.clock))
+        let payment = try #require(marked.payment)
+        #expect(payment.amount == 60 && marked.amount == 60)
+        #expect(marked.paidAtAfter == h.clock)
+        #expect(marked.paymentIDsAfter == Set(bill.sortedPayments.map(\.id)))
+        #expect(marked.paymentIDsAfter.count == 2)
+        #expect(marked.title == "Marked INV-0001 Paid · \(Money.text(60))")
+
+        let nothingOwed = invoice(h, total: 0, number: "INV-0002")
+        let zero = try #require(Payments.payInFull(nothingOwed, in: h.context, now: h.clock))
+        #expect(zero.payment == nil)
+        #expect(zero.paidAtAfter == h.clock)
+        #expect(zero.title == "Marked INV-0002 Paid")
+
+        // Already paid: does nothing, says nothing.
+        #expect(Payments.payInFull(bill, in: h.context, now: h.clock) == nil)
+        #expect(bill.sortedPayments.count == 2)
+    }
+
+    @Test func undoingMarkPaidTakesBackOnlyItsPayment() throws {
+        let h = try Harness(stopCount: 0)
+        let bill = invoice(h, total: 100)
+        let earlier = try #require(Payments.record(40, method: "Cash", receivedAt: h.clock.addingTimeInterval(-86_400),
+                                                   on: bill, in: h.context, now: h.clock))
+        let marked = try #require(Payments.payInFull(bill, in: h.context, now: h.clock))
+        try h.context.save()
+        #expect(bill.balanceDue == 0)
+        #expect(marked.undo(in: h.context) == .undone)
+        #expect(bill.invoicePaidAt == nil)
+        #expect(bill.balanceDue == 60)                                            // owes the rest again
+        #expect(bill.sortedPayments.map(\.id) == [earlier.id])                   // the earlier part untouched
+        #expect(earlier.amount == 40 && earlier.method == "Cash")
+        #expect(try h.context.fetch(FetchDescriptor<Payment>()).map(\.id) == [earlier.id])
+    }
+
+    @Test func undoingMarkPaidWithNothingOwedUnmarksIt() throws {
+        let h = try Harness(stopCount: 0)
+        let bill = invoice(h, total: 0)
+        let marked = try #require(Payments.payInFull(bill, in: h.context, now: h.clock))
+        try h.context.save()
+        #expect(marked.undo(in: h.context) == .undone)
+        #expect(bill.invoicePaidAt == nil)
+        #expect(bill.sortedPayments.isEmpty)
+    }
+
+    @Test func markPaidIsntUndoneAfterAnotherPaymentWasAdded() throws {
+        let h = try Harness(stopCount: 0)
+        let bill = invoice(h, total: 100)
+        Payments.record(40, method: "Cash", receivedAt: h.clock, on: bill, in: h.context, now: h.clock)
+        let marked = try #require(Payments.payInFull(bill, in: h.context, now: h.clock))
+        try h.context.save()
+        // Another device recorded a payment too (an overpayment, after sync).
+        let other = Payment(amount: 10, method: "Card", receivedAt: h.clock, operatorID: "op")
+        h.context.insert(other)
+        other.invoice = bill
+        try h.context.save()
+        #expect(marked.undo(in: h.context) == .changed)
+        #expect(bill.sortedPayments.count == 3)
+        #expect(bill.invoicePaidAt == h.clock)
+    }
+
+    @Test func markPaidIsntUndoneAfterItsPaymentWasEdited() throws {
+        let h = try Harness(stopCount: 0)
+        let bill = invoice(h, total: 100)
+        let marked = try #require(Payments.payInFull(bill, in: h.context, now: h.clock))
+        try h.context.save()
+        let payment = try #require(marked.payment)
+        payment.method = "Check"                                                  // edited since
+        #expect(marked.undo(in: h.context) == .changed)
+        #expect(bill.sortedPayments.count == 1)
+        #expect(bill.invoicePaidAt == h.clock)
+    }
+
+    @Test func markPaidIsntUndoneAfterItsPaymentWasRemoved() throws {
+        let h = try Harness(stopCount: 0)
+        let bill = invoice(h, total: 100)
+        let marked = try #require(Payments.payInFull(bill, in: h.context, now: h.clock))
+        try h.context.save()
+        Payments.delete(try #require(marked.payment), in: h.context)            // taken back on Payments
+        try h.context.save()
+        #expect(marked.undo(in: h.context) == .changed)
+    }
+
+    @Test func undoingMarkPaidPutsTheResponseBackOnlyIfUnchanged() throws {
+        let h = try Harness(stopCount: 0)
+        h.client.lastMessageSentAt = h.clock.addingTimeInterval(-86_400)          // awaiting a response
+        let bill = invoice(h, total: 100)
+        let marked = try #require(Payments.payInFull(bill, in: h.context, now: h.clock))
+        try h.context.save()
+        #expect(h.client.clientRespondedAt == h.clock)                            // paying is a response
+        #expect(marked.undo(in: h.context) == .undone)
+        #expect(h.client.clientRespondedAt == nil)                                // awaiting again
+
+        // They replied meanwhile: that stays.
+        let second = invoice(h, total: 50, number: "INV-0002")
+        let again = try #require(Payments.payInFull(second, in: h.context, now: h.clock))
+        try h.context.save()
+        let replied = h.clock.addingTimeInterval(60)
+        h.client.clientRespondedAt = replied
+        #expect(again.undo(in: h.context) == .undone)
+        #expect(h.client.clientRespondedAt == replied)
+        #expect(second.invoicePaidAt == nil)
+    }
 }

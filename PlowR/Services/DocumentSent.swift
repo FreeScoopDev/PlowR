@@ -89,8 +89,7 @@ enum DocumentSent {
     /// ends "Awaiting Response" (Joe's call).
     static func markPaid(_ proposal: Proposal, in context: ModelContext, now: Date = .now) {
         proposal.invoicePaidAt = now
-        let id = proposal.clientID
-        guard let client = try? context.fetch(FetchDescriptor<Client>()).first(where: { $0.id.uuidString == id }),
+        guard let client = Clients.of(proposal, in: context),
               client.lastMessageSentAt != nil else { return }
         // Never earlier than a response already marked: a payment recorded
         // late, dated when it came, mustn't bring "Awaiting Response" back.

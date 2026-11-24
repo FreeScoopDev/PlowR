@@ -103,16 +103,35 @@ struct UndoCenterTests {
         #expect(!h.context.hasChanges)
     }
 
-    @Test func theTimerOfAnUndoneDeleteDoesNothing() async throws {
+    // A cancelled timer never ends a newer offer: A's timer, held asleep
+    // until B is offered, wakes and leaves B alone. What stops it here is
+    // the cancellation `offer` does through `end()`; the `current.id ==
+    // offer.id` guard is only a backup behind it, which this can't reach.
+    @Test func anOldTimerLeavesANewerOfferAlone() async throws {
         let h = try Harness(stopCount: 0)
-        let center = timedCenter(h)
-        let one = visit(h)
+        let gate = SleepGate()
+        let center = UndoCenter(now: { h.clock },
+                                sleep: { seconds in
+                                    await withCheckedContinuation { gate.waiting.append($0) }
+                                    h.clock += seconds
+                                },
+                                announce: { _ in })
+        center.configure(context: h.context)
+        let a = visit(h), b = visit(h, day: 1)
         try h.context.save()
-        center.delete(one, scope: .thisVisit, among: [one])
-        let timer = try #require(center.expiry)
-        #expect(center.undo() == .undone)
-        await timer.value
-        #expect(try visits(h).count == 1)
+        center.delete(a, scope: .thisVisit, among: [a, b])
+        let timerA = try #require(center.expiry)
+        while gate.waiting.isEmpty { await Task.yield() }                               // A's timer is asleep
+        h.clock += 3
+        center.delete(b, scope: .thisVisit, among: [a, b])
+        #expect(try visits(h).map(\.id) == [b.id])                             // A done when B replaced it
+        gate.waiting.removeFirst().resume()                                              // A's timer wakes up
+        await timerA.value
+        #expect(center.isPendingDeletion(b))
+        #expect(center.offer?.title == "Deleted Client 0's visit")
+        #expect(try visits(h).map(\.id) == [b.id])                             // B still there
+        center.discardAll()
+        gate.waiting.forEach { $0.resume() }
     }
 
     // PlowRApp calls this when the scene goes to the background.
@@ -424,4 +443,194 @@ struct UndoCenterTests {
         #expect(try h.context.fetch(FetchDescriptor<Proposal>()).map(\.id) == [invoice.id])
         #expect(one.proposalID == invoice.id.uuidString)
     }
+    // MARK: - Mark Paid
+
+    @Test func markPaidOffersUndoNamingTheInvoiceAndAmount() throws {
+        let h = try Harness(stopCount: 0)
+        let center = center(h)
+        let bill = invoice(h, total: 120)
+        center.markPaid(bill, now: h.clock)
+        #expect(bill.invoicePaidAt == h.clock)
+        #expect(center.offer?.title == "Marked INV-0007 Paid · \(Money.text(120))")
+        #expect(!h.context.hasChanges)                                          // saved
+        #expect(center.undo() == .undone)
+        #expect(bill.invoicePaidAt == nil && bill.sortedPayments.isEmpty)
+        #expect(bill.balanceDue == 120)
+    }
+
+    @Test func markPaidOnAPaidInvoiceOffersNothing() throws {
+        let h = try Harness(stopCount: 0)
+        let center = center(h)
+        let bill = invoice(h, total: 120)
+        bill.invoicePaidAt = h.clock
+        center.markPaid(bill, now: h.clock)
+        #expect(center.offer == nil)
+    }
+
+    // MARK: - Client photos
+
+    @Test func aDeletedPhotoIsHiddenThenDeletedWhenTheWindowEnds() throws {
+        let h = try Harness(stopCount: 0)
+        let center = center(h)
+        let one = photo(h), other = photo(h)
+        try h.context.save()
+        center.delete(one)
+        #expect(center.isPendingDeletion(one) && !center.isPendingDeletion(other))
+        #expect(center.offer?.title == "Deleted photo")
+        #expect(try photos(h).count == 2)                                       // not deleted yet
+        h.clock += UndoCenter.window + 1
+        center.endIfExpired()
+        #expect(center.offer == nil && center.pendingDeletions.isEmpty)
+        #expect(try photos(h).map(\.id) == [other.id])
+        #expect(!h.context.hasChanges)
+    }
+
+    @Test func undoingAPhotoDeleteKeepsThePhoto() throws {
+        let h = try Harness(stopCount: 0)
+        let center = center(h)
+        let one = photo(h)
+        try h.context.save()
+        let id = one.persistentModelID
+        center.delete(one)
+        #expect(center.undo() == .undone)
+        #expect(!center.isPendingDeletion(one))
+        #expect(!h.context.hasChanges)
+        center.end()
+        h.clock += 60
+        center.endIfExpired()
+        #expect(try photos(h).map(\.persistentModelID) == [id])                // the same photo, never re-made
+    }
+
+    @Test func aPendingPhotoIsDeletedByANewOfferOrTheBackground() throws {
+        let h = try Harness(stopCount: 0)
+        let center = center(h)
+        let one = photo(h), two = photo(h)
+        try h.context.save()
+        center.delete(one)
+        center.delete(two)                                                       // replaces the first
+        #expect(try photos(h).map(\.id) == [two.id])
+        center.sceneDidEnterBackground()
+        #expect(try photos(h).isEmpty)
+    }
+
+    @Test func discardAllKeepsAPendingPhoto() throws {
+        let h = try Harness(stopCount: 0)
+        let center = center(h)
+        let one = photo(h)
+        try h.context.save()
+        center.delete(one)
+        center.discardAll()
+        center.end()
+        #expect(try photos(h).count == 1)
+    }
+
+    // MARK: - Optimize
+
+    @Test func undoingOptimizePutsTheOrderBack() throws {
+        let h = try Harness(stopCount: 3)
+        let center = center(h)
+        let before = StopOrderSnapshot(h.route.sortedStops)
+        let ids = h.route.sortedStops.map(\.id)
+        optimize(h, to: [2, 0, 1])
+        center.optimized(h.route, from: before)
+        #expect(center.offer?.title == "Optimized Tuesday")
+        #expect(!h.context.hasChanges)
+        #expect(center.undo() == .undone)
+        #expect(h.route.sortedStops.map(\.id) == ids)
+        #expect(StopOrderSnapshot(h.route.sortedStops) == before)
+        #expect(!h.context.hasChanges)                                          // saved
+    }
+
+    @Test func optimizeThatChangedNothingOffersNothing() throws {
+        let h = try Harness(stopCount: 3)
+        let center = center(h)
+        center.optimized(h.route, from: StopOrderSnapshot(h.route.sortedStops))
+        #expect(center.offer == nil)
+    }
+
+    @Test func optimizeIsntUndoneAfterAStopWasMoved() throws {
+        let h = try Harness(stopCount: 3)
+        let center = center(h)
+        let before = StopOrderSnapshot(h.route.sortedStops)
+        optimize(h, to: [2, 0, 1])
+        center.optimized(h.route, from: before)
+        let moved = h.route.sortedStops
+        moved[0].order = 1                                                       // moved by hand
+        moved[1].order = 0
+        let after = StopOrderSnapshot(h.route.sortedStops)
+        #expect(center.undo() == .changed)
+        #expect(StopOrderSnapshot(h.route.sortedStops) == after)                // left as it was
+    }
+
+    @Test func optimizeIsntUndoneAfterAStopWasAdded() throws {
+        let h = try Harness(stopCount: 3)
+        let center = center(h)
+        let before = StopOrderSnapshot(h.route.sortedStops)
+        optimize(h, to: [2, 0, 1])
+        center.optimized(h.route, from: before)
+        let stop = RouteStop(order: 3, client: h.client)
+        stop.route = h.route
+        h.context.insert(stop)
+        let after = StopOrderSnapshot(h.route.sortedStops)
+        #expect(center.undo() == .changed)
+        #expect(StopOrderSnapshot(h.route.sortedStops) == after)
+    }
+
+    // MARK: - Hidden while a delete is held back
+
+    // A lead whose only visit is pending deletion has no work booked.
+    @Test func aPendingVisitIsntWorkForThePipeline() throws {
+        let h = try Harness(stopCount: 0)
+        let one = visit(h)
+        try h.context.save()
+        let id = h.client.id.uuidString
+        #expect(Pipeline.Facts(documents: [], records: [], visits: [one], stops: []).withWork.contains(id))
+        let hidden = Pipeline.Facts(documents: [], records: [], visits: [one], stops: [],
+                                    hiding: [one.persistentModelID])
+        #expect(!hidden.withWork.contains(id))
+    }
+
+    @Test func aPendingVisitIsLeftOffTheTimeline() throws {
+        let h = try Harness(stopCount: 0)
+        let one = visit(h, day: 1), other = visit(h, day: 2)
+        try h.context.save()
+        let events = ClientTimeline.events(for: h.client, now: h.clock, hiding: [one.persistentModelID], in: h.context)
+        #expect(!events.contains { $0.id == "visit-\(one.id)" })
+        #expect(events.contains { $0.id == "visit-\(other.id)" })
+    }
+
+    // MARK: - Helpers for these
+
+    private func invoice(_ h: Harness, total: Double) -> Proposal {
+        let invoice = Proposal(operatorID: "op", client: h.client)
+        invoice.invoiceNumber = "INV-0007"
+        invoice.invoiceSentAt = h.clock.addingTimeInterval(-86_400)
+        let item = ProposalLineItem(serviceName: "Clear", zoneLabel: "", quantity: 1, unitType: "flat", unitPrice: total)
+        h.context.insert(item)
+        h.context.insert(invoice)
+        invoice.lineItems = [item]
+        return invoice
+    }
+
+    private func photo(_ h: Harness) -> StopPhoto {
+        let photo = StopPhoto(operatorID: "op", clientID: h.client.id.uuidString, routeID: "", isBefore: true,
+                              imageData: Data([1]))
+        h.context.insert(photo)
+        return photo
+    }
+
+    private func photos(_ h: Harness) throws -> [StopPhoto] {
+        try h.context.fetch(FetchDescriptor<StopPhoto>())
+    }
+
+    /// Gives the route's stops (as sorted now) these orders, as Optimize does.
+    private func optimize(_ h: Harness, to orders: [Int]) {
+        for (stop, order) in zip(h.route.sortedStops, orders) { stop.order = order }
+    }
+}
+
+/// Holds a timer's sleep until the test lets it go.
+@MainActor
+private final class SleepGate {
+    var waiting: [CheckedContinuation<Void, Never>] = []
 }

@@ -113,6 +113,8 @@ final class UndoCenter {
         guard let sleep else { return }
         expiry = Task { [weak self] in
             // Until the offer is gone: undone, replaced, or ended here once its window passed.
+            // Replacing or ending an offer cancels this task (clear()); the id check is a
+            // backup behind that, so a timer that somehow outlives its offer ends nothing newer.
             while !Task.isCancelled {
                 guard let self, let current = self.offer, current.id == offer.id else { return }
                 await sleep(max(current.expiresAt.timeIntervalSince(self.now()), 0) + Self.expiryMargin)
