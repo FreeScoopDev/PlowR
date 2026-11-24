@@ -103,9 +103,10 @@ struct UndoCenterTests {
         #expect(!h.context.hasChanges)
     }
 
-    // An offer's timer that wakes after a newer offer took its place leaves
-    // the newer one alone (the `current.id == offer.id` guard, behind the
-    // timer's cancellation). A's timer is held asleep until B is offered.
+    // A cancelled timer never ends a newer offer: A's timer, held asleep
+    // until B is offered, wakes and leaves B alone. What stops it here is
+    // the cancellation `offer` does through `end()`; the `current.id ==
+    // offer.id` guard is only a backup behind it, which this can't reach.
     @Test func anOldTimerLeavesANewerOfferAlone() async throws {
         let h = try Harness(stopCount: 0)
         let gate = SleepGate()

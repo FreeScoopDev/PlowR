@@ -47,7 +47,7 @@ enum Payments {
     @discardableResult
     static func payInFull(_ invoice: Proposal, in context: ModelContext, now: Date = .now) -> MarkedPaid? {
         guard invoice.isInvoice, invoice.invoicePaidAt == nil else { return nil }
-        let client = MarkedPaid.client(of: invoice, in: context)
+        let client = Clients.of(invoice, in: context)
         let respondedBefore = client?.clientRespondedAt
         let balance = invoice.balanceDue
         guard balance > 0 else {
@@ -138,9 +138,7 @@ enum Payments {
 
     /// How the invoice's client usually pays, as a method's name.
     static func preferredMethod(for invoice: Proposal, in context: ModelContext) -> String {
-        let id = invoice.clientID
-        let preferred = ((try? context.fetch(FetchDescriptor<Client>())) ?? [])
-            .first { $0.id.uuidString == id }?.preferredPayment ?? ""
+        let preferred = Clients.of(invoice, in: context)?.preferredPayment ?? ""
         return method(forPreferred: preferred)
     }
 

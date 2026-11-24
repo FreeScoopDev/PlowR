@@ -98,6 +98,26 @@ struct ClientTimelineTests {
         #expect(events.map(\.kind) == [.photos(count: 3)])
     }
 
+    // A photo whose delete is held back for its Undo is left out; the day's others stay.
+    @Test func aPhotoPendingDeletionIsLeftOut() throws {
+        let h = try Harness(stopCount: 1)
+        var photos: [StopPhoto] = []
+        for minutes in [0.0, 5] {
+            let photo = StopPhoto(operatorID: "op", clientID: h.client.id.uuidString, routeID: "", isBefore: false,
+                                  imageData: Data([1]))
+            photo.takenAt = h.clock.addingTimeInterval(minutes * 60)
+            h.context.insert(photo)
+            photos.append(photo)
+        }
+        try h.context.save()
+        let one: Set<PersistentIdentifier> = [photos[0].persistentModelID]
+        let both: Set<PersistentIdentifier> = Set(photos.map(\.persistentModelID))
+        let hidingOne = ClientTimeline.events(for: h.client, now: h.clock, hiding: one, in: h.context).map(\.kind)
+        let hidingBoth = ClientTimeline.events(for: h.client, now: h.clock, hiding: both, in: h.context)
+        #expect(hidingOne == [.photos(count: 1)])
+        #expect(hidingBoth.isEmpty)
+    }
+
     @Test func aNewClientHasNothing() throws {
         let h = try Harness(stopCount: 1)
         #expect(ClientTimeline.events(for: h.client, now: h.clock, in: h.context).isEmpty)

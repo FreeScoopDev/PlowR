@@ -113,6 +113,33 @@ struct ProofOfServiceTests {
         #expect(visits.first?.photos.map(\.id) == [before.id, after.id])
     }
 
+    // A photo whose delete is held back for its Undo never reaches the report.
+    @Test func aPhotoPendingDeletionIsLeftOutOfTheReport() throws {
+        let h = try Harness(stopCount: 0)
+        let record = job(h, started: date(2027, 1, 14, 5), finished: date(2027, 1, 14, 5, 28))
+        let before = photo(h, for: record, before: true, at: date(2027, 1, 14, 5, 1))
+        let after = photo(h, for: record, before: false, at: date(2027, 1, 14, 5, 29))
+        let check = TriggerCheck(operatorID: "op", clientID: h.client.id.uuidString, clientName: "Pat",
+                                 placeID: h.client.id.uuidString, day: date(2027, 1, 16))
+        h.context.insert(check)
+        let kept = photo(h, for: record, before: true, at: date(2027, 1, 16, 6))
+        let gone = photo(h, for: record, before: false, at: date(2027, 1, 16, 6, 1))
+        for checkPhoto in [kept, gone] {
+            checkPhoto.recordID = ""
+            checkPhoto.checkID = check.id.uuidString
+        }
+        try h.context.save()
+        let pending: Set<PersistentIdentifier> = [after.persistentModelID, gone.persistentModelID]
+        let visits = ProofOfService.visits(of: h.client, placeID: h.client.id.uuidString, from: date(2027, 1, 1),
+                                           to: date(2027, 1, 31), hiding: pending, in: h.context, calendar: calendar)
+        let checks = ProofOfService.checks(of: h.client, placeID: h.client.id.uuidString, from: date(2027, 1, 1),
+                                           to: date(2027, 1, 31), hiding: pending, in: h.context, calendar: calendar)
+        let visitPhotos: [UUID] = visits.first?.photos.map(\.id) ?? []
+        let checkPhotos: [UUID] = checks.first?.photos.map(\.id) ?? []
+        #expect(visitPhotos == [before.id])
+        #expect(checkPhotos == [kept.id])
+    }
+
     // Times only where PlowR recorded them, said for what they are.
     @Test func onlyRecordedTimesArePrintedForWhatTheyAre() throws {
         let h = try Harness(stopCount: 0)

@@ -11,6 +11,7 @@ struct ServiceRecordDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Environment(\.access) private var access
+    @Environment(UndoCenter.self) private var undoCenter
     @Query private var allServices: [ServiceItem]
 
     @State private var performedAt: Date
@@ -180,6 +181,8 @@ struct ServiceRecordDetailView: View {
             Text("It's removed from the Service History. Its photos stay in the client's gallery.")
         }
         .onAppear(perform: load)
+        // A photo deleted (held back for its Undo) leaves; undone, it's back.
+        .onChange(of: undoCenter.pendingDeletions) { loadPhotos() }
     }
 
     @ViewBuilder
@@ -235,12 +238,17 @@ struct ServiceRecordDetailView: View {
         }
     }
 
+    /// The record's photos, less any whose delete is held back for its Undo.
+    private func loadPhotos() {
+        photos = ServiceLog.photos(of: record, in: modelContext).filter { !undoCenter.isPendingDeletion($0) }
+    }
+
     /// The services as the record has them (StopRecording.loading), once.
     private func load() {
         guard loaded == nil else { return }
         invoice = ServiceLog.invoice(of: record, in: modelContext)
         locked = ServiceLog.servicesLocked(record, in: modelContext)
-        photos = ServiceLog.photos(of: record, in: modelContext)
+        loadPhotos()
         let form = StopRecording.loading(record.lines, services: services, zones: zones)
         selectedIDs = form.selectedIDs
         typedPrices = form.typedPrices

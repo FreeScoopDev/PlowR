@@ -10,6 +10,7 @@ struct ProofOfServiceView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(UndoCenter.self) private var undoCenter
     @Query private var allProfiles: [BusinessProfile]
 
     @State private var placeID: String
@@ -42,11 +43,13 @@ struct ProofOfServiceView: View {
     }
 
     private var checks: [ProofOfService.Check] {
-        ProofOfService.checks(of: client, placeID: placeID, from: period.start, to: period.end, in: modelContext)
+        ProofOfService.checks(of: client, placeID: placeID, from: period.start, to: period.end,
+                              hiding: undoCenter.pendingDeletions, in: modelContext)
     }
 
     private var visits: [ProofOfService.Visit] {
-        ProofOfService.visits(of: client, placeID: placeID, from: period.start, to: period.end, in: modelContext)
+        ProofOfService.visits(of: client, placeID: placeID, from: period.start, to: period.end,
+                              hiding: undoCenter.pendingDeletions, in: modelContext)
     }
 
     var body: some View {
@@ -150,6 +153,10 @@ struct ProofOfServiceView: View {
     }
 
     private func makePDF() {
+        // A photo delete still offered for Undo is done first: the report
+        // never holds a photo that's on its way out, and the weather lookup
+        // below can't straddle the delete.
+        undoCenter.end()
         let snapshot = Snapshot(
             place: places.first { $0.id == placeID }
                 ?? ProofOfService.ReportPlace(id: placeID, label: client.name, address: client.address),

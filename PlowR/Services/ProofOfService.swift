@@ -107,7 +107,9 @@ enum ProofOfService {
     /// The days at `placeID` marked below the contract's trigger in
     /// `start…end`, oldest first, one per day: a check at the stop over a
     /// mark by hand (it's PlowR's record of being there), then the earliest.
+    /// Photos in `hiding` (a delete held back for its Undo, UndoCenter) are left out.
     static func checks(of client: Client, placeID: String, from start: Date, to end: Date,
+                       hiding pending: Set<PersistentIdentifier> = [],
                        in context: ModelContext, calendar: Calendar = .current) -> [Check] {
         let first = calendar.startOfDay(for: start)
         let last = calendar.startOfDay(for: end)
@@ -120,7 +122,10 @@ enum ProofOfService {
                 sameDay.min { ($0.isFromStop ? 0 : 1, $0.checkedAt) < ($1.isFromStop ? 0 : 1, $1.checkedAt) }
             }
             .sorted { $0.day < $1.day }
-            .map { Check(check: $0, photos: TriggerChecks.photos(of: $0, in: context)) }
+            .map { check in
+                Check(check: check, photos: TriggerChecks.photos(of: check, in: context)
+                    .filter { !pending.contains($0.persistentModelID) })
+            }
     }
 
     /// What the report says about a day below the trigger, line by line.
@@ -148,8 +153,10 @@ enum ProofOfService {
     /// The jobs at `placeID` (Place.id) whose day (the day each started)
     /// falls in `start…end`, whole days, oldest first, with their photos.
     /// The same job recorded on two devices before iCloud merged them is
-    /// listed once (the oldest copy, as the merge keeps).
+    /// listed once (the oldest copy, as the merge keeps). Photos in `hiding`
+    /// (a delete held back for its Undo, UndoCenter) are left out.
     static func visits(of client: Client, placeID: String, from start: Date, to end: Date,
+                       hiding pending: Set<PersistentIdentifier> = [],
                        in context: ModelContext, calendar: Calendar = .current) -> [Visit] {
         let first = calendar.startOfDay(for: start)
         let last = calendar.startOfDay(for: end)
@@ -162,7 +169,8 @@ enum ProofOfService {
             .sorted { ($0.startedAt ?? $0.performedAt) < ($1.startedAt ?? $1.performedAt) }
         let clientID = client.id.uuidString
         let photos = (try? context.fetch(FetchDescriptor<StopPhoto>(predicate: #Predicate { $0.clientID == clientID }))) ?? []
-        let byRecord = Dictionary(grouping: photos.filter { !$0.recordID.isEmpty }, by: \.recordID)
+        let shown = photos.filter { !$0.recordID.isEmpty && !pending.contains($0.persistentModelID) }
+        let byRecord = Dictionary(grouping: shown, by: \.recordID)
         return records.map { record in
             Visit(record: record, photos: StopPhoto.ordered(byRecord[record.id.uuidString] ?? []))
         }

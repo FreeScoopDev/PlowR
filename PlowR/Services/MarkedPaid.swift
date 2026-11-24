@@ -39,12 +39,6 @@ extension Payments {
             paymentIDsAfter = Set(Payments.live(invoice).map(\.id))
         }
 
-        /// The invoice's client, as DocumentSent.markPaid finds them.
-        static func client(of invoice: Proposal, in context: ModelContext) -> Client? {
-            let id = invoice.clientID
-            return ((try? context.fetch(FetchDescriptor<Client>())) ?? []).first { $0.id.uuidString == id }
-        }
-
         /// The toast's words: "Marked INV-0007 Paid · $120.00".
         var title: String {
             let name = invoice.invoiceNumber.isEmpty ? "Invoice" : invoice.invoiceNumber

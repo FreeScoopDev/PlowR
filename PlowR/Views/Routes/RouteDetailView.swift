@@ -245,14 +245,8 @@ struct RouteDetailView: View {
                 .disabled(todaysRun.stops.isEmpty || isOptimizing)
                 .padding(.horizontal)
                 .padding(.vertical, 12)
-                // The tab's Undo toast is drawn over this page's bottom bar
-                // (a pushed page's own inset isn't lifted by the tab's): an
-                // unseen copy keeps Start Route clear of it.
-                if let offer = undoCenter.offer {
-                    UndoBar(title: offer.title, systemImage: offer.systemImage,
-                            accessibilityLabel: offer.accessibilityLabel) { }
-                        .hidden()
-                }
+                // The tab's Undo toast is drawn over this bar: Start Route stays clear of it.
+                UndoToastSpace()
             }
             .background(.ultraThinMaterial)
         }
