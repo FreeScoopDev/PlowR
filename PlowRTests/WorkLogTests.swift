@@ -126,9 +126,13 @@ struct WorkLogTests {
         let sundayMidnight = job(h, at: try date(cal, 2026, 11, 22), [])
         let tuesday = job(h, at: try date(cal, 2026, 11, 24, hour: 7), [])
         let days = WorkLog.days([mondayMorning, sundayMidnight, tuesday, mondayEvening], calendar: cal)
-        #expect(days.map(\.day) == [try date(cal, 2026, 11, 24), try date(cal, 2026, 11, 23), try date(cal, 2026, 11, 22)])
-        #expect(days.map { $0.records.map(\.id) } == [[tuesday.id], [mondayEvening.id, mondayMorning.id],
-                                                      [sundayMidnight.id]])
+        // Split up: CI's Xcode couldn't type-check these as one expression.
+        let expectedDays: [Date] = [try date(cal, 2026, 11, 24), try date(cal, 2026, 11, 23), try date(cal, 2026, 11, 22)]
+        let dayStarts: [Date] = days.map(\.day)
+        #expect(dayStarts == expectedDays)
+        let expectedIDs: [[UUID]] = [[tuesday.id], [mondayEvening.id, mondayMorning.id], [sundayMidnight.id]]
+        let recordIDs: [[UUID]] = days.map { day in day.records.map(\.id) }
+        #expect(recordIDs == expectedIDs)
     }
 
     // MARK: - Filters
