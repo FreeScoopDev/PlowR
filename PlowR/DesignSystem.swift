@@ -168,7 +168,24 @@ nonisolated extension PlowRColor {
             }
         }
 
+        /// A background that carries white text: swipe actions, whose labels
+        /// iOS always draws white. Deeper than the fill (white on the owed
+        /// fill is about 3.6:1), and a little deeper still in dark mode, so
+        /// it doesn't glare on a graphite row.
+        var solidUIColor: UIColor {
+            switch self {
+            case .done: adaptive(0x2F7D4F, 0x2A7047)
+            case .scheduled: adaptive(0x2B6CB0, 0x2563A0)
+            case .owed: adaptive(0x95600F, 0x8A5A10)
+            case .overdue: adaptive(0xC53030, 0xA62626)
+            case .lead: adaptive(0x6B46C1, 0x5A3AA8)
+            case .void: adaptive(0x6B7280, 0x4B5260)
+            case .neutral: adaptive(0x6B6459, 0x5A6064)
+            }
+        }
+
         var fill: Color { Color(fillUIColor) }
+        var solid: Color { Color(solidUIColor) }
         var soft: Color { Color(softUIColor) }
         var text: Color { Color(textUIColor) }
     }

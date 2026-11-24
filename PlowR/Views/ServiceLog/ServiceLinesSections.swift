@@ -92,7 +92,7 @@ struct ServiceLinesSections: View {
                 }
             }
             Button {
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                Haptics.impact(.light)
                 customItems.append(StopRecording.CustomItem(name: "", price: ""))
             } label: {
                 Label("Add Custom Item", systemImage: "plus")
@@ -122,7 +122,7 @@ struct ServiceLinesSections: View {
             Toggle(isOn: Binding(
                 get: { isOn },
                 set: { on in
-                    UIImpactFeedbackGenerator(style: on ? .medium : .light).impactOccurred()
+                    Haptics.impact(on ? .medium : .light)
                     if on {
                         selectedIDs.insert(key)
                         if typedPrices[key] == nil {

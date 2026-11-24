@@ -167,7 +167,7 @@ struct StopServiceRecorderView: View {
                 if !servicesLocked, !expectedToAdd.isEmpty {
                     Section {
                         Button {
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            Haptics.impact(.light)
                             expectedToAdd.forEach { selectedServiceIDs.insert($0.id) }
                         } label: {
                             Label("Add Expected: \(OneTapServices.englishList(expectedToAdd.map(\.name)))",
@@ -406,7 +406,7 @@ struct StopServiceRecorderView: View {
                 DocumentSent.markSent(proposal, in: modelContext)
             }
         }
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        Haptics.success()
         PlowRTips.done(RecordServicesTip(), RecordServicesTip.servicesRecorded)
         dismiss()
     }
