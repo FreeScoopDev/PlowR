@@ -9,7 +9,7 @@
       "title": "Getting started",
       "nav": "Getting started",
       "style": "cards",
-      "intro": "PlowR has five tabs: Home, Clients, Routes, Documents and Schedule. Settings is the gear at the top of Home.",
+      "intro": "PlowR has five tabs: Home, Clients, Routes, Documents and Schedule. Settings is the gear at the top of Home, and Home's **Quick Actions** start the everyday jobs: **New Client**, **Schedule Visit**, **Log Work**, **New Invoice**, **New Route** and **Season Report**. Log Work and New Invoice ask which client first.",
       "topics": [
         {
           "id": "set-up-business",
@@ -56,7 +56,7 @@
             "Choose **Existing Customer** (someone you already work for) or **New Lead** (someone you hope to win). Enter their **Full Name**; a phone number, email and **Route Notes** (a gate code, say: they show at the client's stops on every route) are optional. Or tap **Import Contact** to fill it in from your Contacts.",
             "Type the **Street Address** and pick the match. PlowR pins it on the map.",
             "Tap **Save**.",
-            "On the client's page, add the rest: tags, **Expected Services**, billing preferences, **Tax Exempt**, **Route Notes**, and other properties. Changed Route Notes reach every route the client is on."
+            "On the client's page, add the rest: tags, **Expected Services**, billing preferences, **Tax Exempt**, **Route Notes**, and other properties. Changed Route Notes reach every route the client is on. The buttons at the top of the page are **Contact**, **Invoice**, **Schedule**, **Log Work** (a job done off a route, for their Service History) and **Photos**."
           ],
           "note": "Tip: set a client's **Expected Services** once and every route they're on starts with them."
         },

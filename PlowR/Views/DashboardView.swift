@@ -50,6 +50,10 @@ struct DashboardView: View {
     @State private var showingContactScanner = false
     @State private var showingCreateRoute = false
     @State private var showingAddVisit = false
+    /// Log Work or New Invoice was tapped: the client is picked first.
+    @State private var pickingClientFor: ClientShortcut?
+    /// The client picked, and what for: Log Work or the invoice builder.
+    @State private var clientShortcut: ClientShortcut.Target?
 
     // MARK: - Derived Data
 
@@ -211,6 +215,21 @@ struct DashboardView: View {
         .sheet(isPresented: $showingContactScanner) { ContactScannerView() }
         .sheet(isPresented: $showingCreateRoute) { CreateRouteView() }
         .sheet(isPresented: $showingAddVisit)   { AddVisitView() }
+        // Select Client as Documents' New Invoice opens it: picking one, or
+        // adding one there, goes straight on.
+        .sheet(item: $pickingClientFor) { shortcut in
+            ClientPickerForProposalView(newClientKind: .existingCustomer, emptyMessage: shortcut.emptyMessage) {
+                clientShortcut = ClientShortcut.Target(shortcut: shortcut, client: $0)
+            }
+        }
+        // Each editor shows why instead when the plan is read only
+        // (.editsNeedPro()), wherever it's opened from.
+        .sheet(item: $clientShortcut) { target in
+            switch target.shortcut {
+            case .logWork: LogWorkView(client: target.client)
+            case .newInvoice: ProposalBuilderView(client: target.client, isInvoiceMode: true)
+            }
+        }
         .sheet(isPresented: Binding(get: { stormTextStops != nil }, set: { if !$0 { stormTextStops = nil } })) {
             MassMessageView(stops: stormTextStops ?? [], allClients: myClients,
                             presets: StormCard.presets, kind: .text)
@@ -842,7 +861,8 @@ struct DashboardView: View {
     private var quickActionsGrid: some View {
         VStack(alignment: .leading, spacing: PlowRLayout.space2) {
             sectionLabel("Quick Actions")
-            // Four actions, a full 2 × 2. Settings is the gear at the top.
+            // Six actions, a full 2 × 3 (one column at accessibility sizes),
+            // the everyday ones first. Settings is the gear at the top.
             LazyVGrid(columns: typeSize.isAccessibilitySize
                         ? [GridItem(.flexible())]
                         : [GridItem(.flexible(), spacing: PlowRLayout.tileSpacing),
@@ -861,10 +881,12 @@ struct DashboardView: View {
                     quickActionLabel("New Client", icon: PlowRSymbol.addClient.name)
                 }
                 .buttonStyle(.plain)
+                quickAction("Schedule Visit", icon: "calendar.badge.plus") { showingAddVisit = true }
+                quickAction("Log Work", icon: PlowRSymbol.logWork.name) { pickingClientFor = .logWork }
+                quickAction("New Invoice", icon: "doc.badge.arrow.up") { pickingClientFor = .newInvoice }
                 quickAction("New Route", icon: PlowRSymbol.route.name) {
                     $gate.unless(ProGate.createRoute(access, routes: allRoutes, operatorID: authManager.userID)) { showingCreateRoute = true }
                 }
-                quickAction("Schedule Visit", icon: "calendar.badge.plus") { showingAddVisit = true }
                 NavigationLink { ClientStatsView() } label: {
                     quickActionLabel("Season Report", icon: "chart.bar.doc.horizontal")
                 }
@@ -881,13 +903,17 @@ struct DashboardView: View {
                 Text(title)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(PlowRColor.ink)
-                    .lineLimit(typeSize.isAccessibilitySize ? 3 : 1)
+                    // Two lines at the most below accessibility sizes: on a
+                    // 375-pt phone "Schedule Visit" and "Season Report" were
+                    // cut off on one.
+                    .lineLimit(typeSize.isAccessibilitySize ? 3 : 2)
                     .minimumScaleFactor(typeSize.isAccessibilitySize ? 1 : 0.85)
             }
             Spacer(minLength: 0)
         }
         .padding(PlowRLayout.space3)
-        .frame(minHeight: PlowRLayout.secondaryTapTarget + PlowRLayout.space2)
+        // As tall as the row: a two-line name beside a one-line one.
+        .frame(minHeight: PlowRLayout.secondaryTapTarget + PlowRLayout.space2, maxHeight: .infinity)
         .background(PlowRColor.surface,
                     in: RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous)
@@ -926,6 +952,30 @@ struct DashboardView: View {
             .font(.caption.weight(.semibold))
             .foregroundStyle(PlowRColor.inkSecondary)
             .accessibilityHidden(true)
+    }
+}
+
+// MARK: - Client Shortcuts
+
+/// Home's Quick Actions that start from a client: pick one, then go on.
+enum ClientShortcut: String, Identifiable {
+    case logWork, newInvoice
+
+    var id: String { rawValue }
+
+    /// What Select Client says with no clients yet.
+    var emptyMessage: String {
+        switch self {
+        case .logWork: "Add a client to log work for them."
+        case .newInvoice: "Add a client to create an invoice."
+        }
+    }
+
+    /// The client picked, for the sheet that follows.
+    struct Target: Identifiable {
+        let id = UUID()
+        let shortcut: ClientShortcut
+        let client: Client
     }
 }
 

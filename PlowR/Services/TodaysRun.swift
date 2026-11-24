@@ -58,3 +58,29 @@ struct TodaysRun: Equatable {
         skippedOnRoute.union(routeStops.prefix(max(0, index)))
     }
 }
+
+extension TodaysRun {
+    /// A route's run as its page opens it on `day`: nothing skipped by hand,
+    /// the stops marked below their contract's trigger that day left out.
+    /// The route page's Start and Schedule's Start Route both begin this run.
+    @MainActor
+    static func opening(_ route: PlowRoute, on day: Date, checks: [TriggerCheck],
+                        calendar: Calendar = .current) -> TodaysRun {
+        let stops = route.sortedStops
+        let below = stops.filter {
+            TriggerChecks.isMarked($0.clientID.uuidString, placeID: Place.id(ofStop: $0), on: day, in: checks,
+                                   calendar: calendar)
+        }
+        return TodaysRun(routeStops: stops.map(\.id), belowTrigger: Set(below.map(\.id)))
+    }
+}
+
+/// What Schedule's "Route Created" alert offers after Create Route.
+enum RouteFromDay {
+    /// Start Route, beside Open Route: only for a route made from today's
+    /// visits, while no route is running, with a stop left to run today.
+    static func offersStart(day: Date, now: Date, routeRunning: Bool, stopsToRun: Int,
+                            calendar: Calendar = .current) -> Bool {
+        !routeRunning && stopsToRun > 0 && calendar.isDate(day, inSameDayAs: now)
+    }
+}
