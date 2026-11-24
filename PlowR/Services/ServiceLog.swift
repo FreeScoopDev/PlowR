@@ -323,6 +323,28 @@ enum ServiceLog {
         return invoice(of: record, in: context) != nil
     }
 
+    /// Whether a visit's work could go on a new invoice: the one fact the
+    /// visit sheet (VisitActions) and its Record Services (the Save menu's
+    /// invoice items, Complete & Invoice) both go by, so they never disagree.
+    /// With a record, the record decides (`billingStatus == .notBilled`, which
+    /// keeps `isBillable` as it was when the work was done: work done while the
+    /// client was comped stays unbilled after they aren't). With none yet,
+    /// the client decides: completing would record it as billable unless
+    /// they're comped. No client on file: nothing bills.
+    static func isVisitWorkBillable(recordBilling: BillingStatus?, clientIsComped: Bool?) -> Bool {
+        if let recordBilling { return recordBilling == .notBilled }
+        guard let clientIsComped else { return false }
+        return !clientIsComped
+    }
+
+    /// `isVisitWorkBillable(recordBilling:clientIsComped:)` for `visit` as the
+    /// store has it now.
+    static func isVisitWorkBillable(_ visit: ScheduledVisit, client: Client?, in context: ModelContext) -> Bool {
+        let record = record(forKey: visitKey(visit.id), in: context)
+        return isVisitWorkBillable(recordBilling: record.map { billingStatus(of: $0, in: context) },
+                                   clientIsComped: client?.isComped)
+    }
+
     /// The invoice made for `visit` (Schedule → Invoice), if it exists and
     /// is an invoice, not a proposal.
     static func invoice(ofVisit visit: ScheduledVisit, in context: ModelContext) -> Proposal? {
@@ -385,12 +407,56 @@ enum ServiceLog {
         let (record, _) = recordForStop(stop, of: client, run: run, operatorID: operatorID,
                                         startedAt: startedAt, in: context)
         stop.completedNotes = notes
-        record.notes = notes
-        if servicesLocked(record, in: context) { return record }
-        if invoice(of: record, in: context) == nil { record.invoiceID = "" }
-        record.lines = recording.recordLines
+        guard write(recording, notes: notes, to: record, locked: servicesLocked(record, in: context), in: context)
+        else { return record }
         stop.completedServiceIDs = recording.services.map(\.id).filter { recording.selectedIDs.contains($0) }
         return record
+    }
+
+    /// Saves what Record Services has for `visit` (tapped on the Schedule or
+    /// Home) into its `visit:<id>` record, the one Complete and a route stop
+    /// sharing the visit write. A scheduled visit is completed first, through
+    /// `complete`, so its status, series, `serviceLogged` and invoice are
+    /// exactly as Complete leaves them; saving again doesn't complete it
+    /// again. A completed one keeps its record (a route stop's keeps its
+    /// times, route and source), or gets one as Complete would make it.
+    /// Then the record is written as `saveRecording` writes a stop's: notes
+    /// always; services unless they were already on an invoice before this
+    /// save (lines Complete just filled in, on an invoice made for the visit
+    /// beforehand, aren't the bill's: the recording replaces them).
+    @discardableResult
+    static func saveVisitRecording(_ recording: StopRecording, notes: String, for visit: ScheduledVisit,
+                                   client: Client, operatorID: String, now: Date = .now,
+                                   in context: ModelContext) -> ServiceRecord {
+        let key = visitKey(visit.id)
+        let lockedBefore = record(forKey: key, in: context).map { servicesLocked($0, in: context) } ?? false
+        let record: ServiceRecord
+        if visit.status == .scheduled,
+           let completed = complete(visit, among: series(of: visit, in: context), in: context, now: now) {
+            record = completed
+        } else {
+            let made = Self.record(forKey: key, source: .visit, operatorID: operatorID, client: client, in: context)
+            record = made.record
+            if made.isNew {
+                fill(record, from: visit, client: client,
+                     performedAt: min(visit.scheduledDate, visit.completedAt ?? now), in: context)
+            }
+        }
+        write(recording, notes: notes, to: record, locked: lockedBefore, in: context)
+        return record
+    }
+
+    /// Record Services' tail, for a stop and a visit alike: the notes, then,
+    /// unless the services are `locked` (on an invoice), a stale invoice
+    /// cleared and the lines on screen. False when locked.
+    @discardableResult
+    private static func write(_ recording: StopRecording, notes: String, to record: ServiceRecord, locked: Bool,
+                              in context: ModelContext) -> Bool {
+        record.notes = notes
+        if locked { return false }
+        if invoice(of: record, in: context) == nil { record.invoiceID = "" }
+        record.lines = recording.recordLines
+        return true
     }
 
     /// Record Services' invoice for `record`: `recording`'s lines under
@@ -1009,5 +1075,20 @@ enum ServiceLog {
                     price: InvoiceLines.propertyPrice(unitType: service.unitType, pricePerUnit: service.pricePerUnit,
                                                       zones: zones, multiplier: multiplier))
             }
+    }
+}
+
+extension StopRecording {
+    /// Record Services as it opens for `visit` with no record saved: its
+    /// expected services ticked at the visit's prices (after hours
+    /// included), priced by `ServiceLog.lines(for:)` as plain Complete
+    /// prices them, so saving it as it opened records what Complete would.
+    /// The one place that's worked out: the sheet and its tests both use it.
+    @MainActor
+    static func opening(visit: ScheduledVisit, client: Client, services: [Service], zones: [InvoiceLines.Zone],
+                        in context: ModelContext) -> StopRecording {
+        let lines = ServiceLog.lines(for: visit.expectedServiceIDs, client: client, propertyID: visit.propertyID,
+                                     multiplier: visit.priceMultiplier, in: context)
+        return loading(lines, services: services, zones: zones)
     }
 }

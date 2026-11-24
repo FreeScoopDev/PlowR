@@ -22,7 +22,9 @@ struct ScheduleView: View {
     @State private var selectedDate = Date()
     @State private var weatherFetcher = WeatherFetcher()
     @State private var showingAddVisit = false
-    @State private var visitToEdit: ScheduledVisit?
+    /// A tapped visit: its sheet (VisitSheet), with Record Services, Complete
+    /// and Complete & Invoice. Edit Visit is there.
+    @State private var visitToOpen: ScheduledVisit?
     @State private var invoicingVisit: ScheduledVisit?
     /// Delete was swiped: asked first (VisitDeletion).
     @State private var visitToDelete: ScheduledVisit?
@@ -150,8 +152,8 @@ struct ScheduleView: View {
             .sheet(isPresented: $showingAddVisit) {
                 AddVisitView(initialDate: selectedDate)
             }
-            .sheet(item: $visitToEdit) { visit in
-                AddVisitView(editing: visit)
+            .sheet(item: $visitToOpen) { visit in
+                VisitSheet(visit: visit)
             }
             .sheet(item: $invoicingVisit) { visit in
                 if let client = clientForVisit(visit) {
@@ -256,7 +258,8 @@ struct ScheduleView: View {
             } else {
                 ForEach(visitsForSelectedDate) { visit in
                     // A button, so VoiceOver says it opens; looks as before.
-                    Button { visitToEdit = visit } label: {
+                    // Opens the visit's sheet (VisitSheet).
+                    Button { visitToOpen = visit } label: {
                         visitRow(visit)
                             .contentShape(Rectangle())
                     }
@@ -425,7 +428,7 @@ struct ScheduleView: View {
                     StatusChip("Invoiced", systemImage: "doc.text.fill", status: .done)
                 }
                 if visit.isAfterHours {
-                    StatusChip("After Hours", systemImage: "moon.fill", status: .neutral)
+                    AfterHoursChip()
                 }
             }
             }
@@ -582,7 +585,7 @@ struct ScheduleView: View {
 
     /// Held back for Undo's window, then deleted (UndoCenter.delete).
     private func delete(_ visit: ScheduledVisit, _ scope: VisitDeletion.Scope) {
-        if visitToEdit?.id == visit.id { visitToEdit = nil }
+        if visitToOpen?.id == visit.id { visitToOpen = nil }
         undoCenter.delete(visit, scope: scope, among: liveVisits)
     }
 }
@@ -877,5 +880,13 @@ enum PastDueList {
     /// How many Show All would add: 0 hides it.
     static func hiddenCount<T>(_ overdue: [T], showingAll: Bool) -> Int {
         overdue.count - shown(overdue, showingAll: showingAll).count
+    }
+}
+
+/// A visit's After Hours chip: the Schedule's row and the visit sheet show
+/// the same one.
+struct AfterHoursChip: View {
+    var body: some View {
+        StatusChip("After Hours", systemImage: "moon.fill", status: .neutral)
     }
 }

@@ -5,11 +5,37 @@ import PhotosUI
 /// Record Services: what was done at a stop, with photos and notes, saved to
 /// the Service Log, and optionally invoiced. It used to save only by making an
 /// invoice, and Skip threw away any photos just taken.
+///
+/// A scheduled visit (the visit sheet, VisitSheet) records through the same
+/// sheet: `init(visit:client:operatorID:invoiceOnSave:onSave:)`. Visit mode
+/// differs only in where the address, zones, contract, expected services and
+/// record come from, saving through `ServiceLog.saveVisitRecording`, and its
+/// expected services starting ticked. A stop works exactly as before.
 struct StopServiceRecorderView: View {
     @Environment(\.access) private var access
-    let stop: RouteStop
+    /// What's being recorded: a route stop, or a visit done off a route.
+    enum Subject {
+        case stop(RouteStop)
+        case visit(ScheduledVisit)
+    }
+
+    /// What a visit-mode save did, for the visit sheet to show.
+    enum VisitSaveOutcome {
+        case saved
+        /// A draft invoice was made (`invoiceOnSave`): open it.
+        case invoiced(Proposal)
+        /// `invoiceOnSave`, but nothing to bill: the work is saved. What
+        /// to say (`nothingToBillMessage`).
+        case nothingToBill(String)
+    }
+
+    let subject: Subject
     let client: Client?
     let operatorID: String
+    /// Visit mode: the confirm button saves, completes and drafts the
+    /// invoice (Complete & Invoice, Invoice Work).
+    private let invoiceOnSave: Bool
+    private let onVisitSave: ((VisitSaveOutcome) -> Void)?
     /// The route run (ActiveRouteStore.runID), so this writes to the record
     /// that completing the stop fills in. A sheet opened without one gets
     /// its own, kept (as state) for as long as it's open.
@@ -45,19 +71,78 @@ struct StopServiceRecorderView: View {
     @State private var servicesLocked = false
     /// There's a saved record, so saving an emptied sheet clears it.
     @State private var hadRecord = false
+    /// Visit mode: whether the work could go on a new invoice
+    /// (`ServiceLog.isVisitWorkBillable`, the fact the visit sheet goes by),
+    /// read when the record loads. Unused for a stop.
+    @State private var visitWorkBillable = false
     @State private var showingDiscardConfirm = false
     /// What was on screen once the saved record was loaded: Skip asks only
     /// if something differs from it.
     @State private var saved: Snapshot?
 
     init(stop: RouteStop, client: Client?, operatorID: String, runID: UUID?, stopStartedAt: Date? = nil) {
-        self.stop = stop
+        self.subject = .stop(stop)
         self.client = client
         self.operatorID = operatorID
+        invoiceOnSave = false
+        onVisitSave = nil
         _runID = State(initialValue: runID ?? UUID())
         _stopStartedAt = State(initialValue: stopStartedAt ?? Date())
         _selectedServiceIDs = State(initialValue: Set(stop.completedServiceIDs))
         _notes = State(initialValue: stop.completedNotes)
+    }
+
+    /// Record Services for a visit. `invoiceOnSave`: Complete & Invoice or
+    /// Invoice Work, whose one button saves and drafts the invoice.
+    init(visit: ScheduledVisit, client: Client?, operatorID: String, invoiceOnSave: Bool = false,
+         onSave: ((VisitSaveOutcome) -> Void)? = nil) {
+        self.subject = .visit(visit)
+        self.client = client
+        self.operatorID = operatorID
+        self.invoiceOnSave = invoiceOnSave
+        onVisitSave = onSave
+        // Unused for a visit: its record is keyed by the visit.
+        _runID = State(initialValue: UUID())
+        _stopStartedAt = State(initialValue: visit.scheduledDate)
+        _selectedServiceIDs = State(initialValue: [])
+        _notes = State(initialValue: "")
+    }
+
+    private var visit: ScheduledVisit? {
+        if case .visit(let visit) = subject { return visit }
+        return nil
+    }
+
+    /// Where the work is: the stop's place, or the visit's.
+    private var propertyID: String {
+        switch subject {
+        case .stop(let stop): stop.propertyID
+        case .visit(let visit): visit.propertyID
+        }
+    }
+
+    private var address: String {
+        switch subject {
+        case .stop(let stop): stop.clientAddress
+        case .visit(let visit): visit.clientAddress
+        }
+    }
+
+    /// Whether the Save menu offers invoices: never once the work is on one,
+    /// never read only, and for a visit only when its work is billable
+    /// (`visitWorkBillable`: `ServiceLog.isVisitWorkBillable`, the same fact
+    /// the visit sheet goes by). A stop passes nil: its rule is unchanged.
+    static func offersInvoiceItems(invoicedAs: String?, canEdit: Bool, visitWorkBillable: Bool?) -> Bool {
+        guard invoicedAs == nil, canEdit else { return false }
+        return visitWorkBillable ?? true
+    }
+
+    /// What the alert says when Complete & Invoice saved the work but made no
+    /// invoice: a contract covers it, or there was nothing priced to bill.
+    static func nothingToBillMessage(contractName: String?, hasServices: Bool) -> String {
+        if let contractName { return "Nothing to bill: \(contractName) covers this work." }
+        return hasServices ? "Nothing to bill: the services recorded have no price."
+            : "Nothing to bill: no services were recorded."
     }
 
     private struct Snapshot: Equatable {
@@ -100,21 +185,28 @@ struct StopServiceRecorderView: View {
             || (hadRecord && hasUnsavedWork)
     }
 
-    /// Expected at this stop (StopServices), in the catalog, and not ticked.
+    /// Expected at this stop (StopServices) or visit, in the catalog, and not ticked.
     private var expectedToAdd: [StopRecording.Service] {
         // The same filter as the route screen's "Done:" button (OneTapServices).
-        OneTapServices.expectedInCatalog(StopServices.expected(for: stop, client: client), active: myServices)
+        OneTapServices.expectedInCatalog(expectedIDs, active: myServices)
             .filter { !selectedServiceIDs.contains($0.id) }
+    }
+
+    private var expectedIDs: [String] {
+        switch subject {
+        case .stop(let stop): StopServices.expected(for: stop, client: client)
+        case .visit(let visit): visit.expectedServiceIDs
+        }
     }
 
     private var myServices: [StopRecording.Service] {
         ServiceLog.activeServices(allServices, operatorID: operatorID)
     }
 
-    /// The contract covering this stop on the day it started, as billing
-    /// will find it (Contracts.contract(coveringPlace:)).
+    /// The contract covering this stop on the day it started (a visit: the
+    /// day it's scheduled), as billing will find it (Contracts.contract(coveringPlace:)).
     private func coveringContract(_ client: Client) -> Contract? {
-        Contracts.contract(coveringPlace: Place.id(of: client, propertyID: stop.propertyID), of: client.id.uuidString,
+        Contracts.contract(coveringPlace: Place.id(of: client, propertyID: propertyID), of: client.id.uuidString,
                            on: stopStartedAt, among: Contracts.all(in: modelContext))
     }
 
@@ -135,7 +227,7 @@ struct StopServiceRecorderView: View {
     }
 
     private var pricingZones: [InvoiceLines.Zone] {
-        client.map { Place.zones(of: $0, propertyID: stop.propertyID) } ?? []
+        client.map { Place.zones(of: $0, propertyID: propertyID) } ?? []
     }
 
     var body: some View {
@@ -144,9 +236,9 @@ struct StopServiceRecorderView: View {
                 if let client {
                     Section {
                         LabeledContent("Client", value: client.name)
-                        // The stop's: its place's address, which may be a property's.
-                        if !stop.clientAddress.isEmpty {
-                            LabeledContent("Address", value: stop.clientAddress)
+                        // The stop's or visit's: its place's address, which may be a property's.
+                        if !address.isEmpty {
+                            LabeledContent("Address", value: address)
                         }
                         if let contract = coveringContract(client) {
                             LabeledContent("Contract", value: contract.name)
@@ -163,7 +255,8 @@ struct StopServiceRecorderView: View {
 
                 // The stop's expected services, one tap to tick, never ticked
                 // for you: a skipped or cleared stop mustn't record (and bill)
-                // work that wasn't done.
+                // work that wasn't done. A visit's start ticked (completing it
+                // records them anyway); this offers back any unticked.
                 if !servicesLocked, !expectedToAdd.isEmpty {
                     Section {
                         Button {
@@ -188,7 +281,8 @@ struct StopServiceRecorderView: View {
                     })
 
                 Section(title: "Notes") {
-                    TextField("Optional notes for this stop…", text: $notes, axis: .vertical)
+                    TextField(visit == nil ? "Optional notes for this stop…" : "Optional notes for this visit…",
+                              text: $notes, axis: .vertical)
                         .lineLimit(3...)
                 }
                 .listRowBackground(PlowRColor.surface)
@@ -199,11 +293,19 @@ struct StopServiceRecorderView: View {
             .scrollDismissesKeyboard(.interactively)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Skip") {
+                    // A visit isn't skipped from here: closing just doesn't save.
+                    Button(visit == nil ? "Skip" : "Cancel") {
                         if hasUnsavedWork { showingDiscardConfirm = true } else { dismiss() }
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {
+                    if invoiceOnSave, let visit, visitWorkBillable {
+                        Button(visit.status == .scheduled ? "Complete & Draft Invoice" : "Draft Invoice") {
+                            save(invoice: .draft)
+                        }
+                        .disabled(client == nil || !hasAnythingToSave
+                                  || !recording.unreadableFields(locked: servicesLocked).isEmpty)
+                    } else {
                     Menu("Save") {
                         Button {
                             save(invoice: .none)
@@ -212,7 +314,8 @@ struct StopServiceRecorderView: View {
                         }
                         // Read only (a route that was running when the
                         // subscription ended): the stop still saves, no invoices.
-                        if invoicedAs == nil, access.canEdit {
+                        if Self.offersInvoiceItems(invoicedAs: invoicedAs, canEdit: access.canEdit,
+                                                   visitWorkBillable: visit == nil ? nil : visitWorkBillable) {
                             Button {
                                 save(invoice: .draft)
                             } label: {
@@ -228,6 +331,7 @@ struct StopServiceRecorderView: View {
                         }
                     }
                     .disabled(client == nil || !hasAnythingToSave || !recording.unreadableFields(locked: servicesLocked).isEmpty)
+                    }
                 }
             }
             .sheet(isPresented: $showingCamera) {
@@ -254,6 +358,7 @@ struct StopServiceRecorderView: View {
                 afterPickerItems = []
             }
         }
+        .modifier(VisitEditsNeedPro(applies: visit != nil))
     }
 
     // MARK: - Photo Section
@@ -369,6 +474,11 @@ struct StopServiceRecorderView: View {
     private func loadRecord() {
         defer { if saved == nil { saved = snapshot } }
         guard saved == nil, let client else { return }
+        if let visit {
+            loadVisitRecord(visit, client: client)
+            return
+        }
+        guard case .stop(let stop) = subject else { return }
         invoicedAs = ServiceLog.invoiceForStop(stop, of: client, run: runID, startedAt: stopStartedAt,
                                                in: modelContext)?.invoiceNumber
         guard let record = ServiceLog.existingRecordForStop(stop, of: client, run: runID, startedAt: stopStartedAt,
@@ -388,8 +498,37 @@ struct StopServiceRecorderView: View {
         keptLines = loaded.keptLines
     }
 
+    /// A visit's record, as `loadRecord` loads a stop's. With none saved yet,
+    /// its expected services start ticked at the visit's prices (after hours
+    /// included), as plain Complete would record them (`ServiceLog.lines(for:)`).
+    private func loadVisitRecord(_ visit: ScheduledVisit, client: Client) {
+        let record = ServiceLog.record(forKey: ServiceLog.visitKey(visit.id), in: modelContext)
+        invoicedAs = (ServiceLog.invoice(ofVisit: visit, in: modelContext)
+            ?? record.flatMap { ServiceLog.invoice(of: $0, in: modelContext) })?.invoiceNumber
+        visitWorkBillable = ServiceLog.isVisitWorkBillable(visit, client: client, in: modelContext)
+        let loaded: StopRecording
+        if let record {
+            hadRecord = true
+            servicesLocked = ServiceLog.servicesLocked(record, in: modelContext)
+            notes = record.notes
+            loaded = StopRecording.loading(record.lines, services: recording.services, zones: pricingZones)
+        } else {
+            loaded = StopRecording.opening(visit: visit, client: client, services: recording.services,
+                                           zones: pricingZones, in: modelContext)
+        }
+        selectedServiceIDs = loaded.selectedIDs
+        servicePriceOverrides = loaded.typedPrices
+        customItems = loaded.customItems
+        keptLines = loaded.keptLines
+    }
+
     private func save(invoice choice: InvoiceChoice) {
         guard let client else { dismiss(); return }
+        if let visit {
+            saveVisit(visit, client: client, invoice: choice)
+            return
+        }
+        guard case .stop(let stop) = subject else { return }
         let recording = recording
         let record = ServiceLog.saveRecording(recording, notes: notes, for: stop, of: client, run: runID,
                                               operatorID: operatorID, startedAt: stopStartedAt, in: modelContext)
@@ -416,5 +555,49 @@ struct StopServiceRecorderView: View {
         Haptics.success()
         PlowRTips.done(RecordServicesTip(), RecordServicesTip.servicesRecorded)
         dismiss()
+    }
+
+    /// A visit's save: `ServiceLog.saveVisitRecording` (completing a scheduled
+    /// visit as Complete does), its photos, and the invoice asked for, made
+    /// by the same `ServiceLog.invoice` a stop's is.
+    private func saveVisit(_ visit: ScheduledVisit, client: Client, invoice choice: InvoiceChoice) {
+        let recording = recording
+        let record = ServiceLog.saveVisitRecording(recording, notes: notes, for: visit, client: client,
+                                                   operatorID: operatorID, in: modelContext)
+        for (images, isBefore) in [(beforeImages, true), (afterImages, false)] {
+            for captured in images {
+                guard let photo = StopPhoto.make(from: captured, isBefore: isBefore, operatorID: operatorID,
+                                                 clientID: client.id.uuidString, routeID: "",
+                                                 recordID: record.id.uuidString) else { continue }
+                modelContext.insert(photo)
+            }
+        }
+        var outcome = VisitSaveOutcome.saved
+        if choice != .none, ServiceLog.invoice(of: record, in: modelContext) == nil {
+            let contract = coveringContract(client)
+            if let proposal = ServiceLog.invoice(record, recording: recording, under: contract, client: client,
+                                                 operatorID: operatorID, notes: notes, in: modelContext) {
+                if choice == .sent { DocumentSent.markSent(proposal, in: modelContext) }
+                outcome = .invoiced(proposal)
+            } else if invoiceOnSave {
+                outcome = .nothingToBill(Self.nothingToBillMessage(contractName: contract?.name,
+                                                                   hasServices: !record.lines.isEmpty))
+            }
+        }
+        try? modelContext.save()
+        Haptics.success()
+        PlowRTips.done(RecordServicesTip(), RecordServicesTip.servicesRecorded)
+        onVisitSave?(outcome)
+        dismiss()
+    }
+}
+
+/// Visit mode is an editor (`.editsNeedPro()`); a route stop's sheet never
+/// is: a route already running is never gated.
+private struct VisitEditsNeedPro: ViewModifier {
+    let applies: Bool
+
+    func body(content: Content) -> some View {
+        if applies { content.editsNeedPro() } else { content }
     }
 }
