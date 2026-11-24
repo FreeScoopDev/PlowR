@@ -76,7 +76,8 @@ struct GlobalSearchView: View {
         .plowRGrouped()
         .overlay {
             if results.isEmpty && !ClientSearch.words(searchedQuery).isEmpty {
-                ContentUnavailableView.search(text: ClientSearch.query(searchedQuery))
+                // "No Matches", as the Clients list and the client pickers say it.
+                NoSearchMatches(query: searchedQuery)
             }
         }
         .navigationTitle("Search")
