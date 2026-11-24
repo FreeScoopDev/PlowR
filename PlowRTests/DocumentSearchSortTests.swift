@@ -104,6 +104,18 @@ struct DocumentListTests {
         #expect(order(items, .client) == [2, 3, 4, 1])
     }
 
+    // Each comparison option, pinned: names equal but for capitals or
+    // accents tie (so fall to the fixed order, lower ID first), and numbers
+    // in a name count as numbers.
+    @Test func clientNamesTieOnCapitalsAndAccentsAndCountNumbers() {
+        #expect(order([key(1, client: "Amy"), key(2, client: "amy")], .client) == [1, 2])
+        #expect(order([key(2, client: "amy"), key(1, client: "Amy")], .client) == [1, 2])
+        #expect(order([key(1, client: "amy"), key(2, client: "Amy")], .client) == [1, 2])
+        #expect(order([key(1, client: "Émile"), key(2, client: "Emile")], .client) == [1, 2])
+        #expect(order([key(2, client: "Emile"), key(1, client: "Émile")], .client) == [1, 2])
+        #expect(order([key(1, client: "Client 10"), key(2, client: "Client 2")], .client) == [2, 1])
+    }
+
     // Ties fall back to newest made first, then a fixed order, so the
     // list never shuffles.
     @Test func tiesAreNewestFirstThenStable() {

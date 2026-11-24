@@ -148,12 +148,18 @@ struct ClientListView: View {
         FirstRunOffers.clientListState(clientCount: myClients.count, shownCount: clients.count, search: searchText)
     }
 
-    /// What to say when clients exist but the search or filter shows none.
-    private var noMatchesMessage: Text? {
+    /// What to say when clients exist but the search or filter shows none:
+    /// a search says it as every searched list does (`NoSearchMatches`).
+    @ViewBuilder private var noMatchesMessage: some View {
         switch listState {
-        case let .noMatchesForSearch(searched): Text("No clients match \u{201C}\(searched)\u{201D}.")
-        case .noMatchesForFilter: Text("No clients match this filter.")
-        case .noClients, .showing: nil
+        case let .noMatchesForSearch(searched):
+            Section { NoSearchMatches(query: searched) }
+                .listRowBackground(PlowRColor.surface)
+        case .noMatchesForFilter:
+            Section { Text("No clients match this filter.") }
+                .listRowBackground(PlowRColor.surface)
+        case .noClients, .showing:
+            EmptyView()
         }
     }
 
@@ -192,10 +198,7 @@ struct ClientListView: View {
                         clientSummarySection
                         pipelineLink(entries)
                     }
-                    if let message = noMatchesMessage {
-                        Section { message }
-                            .listRowBackground(PlowRColor.surface)
-                    }
+                    noMatchesMessage
                     ForEach(activeClients) { client in
                         clientRow(client)
                     }
