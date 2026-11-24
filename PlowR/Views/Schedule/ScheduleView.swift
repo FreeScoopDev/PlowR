@@ -215,7 +215,7 @@ struct ScheduleView: View {
                                 Button { $gate.unless(ProGate.edit(access)) { markComplete(visit) } } label: {
                                     Label("Complete", systemImage: "checkmark.circle.fill")
                                 }
-                                .tint(PlowRColor.Status.done.fill)
+                                .tint(PlowRColor.Status.done.solid)
                             }
                         }
                         .swipeActions(edge: .trailing) {
@@ -237,7 +237,7 @@ struct ScheduleView: View {
                                 } label: {
                                     Label("Skip", systemImage: "arrow.right.circle")
                                 }
-                                .tint(PlowRColor.Status.owed.fill)
+                                .tint(PlowRColor.Status.owed.solid)
                             }
                             // Not when its work is already on an invoice (Bill
                             // Unbilled Work, Record Services).
@@ -245,7 +245,7 @@ struct ScheduleView: View {
                                 Button { invoicingVisit = visit } label: {
                                     Label("Invoice", systemImage: "doc.badge.plus")
                                 }
-                                .tint(PlowRColor.Status.scheduled.fill)
+                                .tint(PlowRColor.Status.scheduled.solid)
                             }
                         }
                         .onTapGesture { visitToEdit = visit }
@@ -492,7 +492,10 @@ struct ScheduleView: View {
                 Button("Delete This Visit Only", role: .destructive) { delete(visit, .thisVisit) }
                 Button("Delete This & All Future Visits", role: .destructive) { delete(visit, .thisAndFuture) }
             } else {
-                Button("Delete Visit", role: .destructive) { delete(visit, .thisVisit) }
+                // The last of a series ends it, so it doesn't grow back.
+                Button("Delete Visit", role: .destructive) {
+                    delete(visit, VisitDeletion.singleDeleteScope(for: visit, among: allVisits))
+                }
             }
             Button("Cancel", role: .cancel) { }
         }

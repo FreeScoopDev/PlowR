@@ -155,7 +155,7 @@ struct RouteDetailView: View {
                                       systemImage: isSkipped ? "arrow.uturn.backward" : "forward.end")
                             }
                             // As the Schedule's Skip (owed); Include Today puts it back (scheduled).
-                            .tint(isSkipped ? PlowRColor.Status.scheduled.fill : PlowRColor.Status.owed.fill)
+                            .tint(isSkipped ? PlowRColor.Status.scheduled.solid : PlowRColor.Status.owed.solid)
                         }
                         .contextMenu {
                             Button { start(from: index) } label: {

@@ -35,6 +35,19 @@ enum VisitDeletion {
         !following(visit, among: visits).isEmpty
     }
 
+    /// The scope of the single "Delete Visit" (no series choice offered).
+    /// Deleting the latest visit of a repeating series ends the series
+    /// there, as "This & All Future Visits" would: otherwise completing the
+    /// visit before it adds the deleted one back (ScheduledVisit.continuation).
+    static func singleDeleteScope(for visit: ScheduledVisit, among visits: [ScheduledVisit]) -> Scope {
+        guard visit.isRecurring, !visit.seriesID.isEmpty,
+              !visits.contains(where: {
+                  $0.seriesID == visit.seriesID && $0.operatorID == visit.operatorID && $0.id != visit.id
+                      && $0.scheduledDate > visit.scheduledDate
+              }) else { return .thisVisit }
+        return .thisAndFuture
+    }
+
     /// Deletes `visit`, and with `.thisAndFuture` the series' visits after
     /// it. The series then ends the day before, so completing an earlier
     /// visit doesn't add the deleted ones back (ScheduledVisit.continuation).

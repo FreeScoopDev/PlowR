@@ -354,8 +354,6 @@ struct SettingsView: View {
     static let subscriptionNote = "\n\nNeither cancels a PlowR Pro subscription: Apple keeps billing it until you cancel it in PlowR Pro → Manage Subscription, above."
     static let subscriptionNoteOne = "\n\nRemoving your data doesn't cancel a PlowR Pro subscription: Apple keeps billing it until you cancel it in PlowR Pro → Manage Subscription, above."
 
-    /// Remove from This Device: nothing in iCloud is touched (AccountEraser,
-    /// DeviceSync). Finished at the next launch.
     /// Whether to offer Show Get Started (FirstRun.offersShowAgain), with
     /// the card's steps as Home works them out.
     private func readGetStarted() async {
@@ -372,6 +370,8 @@ struct SettingsView: View {
             checklist: FirstRun.checklist(operatorID: id, in: modelContext, alertsUndecided: alertsUndecided))
     }
 
+    /// Remove from This Device: nothing in iCloud is touched (AccountEraser,
+    /// DeviceSync). Finished at the next launch.
     private func removeFromThisDevice() {
         let eraser = AccountEraser(context: modelContext,
                                    archiveFolders: AccountEraser.archiveFolders(for: modelContext.container),

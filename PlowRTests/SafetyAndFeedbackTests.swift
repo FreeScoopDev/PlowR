@@ -61,6 +61,22 @@ struct SafetyAndFeedbackTests {
         #expect(other.allSatisfy { $0.recurrenceEndDate == nil })
     }
 
+    @Test func deletingTheLastVisitOfASeriesEndsIt() throws {
+        let h = try Harness(stopCount: 0)
+        let calendar = Calendar.current
+        let all = series(h, count: 2, from: h.clock)
+        #expect(!VisitDeletion.offersSeries(all[1], among: all))              // the single "Delete Visit"
+        let scope = VisitDeletion.singleDeleteScope(for: all[1], among: all)
+        #expect(scope == .thisAndFuture)
+        #expect(VisitDeletion.singleDeleteScope(for: all[0], among: all) == .thisVisit)   // not the last
+        VisitDeletion.delete(all[1], scope: scope, among: all, in: h.context, calendar: calendar)
+        try h.context.save()
+        let left = try visits(h)
+        #expect(left.map(\.id) == [all[0].id])
+        // Completing the first doesn't add the deleted one back.
+        #expect(all[0].continuation(among: left, calendar: calendar) == nil)
+    }
+
     @Test func theSeriesChoiceIsOfferedOnlyWithVisitsStillToCome() throws {
         let h = try Harness(stopCount: 0)
         let all = series(h, count: 3, from: h.clock)
@@ -145,6 +161,9 @@ struct SafetyAndFeedbackTests {
         FirstRun.showChecklistAgain(operatorID: "op", defaults: defaults)
         #expect(!defaults.bool(forKey: FirstRun.checklistHiddenKey("op")))
         #expect(defaults.bool(forKey: FirstRun.checklistHiddenKey("other")))   // another business's stays
+        // Home's one read of the flag (body, on appearing, when Settings closes).
+        #expect(!FirstRun.isChecklistHidden(operatorID: "op", defaults: defaults))
+        #expect(FirstRun.isChecklistHidden(operatorID: "other", defaults: defaults))
     }
 
     @Test func theStoredChecklistMatchesHomes() throws {

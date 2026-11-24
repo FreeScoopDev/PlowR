@@ -35,7 +35,9 @@ enum ShareFile {
             try write(data, url)
             return .success(url)
         } catch {
-            log.error("Couldn't write \(url.lastPathComponent, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            let nsError = error as NSError
+            // The file name carries a client's name: private, as the system's words may be.
+            log.error("Couldn't write \(url.lastPathComponent, privacy: .private): \(nsError.domain, privacy: .public) \(nsError.code, privacy: .public) \(error.localizedDescription, privacy: .private)")
             return .failure(failure(error, kind: kind))
         }
     }

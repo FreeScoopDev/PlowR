@@ -39,6 +39,12 @@ enum FirstRun {
         hidden && showsChecklist(completedSetup: completedSetup, hidden: false, checklist: checklist)
     }
 
+    /// Whether the business hid the card. Home reads it when drawing, on
+    /// appearing and when Settings closes (where Show Get Started clears it).
+    static func isChecklistHidden(operatorID: String, defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: checklistHiddenKey(operatorID))
+    }
+
     /// Show Get Started: the card comes back on Home.
     static func showChecklistAgain(operatorID: String, defaults: UserDefaults = .standard) {
         defaults.removeObject(forKey: checklistHiddenKey(operatorID))
