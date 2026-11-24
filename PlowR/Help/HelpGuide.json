@@ -9,7 +9,7 @@
       "title": "Getting started",
       "nav": "Getting started",
       "style": "cards",
-      "intro": "PlowR has five tabs: Home, Clients, Routes, Documents and Schedule. Settings is the gear at the top of Home, and Home's **Quick Actions** start the everyday jobs: **New Client**, **Schedule Visit**, **Log Work**, **New Invoice**, **New Route**, **Season Report** and **Work Log**. Log Work and New Invoice ask which client first.",
+      "intro": "PlowR has five tabs: Home, Clients, Routes, Documents and Schedule. Settings is the gear at the top of Home, and Home's **Quick Actions** start the everyday jobs: **New Client**, **Schedule Visit**, **Log Work**, **New Invoice**, **New Route**, **Season Report**, **Work Log** and **Expenses**. Log Work and New Invoice ask which client first.",
       "topics": [
         {
           "id": "set-up-business",
@@ -301,6 +301,20 @@
           "tips": [
             { "id": "tip-payment-methods", "title": "Get paid faster", "message": "Add a payment link in **Settings → Payment Methods**; invoices print a code to scan and pay." }
           ]
+        },
+        {
+          "id": "expenses-mileage",
+          "title": "Log expenses and mileage",
+          "summary": "Fuel, materials, equipment and the distance you drive, ready for tax time.",
+          "screens": ["home"],
+          "steps": [
+            "On **Home**, tap **Expenses** under Quick Actions.",
+            "Tap **+** and **Add Expense**. Enter the amount, pick a category (**Fuel**, **Materials**, **Equipment & Repairs** or **Other**) and say what you bought: PlowR suggests what you've typed before. For materials you can add a quantity and unit. A client or route is optional.",
+            "Tap **+** and **Log Mileage** for a business trip: the distance, what it was for (a supply run, say) and, if you like, the route or client.",
+            "Switch between **Expenses** and **Mileage** at the top. Both are listed by month, newest first, with each month's total. Tap one to change it; swipe left to delete it.",
+            "At tax time, open **Settings → Export Data** and send the **Expenses** and **Mileage** files to your accountant."
+          ],
+          "note": "PlowR doesn't track mileage by GPS: type the distance from your odometer or a map."
         }
       ]
     },

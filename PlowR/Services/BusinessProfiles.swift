@@ -42,6 +42,7 @@ enum BusinessProfiles {
         text(\.address)
         // nil is "never chosen": a choice made on the other device counts.
         if keep.paymentTermsDays == nil { keep.paymentTermsDays = other.paymentTermsDays }
+        if keep.seasonStartMonth == 0 { keep.seasonStartMonth = other.seasonStartMonth }
         if keep.logoData == nil { keep.logoData = other.logoData }
         if keep.defaultTaxRate == 0 { keep.defaultTaxRate = other.defaultTaxRate }
         if keep.accentColorHex == PlowRColor.navyHex { keep.accentColorHex = other.accentColorHex }
@@ -52,5 +53,21 @@ enum BusinessProfiles {
             keep.requestServices = other.requestServices
             keep.requestServicesChosen = true
         }
+    }
+
+    /// The month a season starts, 1–12, or 0 (not set) for anything else a
+    /// sync or an older build could leave.
+    static func seasonStartMonth(_ profile: BusinessProfile) -> Int {
+        (1...12).contains(profile.seasonStartMonth) ? profile.seasonStartMonth : 0
+    }
+
+    /// The Season Starts picker's twelve months, January first, named in
+    /// `locale`'s language. Always the Gregorian calendar: a region using
+    /// another (a 13-month one, say) would otherwise get months that don't
+    /// match the 1–12 stored.
+    static func seasonMonthNames(locale: Locale = .current) -> [String] {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = locale
+        return calendar.standaloneMonthSymbols
     }
 }

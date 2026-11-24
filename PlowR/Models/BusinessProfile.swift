@@ -32,6 +32,10 @@ final class BusinessProfile {
     var requestServices: [String] = []
     var requestServicesChosen: Bool = false
     var requestWelcome: String = ""
+    /// The month the business's season starts, 1 (January) to 12, for
+    /// season totals of expenses; 0 when not set (Business Profile's Season
+    /// Starts).
+    var seasonStartMonth: Int = 0
 
     init(operatorID: String) {
         self.operatorID = operatorID
