@@ -739,7 +739,8 @@ struct DashboardView: View {
     private var pipeline: [Pipeline.Entry] {
         Pipeline.entries(allClients, operatorID: authManager.userID,
                          facts: Pipeline.Facts(documents: allProposals, records: allRecords, visits: allVisits,
-                                               stops: allRoutes.flatMap { $0.stops ?? [] }))
+                                               stops: allRoutes.flatMap { $0.stops ?? [] },
+                                               hiding: undoCenter.pendingDeletions))
     }
 
     /// Leads and quotes, when there are any: each opens the Pipeline.

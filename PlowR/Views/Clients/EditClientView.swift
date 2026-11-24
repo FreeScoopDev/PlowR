@@ -24,6 +24,8 @@ struct EditClientView: View {
     @Query private var allProfiles: [BusinessProfile]
     @Query private var allPaymentMethods: [PaymentMethod]
     @Query(sort: \ScheduledVisit.scheduledDate) private var allVisits: [ScheduledVisit]
+    /// A visit a delete is holding back for its Undo isn't shown (UndoCenter).
+    @Environment(UndoCenter.self) private var undoCenter
     @Query private var allServiceItems: [ServiceItem]
 
     /// What the screen edits (ClientDraft): compared with the client as saved
@@ -894,7 +896,7 @@ struct EditClientView: View {
     @ViewBuilder
     private var pipelineStageRow: some View {
         // This client's records only: the page redraws with each key typed.
-        let facts = Pipeline.Facts(of: client, in: modelContext)
+        let facts = Pipeline.Facts(of: client, hiding: undoCenter.pendingDeletions, in: modelContext)
         let stage = Pipeline.stage(of: client, facts: facts)
         let canMarkCustomer = Pipeline.canMarkAsCustomer(client, facts: facts)
         let canMarkLead = Pipeline.canMarkAsLead(client, facts: facts)
@@ -1067,7 +1069,8 @@ struct EditClientView: View {
     private var upcomingClientVisits: [ScheduledVisit] {
         let clientID = client.id.uuidString
         return allVisits
-            .filter { $0.clientID == clientID && $0.status == .scheduled && $0.scheduledDate >= Date() }
+            .filter { $0.clientID == clientID && $0.status == .scheduled && $0.scheduledDate >= Date()
+                && !undoCenter.isPendingDeletion($0) }
             .prefix(3)
             .map { $0 }
     }

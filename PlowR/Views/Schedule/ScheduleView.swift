@@ -221,7 +221,7 @@ struct ScheduleView: View {
                         .swipeActions(edge: .leading) {
                             if visit.status == .scheduled {
                                 Button { $gate.unless(ProGate.edit(access)) { markComplete(visit) } } label: {
-                                    Label("Complete", systemImage: "checkmark.circle.fill")
+                                    Label("Complete", systemImage: PlowRSymbol.complete.name)
                                 }
                                 .tint(PlowRColor.Status.done.solid)
                             }
@@ -233,7 +233,7 @@ struct ScheduleView: View {
                             Button {
                                 visitToDelete = visit
                             } label: {
-                                Label("Delete", systemImage: "trash")
+                                Label("Delete", systemImage: PlowRSymbol.delete.name)
                             }
                             .tint(.red)
                             if visit.status == .scheduled {
@@ -243,7 +243,7 @@ struct ScheduleView: View {
                                         Haptics.selection()
                                     }
                                 } label: {
-                                    Label("Skip", systemImage: "arrow.right.circle")
+                                    Label("Skip", systemImage: PlowRSymbol.skip.name)
                                 }
                                 .tint(PlowRColor.Status.owed.solid)
                             }
@@ -488,7 +488,7 @@ struct ScheduleView: View {
     private func markComplete(_ visit: ScheduledVisit) {
         // Also continues the series if it needs a next visit, and records the
         // work in the Service Log (ServiceLog.complete), with Undo.
-        undoCenter.complete(visit, among: allVisits)
+        undoCenter.complete(visit, among: liveVisits)
         Haptics.success()
     }
 

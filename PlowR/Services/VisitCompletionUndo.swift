@@ -82,9 +82,9 @@ struct VisitCompletionUndo {
     /// Whether anything completing left was changed since.
     func isChanged(in context: ModelContext) -> Bool {
         let visit = before.visit
-        if visit.isDeleted || visit.status != statusAfter || visit.completedAt != completedAtAfter { return true }
+        if visit.isGone || visit.status != statusAfter || visit.completedAt != completedAtAfter { return true }
         guard let record, let recordAfter else { return false }
-        if record.isDeleted || ServiceRecord.Fields(of: record) != recordAfter { return true }
+        if record.isGone || ServiceRecord.Fields(of: record) != recordAfter { return true }
         return !Set(ServiceLog.photos(of: record, in: context).map(\.id)).isSubset(of: photosAfter)
     }
 
@@ -105,7 +105,7 @@ struct VisitCompletionUndo {
         }
         before.restore()
         // The series' next visit, unless it's been worked on since.
-        for added in addedVisits where !added.visit.isDeleted && added.visit.status == .scheduled
+        for added in addedVisits where !added.visit.isGone && added.visit.status == .scheduled
             && added.visit.scheduledDate == added.scheduledDate && added.visit.proposalID.isEmpty {
             context.delete(added.visit)
         }

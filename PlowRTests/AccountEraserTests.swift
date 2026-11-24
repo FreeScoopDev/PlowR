@@ -426,7 +426,7 @@ struct AccountEraserTests {
     func theUndoOfferIsDroppedNotDone(removeFromDevice: Bool) throws {
         let account = try Account()
         defer { account.removeFiles() }
-        let center = UndoCenter(autoExpire: false, announce: { _ in })
+        let center = UndoCenter(sleep: nil, announce: { _ in })
         center.configure(context: account.context)
         let visits = try account.context.fetch(FetchDescriptor<ScheduledVisit>())
         let visit = try #require(visits.first)

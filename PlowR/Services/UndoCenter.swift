@@ -24,7 +24,7 @@ import SwiftUI
 /// - If the app crashes inside the window the delete never happens and the
 ///   visit comes back. That's the safe failure: no data lost.
 /// - Other devices and `CalendarSync` see the visit up to `window` longer.
-/// - A model deleted meanwhile by sync is skipped at commit.
+/// - A model deleted meanwhile by sync is skipped at commit (`isGone`).
 @MainActor
 @Observable
 final class UndoCenter {
@@ -62,17 +62,23 @@ final class UndoCenter {
     @ObservationIgnored private var undoAction: (() -> Result)?
     /// Does the pending delete: run when the offer ends any way but Undo or `discardAll`.
     @ObservationIgnored private var commitAction: (() -> Void)?
-    @ObservationIgnored private var expiry: Task<Void, Never>?
+    /// Ends the offer when its window has passed (`endIfExpired`). The
+    /// center's, not a view's: the delete is done even with no toast on screen.
+    @ObservationIgnored private(set) var expiry: Task<Void, Never>?
     @ObservationIgnored private(set) var context: ModelContext?
     @ObservationIgnored private let now: () -> Date
-    @ObservationIgnored private let autoExpire: Bool
+    /// Waits the given seconds. nil (tests) leaves ending the window to `endIfExpired()`.
+    @ObservationIgnored private let sleep: ((TimeInterval) async -> Void)?
     @ObservationIgnored private let announce: (String) -> Void
 
-    /// `autoExpire: false` (tests) leaves ending the window to `endIfExpired()`.
-    init(now: @escaping () -> Date = Date.init, autoExpire: Bool = true,
+    /// How far past `expiresAt` the timer looks again, so `endIfExpired` sees it passed.
+    static let expiryMargin: TimeInterval = 0.25
+
+    init(now: @escaping () -> Date = Date.init,
+         sleep: ((TimeInterval) async -> Void)? = { try? await Task.sleep(for: .seconds($0)) },
          announce: @escaping (String) -> Void = { AccessibilityNotification.Announcement($0).post() }) {
         self.now = now
-        self.autoExpire = autoExpire
+        self.sleep = sleep
         self.announce = announce
     }
 
@@ -104,12 +110,15 @@ final class UndoCenter {
         commitAction = commit
         pendingDeletions = pending
         announce("\(title). Undo available.")
-        guard autoExpire else { return }
-        // The center's, not a view's: the delete is done even if no toast is on screen.
+        guard let sleep else { return }
         expiry = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(Self.window))
-            guard !Task.isCancelled, let self, self.offer?.id == offer.id else { return }
-            self.end()
+            // Until the offer is gone: undone, replaced, or ended here once its window passed.
+            while !Task.isCancelled {
+                guard let self, let current = self.offer, current.id == offer.id else { return }
+                await sleep(max(current.expiresAt.timeIntervalSince(self.now()), 0) + Self.expiryMargin)
+                guard !Task.isCancelled else { return }
+                self.endIfExpired()
+            }
         }
     }
 
@@ -136,6 +145,12 @@ final class UndoCenter {
         commit?()
     }
 
+    /// The scene went to the background (PlowRApp): the offer ends, and a
+    /// delete it held back is done now, before iOS can suspend the app.
+    func sceneDidEnterBackground() {
+        end()
+    }
+
     /// Ends the offer if its window has passed.
     func endIfExpired() {
         guard let offer, now() > offer.expiresAt else { return }
@@ -156,4 +171,23 @@ final class UndoCenter {
         commitAction = nil
         if !pendingDeletions.isEmpty { pendingDeletions = [] }
     }
+}
+
+extension PersistentModel {
+    /// Deleted since it was read. Every "deleted meanwhile" check of an undo
+    /// or a held-back delete asks this. Three ways to be gone: deleted here
+    /// and not saved (`isDeleted`); deleted here and saved (then it reads not
+    /// deleted but has no context); deleted in another context, as sync does
+    /// (then it keeps both here, and only a fetch no longer finds it).
+    var isGone: Bool {
+        guard !isGoneHere, let context = modelContext else { return true }
+        let id = persistentModelID
+        var descriptor = FetchDescriptor<Self>(predicate: #Predicate { $0.persistentModelID == id })
+        descriptor.fetchLimit = 1
+        return ((try? context.fetchCount(descriptor)) ?? 1) == 0
+    }
+
+    /// The first two of `isGone`'s, without a fetch: for filtering whole
+    /// lists (the Schedule's every visit), which a query has just read.
+    var isGoneHere: Bool { isDeleted || modelContext == nil }
 }

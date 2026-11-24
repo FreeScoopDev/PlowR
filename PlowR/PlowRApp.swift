@@ -234,6 +234,12 @@ struct PlowRApp: App {
                 authManager.recheckIfSignedOut()
                 CalendarSync.shared.refresh()
             }
+            // The Undo offer ends: a delete it held back is done now, before
+            // iOS can suspend the app, and before the reminders and the
+            // calendar sync below read the visits.
+            if phase == .background {
+                UndoCenter.shared.sceneDidEnterBackground()
+            }
             // Follow-up reminders from what's on file now: on the way in,
             // and on the way out, so what's due while away is right.
             if (phase == .active || phase == .background) && !Self.isRunningUnderTests {
@@ -244,9 +250,6 @@ struct PlowRApp: App {
             // once the app is suspended: add a visit, open Calendar, and it
             // wasn't there. So sync on the way out, from what's in memory.
             if phase == .background {
-                // The Undo offer ends: a delete it held back is done now,
-                // before iOS can suspend the app (and before the calendar sync).
-                UndoCenter.shared.end()
                 CalendarSync.shared.syncNow()
             }
         }

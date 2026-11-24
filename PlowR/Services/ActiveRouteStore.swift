@@ -16,7 +16,7 @@ import SwiftData
 /// route; no view lifecycle event does.
 @Observable
 final class ActiveRouteStore {
-    static let shared = ActiveRouteStore(sites: SystemSiteWatching())
+    static let shared = ActiveRouteStore(sites: SystemSiteWatching(), undo: .shared)
 
     /// What survives the app being killed. Deliberately tiny: the route and
     /// its stops are already in SwiftData, so only the position is saved.
@@ -187,6 +187,8 @@ final class ActiveRouteStore {
     private let defaults: UserDefaults
     private let surfaces: RouteSurfaces
     private let sites: SiteWatching
+    /// The Schedule's Undo (UndoCenter), ended when a route starts.
+    private let undo: UndoCenter?
     private let now: () -> Date
     private let fetchRoutes: (ModelContext) throws -> [PlowRoute]
     private let save: (ModelContext) throws -> Void
@@ -196,12 +198,14 @@ final class ActiveRouteStore {
     init(defaults: UserDefaults = .standard,
          surfaces: RouteSurfaces = SystemRouteSurfaces(),
          sites: SiteWatching = NoSiteWatching(),
+         undo: UndoCenter? = nil,
          now: @escaping () -> Date = Date.init,
          fetchRoutes: @escaping (ModelContext) throws -> [PlowRoute] = { try $0.fetch(FetchDescriptor<PlowRoute>()) },
          save: @escaping (ModelContext) throws -> Void = { try $0.save() }) {
         self.defaults = defaults
         self.surfaces = surfaces
         self.sites = sites
+        self.undo = undo
         departures = SiteDepartures.load(from: defaults)
         self.now = now
         self.fetchRoutes = fetchRoutes
@@ -292,6 +296,10 @@ final class ActiveRouteStore {
     /// Begins `route` at its first stop, leaving `skipping` out of this run.
     /// Replaces any route already active.
     func start(_ route: PlowRoute, skipping: Set<UUID> = []) {
+        // A delete the Schedule's Undo holds back is done first, so a stop
+        // never claims a visit that's about to go (ServiceLog.visitForStop).
+        // Its toast can't show over the route screen anyway.
+        undo?.end()
         if isActive { end() }
         // A new run. Last run's times and recorded services would otherwise
         // show its stops as done before they're visited.

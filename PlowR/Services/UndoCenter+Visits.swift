@@ -10,11 +10,11 @@ extension UndoCenter {
     /// offer ends. Undo drops them from the pending set; nothing changed.
     func delete(_ visit: ScheduledVisit, scope: VisitDeletion.Scope, among visits: [ScheduledVisit]) {
         end()
-        guard let context, !visit.isDeleted else { return }
+        guard let context, !visit.isGone else { return }
         // Saved first, so the IDs held are the permanent ones a fetch returns
         // (a model not yet saved has a temporary ID that changes on save).
         if context.hasChanges { try? context.save() }
-        let plan = VisitDeletion.plan(visit, scope: scope, among: visits.filter { !$0.isDeleted })
+        let plan = VisitDeletion.plan(visit, scope: scope, among: visits.filter { !$0.isGoneHere })
         let count = plan.visits.count
         let name = visit.clientName.isEmpty ? "a" : "\(visit.clientName)'s"
         let title = count == 1 ? "Deleted \(name) visit" : "Deleted \(count) visits"
@@ -38,7 +38,7 @@ extension UndoCenter {
         offer(title: "Skipped \(name)", systemImage: PlowRSymbol.skip.name,
               accessibilityLabel: "Undo skipping \(name)",
               undo: { [weak self] in
-                  guard !visit.isDeleted, visit.status == .skipped else { return .changed }
+                  guard !visit.isGone, visit.status == .skipped else { return .changed }
                   visit.status = before
                   try? self?.context?.save()
                   return .undone
@@ -48,8 +48,8 @@ extension UndoCenter {
     /// Complete (ServiceLog.complete through VisitCompletionUndo).
     func complete(_ visit: ScheduledVisit, among visits: [ScheduledVisit], now: Date = .now) {
         end()
-        guard let context, !visit.isDeleted else { return }
-        let completion = VisitCompletionUndo.complete(visit, among: visits.filter { !$0.isDeleted },
+        guard let context, !visit.isGone else { return }
+        let completion = VisitCompletionUndo.complete(visit, among: visits.filter { !$0.isGoneHere },
                                                       in: context, now: now)
         let name = Self.name(of: visit)
         offer(title: "Completed \(name)", systemImage: PlowRSymbol.complete.name,

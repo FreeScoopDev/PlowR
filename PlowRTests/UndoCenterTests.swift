@@ -11,7 +11,14 @@ struct UndoCenterTests {
     typealias Harness = ActiveRouteStoreTests.Harness
 
     private func center(_ h: Harness) -> UndoCenter {
-        let center = UndoCenter(now: { h.clock }, autoExpire: false, announce: { _ in })
+        let center = UndoCenter(now: { h.clock }, sleep: nil, announce: { _ in })
+        center.configure(context: h.context)
+        return center
+    }
+
+    /// A center whose timer runs, on a sleep that moves the test's clock and returns at once.
+    private func timedCenter(_ h: Harness) -> UndoCenter {
+        let center = UndoCenter(now: { h.clock }, sleep: { h.clock += $0 }, announce: { _ in })
         center.configure(context: h.context)
         return center
     }
@@ -80,16 +87,62 @@ struct UndoCenterTests {
         #expect(center.pendingDeletions.isEmpty)
     }
 
-    // PlowRApp ends the offer when the scene goes to the background.
+    // The center's own timer: it sleeps out the window, then ends the offer.
+    @Test func theTimerDoesThePendingDeleteWhenTheWindowEnds() async throws {
+        let h = try Harness(stopCount: 0)
+        let center = timedCenter(h)
+        let one = visit(h), other = visit(h, day: 1)
+        try h.context.save()
+        let start = h.clock
+        center.delete(one, scope: .thisVisit, among: [one, other])
+        let timer = try #require(center.expiry)
+        await timer.value
+        #expect(h.clock > start.addingTimeInterval(UndoCenter.window))         // it waited the window out
+        #expect(center.offer == nil && center.pendingDeletions.isEmpty)
+        #expect(try visits(h).map(\.id) == [other.id])
+        #expect(!h.context.hasChanges)
+    }
+
+    @Test func theTimerOfAnUndoneDeleteDoesNothing() async throws {
+        let h = try Harness(stopCount: 0)
+        let center = timedCenter(h)
+        let one = visit(h)
+        try h.context.save()
+        center.delete(one, scope: .thisVisit, among: [one])
+        let timer = try #require(center.expiry)
+        #expect(center.undo() == .undone)
+        await timer.value
+        #expect(try visits(h).count == 1)
+    }
+
+    // PlowRApp calls this when the scene goes to the background.
     @Test func goingToTheBackgroundDoesThePendingDelete() throws {
         let h = try Harness(stopCount: 0)
         let center = center(h)
         let one = visit(h)
         try h.context.save()
         center.delete(one, scope: .thisVisit, among: [one])
-        center.end()
+        center.sceneDidEnterBackground()
         #expect(try visits(h).isEmpty)
         #expect(center.offer == nil)
+    }
+
+    // Starting a route does a held-back delete first: a stop never claims
+    // the visit (ServiceLog.visitForStop) and then loses it.
+    @Test func startingARouteDoesThePendingDelete() throws {
+        let h = try Harness(stopCount: 1)
+        let center = center(h)
+        let one = visit(h)
+        try h.context.save()
+        center.delete(one, scope: .thisVisit, among: [one])
+        let store = ActiveRouteStore(defaults: h.defaults, surfaces: FakeRouteSurfaces(), undo: center,
+                                     now: { h.clock })
+        store.configure(context: h.context)
+        store.start(h.route)
+        #expect(center.offer == nil)
+        #expect(try visits(h).isEmpty)
+        let stop = try #require(store.currentStop)
+        #expect(ServiceLog.visitForStop(stop, of: h.client, run: UUID(), on: h.clock, in: h.context) == nil)
     }
 
     @Test func undoingADeleteLeavesTheVisitUntouched() throws {
@@ -179,6 +232,24 @@ struct UndoCenterTests {
         #expect(one.status == .scheduled)
     }
 
+    // Deleted on another context (as sync does) and saved: the visit then
+    // reads not deleted, but has no context.
+    @Test func skipIsntUndoneAfterTheVisitWasDeletedElsewhere() throws {
+        let h = try Harness(stopCount: 0)
+        let center = center(h)
+        let one = visit(h)
+        try h.context.save()
+        center.skip(one)
+        try h.context.save()
+        let elsewhere = ModelContext(h.container)
+        elsewhere.autosaveEnabled = false
+        let id = one.id
+        let copy = try #require(try elsewhere.fetch(FetchDescriptor<ScheduledVisit>(predicate: #Predicate { $0.id == id })).first)
+        elsewhere.delete(copy)
+        try elsewhere.save()
+        #expect(center.undo() == .changed)
+    }
+
     @Test func skipIsntUndoneAfterTheStatusChanged() throws {
         let h = try Harness(stopCount: 0)
         let center = center(h)
@@ -246,6 +317,30 @@ struct UndoCenterTests {
         center.complete(only, among: [only], now: h.clock)
         let next = try #require(try visits(h).first { $0.id != only.id })
         next.scheduledDate = next.scheduledDate.addingTimeInterval(3_600)       // moved meanwhile
+        #expect(center.undo() == .undone)
+        #expect(try visits(h).count == 2)
+    }
+
+    @Test func aNextVisitNoLongerScheduledStays() throws {
+        let h = try Harness(stopCount: 0)
+        let center = center(h)
+        let only = series(h, count: 1)[0]
+        try h.context.save()
+        center.complete(only, among: [only], now: h.clock)
+        let next = try #require(try visits(h).first { $0.id != only.id })
+        next.status = .skipped                                                  // skipped meanwhile
+        #expect(center.undo() == .undone)
+        #expect(try visits(h).count == 2)
+    }
+
+    @Test func aNextVisitPutOnAnInvoiceStays() throws {
+        let h = try Harness(stopCount: 0)
+        let center = center(h)
+        let only = series(h, count: 1)[0]
+        try h.context.save()
+        center.complete(only, among: [only], now: h.clock)
+        let next = try #require(try visits(h).first { $0.id != only.id })
+        next.proposalID = UUID().uuidString                                     // invoiced meanwhile
         #expect(center.undo() == .undone)
         #expect(try visits(h).count == 2)
     }

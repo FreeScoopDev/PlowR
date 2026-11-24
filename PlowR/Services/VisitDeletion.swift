@@ -78,11 +78,11 @@ enum VisitDeletion {
     /// meanwhile (another device) is skipped. Doesn't save.
     static func commit(_ plan: Plan, in context: ModelContext) {
         if let end = plan.seriesEnd {
-            for other in plan.ending where !other.isDeleted {
+            for other in plan.ending where !other.isGone {
                 if other.recurrenceEndDate.map({ $0 > end }) ?? true { other.recurrenceEndDate = end }
             }
         }
-        for visit in plan.visits where !visit.isDeleted { context.delete(visit) }
+        for visit in plan.visits where !visit.isGone { context.delete(visit) }
     }
 
     /// Deletes `visit`, and with `.thisAndFuture` the series' visits after
