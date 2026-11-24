@@ -736,8 +736,14 @@ enum ServiceLog {
 
     /// The Season Report's line: "2h 5m total time at stops", "45 min total time at stops".
     static func totalTimeText(minutes: Double) -> String {
+        durationText(minutes: minutes) + " total time at stops"
+    }
+
+    /// Minutes as a duration alone: "2h 5m", "45 min" (the Work Log's Time
+    /// total, under its own label).
+    static func durationText(minutes: Double) -> String {
         let h = Int(minutes) / 60, m = Int(minutes) % 60
-        return (h > 0 ? "\(h)h \(m)m" : "\(m) min") + " total time at stops"
+        return h > 0 ? "\(h)h \(m)m" : "\(m) min"
     }
 
     /// What leaving a job's page says when it can't be saved: the prices

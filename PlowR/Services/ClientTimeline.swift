@@ -17,8 +17,8 @@ enum ClientTimeline {
     }
 
     /// The client's events, newest first. A visit completed is its job, not
-    /// a second event; a visit not done by today is "missed". Visits in
-    /// `hiding` (a delete held back for its Undo, UndoCenter) are left out.
+    /// a second event; a visit not done by today is "missed". Visits and
+    /// photos in `hiding` (a delete held back for its Undo, UndoCenter) are left out.
     static func events(for client: Client, now: Date = .now, calendar: Calendar = .current,
                        hiding pending: Set<PersistentIdentifier> = [], in context: ModelContext) -> [Event] {
         let id = client.id.uuidString
@@ -89,8 +89,9 @@ enum ClientTimeline {
                                 detail: body.count > 80 ? String(body.prefix(79)) + "…" : body))
         }
 
-        let photos = (try? context.fetch(FetchDescriptor<StopPhoto>(
-            predicate: #Predicate { $0.clientID == id }))) ?? []
+        let photos = ((try? context.fetch(FetchDescriptor<StopPhoto>(
+            predicate: #Predicate { $0.clientID == id }))) ?? [])
+            .filter { !pending.contains($0.persistentModelID) }
         for (day, onDay) in Dictionary(grouping: photos, by: { calendar.startOfDay(for: $0.takenAt) }) {
             let latest = onDay.map(\.takenAt).max() ?? day
             events.append(Event(id: "photos-\(Int(day.timeIntervalSinceReferenceDate))", date: latest,

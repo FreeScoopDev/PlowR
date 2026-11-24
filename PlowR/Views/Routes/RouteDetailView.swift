@@ -7,6 +7,7 @@ import CoreLocation
 struct RouteDetailView: View {
     let route: PlowRoute
     @Environment(ActiveRouteStore.self) private var activeRoute
+    @Environment(UndoCenter.self) private var undoCenter
     @Environment(\.access) private var access
     @Environment(\.dynamicTypeSize) private var typeSize
     @Query private var allClients: [Client]
@@ -244,6 +245,8 @@ struct RouteDetailView: View {
                 .disabled(todaysRun.stops.isEmpty || isOptimizing)
                 .padding(.horizontal)
                 .padding(.vertical, 12)
+                // The tab's Undo toast is drawn over this bar: Start Route stays clear of it.
+                UndoToastSpace()
             }
             .background(.ultraThinMaterial)
         }
@@ -536,9 +539,11 @@ struct RouteDetailView: View {
             return
         }
 
+        let order = StopOrderSnapshot(stops)
         for (newOrder, origIdx) in result.order.enumerated() {
             stops[origIdx].order = newOrder
         }
+        undoCenter.optimized(route, from: order)
         if let note = RouteOptimizer.estimateNote(estimatedLegs: result.estimatedLegs, legs: result.legs) {
             optimizeNote = note
         }
@@ -573,9 +578,11 @@ struct RouteDetailView: View {
     private func optimizeRoute() {
         let stops = route.sortedStops
         let waypoints = stops.map { RouteOptimizer.Waypoint(latitude: $0.latitude, longitude: $0.longitude) }
+        let before = StopOrderSnapshot(stops)
         let order = RouteOptimizer.nearestNeighborOrder(of: waypoints)
         for (newOrder, origIdx) in order.enumerated() {
             stops[origIdx].order = newOrder
         }
+        undoCenter.optimized(route, from: before)
     }
 }

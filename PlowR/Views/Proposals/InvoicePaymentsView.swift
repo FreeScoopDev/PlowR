@@ -9,6 +9,7 @@ struct InvoicePaymentsView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(UndoCenter.self) private var undoCenter
     @Query private var allPaymentMethods: [PaymentMethod]
 
     @State private var amount = ""
@@ -52,7 +53,7 @@ struct InvoicePaymentsView: View {
                         // Not asked: a full-width button on the invoice's own Payments
                         // screen, with nothing owed to record.
                         Button("Mark Paid") {
-                            Payments.payInFull(invoice, in: modelContext)
+                            undoCenter.markPaid(invoice)
                             Haptics.success()
                         }
                     } footer: {
@@ -64,6 +65,8 @@ struct InvoicePaymentsView: View {
                 if invoice.balanceDue > 0 { recordSection }
             }
             .plowRGrouped()
+            // A sheet: its Mark Paid's Undo shows here, not under it.
+            .undoToast()
             .navigationTitle("Payments")
             .navigationBarTitleDisplayMode(.inline)
             .scrollDismissesKeyboard(.interactively)

@@ -9,7 +9,7 @@
       "title": "Getting started",
       "nav": "Getting started",
       "style": "cards",
-      "intro": "PlowR has five tabs: Home, Clients, Routes, Documents and Schedule. Settings is the gear at the top of Home, and Home's **Quick Actions** start the everyday jobs: **New Client**, **Schedule Visit**, **Log Work**, **New Invoice**, **New Route**, **Season Report** and **Expenses**. Log Work and New Invoice ask which client first.",
+      "intro": "PlowR has five tabs: Home, Clients, Routes, Documents and Schedule. Settings is the gear at the top of Home, and Home's **Quick Actions** start the everyday jobs: **New Client**, **Schedule Visit**, **Log Work**, **New Invoice**, **New Route**, **Season Report**, **Work Log** and **Expenses**. Log Work and New Invoice ask which client first.",
       "topics": [
         {
           "id": "set-up-business",
@@ -245,6 +245,18 @@
       "style": "cards",
       "intro": "Bill the work you've done, remind clients who owe, and make paying you easy.",
       "topics": [
+        {
+          "id": "work-log",
+          "title": "See all your work in the Work Log",
+          "summary": "Every job for every client, by day, with the time and what it came to.",
+          "screens": ["home"],
+          "steps": [
+            "On **Home**, tap **Work Log** under Quick Actions. Completed route stops and visits, and work logged by hand, are listed by day.",
+            "Tap the filter button to choose the period (**Today**, **Yesterday**, **This Week**, **Last Week**, **This Month** or **Custom Dates**), one service, or **Not Billed** or **Invoiced** work.",
+            "The top shows the **Jobs**, the **Time** and the **Value**. Tap a job to open it and make a correction."
+          ],
+          "note": "Value is at the prices recorded with each job, before discounts, tax and contracts, so it can differ from what an invoice comes to."
+        },
         {
           "id": "bill-work",
           "title": "Bill your unbilled work",
