@@ -313,6 +313,8 @@ nonisolated enum PlowRSymbol: String, CaseIterable {
     case stopNote = "note.text"
     /// Services expected at or recorded for a stop.
     case services = "checklist"
+    /// Log Work: record a visit's work for a client.
+    case logWork = "list.bullet.clipboard"
 
     /// The name, for `Image(systemName:)` and `Label(_:systemImage:)`.
     var name: String { rawValue }
