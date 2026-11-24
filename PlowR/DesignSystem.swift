@@ -320,6 +320,8 @@ nonisolated enum PlowRSymbol: String, CaseIterable {
     case logWork = "list.bullet.clipboard"
     /// The Work Log: every job across all clients, by day.
     case workLog = "list.bullet.rectangle.portrait"
+    /// Home's Search: clients, documents, routes and jobs at once.
+    case search = "magnifyingglass"
 
     /// The name, for `Image(systemName:)` and `Label(_:systemImage:)`.
     var name: String { rawValue }

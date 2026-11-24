@@ -311,6 +311,13 @@
       "style": "tips",
       "topics": [
         {
+          "id": "search",
+          "title": "Search everything from Home",
+          "emoji": "🔍",
+          "summary": "Tap the magnifying glass on **Home** to search your clients, documents, routes and jobs at once: a name, an invoice number, a route or a word from a job's notes. Tap a result to open it.",
+          "screens": ["home"]
+        },
+        {
           "id": "siri",
           "title": "Hands-free with Siri",
           "emoji": "🗣️",
