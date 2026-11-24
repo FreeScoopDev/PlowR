@@ -163,7 +163,7 @@ struct ScheduleView: View {
                 if let route = createdRoute {
                     Button("Open Route") { afterRouteCreated = { openedRoute = route } }
                     if offersStart(route) {
-                        Button(todaysRun(of: route).startTitle) { afterRouteCreated = { start(route) } }
+                        Button(todaysRun(of: route).startTitle) { afterRouteCreated = { if offersStart(route) { start(route) } } }
                     }
                     Button("Done", role: .cancel) { }
                 } else {
@@ -172,14 +172,13 @@ struct ScheduleView: View {
             } message: {
                 Text(routeCreatedMessage)
             }
-            .onChange(of: showingRouteCreated) { _, showing in
-                guard !showing, let action = afterRouteCreated else { return }
+            .task(id: showingRouteCreated) {
+                guard !showingRouteCreated, let action = afterRouteCreated else { return }
                 afterRouteCreated = nil
                 // An alert has no dismiss callback: wait out its closing.
-                Task { @MainActor in
-                    try? await Task.sleep(for: .milliseconds(400))
-                    action()
-                }
+                // Cancelled (view gone, alert shown again): do nothing.
+                do { try await Task.sleep(for: .milliseconds(400)) } catch { return }
+                action()
             }
             .navigationDestination(item: $openedRoute) { route in
                 RouteDetailView(route: route)
