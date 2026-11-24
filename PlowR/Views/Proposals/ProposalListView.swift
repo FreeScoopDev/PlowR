@@ -44,24 +44,24 @@ struct ProposalListView: View {
             switch self {
             case .all:
                 DocumentsEmptyState(title: "No Documents Yet",
-                           message: "Proposals and invoices you make show here, each a PDF you can share with the client.",
-                           startsInvoice: false)
+                                    message: "Proposals and invoices you make show here, each a PDF you can share with the client.",
+                                    startsInvoice: false)
             case .proposals:
                 DocumentsEmptyState(title: "No Proposals Yet",
-                           message: "Create a proposal for a client to send a priced quote as a PDF.",
-                           startsInvoice: false)
+                                    message: "Create a proposal for a client to send a priced quote as a PDF.",
+                                    startsInvoice: false)
             case .invoices:
                 DocumentsEmptyState(title: "No Invoices Yet",
-                           message: "Invoices still to be paid show here. Create one to bill a client for work done.",
-                           startsInvoice: true)
+                                    message: "Invoices still to be paid show here. Create one to bill a client for work done.",
+                                    startsInvoice: true)
             case .overdue:
                 DocumentsEmptyState(title: "No Overdue Invoices",
-                           message: "Invoices past their due date and still owed show here.",
-                           startsInvoice: nil)
+                                    message: "Invoices past their due date and still owed show here.",
+                                    startsInvoice: nil)
             case .draft:
                 DocumentsEmptyState(title: "No Draft Invoices",
-                           message: "Invoices you haven't sent yet show here.",
-                           startsInvoice: true)
+                                    message: "Invoices you haven't sent yet show here.",
+                                    startsInvoice: true)
             }
         }
     }
