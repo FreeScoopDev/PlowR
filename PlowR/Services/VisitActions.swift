@@ -44,6 +44,14 @@ struct VisitActions: Equatable {
         var invoiceNumber: String?
         /// `access.canEdit`.
         var canEdit: Bool
+
+        /// Whether the work could go on a new invoice: the one fact this and
+        /// Record Services both go by (`ServiceLog.isVisitWorkBillable`). With
+        /// a record, the record's billing; with none, whether the client is comped.
+        var workBillable: Bool {
+            ServiceLog.isVisitWorkBillable(recordBilling: recordBilling,
+                                           clientIsComped: hasClient ? clientIsComped : nil)
+        }
     }
 
     /// The actions, in the order the sheet lists them.
@@ -76,17 +84,17 @@ struct VisitActions: Equatable {
             actions += [.complete, .recordServices]
             if billed {
                 actions.append(.viewInvoice)
-            } else if facts.clientIsComped {
-                reasons.append(Self.compedReason(facts.clientName))
-            } else {
+            } else if facts.workBillable {
                 actions.append(.completeAndInvoice)
+            } else if let reason = Self.notBillableReason(facts) {
+                reasons.append(reason)
             }
         case (.completed, true):
             actions.append(facts.hasRecord ? .editServices : .recordServices)
             if billed {
                 actions.append(.viewInvoice)
             } else if facts.hasRecord {
-                if facts.recordHasLines, facts.recordBilling == .notBilled {
+                if facts.recordHasLines, facts.workBillable {
                     actions.append(.invoiceWork)
                 } else if let reason = Self.notBillableReason(facts) {
                     reasons.append(reason)
@@ -111,8 +119,10 @@ struct VisitActions: Equatable {
         "\(name) is comped, so their work isn't billed."
     }
 
-    /// Why a completed visit's record can't be invoiced from here.
+    /// Why the visit's work can't be invoiced from here: with no record yet,
+    /// only a comped client stops it.
     private static func notBillableReason(_ facts: Facts) -> String? {
+        guard facts.hasRecord else { return facts.clientIsComped ? compedReason(facts.clientName) : nil }
         if !facts.recordHasLines { return "No services recorded yet, so there's nothing to bill." }
         switch facts.recordBilling {
         case .noCharge: return facts.clientIsComped ? compedReason(facts.clientName) : "This work is marked no charge."

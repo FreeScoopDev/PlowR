@@ -24,9 +24,9 @@ struct StopServiceRecorderView: View {
         case saved
         /// A draft invoice was made (`invoiceOnSave`): open it.
         case invoiced(Proposal)
-        /// `invoiceOnSave`, but nothing to bill: the work is saved. The
-        /// covering contract's name, if one covers it.
-        case nothingToBill(contractName: String?)
+        /// `invoiceOnSave`, but nothing to bill: the work is saved. What
+        /// to say (`nothingToBillMessage`).
+        case nothingToBill(String)
     }
 
     let subject: Subject
@@ -71,6 +71,10 @@ struct StopServiceRecorderView: View {
     @State private var servicesLocked = false
     /// There's a saved record, so saving an emptied sheet clears it.
     @State private var hadRecord = false
+    /// Visit mode: whether the work could go on a new invoice
+    /// (`ServiceLog.isVisitWorkBillable`, the fact the visit sheet goes by),
+    /// read when the record loads. Unused for a stop.
+    @State private var visitWorkBillable = false
     @State private var showingDiscardConfirm = false
     /// What was on screen once the saved record was loaded: Skip asks only
     /// if something differs from it.
@@ -125,11 +129,20 @@ struct StopServiceRecorderView: View {
     }
 
     /// Whether the Save menu offers invoices: never once the work is on one,
-    /// never read only, and for a visit never for a comped client (their
-    /// work isn't billed). A stop's rule is unchanged.
-    static func offersInvoiceItems(invoicedAs: String?, canEdit: Bool, isVisit: Bool, clientIsComped: Bool) -> Bool {
+    /// never read only, and for a visit only when its work is billable
+    /// (`visitWorkBillable`: `ServiceLog.isVisitWorkBillable`, the same fact
+    /// the visit sheet goes by). A stop passes nil: its rule is unchanged.
+    static func offersInvoiceItems(invoicedAs: String?, canEdit: Bool, visitWorkBillable: Bool?) -> Bool {
         guard invoicedAs == nil, canEdit else { return false }
-        return !isVisit || !clientIsComped
+        return visitWorkBillable ?? true
+    }
+
+    /// What the alert says when Complete & Invoice saved the work but made no
+    /// invoice: a contract covers it, or there was nothing priced to bill.
+    static func nothingToBillMessage(contractName: String?, hasServices: Bool) -> String {
+        if let contractName { return "Nothing to bill: \(contractName) covers this work." }
+        return hasServices ? "Nothing to bill: the services recorded have no price."
+            : "Nothing to bill: no services were recorded."
     }
 
     private struct Snapshot: Equatable {
@@ -268,7 +281,8 @@ struct StopServiceRecorderView: View {
                     })
 
                 Section(title: "Notes") {
-                    TextField("Optional notes for this stop…", text: $notes, axis: .vertical)
+                    TextField(visit == nil ? "Optional notes for this stop…" : "Optional notes for this visit…",
+                              text: $notes, axis: .vertical)
                         .lineLimit(3...)
                 }
                 .listRowBackground(PlowRColor.surface)
@@ -279,12 +293,13 @@ struct StopServiceRecorderView: View {
             .scrollDismissesKeyboard(.interactively)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Skip") {
+                    // A visit isn't skipped from here: closing just doesn't save.
+                    Button(visit == nil ? "Skip" : "Cancel") {
                         if hasUnsavedWork { showingDiscardConfirm = true } else { dismiss() }
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    if invoiceOnSave, let visit {
+                    if invoiceOnSave, let visit, visitWorkBillable {
                         Button(visit.status == .scheduled ? "Complete & Draft Invoice" : "Draft Invoice") {
                             save(invoice: .draft)
                         }
@@ -300,7 +315,7 @@ struct StopServiceRecorderView: View {
                         // Read only (a route that was running when the
                         // subscription ended): the stop still saves, no invoices.
                         if Self.offersInvoiceItems(invoicedAs: invoicedAs, canEdit: access.canEdit,
-                                                   isVisit: visit != nil, clientIsComped: client?.isComped ?? false) {
+                                                   visitWorkBillable: visit == nil ? nil : visitWorkBillable) {
                             Button {
                                 save(invoice: .draft)
                             } label: {
@@ -490,18 +505,17 @@ struct StopServiceRecorderView: View {
         let record = ServiceLog.record(forKey: ServiceLog.visitKey(visit.id), in: modelContext)
         invoicedAs = (ServiceLog.invoice(ofVisit: visit, in: modelContext)
             ?? record.flatMap { ServiceLog.invoice(of: $0, in: modelContext) })?.invoiceNumber
-        let lines: [ServiceRecord.Line]
+        visitWorkBillable = ServiceLog.isVisitWorkBillable(visit, client: client, in: modelContext)
+        let loaded: StopRecording
         if let record {
             hadRecord = true
             servicesLocked = ServiceLog.servicesLocked(record, in: modelContext)
             notes = record.notes
-            lines = record.lines
+            loaded = StopRecording.loading(record.lines, services: recording.services, zones: pricingZones)
         } else {
-            lines = ServiceLog.lines(for: visit.expectedServiceIDs, client: client, propertyID: visit.propertyID,
-                                     multiplier: visit.priceMultiplier, in: modelContext)
+            loaded = StopRecording.opening(visit: visit, client: client, services: recording.services,
+                                           zones: pricingZones, in: modelContext)
         }
-        guard !lines.isEmpty else { return }
-        let loaded = StopRecording.loading(lines, services: recording.services, zones: pricingZones)
         selectedServiceIDs = loaded.selectedIDs
         servicePriceOverrides = loaded.typedPrices
         customItems = loaded.customItems
@@ -566,7 +580,8 @@ struct StopServiceRecorderView: View {
                 if choice == .sent { DocumentSent.markSent(proposal, in: modelContext) }
                 outcome = .invoiced(proposal)
             } else if invoiceOnSave {
-                outcome = .nothingToBill(contractName: contract?.name)
+                outcome = .nothingToBill(Self.nothingToBillMessage(contractName: contract?.name,
+                                                                   hasServices: !record.lines.isEmpty))
             }
         }
         try? modelContext.save()

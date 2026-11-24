@@ -71,9 +71,7 @@ struct VisitSheet: View {
                 switch outcome {
                 case .saved: break
                 case .invoiced(let proposal): pendingInvoice = proposal
-                case .nothingToBill(let contractName):
-                    nothingToBill = contractName.map { "Nothing to bill: \($0) covers this work." }
-                        ?? "Nothing to bill: the services recorded have no price."
+                case .nothingToBill(let message): nothingToBill = message
                 }
             }
         })
@@ -108,7 +106,7 @@ struct VisitSheet: View {
                                                    in: modelContext))
         return ScrollView {
             VStack(alignment: .leading, spacing: PlowRLayout.space4) {
-                details(client: client)
+                details(client: client, plan: plan)
                 notes(plan)
                 actions(plan, client: client)
             }
@@ -116,7 +114,7 @@ struct VisitSheet: View {
         }
     }
 
-    private func details(client: Client?) -> some View {
+    private func details(client: Client?, plan: VisitActions) -> some View {
         PlowRCard {
             VStack(alignment: .leading, spacing: PlowRLayout.space2) {
                 Text(client?.name ?? visit.clientName)
@@ -130,7 +128,7 @@ struct VisitSheet: View {
                 Text(visit.scheduledDate.formatted(date: .complete, time: .shortened))
                     .font(.subheadline)
                     .foregroundStyle(PlowRColor.inkSecondary)
-                chips
+                chips(plan)
                 if !visit.visitReason.isEmpty {
                     LabeledContent("Reason", value: visit.visitReason)
                         .font(.subheadline)
@@ -150,17 +148,19 @@ struct VisitSheet: View {
         }
     }
 
-    /// Status, repeating, After Hours and Invoiced.
-    private var chips: some View {
+    /// Status, repeating, After Hours and Invoiced. Invoiced is the plan's
+    /// invoice (VisitActions: the visit's, else the record's, and it must
+    /// exist), the same one View Invoice opens.
+    private func chips(_ plan: VisitActions) -> some View {
         FlowChips {
             StatusChip(visit.status.rawValue, systemImage: visit.status.systemImage, status: visit.status.chipStatus)
             if visit.isRecurring {
                 StatusChip("Repeats", systemImage: "arrow.triangle.2.circlepath", status: .scheduled)
             }
             if visit.isAfterHours {
-                StatusChip("After Hours", systemImage: "moon.fill", status: .neutral)
+                AfterHoursChip()
             }
-            if !visit.proposalID.isEmpty || ServiceLog.isVisitBilled(visit, in: modelContext) {
+            if plan.invoiceNumber != nil {
                 StatusChip("Invoiced", systemImage: PlowRSymbol.document.name, status: .done)
             }
         }

@@ -323,6 +323,28 @@ enum ServiceLog {
         return invoice(of: record, in: context) != nil
     }
 
+    /// Whether a visit's work could go on a new invoice: the one fact the
+    /// visit sheet (VisitActions) and its Record Services (the Save menu's
+    /// invoice items, Complete & Invoice) both go by, so they never disagree.
+    /// With a record, the record decides (`billingStatus == .notBilled`, which
+    /// keeps `isBillable` as it was when the work was done: work done while the
+    /// client was comped stays unbilled after they aren't). With none yet,
+    /// the client decides: completing would record it as billable unless
+    /// they're comped. No client on file: nothing bills.
+    static func isVisitWorkBillable(recordBilling: BillingStatus?, clientIsComped: Bool?) -> Bool {
+        if let recordBilling { return recordBilling == .notBilled }
+        guard let clientIsComped else { return false }
+        return !clientIsComped
+    }
+
+    /// `isVisitWorkBillable(recordBilling:clientIsComped:)` for `visit` as the
+    /// store has it now.
+    static func isVisitWorkBillable(_ visit: ScheduledVisit, client: Client?, in context: ModelContext) -> Bool {
+        let record = record(forKey: visitKey(visit.id), in: context)
+        return isVisitWorkBillable(recordBilling: record.map { billingStatus(of: $0, in: context) },
+                                   clientIsComped: client?.isComped)
+    }
+
     /// The invoice made for `visit` (Schedule → Invoice), if it exists and
     /// is an invoice, not a proposal.
     static func invoice(ofVisit visit: ScheduledVisit, in context: ModelContext) -> Proposal? {
@@ -1053,5 +1075,20 @@ enum ServiceLog {
                     price: InvoiceLines.propertyPrice(unitType: service.unitType, pricePerUnit: service.pricePerUnit,
                                                       zones: zones, multiplier: multiplier))
             }
+    }
+}
+
+extension StopRecording {
+    /// Record Services as it opens for `visit` with no record saved: its
+    /// expected services ticked at the visit's prices (after hours
+    /// included), priced by `ServiceLog.lines(for:)` as plain Complete
+    /// prices them, so saving it as it opened records what Complete would.
+    /// The one place that's worked out: the sheet and its tests both use it.
+    @MainActor
+    static func opening(visit: ScheduledVisit, client: Client, services: [Service], zones: [InvoiceLines.Zone],
+                        in context: ModelContext) -> StopRecording {
+        let lines = ServiceLog.lines(for: visit.expectedServiceIDs, client: client, propertyID: visit.propertyID,
+                                     multiplier: visit.priceMultiplier, in: context)
+        return loading(lines, services: services, zones: zones)
     }
 }

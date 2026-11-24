@@ -393,7 +393,7 @@ struct ScheduleView: View {
                     StatusChip("Invoiced", systemImage: "doc.text.fill", status: .done)
                 }
                 if visit.isAfterHours {
-                    StatusChip("After Hours", systemImage: "moon.fill", status: .neutral)
+                    AfterHoursChip()
                 }
             }
             }
@@ -820,5 +820,13 @@ enum PastDueList {
     /// How many Show All would add: 0 hides it.
     static func hiddenCount<T>(_ overdue: [T], showingAll: Bool) -> Int {
         overdue.count - shown(overdue, showingAll: showingAll).count
+    }
+}
+
+/// A visit's After Hours chip: the Schedule's row and the visit sheet show
+/// the same one.
+struct AfterHoursChip: View {
+    var body: some View {
+        StatusChip("After Hours", systemImage: "moon.fill", status: .neutral)
     }
 }

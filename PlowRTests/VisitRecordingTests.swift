@@ -32,12 +32,18 @@ struct VisitRecordingTests {
     }
 
     /// The sheet as it opens for `visit` with nothing saved: its expected
-    /// services ticked at its prices (StopServiceRecorderView.loadVisitRecord).
+    /// services ticked at its prices. The same function the sheet calls
+    /// (StopServiceRecorderView.loadVisitRecord).
     private func openedSheet(_ v: Visits, for visit: ScheduledVisit) throws -> StopRecording {
-        let zones = Place.zones(of: v.client, propertyID: visit.propertyID)
-        let lines = ServiceLog.lines(for: visit.expectedServiceIDs, client: v.client, propertyID: visit.propertyID,
-                                     multiplier: visit.priceMultiplier, in: v.context)
-        return StopRecording.loading(lines, services: try catalog(v), zones: zones)
+        StopRecording.opening(visit: visit, client: v.client, services: try catalog(v),
+                              zones: Place.zones(of: v.client, propertyID: visit.propertyID), in: v.context)
+    }
+
+    /// The Save menu's invoice items for `visit`, as the recorder works them out.
+    private func recorderOffersInvoice(_ visit: ScheduledVisit, _ v: Visits) -> Bool {
+        StopServiceRecorderView.offersInvoiceItems(
+            invoicedAs: nil, canEdit: true,
+            visitWorkBillable: ServiceLog.isVisitWorkBillable(visit, client: v.client, in: v.context))
     }
 
     private func save(_ recording: StopRecording, notes: String = "", _ visit: ScheduledVisit,
@@ -287,23 +293,72 @@ struct VisitRecordingTests {
         #expect(!record.isBillable)
         #expect(ServiceLog.billingStatus(of: record, in: v.context) == .noCharge)
         // The visit's Save menu offers no invoice for them; a stop's is unchanged.
-        #expect(!StopServiceRecorderView.offersInvoiceItems(invoicedAs: nil, canEdit: true, isVisit: true,
-                                                            clientIsComped: true))
-        #expect(StopServiceRecorderView.offersInvoiceItems(invoicedAs: nil, canEdit: true, isVisit: false,
-                                                           clientIsComped: true))
+        #expect(!recorderOffersInvoice(visit, v))
+        #expect(StopServiceRecorderView.offersInvoiceItems(invoicedAs: nil, canEdit: true, visitWorkBillable: nil))
+    }
+
+    // Work done while the client was comped stays unbilled after they
+    // aren't: the record decides, in the sheet and the recorder alike.
+    @Test func workDoneWhileCompedIsNotInvoicedAfterTheClientIsUncomped() throws {
+        let v = try Visits()
+        v.client.isComped = true
+        let mow = service(v, "Mowing", 45)
+        let visit = v.visit(hoursFromNow: -1)
+        visit.expectedServiceIDs = [mow.id.uuidString]
+        save(try openedSheet(v, for: visit), visit, v)
+        v.client.isComped = false
+
+        #expect(!ServiceLog.isVisitWorkBillable(visit, client: v.client, in: v.context))
+        #expect(!recorderOffersInvoice(visit, v))
+        let plan = VisitActions(VisitActions.facts(for: visit, client: v.client, canEdit: true, in: v.context))
+        #expect(!plan.actions.contains(.invoiceWork))
+        #expect(plan.reasons == ["This work is marked no charge."])
+    }
+
+    // Billable work whose client is comped since: still billable, and the
+    // sheet's Invoice Work and the recorder's invoice items agree.
+    @Test func billableWorkStaysBillableAfterTheClientIsComped() throws {
+        let v = try Visits()
+        let mow = service(v, "Mowing", 45)
+        let visit = v.visit(hoursFromNow: -1)
+        visit.expectedServiceIDs = [mow.id.uuidString]
+        let record = save(try openedSheet(v, for: visit), visit, v)
+        #expect(record.isBillable)
+        v.client.isComped = true
+
+        let plan = VisitActions(VisitActions.facts(for: visit, client: v.client, canEdit: true, in: v.context))
+        #expect(plan.actions.contains(.invoiceWork))
+        #expect(recorderOffersInvoice(visit, v))
+    }
+
+    // Before any record, the client decides, in both places.
+    @Test func withNoRecordTheClientDecidesInBothPlaces() throws {
+        let v = try Visits()
+        let visit = v.visit(hoursFromNow: -1)
+        for comped in [false, true] {
+            v.client.isComped = comped
+            let plan = VisitActions(VisitActions.facts(for: visit, client: v.client, canEdit: true, in: v.context))
+            #expect(plan.actions.contains(.completeAndInvoice) == !comped)
+            #expect(recorderOffersInvoice(visit, v) == !comped)
+        }
+        #expect(!ServiceLog.isVisitWorkBillable(visit, client: nil, in: v.context))
+    }
+
+    @Test func nothingToBillSaysWhy() {
+        #expect(StopServiceRecorderView.nothingToBillMessage(contractName: "Season", hasServices: true)
+                == "Nothing to bill: Season covers this work.")
+        #expect(StopServiceRecorderView.nothingToBillMessage(contractName: nil, hasServices: true)
+                == "Nothing to bill: the services recorded have no price.")
+        #expect(StopServiceRecorderView.nothingToBillMessage(contractName: nil, hasServices: false)
+                == "Nothing to bill: no services were recorded.")
     }
 
     // MARK: - A route stop's Record Services is unchanged
 
     @Test func theSaveMenuRuleForAStopIsUnchanged() {
-        for comped in [false, true] {
-            #expect(StopServiceRecorderView.offersInvoiceItems(invoicedAs: nil, canEdit: true, isVisit: false,
-                                                               clientIsComped: comped))
-            #expect(!StopServiceRecorderView.offersInvoiceItems(invoicedAs: "INV-1", canEdit: true, isVisit: false,
-                                                                clientIsComped: comped))
-            #expect(!StopServiceRecorderView.offersInvoiceItems(invoicedAs: nil, canEdit: false, isVisit: false,
-                                                                clientIsComped: comped))
-        }
+        #expect(StopServiceRecorderView.offersInvoiceItems(invoicedAs: nil, canEdit: true, visitWorkBillable: nil))
+        #expect(!StopServiceRecorderView.offersInvoiceItems(invoicedAs: "INV-1", canEdit: true, visitWorkBillable: nil))
+        #expect(!StopServiceRecorderView.offersInvoiceItems(invoicedAs: nil, canEdit: false, visitWorkBillable: nil))
     }
 
     // saveRecording through the shared tail: notes on the stop and record,
