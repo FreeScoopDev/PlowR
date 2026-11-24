@@ -6,12 +6,11 @@ struct MainTabView: View {
     @Environment(ActiveRouteStore.self) private var activeRoute
     @Query private var allProposals: [Proposal]
     @Binding var selectedTab: Int
+    /// Home's "+ N more" asks the Schedule to show today.
+    @State private var scheduleTodayRequests = 0
 
     private var documentsBadge: Int {
-        allProposals.filter {
-            $0.operatorID == authManager.userID &&
-            ($0.invoiceStatus == .draft || $0.invoiceStatus == .overdue)
-        }.count
+        DocumentsBadge.count(allProposals, operatorID: authManager.userID)
     }
 
     var body: some View {
@@ -20,7 +19,10 @@ struct MainTabView: View {
         // hides a pending delete too). Never over the route screen, which
         // covers the tabs.
         TabView(selection: $selectedTab) {
-            DashboardView()
+            DashboardView(openTodayInSchedule: {
+                scheduleTodayRequests += 1
+                selectedTab = 4
+            })
                 .undoToast()
                 .tabItem { Label("Home", systemImage: PlowRSymbol.home.name) }
                 .tag(0)
@@ -41,7 +43,7 @@ struct MainTabView: View {
                 .badge(documentsBadge > 0 ? documentsBadge : 0)
                 .tag(3)
 
-            ScheduleView()
+            ScheduleView(todayRequests: scheduleTodayRequests)
                 .undoToast()
                 .tabItem { Label("Schedule", systemImage: PlowRSymbol.schedule.name) }
                 .tag(4)
@@ -58,6 +60,17 @@ struct MainTabView: View {
         .feedsTips()
         // PlowR Pro: what this business may do, for every screen below.
         .providesAccess()
+    }
+}
+
+/// The Documents tab's badge: what needs action now. Overdue invoices only;
+/// a draft is the user's own work in progress, not something waiting on them,
+/// and counting drafts kept the badge lit all the time.
+enum DocumentsBadge {
+    static func count(_ proposals: [Proposal], operatorID: String, now: Date = Date()) -> Int {
+        proposals.filter {
+            $0.operatorID == operatorID && $0.invoiceStatus(now: now) == .overdue
+        }.count
     }
 }
 

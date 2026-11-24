@@ -18,7 +18,7 @@ struct ProposalEditView: View {
         _edits = State(initialValue: DocumentEdits(editing: proposal, termsDays: termsDays))
     }
 
-    // Done, Mark as Sent and a swipe down all save, so the total shown is the
+    // Done, Mark Sent and a swipe down all save, so the total shown is the
     // total the document will have.
     private func applyEdits() { edits.apply(to: proposal, in: modelContext) }
 
@@ -162,7 +162,7 @@ struct ProposalEditView: View {
                 Haptics.success()
                 dismiss()
             } label: {
-                Label("Mark as Sent", systemImage: "paperplane.fill")
+                Label("Mark Sent", systemImage: "paperplane.fill")
                     .foregroundStyle(PlowRColor.Status.owed.text)
             }
             .disabled(!edits.unreadableFields.isEmpty)

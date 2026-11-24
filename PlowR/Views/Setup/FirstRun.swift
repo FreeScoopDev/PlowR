@@ -45,6 +45,11 @@ enum FirstRun {
         defaults.bool(forKey: checklistHiddenKey(operatorID))
     }
 
+    /// Home's Hide: the card goes until Settings' Show Get Started.
+    static func hideChecklist(operatorID: String, defaults: UserDefaults = .standard) {
+        defaults.set(true, forKey: checklistHiddenKey(operatorID))
+    }
+
     /// Show Get Started: the card comes back on Home.
     static func showChecklistAgain(operatorID: String, defaults: UserDefaults = .standard) {
         defaults.removeObject(forKey: checklistHiddenKey(operatorID))

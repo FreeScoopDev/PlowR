@@ -19,6 +19,17 @@ enum VisitDeletion {
         return "Delete \(name) on \(day)?"
     }
 
+    /// The confirmation's message. The single "Delete Visit" on the latest
+    /// visit of a repeating series ends the series (singleDeleteScope), so
+    /// it says so, and points to Skip for missing one week.
+    static func message(for visit: ScheduledVisit, among visits: [ScheduledVisit]) -> String {
+        var text = "You can undo it for a few seconds."
+        if !offersSeries(visit, among: visits), singleDeleteScope(for: visit, among: visits) == .thisAndFuture {
+            text += " It's the last visit in its series, so the series ends here. To skip one week, use Skip instead."
+        }
+        return text
+    }
+
     /// The visits after `visit` in its series still to do or skipped: what
     /// "This & All Future Visits" deletes besides it. A completed visit is a
     /// record and stays.

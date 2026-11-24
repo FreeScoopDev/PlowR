@@ -179,11 +179,11 @@ struct ClientListView: View {
                         : "Add your first client to get started, or bring in your client list from a spreadsheet.")
                 } actions: {
                     if !isFiltered {
-                        Button("Add a Client") { addClient() }
+                        Button("New Client") { addClient() }
                             .plowRProminent()
                         Button { importClients() } label: {
                             HStack(spacing: PlowRLayout.space2) {
-                                Text("Import from a Spreadsheet")
+                                Text("Import from Spreadsheet")
                                 if FirstRunOffers.showsProMark(access) { ProMark() }
                             }
                         }
@@ -236,7 +236,7 @@ struct ClientListView: View {
                     Button {
                         addClient()
                     } label: {
-                        Label("Add Manually", systemImage: "person.badge.plus")
+                        Label("New Client", systemImage: "person.badge.plus")
                     }
                     Button {
                         importClients()
@@ -253,6 +253,7 @@ struct ClientListView: View {
                 } label: {
                     Image(systemName: "plus")
                 }
+                .accessibilityLabel("Add Clients")
             }
             ToolbarItem(placement: .topBarTrailing) {
                 HelpToolbarButton(screen: .clients)
@@ -314,6 +315,8 @@ struct ClientListView: View {
                           ? "line.3.horizontal.decrease.circle.fill"
                           : "line.3.horizontal.decrease.circle")
                 }
+                .accessibilityLabel("Filter")
+                .accessibilityValue(isFiltered ? "On" : "Off")
             }
         }
         .sheet(isPresented: $showingAddClient) {
@@ -465,9 +468,9 @@ extension ClientListView {
         $gate.unless(ProGate.addClient(access)) { showingAddClient = true }
     }
 
-    /// Import Clients is a Pro tool.
+    /// Import from Spreadsheet is a Pro tool.
     private func importClients() {
-        $gate.unless(ProGate.proFeature("Import Clients", access)) { showingImport = true }
+        $gate.unless(ProGate.proFeature("Import from Spreadsheet", access)) { showingImport = true }
     }
 
     private func askToDelete(_ client: Client) {

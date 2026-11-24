@@ -294,6 +294,7 @@ struct ProposalBuilderView: View {
                                     .foregroundStyle(.red)
                             }
                             .buttonStyle(.plain)
+                            .accessibilityLabel(item.name.isEmpty ? "Remove Line" : "Remove \(item.name)")
                         }
                     }
                     TextField("Note for this line (optional)", text: $item.notes)
@@ -304,7 +305,7 @@ struct ProposalBuilderView: View {
             Button {
                 customItems.append(CustomLineItem())
             } label: {
-                Label("Add Custom Line Item", systemImage: "plus.circle")
+                Label("Add Custom Item", systemImage: "plus.circle")
             }
         } header: {
             Text("Custom Line Items")
