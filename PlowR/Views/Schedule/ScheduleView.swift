@@ -30,6 +30,9 @@ struct ScheduleView: View {
     @State private var createdRoute: PlowRoute?
     /// Open Route: its page, pushed here.
     @State private var openedRoute: PlowRoute?
+    /// Open Route or Start Route, tapped in the alert: done once it has
+    /// closed. Starting while it closed dropped the route screen (simulator).
+    @State private var afterRouteCreated: (() -> Void)?
     /// Scheduled visits left off the new route because their client is inactive.
     @State private var skippedInactiveVisits = 0
 
@@ -158,9 +161,9 @@ struct ScheduleView: View {
             }
             .alert(createdRouteName.isEmpty ? "No Route Created" : "Route Created", isPresented: $showingRouteCreated) {
                 if let route = createdRoute {
-                    Button("Open Route") { openedRoute = route }
+                    Button("Open Route") { afterRouteCreated = { openedRoute = route } }
                     if offersStart(route) {
-                        Button("Start Route") { start(route) }
+                        Button(todaysRun(of: route).startTitle) { afterRouteCreated = { start(route) } }
                     }
                     Button("Done", role: .cancel) { }
                 } else {
@@ -168,6 +171,15 @@ struct ScheduleView: View {
                 }
             } message: {
                 Text(routeCreatedMessage)
+            }
+            .onChange(of: showingRouteCreated) { _, showing in
+                guard !showing, let action = afterRouteCreated else { return }
+                afterRouteCreated = nil
+                // An alert has no dismiss callback: wait out its closing.
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(400))
+                    action()
+                }
             }
             .navigationDestination(item: $openedRoute) { route in
                 RouteDetailView(route: route)

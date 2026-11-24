@@ -383,7 +383,7 @@ struct EditClientView: View {
                     actionTile(title: "Schedule", icon: "calendar.badge.plus", color: PlowRColor.brand) {
                         showingAddVisit = true
                     }
-                    actionTile(title: "Log Work", icon: "list.bullet.clipboard", color: PlowRColor.brand) {
+                    actionTile(title: "Log Work", icon: PlowRSymbol.logWork.name, color: PlowRColor.brand) {
                         showingLogWork = true
                     }
                     NavigationLink {

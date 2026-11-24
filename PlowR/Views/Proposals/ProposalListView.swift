@@ -287,7 +287,7 @@ struct ProposalListView: View {
             BillWorkView()
         }
         .sheet(isPresented: $showingClientPicker) {
-            ClientPickerForProposalView { client in
+            ClientPickerForProposalView(newClientKind: pendingIsInvoice ? .existingCustomer : .newLead) { client in
                 // Bake isInvoice into the context at selection time — eliminates stale-capture bug
                 creationContext = ProposalCreationContext(client: client, isInvoice: pendingIsInvoice)
             }

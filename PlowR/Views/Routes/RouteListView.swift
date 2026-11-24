@@ -23,7 +23,7 @@ struct RouteListView: View {
         Group {
             if routes.isEmpty {
                 ContentUnavailableView {
-                    Label("No Routes Yet", systemImage: "point.topleft.down.to.point.bottomright.curvepath")
+                    Label("No Routes Yet", systemImage: PlowRSymbol.route.name)
                 } description: {
                     Text("Create a route to organize your stops.")
                 } actions: {

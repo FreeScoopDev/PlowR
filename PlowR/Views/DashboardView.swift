@@ -869,7 +869,7 @@ struct DashboardView: View {
                 }
                 .buttonStyle(.plain)
                 quickAction("Schedule Visit", icon: "calendar.badge.plus") { showingAddVisit = true }
-                quickAction("Log Work", icon: "list.bullet.clipboard") { pickingClientFor = .logWork }
+                quickAction("Log Work", icon: PlowRSymbol.logWork.name) { pickingClientFor = .logWork }
                 quickAction("New Invoice", icon: "doc.badge.arrow.up") { pickingClientFor = .newInvoice }
                 quickAction("New Route", icon: PlowRSymbol.route.name) {
                     $gate.unless(ProGate.createRoute(access, routes: allRoutes, operatorID: authManager.userID)) { showingCreateRoute = true }
