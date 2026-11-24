@@ -111,7 +111,7 @@ struct ServiceRowView: View {
             Toggle("", isOn: Binding(
                 get: { item.isActive },
                 set: { v in
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    Haptics.impact(.light)
                     item.isActive = v
                 }
             ))

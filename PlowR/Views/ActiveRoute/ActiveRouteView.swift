@@ -1011,7 +1011,7 @@ struct ActiveRouteView: View {
         case .recordChanged: refusal = "Can't undo: work was saved on that stop since."
         case .stopChanged, .nothingToUndo: refusal = "Can't undo: the route has moved on."
         }
-        UINotificationFeedbackGenerator().notificationOccurred(.warning)
+        Haptics.warning()
         AccessibilityNotification.Announcement(refusal).post()
     }
 
@@ -1192,11 +1192,11 @@ struct ActiveRouteView: View {
     // MARK: - Haptics
 
     private func haptic(_ style: UIImpactFeedbackGenerator.FeedbackStyle = .medium) {
-        UIImpactFeedbackGenerator(style: style).impactOccurred()
+        Haptics.impact(style)
     }
 
     private func hapticSuccess() {
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        Haptics.success()
     }
 
     // MARK: - Route Logic

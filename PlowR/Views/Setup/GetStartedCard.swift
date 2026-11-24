@@ -29,6 +29,7 @@ struct GetStartedCard: View {
                         .frame(minWidth: PlowRLayout.minTapTarget, minHeight: PlowRLayout.minTapTarget)
                         .contentShape(Rectangle())
                 }
+                .accessibilityHint("Hides this card. Show it again from Settings.")
             }
             PlowRCard {
                 NavigationLink { BusinessProfileView() } label: {

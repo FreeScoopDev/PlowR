@@ -15,6 +15,8 @@ struct ContractDetailView: View {
     @Query private var allProfiles: [BusinessProfile]
     /// The contract's PDF, written when the page opens, to share.
     @State private var pdfURL: URL?
+    /// The PDF couldn't be written: said, and nothing offered to share.
+    @State private var shareFailure: ShareFile.Failure?
     @State private var choosingRenewal = false
     @State private var renewalDraft: Contracts.Draft?
     @State private var showingEdit = false
@@ -101,6 +103,7 @@ struct ContractDetailView: View {
             }
         }
         .proGateSheet($gate)
+        .shareFileAlert($shareFailure)
         .task(id: contract.persistentModelID) { writePDF() }
         .onChange(of: access.showsMadeWithPlowR) { writePDF() }
         .onChange(of: showingEdit) { _, open in if !open { writePDF() } }
@@ -307,7 +310,12 @@ struct ContractDetailView: View {
         let data = ContractPDF.generate(contract, client: contract.client, profile: profile, catalog: allServiceItems,
                                         madeWithPlowR: access.showsMadeWithPlowR)
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(ContractPDF.fileName(contract))
-        if (try? data.write(to: url, options: .completeFileProtection)) != nil { pdfURL = url }
+        switch ShareFile.write(data, to: url) {
+        case .success(let url): pdfURL = url
+        case .failure(let failure):
+            pdfURL = nil
+            shareFailure = failure
+        }
     }
 
     private var period: String {

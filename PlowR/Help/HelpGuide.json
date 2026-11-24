@@ -28,7 +28,7 @@
             "Under **What do you do?**, pick Snow Removal, Lawn Care, Cleanup, or any mix. PlowR adds the usual services and prices, which you can change later.",
             "Enter your **Default tax rate (%)**.",
             "Turn on **Alerts** and **Your location** if you'd like them. Every step has **Skip**.",
-            "On Home, the **Get Started** card walks you through your first client, route and invoice."
+            "On Home, the **Get Started** card walks you through your first client, route and invoice. Hid it too soon? **Settings → Show Get Started** brings it back."
           ],
           "note": "PlowR is free for up to 10 active clients and one route, for as long as you like. PlowR Pro adds unlimited clients and routes, Service Reports, storm tools, client import and a Request Link. Items marked [PRO] need it."
         }

@@ -159,6 +159,7 @@ struct ProposalEditView: View {
                 } else {
                     proposal.invoiceSentAt = Date()
                 }
+                Haptics.success()
                 dismiss()
             } label: {
                 Label("Mark Sent", systemImage: "paperplane.fill")

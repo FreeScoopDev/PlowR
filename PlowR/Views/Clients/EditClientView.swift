@@ -67,6 +67,10 @@ struct EditClientView: View {
     @State private var showingMessageComposer = false
     /// A document's PDF being shared from this page (DocumentShareView).
     @State private var documentShare: DocumentShare?
+    /// Paid was tapped on a document row: asked first (markPaidConfirmation).
+    @State private var invoiceToMarkPaid: Proposal?
+    /// A document's PDF couldn't be written to share.
+    @State private var shareFailure: ShareFile.Failure?
 
     private struct DocumentShare: Identifiable {
         let proposal: Proposal
@@ -175,6 +179,8 @@ struct EditClientView: View {
             }
         }
         .proGateSheet($gate)
+        .markPaidConfirmation($invoiceToMarkPaid, in: modelContext)
+        .shareFileAlert($shareFailure)
         .sheet(isPresented: $showingPropertyScanner, onDismiss: takePinFromClient) {
             PropertyScannerView(client: client, pendingAddress: pendingAddress, startingPin: pendingPin,
                                 onAddressChosen: { addressChosenOnPinScreen = $0 })
@@ -1213,7 +1219,7 @@ struct EditClientView: View {
 
         if document.invoiceStatus == .sent || document.invoiceStatus == .overdue {
             Button("Paid") {
-                Payments.payInFull(document, in: modelContext)
+                invoiceToMarkPaid = document
             }
             .buttonStyle(.plowRRowAction(PlowRColor.Status.done.text))
             .accessibilityLabel("Mark Paid")
@@ -1255,8 +1261,10 @@ struct EditClientView: View {
         let safe = client.name.replacingOccurrences(of: "/", with: "-")
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("\(prefix)-\(safe)-\(proposal.id.uuidString.prefix(6)).pdf")
-        try? data.write(to: url, options: .completeFileProtection)
-        documentShare = DocumentShare(proposal: proposal, url: url)
+        switch ShareFile.write(data, to: url) {
+        case .success(let url): documentShare = DocumentShare(proposal: proposal, url: url)
+        case .failure(let failure): shareFailure = failure
+        }
     }
 
     private func createRevision(of original: Proposal) {
