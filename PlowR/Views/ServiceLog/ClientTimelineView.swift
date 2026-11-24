@@ -7,6 +7,8 @@ struct ClientTimelineView: View {
     let client: Client
 
     @Environment(\.modelContext) private var modelContext
+    /// A visit a delete is holding back for its Undo isn't shown (UndoCenter).
+    @Environment(UndoCenter.self) private var undoCenter
     @State private var events: [ClientTimeline.Event]?
 
     var body: some View {
@@ -32,7 +34,9 @@ struct ClientTimelineView: View {
         .plowRGrouped()
         .navigationTitle("Timeline")
         .navigationBarTitleDisplayMode(.inline)
-        .task { events = ClientTimeline.events(for: client, in: modelContext) }
+        .task(id: undoCenter.pendingDeletions) {
+            events = ClientTimeline.events(for: client, hiding: undoCenter.pendingDeletions, in: modelContext)
+        }
     }
 
     private func months(of events: [ClientTimeline.Event]) -> [(month: Date, events: [ClientTimeline.Event])] {

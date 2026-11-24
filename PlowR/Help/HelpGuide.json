@@ -166,7 +166,7 @@
             "Under **Recurrence**, turn on **Repeat** and pick a **Frequency**: Daily, Weekly, Every 2 Weeks or Monthly. For Weekly, choose the days.",
             "Turn on **End Date** if the work stops at the end of a season, then tap **Add**."
           ],
-          "note": "Want visits on your iPhone calendar too? Turn on **Settings → Calendar → Add Visits to Calendar**.",
+          "note": "Swipe a visit to **Complete**, **Skip** or **Delete** it. **Undo** appears for a few seconds after Delete, Skip or Complete. Want visits on your iPhone calendar too? Turn on **Settings → Calendar → Add Visits to Calendar**.",
           "tips": [
             { "id": "tip-repeat-visit", "title": "Same work every week?", "message": "Turn on **Repeat** for weekly or monthly visits." },
             { "id": "tip-route-from-day", "title": "Route a busy day", "message": "Tap **Create Route** to turn this day's visits into a route." }

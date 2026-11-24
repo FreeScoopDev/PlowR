@@ -8,6 +8,8 @@ struct ScheduleView: View {
     @Environment(AuthManager.self) private var authManager
     @Environment(ActiveRouteStore.self) private var activeRoute
     @Environment(\.access) private var access
+    /// Delete, Skip and Complete offer Undo; a delete waits out its window.
+    @Environment(UndoCenter.self) private var undoCenter
     @Environment(\.dynamicTypeSize) private var typeSize
     @Query private var allRoutes: [PlowRoute]
     @State private var gate: ProGate?
@@ -42,8 +44,14 @@ struct ScheduleView: View {
 
     // MARK: - Computed Properties
 
+    /// Every visit but those a delete is holding back for its Undo
+    /// (UndoCenter): the day, Past Due, Upcoming and the calendar's dots.
+    private var liveVisits: [ScheduledVisit] {
+        allVisits.filter { !undoCenter.isPendingDeletion($0) }
+    }
+
     private var myVisits: [ScheduledVisit] {
-        allVisits.filter { $0.operatorID == authManager.userID }
+        liveVisits.filter { $0.operatorID == authManager.userID }
     }
 
     private var visitsForSelectedDate: [ScheduledVisit] {
@@ -163,7 +171,7 @@ struct ScheduleView: View {
                                 titleVisibility: .visible, presenting: visitToDelete) { visit in
                 deleteButtons(for: visit)
             } message: { visit in
-                Text(VisitDeletion.message(for: visit, among: allVisits))
+                Text(VisitDeletion.message(for: visit, among: liveVisits))
             }
             .alert(createdRouteName.isEmpty ? "No Route Created" : "Route Created", isPresented: $showingRouteCreated) {
                 if let route = createdRoute {
@@ -256,7 +264,7 @@ struct ScheduleView: View {
                         .swipeActions(edge: .leading) {
                             if visit.status == .scheduled {
                                 Button { $gate.unless(ProGate.edit(access)) { markComplete(visit) } } label: {
-                                    Label("Complete", systemImage: "checkmark.circle.fill")
+                                    Label("Complete", systemImage: PlowRSymbol.complete.name)
                                 }
                                 .tint(PlowRColor.Status.done.solid)
                             }
@@ -268,17 +276,17 @@ struct ScheduleView: View {
                             Button {
                                 visitToDelete = visit
                             } label: {
-                                Label("Delete", systemImage: "trash")
+                                Label("Delete", systemImage: PlowRSymbol.delete.name)
                             }
                             .tint(.red)
                             if visit.status == .scheduled {
                                 Button {
                                     $gate.unless(ProGate.edit(access)) {
-                                        visit.status = .skipped
+                                        undoCenter.skip(visit)
                                         Haptics.selection()
                                     }
                                 } label: {
-                                    Label("Skip", systemImage: "arrow.right.circle")
+                                    Label("Skip", systemImage: PlowRSymbol.skip.name)
                                 }
                                 .tint(PlowRColor.Status.owed.solid)
                             }
@@ -550,8 +558,8 @@ struct ScheduleView: View {
 
     private func markComplete(_ visit: ScheduledVisit) {
         // Also continues the series if it needs a next visit, and records the
-        // work in the Service Log.
-        ServiceLog.complete(visit, among: allVisits, in: modelContext)
+        // work in the Service Log (ServiceLog.complete), with Undo.
+        undoCenter.complete(visit, among: liveVisits)
         Haptics.success()
     }
 
@@ -559,22 +567,23 @@ struct ScheduleView: View {
     /// come offers this one or this and the rest, as the visit editor does.
     private func deleteButtons(for visit: ScheduledVisit) -> some View {
         Group {
-            if VisitDeletion.offersSeries(visit, among: allVisits) {
+            if VisitDeletion.offersSeries(visit, among: liveVisits) {
                 Button("Delete This Visit Only", role: .destructive) { delete(visit, .thisVisit) }
                 Button("Delete This & All Future Visits", role: .destructive) { delete(visit, .thisAndFuture) }
             } else {
                 // The last of a series ends it, so it doesn't grow back.
                 Button("Delete Visit", role: .destructive) {
-                    delete(visit, VisitDeletion.singleDeleteScope(for: visit, among: allVisits))
+                    delete(visit, VisitDeletion.singleDeleteScope(for: visit, among: liveVisits))
                 }
             }
             Button("Cancel", role: .cancel) { }
         }
     }
 
+    /// Held back for Undo's window, then deleted (UndoCenter.delete).
     private func delete(_ visit: ScheduledVisit, _ scope: VisitDeletion.Scope) {
         if visitToEdit?.id == visit.id { visitToEdit = nil }
-        VisitDeletion.delete(visit, scope: scope, among: allVisits, in: modelContext)
+        undoCenter.delete(visit, scope: scope, among: liveVisits)
     }
 }
 

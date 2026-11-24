@@ -17,9 +17,10 @@ enum ClientTimeline {
     }
 
     /// The client's events, newest first. A visit completed is its job, not
-    /// a second event; a visit not done by today is "missed".
+    /// a second event; a visit not done by today is "missed". Visits in
+    /// `hiding` (a delete held back for its Undo, UndoCenter) are left out.
     static func events(for client: Client, now: Date = .now, calendar: Calendar = .current,
-                       in context: ModelContext) -> [Event] {
+                       hiding pending: Set<PersistentIdentifier> = [], in context: ModelContext) -> [Event] {
         let id = client.id.uuidString
         var events: [Event] = []
 
@@ -34,7 +35,7 @@ enum ClientTimeline {
         let visits = (try? context.fetch(FetchDescriptor<ScheduledVisit>(
             predicate: #Predicate { $0.clientID == id }))) ?? []
         let today = calendar.startOfDay(for: now)
-        for visit in visits {
+        for visit in visits where !pending.contains(visit.persistentModelID) {
             let reason = visit.visitReason.isEmpty ? "Visit" : visit.visitReason
             let kind: ClientTimelineKind? = switch visit.status {
             case .completed: nil

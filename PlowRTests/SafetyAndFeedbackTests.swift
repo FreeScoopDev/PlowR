@@ -75,7 +75,7 @@ struct SafetyAndFeedbackTests {
         #expect(!VisitDeletion.message(for: all[0], among: all).contains("series ends"))
         let oneOff = ScheduledVisit(operatorID: "op", clientID: "c", clientName: "Pat", clientAddress: "",
                                     scheduledDate: h.clock)
-        #expect(VisitDeletion.message(for: oneOff, among: all + [oneOff]) == "A deleted visit can't be brought back.")
+        #expect(VisitDeletion.message(for: oneOff, among: all + [oneOff]) == "You can undo it for a few seconds.")
         VisitDeletion.delete(all[1], scope: scope, among: all, in: h.context, calendar: calendar)
         try h.context.save()
         let left = try visits(h)
