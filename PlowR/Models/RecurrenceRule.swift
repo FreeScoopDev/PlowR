@@ -3,7 +3,7 @@ import Foundation
 /// When a repeating visit happens: the one rule both for creating a series and
 /// for continuing one.
 ///
-/// There used to be two rules. Add Visit generated a series with its own date
+/// There used to be two rules. Schedule Visit generated a series with its own date
 /// arithmetic, which ignored the chosen weekdays (weekly on Mon and Thu from a
 /// Wednesday gave 52 Wednesdays). Completing a visit then added "the next one"
 /// with the model's rule, even though the series already had it, so every

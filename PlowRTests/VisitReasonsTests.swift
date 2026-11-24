@@ -7,7 +7,7 @@ import Foundation
 import Testing
 @testable import PlowR
 
-/// The reasons Add Visit offers. They were four snow services plus
+/// The reasons Schedule Visit offers. They were four snow services plus
 /// "Inspection" and "Routine Visit", whatever the business did.
 @MainActor
 struct VisitReasonsTests {

@@ -199,6 +199,7 @@ struct BusinessRow: View {
                             .clipShape(Circle())
                     }
                     .buttonStyle(.borderless)
+                    .accessibilityLabel("Call \(business.name)")
                 }
                 if let url = business.website {
                     Button {
@@ -212,6 +213,7 @@ struct BusinessRow: View {
                             .clipShape(Circle())
                     }
                     .buttonStyle(.borderless)
+                    .accessibilityLabel("Open \(business.name)'s Website")
                 }
             }
         }

@@ -69,6 +69,13 @@ struct SafetyAndFeedbackTests {
         let scope = VisitDeletion.singleDeleteScope(for: all[1], among: all)
         #expect(scope == .thisAndFuture)
         #expect(VisitDeletion.singleDeleteScope(for: all[0], among: all) == .thisVisit)   // not the last
+        // Its dialog says the series ends, and points to Skip; the others don't.
+        #expect(VisitDeletion.message(for: all[1], among: all).contains("the series ends here"))
+        #expect(VisitDeletion.message(for: all[1], among: all).contains("use Skip instead"))
+        #expect(!VisitDeletion.message(for: all[0], among: all).contains("series ends"))
+        let oneOff = ScheduledVisit(operatorID: "op", clientID: "c", clientName: "Pat", clientAddress: "",
+                                    scheduledDate: h.clock)
+        #expect(VisitDeletion.message(for: oneOff, among: all + [oneOff]) == "A deleted visit can't be brought back.")
         VisitDeletion.delete(all[1], scope: scope, among: all, in: h.context, calendar: calendar)
         try h.context.save()
         let left = try visits(h)
@@ -164,6 +171,12 @@ struct SafetyAndFeedbackTests {
         // Home's one read of the flag (body, on appearing, when Settings closes).
         #expect(!FirstRun.isChecklistHidden(operatorID: "op", defaults: defaults))
         #expect(FirstRun.isChecklistHidden(operatorID: "other", defaults: defaults))
+        // Home's Hide sets it again, for that business only.
+        FirstRun.hideChecklist(operatorID: "op", defaults: defaults)
+        #expect(FirstRun.isChecklistHidden(operatorID: "op", defaults: defaults))
+        FirstRun.showChecklistAgain(operatorID: "other", defaults: defaults)
+        FirstRun.hideChecklist(operatorID: "op", defaults: defaults)
+        #expect(!FirstRun.isChecklistHidden(operatorID: "other", defaults: defaults))
     }
 
     @Test func theStoredChecklistMatchesHomes() throws {

@@ -93,14 +93,14 @@ struct SettingsView: View {
                     }
                 }
                 // A Pro tool: without Pro, the row says why instead of opening.
-                if let blocked = ProGate.proFeature("Import Clients", access) {
+                if let blocked = ProGate.proFeature("Import from Spreadsheet", access) {
                     Button { gate = blocked } label: {
-                        Label("Import Clients", systemImage: "square.and.arrow.down.on.square")
+                        Label("Import from Spreadsheet", systemImage: "square.and.arrow.down.on.square")
                     }
                     .foregroundStyle(.primary)
                 } else {
                     NavigationLink(destination: ImportClientsView()) {
-                        Label("Import Clients", systemImage: "square.and.arrow.down.on.square")
+                        Label("Import from Spreadsheet", systemImage: "square.and.arrow.down.on.square")
                             .labelStyle(.settingsLink)
                     }
                 }
@@ -359,7 +359,7 @@ struct SettingsView: View {
     private func readGetStarted() async {
         let id = authManager.userID
         let defaults = UserDefaults.standard
-        guard defaults.bool(forKey: FirstRun.checklistHiddenKey(id)) else {
+        guard FirstRun.isChecklistHidden(operatorID: id, defaults: defaults) else {
             offersGetStarted = false
             return
         }

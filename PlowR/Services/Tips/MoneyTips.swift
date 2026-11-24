@@ -4,7 +4,7 @@ import TipKit
 /// The schedule and money tips (1.8, B3). Copy in `HelpGuide.json`, rules in
 /// `PlowRTips`. Each goes away for good once the user does the thing.
 
-/// Add Visit, by Repeat: visits that recur.
+/// Schedule Visit, by Repeat: visits that recur.
 nonisolated struct RepeatVisitTip: PlowRTip {
     static let helpID = "tip-repeat-visit"
     static let visitRepeated = Tips.Event(id: "visitRepeated")

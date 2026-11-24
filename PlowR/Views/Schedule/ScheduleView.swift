@@ -27,6 +27,10 @@ struct ScheduleView: View {
     @State private var createdRouteName = ""
     /// Scheduled visits left off the new route because their client is inactive.
     @State private var skippedInactiveVisits = 0
+    /// Past Due shows its first few; Show All opens the rest in place.
+    @State private var showingAllPastDue = false
+    /// Bumped by Home's "+ N more": show today (MainTabView).
+    var todayRequests = 0
 
     // MARK: - Computed Properties
 
@@ -115,6 +119,7 @@ struct ScheduleView: View {
                     Button { showingAddVisit = true } label: {
                         Image(systemName: "plus")
                     }
+                    .accessibilityLabel("Schedule Visit")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     HelpToolbarButton(screen: .schedule)
@@ -124,6 +129,7 @@ struct ScheduleView: View {
                         .font(.subheadline)
                 }
             }
+            .onChange(of: todayRequests) { selectedDate = Date() }
             .proGateSheet($gate)
             .sheet(isPresented: $showingAddVisit) {
                 AddVisitView(initialDate: selectedDate)
@@ -148,8 +154,8 @@ struct ScheduleView: View {
                                                      set: { if !$0 { visitToDelete = nil } }),
                                 titleVisibility: .visible, presenting: visitToDelete) { visit in
                 deleteButtons(for: visit)
-            } message: { _ in
-                Text("A deleted visit can't be brought back.")
+            } message: { visit in
+                Text(VisitDeletion.message(for: visit, among: allVisits))
             }
             .alert(createdRouteName.isEmpty ? "No Route Created" : "Route Created", isPresented: $showingRouteCreated) {
                 Button("OK", role: .cancel) { }
@@ -207,9 +213,19 @@ struct ScheduleView: View {
                 Label("Nothing scheduled", systemImage: "calendar.badge.minus")
                     .font(.subheadline)
                     .foregroundStyle(PlowRColor.inkSecondary)
+                // Opens on this day, as a long press on the day does.
+                Button { showingAddVisit = true } label: {
+                    Label("Schedule Visit", systemImage: "calendar.badge.plus")
+                        .frame(minHeight: PlowRLayout.minTapTarget)
+                }
             } else {
                 ForEach(visitsForSelectedDate) { visit in
-                    visitRow(visit)
+                    // A button, so VoiceOver says it opens; looks as before.
+                    Button { visitToEdit = visit } label: {
+                        visitRow(visit)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
                         .swipeActions(edge: .leading) {
                             if visit.status == .scheduled {
                                 Button { $gate.unless(ProGate.edit(access)) { markComplete(visit) } } label: {
@@ -248,7 +264,6 @@ struct ScheduleView: View {
                                 .tint(PlowRColor.Status.scheduled.solid)
                             }
                         }
-                        .onTapGesture { visitToEdit = visit }
                 }
             }
         } header: {
@@ -286,7 +301,7 @@ struct ScheduleView: View {
         }
         if !overdue.isEmpty {
             Section {
-                ForEach(overdue.prefix(3)) { visit in
+                ForEach(PastDueList.shown(overdue, showingAll: showingAllPastDue)) { visit in
                     HStack(spacing: 10) {
                         Circle().fill(PlowRColor.Status.owed.fill).frame(width: 8, height: 8)
                         VStack(alignment: .leading, spacing: 2) {
@@ -295,12 +310,17 @@ struct ScheduleView: View {
                                 .font(.caption).foregroundStyle(PlowRColor.inkSecondary)
                         }
                         Spacer()
+                        // Small to look at, a 44 pt square to tap (gloves).
                         Button("Complete") { $gate.unless(ProGate.edit(access)) { markComplete(visit) } }
-                            .font(.caption.weight(.semibold))
-                            .buttonStyle(.bordered)
-                            .tint(PlowRColor.Status.done.text)
-                            .controlSize(.small)
+                            .buttonStyle(.plowRRowAction(.done))
+                            .accessibilityLabel("Complete \(visit.clientName)")
                     }
+                }
+                let hidden = PastDueList.hiddenCount(overdue, showingAll: showingAllPastDue)
+                if hidden > 0 {
+                    Button("Show All \(overdue.count)") { showingAllPastDue = true }
+                        .font(.subheadline.weight(.semibold))
+                        .frame(minHeight: PlowRLayout.minTapTarget)
                 }
             } header: {
                 // Styled as the day and Upcoming headers on this screen.
@@ -653,8 +673,11 @@ private struct WeatherBannerRow: View {
                         Image(systemName: "arrow.clockwise")
                             .font(.caption)
                             .foregroundStyle(PlowRColor.inkSecondary)
+                            .frame(minWidth: PlowRLayout.minTapTarget, minHeight: PlowRLayout.minTapTarget)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Refresh Weather")
                 }
             }
 
@@ -779,5 +802,20 @@ private final class _LocDelegate: NSObject, CLLocationManagerDelegate {
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         onFailed?()
+    }
+}
+
+/// Schedule's Past Due section: the first few, and the rest on Show All.
+enum PastDueList {
+    /// How many show before Show All.
+    static let limit = 3
+
+    static func shown<T>(_ overdue: [T], showingAll: Bool) -> [T] {
+        showingAll ? overdue : Array(overdue.prefix(limit))
+    }
+
+    /// How many Show All would add: 0 hides it.
+    static func hiddenCount<T>(_ overdue: [T], showingAll: Bool) -> Int {
+        overdue.count - shown(overdue, showingAll: showingAll).count
     }
 }
