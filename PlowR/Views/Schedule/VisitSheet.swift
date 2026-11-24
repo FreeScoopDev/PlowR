@@ -14,6 +14,7 @@ struct VisitSheet: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.access) private var access
     @Environment(ActiveRouteStore.self) private var activeRoute
+    @Environment(UndoCenter.self) private var undoCenter
     @Query private var allClients: [Client]
     @Query(sort: \ScheduledVisit.scheduledDate) private var allVisits: [ScheduledVisit]
     @Query private var allServices: [ServiceItem]
@@ -38,7 +39,13 @@ struct VisitSheet: View {
         allClients.first { $0.id.uuidString == visit.clientID && $0.operatorID == visit.operatorID }
     }
 
-    private var isGone: Bool { visit.isDeleted || visit.modelContext == nil }
+    /// Deleted, or held back by a Delete that Undo can still take back.
+    private var isGone: Bool { visit.isGoneHere || undoCenter.isPendingDeletion(visit) }
+
+    /// Every visit but those deleted or waiting to be (as Schedule's).
+    private var liveVisits: [ScheduledVisit] {
+        allVisits.filter { !$0.isGoneHere && !undoCenter.isPendingDeletion($0) }
+    }
 
     var body: some View {
         NavigationStack {
@@ -58,6 +65,10 @@ struct VisitSheet: View {
                 }
             }
         }
+        // Complete here offers Undo, over the sheet that did it.
+        .undoToast()
+        // Undo puts back the record too, which no query watches.
+        .onChange(of: undoCenter.offer?.id) { revision += 1 }
         .proGateSheet($gate)
         .sheet(item: $recorder, onDismiss: {
             revision += 1
@@ -278,11 +289,11 @@ struct VisitSheet: View {
         }
     }
 
-    /// The same as Schedule's Complete: `ServiceLog.complete`, never the
-    /// status by hand.
+    /// The same as Schedule's Complete: `ServiceLog.complete` through
+    /// UndoCenter, never the status by hand, with the same Undo.
     private func complete() {
         guard visit.status == .scheduled else { return }
-        ServiceLog.complete(visit, among: allVisits, in: modelContext)
+        undoCenter.complete(visit, among: liveVisits)
         Haptics.success()
         revision += 1
     }

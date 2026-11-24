@@ -22,6 +22,8 @@ struct ClientListView: View {
     @Query private var allProposals: [Proposal]
     @Query private var allRecords: [ServiceRecord]
     @Query private var allVisits: [ScheduledVisit]
+    /// A visit a delete is holding back for its Undo doesn't count (UndoCenter).
+    @Environment(UndoCenter.self) private var undoCenter
     @Query private var allStops: [RouteStop]
     @State private var showingAddClient = false
     @State private var showingContactScanner = false
@@ -116,7 +118,8 @@ struct ClientListView: View {
     private var pipelineEntries: [Pipeline.Entry] {
         Pipeline.entries(allClients, operatorID: authManager.userID,
                          facts: Pipeline.Facts(documents: allProposals, records: allRecords,
-                                               visits: allVisits, stops: allStops))
+                                               visits: allVisits, stops: allStops,
+                                               hiding: undoCenter.pendingDeletions))
     }
 
     /// The Pipeline row, when there are leads or quotes.
@@ -619,5 +622,6 @@ struct ClientRowView: View {
 #Preview {
     ClientListView()
         .environment(AuthManager())
+        .environment(UndoCenter.shared)
         .modelContainer(for: Client.self, inMemory: true)
 }

@@ -46,6 +46,7 @@ final class LeadRequestWindow: NSObject, UIAdaptivePresentationControllerDelegat
             .providesAccess()
             .environment(authManager)
             .environment(ActiveRouteStore.shared)
+            .environment(UndoCenter.shared)
             .environment(CalendarSync.shared)
             .modelContainer(container)
             .tint(PlowRColor.accent))

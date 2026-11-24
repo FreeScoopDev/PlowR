@@ -24,6 +24,8 @@ struct EditClientView: View {
     @Query private var allProfiles: [BusinessProfile]
     @Query private var allPaymentMethods: [PaymentMethod]
     @Query(sort: \ScheduledVisit.scheduledDate) private var allVisits: [ScheduledVisit]
+    /// A visit a delete is holding back for its Undo isn't shown (UndoCenter).
+    @Environment(UndoCenter.self) private var undoCenter
     @Query private var allServiceItems: [ServiceItem]
 
     /// What the screen edits (ClientDraft): compared with the client as saved
@@ -61,6 +63,8 @@ struct EditClientView: View {
     @State private var showingProposalBuilder = false
     @State private var showingInvoiceBuilder = false
     @State private var showingAddVisit = false
+    /// Log Work, as Service History's + opens it.
+    @State private var showingLogWork = false
     @State private var showingServiceReport = false
     @State private var propertySheet: PropertySheet?
     @State private var showingNewContract = false
@@ -212,6 +216,10 @@ struct EditClientView: View {
         .sheet(isPresented: $showingAddVisit) {
             AddVisitView(client: client)
         }
+        // Read only, it shows why instead (LogWorkView's .editsNeedPro()).
+        .sheet(isPresented: $showingLogWork) {
+            LogWorkView(client: client)
+        }
         .sheet(isPresented: $showingServiceReport) {
             ProofOfServiceView(client: client)
         }
@@ -296,14 +304,18 @@ struct EditClientView: View {
 
     private var actionTilesSection: some View {
         Section {
-            // Four tiles sharing the row's width (ClientActionTile). The
+            // Five tiles sharing the row's width (ClientActionTile). The
             // scroll view doesn't scroll: it keeps the list from treating the
             // row as one tappable cell with a disclosure arrow.
             ScrollView(.horizontal) {
-                // 2 × 2 at accessibility text sizes: four in a row cut the names.
+                // One row at the default text size and smaller; 3 + 2 above
+                // it, where five in a row on a 375-pt phone shrank the names;
+                // two columns at accessibility sizes.
                 let layout = typeSize.isAccessibilitySize
                     ? AnyLayout(EqualColumnsLayout(columns: 2, spacing: 8))
-                    : AnyLayout(HStackLayout(spacing: 8))
+                    : typeSize > .large
+                        ? AnyLayout(EqualColumnsLayout(columns: 3, spacing: 8))
+                        : AnyLayout(HStackLayout(spacing: 8))
                 layout {
                     Menu {
                         // Getting there: read only, like Call, for any plan. The
@@ -372,6 +384,9 @@ struct EditClientView: View {
                     }
                     actionTile(title: "Schedule", icon: "calendar.badge.plus", color: PlowRColor.brand) {
                         showingAddVisit = true
+                    }
+                    actionTile(title: "Log Work", icon: PlowRSymbol.logWork.name, color: PlowRColor.brand) {
+                        showingLogWork = true
                     }
                     NavigationLink {
                         ClientPhotoGalleryView(client: client)
@@ -901,7 +916,7 @@ struct EditClientView: View {
     @ViewBuilder
     private var pipelineStageRow: some View {
         // This client's records only: the page redraws with each key typed.
-        let facts = Pipeline.Facts(of: client, in: modelContext)
+        let facts = Pipeline.Facts(of: client, hiding: undoCenter.pendingDeletions, in: modelContext)
         let stage = Pipeline.stage(of: client, facts: facts)
         let canMarkCustomer = Pipeline.canMarkAsCustomer(client, facts: facts)
         let canMarkLead = Pipeline.canMarkAsLead(client, facts: facts)
@@ -1074,7 +1089,8 @@ struct EditClientView: View {
     private var upcomingClientVisits: [ScheduledVisit] {
         let clientID = client.id.uuidString
         return allVisits
-            .filter { $0.clientID == clientID && $0.status == .scheduled && $0.scheduledDate >= Date() }
+            .filter { $0.clientID == clientID && $0.status == .scheduled && $0.scheduledDate >= Date()
+                && !undoCenter.isPendingDeletion($0) }
             .prefix(3)
             .map { $0 }
     }

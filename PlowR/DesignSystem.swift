@@ -301,6 +301,9 @@ nonisolated enum PlowRSymbol: String, CaseIterable {
     case text = "message.fill"
     case email = "envelope.fill"
     case complete = "checkmark.circle.fill"
+    /// Skipping a visit: not done, not cancelled.
+    case skip = "arrow.right.circle"
+    case delete = "trash"
     case cantService = "xmark.circle"
     case settings = "gearshape.fill"
     case pro = "star.circle.fill"
@@ -313,6 +316,8 @@ nonisolated enum PlowRSymbol: String, CaseIterable {
     case stopNote = "note.text"
     /// Services expected at or recorded for a stop.
     case services = "checklist"
+    /// Log Work: record a visit's work for a client.
+    case logWork = "list.bullet.clipboard"
 
     /// The name, for `Image(systemName:)` and `Label(_:systemImage:)`.
     var name: String { rawValue }

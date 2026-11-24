@@ -66,8 +66,8 @@ extension LabelStyle where Self == LargeTextLabelStyle {
 }
 
 /// Views in equal columns, left to right and top to bottom, each cell as
-/// tall as the tallest in its row (the client page's 2 × 2 of actions at
-/// accessibility text sizes).
+/// tall as the tallest in its row (the client page's actions: 3 + 2 above
+/// the default text size, two columns at accessibility sizes).
 struct EqualColumnsLayout: Layout {
     var columns: Int
     var spacing: CGFloat

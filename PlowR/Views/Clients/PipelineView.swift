@@ -14,11 +14,13 @@ struct PipelineView: View {
     @Query private var allRecords: [ServiceRecord]
     @Query private var allVisits: [ScheduledVisit]
     @Query private var allStops: [RouteStop]
+    /// A visit a delete is holding back for its Undo doesn't count (UndoCenter).
+    @Environment(UndoCenter.self) private var undoCenter
 
     private var entries: [Pipeline.Entry] {
         Pipeline.entries(allClients, operatorID: authManager.userID,
                          facts: Pipeline.Facts(documents: allProposals, records: allRecords, visits: allVisits,
-                                               stops: allStops))
+                                               stops: allStops, hiding: undoCenter.pendingDeletions))
     }
 
     var body: some View {

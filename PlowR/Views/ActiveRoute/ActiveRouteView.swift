@@ -961,40 +961,12 @@ struct ActiveRouteView: View {
     /// "Completed <client> · Undo", for `ActiveRouteStore.undoWindow` after a
     /// stop is completed. Undo takes back that stop only; a text already
     /// sent to the next client stays sent, so the bar says nothing about it.
-    @ViewBuilder
+    /// The look is shared with the Undo toast elsewhere (UndoBar).
     private func undoBar(_ offer: ActiveRouteStore.UndoOffer) -> some View {
-        // Large text: the words above the button, so the name has the full width.
-        let barLayout = typeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 0))
-            : AnyLayout(HStackLayout(spacing: PlowRLayout.space3))
-        barLayout {
-            Label("Completed \(offer.clientName)", systemImage: PlowRSymbol.complete.name)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(PlowRColor.onBrand)
-                .lineLimit(typeSize.isAccessibilitySize ? 3 : 2)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.top, typeSize.isAccessibilitySize ? PlowRLayout.space3 : 0)
-            Button {
-                undo(offer)
-            } label: {
-                Text("Undo")
-                    .font(PlowRFont.button)
-                    .foregroundStyle(PlowRColor.onBrand)
-                    .padding(.horizontal, PlowRLayout.space4)
-                    .frame(minWidth: PlowRLayout.gloveTapTarget, minHeight: PlowRLayout.gloveTapTarget)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Undo completing \(offer.clientName)")
-            .frame(maxWidth: typeSize.isAccessibilitySize ? .infinity : nil, alignment: .trailing)
+        UndoBar(title: "Completed \(offer.clientName)", systemImage: PlowRSymbol.complete.name,
+                accessibilityLabel: "Undo completing \(offer.clientName)") {
+            undo(offer)
         }
-        .padding(.leading, PlowRLayout.space4)
-        .padding(.trailing, PlowRLayout.space1)
-        .background(PlowRColor.brand, in: RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
-        .padding(.horizontal, PlowRLayout.space4)
-        .padding(.top, PlowRLayout.space2)
-        .padding(.bottom, PlowRLayout.space2)
-        .transition(.move(edge: .bottom).combined(with: .opacity))
     }
 
     /// The Undo bar's button (or the stop card's VoiceOver action): the stop

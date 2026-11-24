@@ -65,10 +65,14 @@ enum Pipeline {
         /// Each client's proposals (not invoices), newest first.
         var proposals: [String: [Proposal]] = [:]
 
-        init(documents: [Proposal], records: [ServiceRecord], visits: [ScheduledVisit], stops: [RouteStop]) {
+        /// `hiding`: visits a delete is holding back for its Undo
+        /// (UndoCenter.pendingDeletions), counted as gone already.
+        init(documents: [Proposal], records: [ServiceRecord], visits: [ScheduledVisit], stops: [RouteStop],
+             hiding pending: Set<PersistentIdentifier> = []) {
             withWork = Set(records.map(\.clientID))
                 .union(documents.filter(\.isInvoice).map(\.clientID))
-                .union(visits.filter { $0.status != .cancelled }.map(\.clientID))
+                .union(visits.filter { $0.status != .cancelled && !pending.contains($0.persistentModelID) }
+                    .map(\.clientID))
                 .union(stops.filter { !$0.isCustomStop }.map(\.clientID.uuidString))
             proposals = Dictionary(grouping: documents.filter { !$0.isInvoice }, by: \.clientID)
                 .mapValues { $0.sorted { $0.createdAt > $1.createdAt } }
@@ -83,14 +87,15 @@ enum Pipeline {
         }
 
         /// One client's only: for their page, which redraws as it's typed in.
-        init(of client: Client, in context: ModelContext) {
+        init(of client: Client, hiding pending: Set<PersistentIdentifier> = [], in context: ModelContext) {
             let id = client.id.uuidString
             let uuid = client.id
             self.init(
                 documents: (try? context.fetch(FetchDescriptor<Proposal>(predicate: #Predicate { $0.clientID == id }))) ?? [],
                 records: ServiceLog.records(ofClient: id, in: context),
                 visits: (try? context.fetch(FetchDescriptor<ScheduledVisit>(predicate: #Predicate { $0.clientID == id }))) ?? [],
-                stops: (try? context.fetch(FetchDescriptor<RouteStop>(predicate: #Predicate { $0.clientID == uuid }))) ?? [])
+                stops: (try? context.fetch(FetchDescriptor<RouteStop>(predicate: #Predicate { $0.clientID == uuid }))) ?? [],
+                hiding: pending)
         }
     }
 

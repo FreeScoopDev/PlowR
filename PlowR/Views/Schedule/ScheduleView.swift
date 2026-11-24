@@ -6,7 +6,10 @@ import CoreLocation
 
 struct ScheduleView: View {
     @Environment(AuthManager.self) private var authManager
+    @Environment(ActiveRouteStore.self) private var activeRoute
     @Environment(\.access) private var access
+    /// Delete, Skip and Complete offer Undo; a delete waits out its window.
+    @Environment(UndoCenter.self) private var undoCenter
     @Environment(\.dynamicTypeSize) private var typeSize
     @Query private var allRoutes: [PlowRoute]
     @State private var gate: ProGate?
@@ -27,6 +30,13 @@ struct ScheduleView: View {
     @State private var visitToDelete: ScheduledVisit?
     @State private var showingRouteCreated = false
     @State private var createdRouteName = ""
+    /// The route Create Route just made, for Open Route and Start Route.
+    @State private var createdRoute: PlowRoute?
+    /// Open Route: its page, pushed here.
+    @State private var openedRoute: PlowRoute?
+    /// Open Route or Start Route, tapped in the alert: done once it has
+    /// closed. Starting while it closed dropped the route screen (simulator).
+    @State private var afterRouteCreated: (() -> Void)?
     /// Scheduled visits left off the new route because their client is inactive.
     @State private var skippedInactiveVisits = 0
     /// Past Due shows its first few; Show All opens the rest in place.
@@ -36,8 +46,14 @@ struct ScheduleView: View {
 
     // MARK: - Computed Properties
 
+    /// Every visit but those a delete is holding back for its Undo
+    /// (UndoCenter): the day, Past Due, Upcoming and the calendar's dots.
+    private var liveVisits: [ScheduledVisit] {
+        allVisits.filter { !undoCenter.isPendingDeletion($0) }
+    }
+
     private var myVisits: [ScheduledVisit] {
-        allVisits.filter { $0.operatorID == authManager.userID }
+        liveVisits.filter { $0.operatorID == authManager.userID }
     }
 
     private var visitsForSelectedDate: [ScheduledVisit] {
@@ -157,12 +173,31 @@ struct ScheduleView: View {
                                 titleVisibility: .visible, presenting: visitToDelete) { visit in
                 deleteButtons(for: visit)
             } message: { visit in
-                Text(VisitDeletion.message(for: visit, among: allVisits))
+                Text(VisitDeletion.message(for: visit, among: liveVisits))
             }
             .alert(createdRouteName.isEmpty ? "No Route Created" : "Route Created", isPresented: $showingRouteCreated) {
-                Button("OK", role: .cancel) { }
+                if let route = createdRoute {
+                    Button("Open Route") { afterRouteCreated = { openedRoute = route } }
+                    if offersStart(route) {
+                        Button(todaysRun(of: route).startTitle) { afterRouteCreated = { if offersStart(route) { start(route) } } }
+                    }
+                    Button("Done", role: .cancel) { }
+                } else {
+                    Button("OK", role: .cancel) { }
+                }
             } message: {
                 Text(routeCreatedMessage)
+            }
+            .task(id: showingRouteCreated) {
+                guard !showingRouteCreated, let action = afterRouteCreated else { return }
+                afterRouteCreated = nil
+                // An alert has no dismiss callback: wait out its closing.
+                // Cancelled (view gone, alert shown again): do nothing.
+                do { try await Task.sleep(for: .milliseconds(400)) } catch { return }
+                action()
+            }
+            .navigationDestination(item: $openedRoute) { route in
+                RouteDetailView(route: route)
             }
         }
     }
@@ -232,7 +267,7 @@ struct ScheduleView: View {
                         .swipeActions(edge: .leading) {
                             if visit.status == .scheduled {
                                 Button { $gate.unless(ProGate.edit(access)) { markComplete(visit) } } label: {
-                                    Label("Complete", systemImage: "checkmark.circle.fill")
+                                    Label("Complete", systemImage: PlowRSymbol.complete.name)
                                 }
                                 .tint(PlowRColor.Status.done.solid)
                             }
@@ -244,17 +279,17 @@ struct ScheduleView: View {
                             Button {
                                 visitToDelete = visit
                             } label: {
-                                Label("Delete", systemImage: "trash")
+                                Label("Delete", systemImage: PlowRSymbol.delete.name)
                             }
                             .tint(.red)
                             if visit.status == .scheduled {
                                 Button {
                                     $gate.unless(ProGate.edit(access)) {
-                                        visit.status = .skipped
+                                        undoCenter.skip(visit)
                                         Haptics.selection()
                                     }
                                 } label: {
-                                    Label("Skip", systemImage: "arrow.right.circle")
+                                    Label("Skip", systemImage: PlowRSymbol.skip.name)
                                 }
                                 .tint(PlowRColor.Status.owed.solid)
                             }
@@ -467,6 +502,7 @@ struct ScheduleView: View {
         // No stops left: say why instead of saving an empty route.
         guard !stops.isEmpty else {
             createdRouteName = ""
+            createdRoute = nil
             showingRouteCreated = true
             return
         }
@@ -479,9 +515,32 @@ struct ScheduleView: View {
             modelContext.insert(stop)
         }
         createdRouteName = name
+        createdRoute = route
         showingRouteCreated = true
         PlowRTips.done(RouteFromDayTip(), RouteFromDayTip.routeMade)
         Haptics.success()
+    }
+
+    /// The run the route's page would start today (TodaysRun.opening):
+    /// stops marked below their trigger today left out.
+    private func todaysRun(of route: PlowRoute) -> TodaysRun {
+        let checks = (try? modelContext.fetch(FetchDescriptor<TriggerCheck>())) ?? []
+        return TodaysRun.opening(route, on: .now, checks: checks)
+    }
+
+    /// Start Route, after Create Route: a route for today, nothing running
+    /// (RouteFromDay.offersStart).
+    private func offersStart(_ route: PlowRoute) -> Bool {
+        RouteFromDay.offersStart(day: selectedDate, now: .now, routeRunning: activeRoute.isActive,
+                                 stopsToRun: todaysRun(of: route).stops.count)
+    }
+
+    /// As the route page's Start: PlowR Pro's check, then the store, which
+    /// opens the route screen (and its location prompt).
+    private func start(_ route: PlowRoute) {
+        $gate.unless(ProGate.startRoute(route, access: access, routes: allRoutes, operatorID: route.operatorID)) {
+            activeRoute.start(route, skipping: todaysRun(of: route).skippedOnRoute)
+        }
     }
 
     /// What Create Route did, including any visits it left off.
@@ -502,8 +561,8 @@ struct ScheduleView: View {
 
     private func markComplete(_ visit: ScheduledVisit) {
         // Also continues the series if it needs a next visit, and records the
-        // work in the Service Log.
-        ServiceLog.complete(visit, among: allVisits, in: modelContext)
+        // work in the Service Log (ServiceLog.complete), with Undo.
+        undoCenter.complete(visit, among: liveVisits)
         Haptics.success()
     }
 
@@ -511,22 +570,23 @@ struct ScheduleView: View {
     /// come offers this one or this and the rest, as the visit editor does.
     private func deleteButtons(for visit: ScheduledVisit) -> some View {
         Group {
-            if VisitDeletion.offersSeries(visit, among: allVisits) {
+            if VisitDeletion.offersSeries(visit, among: liveVisits) {
                 Button("Delete This Visit Only", role: .destructive) { delete(visit, .thisVisit) }
                 Button("Delete This & All Future Visits", role: .destructive) { delete(visit, .thisAndFuture) }
             } else {
                 // The last of a series ends it, so it doesn't grow back.
                 Button("Delete Visit", role: .destructive) {
-                    delete(visit, VisitDeletion.singleDeleteScope(for: visit, among: allVisits))
+                    delete(visit, VisitDeletion.singleDeleteScope(for: visit, among: liveVisits))
                 }
             }
             Button("Cancel", role: .cancel) { }
         }
     }
 
+    /// Held back for Undo's window, then deleted (UndoCenter.delete).
     private func delete(_ visit: ScheduledVisit, _ scope: VisitDeletion.Scope) {
         if visitToOpen?.id == visit.id { visitToOpen = nil }
-        VisitDeletion.delete(visit, scope: scope, among: allVisits, in: modelContext)
+        undoCenter.delete(visit, scope: scope, among: liveVisits)
     }
 }
 

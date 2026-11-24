@@ -48,9 +48,7 @@ struct RouteDetailView: View {
     /// Stops whose place is marked below its contract's trigger today
     /// (TriggerCheck): less fell there than the forecast said.
     private var belowTriggerToday: Set<UUID> {
-        Set(route.sortedStops.filter {
-            TriggerChecks.isMarked($0.clientID.uuidString, placeID: Place.id(ofStop: $0), on: .now, in: allChecks)
-        }.map(\.id))
+        TodaysRun.opening(route, on: .now, checks: allChecks).belowTrigger
     }
 
     /// Today's stops, as models.
@@ -105,11 +103,15 @@ struct RouteDetailView: View {
             }
 
             if route.sortedStops.isEmpty {
-                ContentUnavailableView(
-                    "No Stops",
-                    systemImage: "mappin.slash",
-                    description: Text("Tap Edit to add stops to this route.")
-                )
+                // The way forward on the page: the stop editor ⋯ → Edit Route opens.
+                ContentUnavailableView {
+                    Label("No Stops", systemImage: "mappin.slash")
+                } description: {
+                    Text("Add clients to this route.")
+                } actions: {
+                    Button("Add Stops") { showingEditRoute = true }
+                        .plowRProminent()
+                }
                 .listRowBackground(Color.clear)   // the empty state sits on the page
             } else {
                 if let tip = tips.currentTip {
