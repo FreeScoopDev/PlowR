@@ -157,7 +157,7 @@ struct ScheduleView: View {
                                 titleVisibility: .visible, presenting: visitToDelete) { visit in
                 deleteButtons(for: visit)
             } message: { _ in
-                Text("You can undo this for a few seconds after.")
+                Text("You can undo it for a few seconds.")
             }
             .alert(createdRouteName.isEmpty ? "No Route Created" : "Route Created", isPresented: $showingRouteCreated) {
                 Button("OK", role: .cancel) { }
