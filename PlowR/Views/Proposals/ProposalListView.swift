@@ -183,7 +183,7 @@ struct ProposalListView: View {
         .navigationTitle(filterStatus == .all ? "Documents" : filterStatus.rawValue)
         .searchable(text: $searchText, prompt: "Search Documents")
         .proGateSheet($gate)
-        .markPaidConfirmation($invoiceToMarkPaid, in: modelContext)
+        .markPaidConfirmation($invoiceToMarkPaid)
         // What the money tips wait on.
         .onChange(of: documentsState, initial: true) { _, state in
             PlowRTips.update {

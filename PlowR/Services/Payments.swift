@@ -42,15 +42,21 @@ enum Payments {
 
     /// Mark Paid: the balance received now, by the client's usual method.
     /// An invoice with nothing owed (a zero total) is simply marked paid.
-    static func payInFull(_ invoice: Proposal, in context: ModelContext, now: Date = .now) {
-        guard invoice.isInvoice, invoice.invoicePaidAt == nil else { return }
+    /// Returns what it did, for its Undo (MarkedPaid); nil when it did
+    /// nothing (not an invoice, or already paid).
+    @discardableResult
+    static func payInFull(_ invoice: Proposal, in context: ModelContext, now: Date = .now) -> MarkedPaid? {
+        guard invoice.isInvoice, invoice.invoicePaidAt == nil else { return nil }
+        let client = MarkedPaid.client(of: invoice, in: context)
+        let respondedBefore = client?.clientRespondedAt
         let balance = invoice.balanceDue
         guard balance > 0 else {
             DocumentSent.markPaid(invoice, in: context, now: now)
-            return
+            return MarkedPaid(invoice: invoice, payment: nil, client: client, respondedBefore: respondedBefore)
         }
-        record(balance, method: preferredMethod(for: invoice, in: context), receivedAt: now, on: invoice,
-               in: context, now: now)
+        guard let payment = record(balance, method: preferredMethod(for: invoice, in: context), receivedAt: now,
+                                   on: invoice, in: context, now: now) else { return nil }
+        return MarkedPaid(invoice: invoice, payment: payment, client: client, respondedBefore: respondedBefore)
     }
 
     /// Takes a payment back (recorded by mistake). What it paid is owed
@@ -107,7 +113,7 @@ enum Payments {
         if changed { try? context.save() }
     }
 
-    private static func live(_ invoice: Proposal) -> [Payment] {
+    static func live(_ invoice: Proposal) -> [Payment] {
         (invoice.payments ?? []).filter { !$0.isDeleted && $0.modelContext != nil }
     }
 

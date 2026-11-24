@@ -21,19 +21,30 @@ enum MarkPaidPrompt {
 
 extension View {
     /// Asks before marking `invoice` paid; Mark Paid records it
-    /// (`Payments.payInFull`, unchanged) with a success haptic.
-    func markPaidConfirmation(_ invoice: Binding<Proposal?>, in context: ModelContext) -> some View {
-        confirmationDialog(invoice.wrappedValue.map { MarkPaidPrompt.title(for: $0) } ?? "",
-                           isPresented: Binding(get: { invoice.wrappedValue != nil },
-                                                set: { if !$0 { invoice.wrappedValue = nil } }),
-                           titleVisibility: .visible, presenting: invoice.wrappedValue) { document in
-            Button("Mark Paid") {
-                Payments.payInFull(document, in: context)
-                Haptics.success()
+    /// (`Payments.payInFull`, unchanged) with a success haptic, and offers
+    /// Undo (`UndoCenter.markPaid`). Both stay (Joe, 2026-11-24).
+    func markPaidConfirmation(_ invoice: Binding<Proposal?>) -> some View {
+        modifier(MarkPaidConfirmation(invoice: invoice))
+    }
+}
+
+private struct MarkPaidConfirmation: ViewModifier {
+    @Binding var invoice: Proposal?
+    @Environment(UndoCenter.self) private var undoCenter
+
+    func body(content: Content) -> some View {
+        content
+            .confirmationDialog(invoice.map { MarkPaidPrompt.title(for: $0) } ?? "",
+                                isPresented: Binding(get: { invoice != nil },
+                                                     set: { if !$0 { invoice = nil } }),
+                                titleVisibility: .visible, presenting: invoice) { document in
+                Button("Mark Paid") {
+                    undoCenter.markPaid(document)
+                    Haptics.success()
+                }
+                Button("Cancel", role: .cancel) { }
+            } message: { document in
+                Text(MarkPaidPrompt.message(for: document))
             }
-            Button("Cancel", role: .cancel) { }
-        } message: { document in
-            Text(MarkPaidPrompt.message(for: document))
-        }
     }
 }

@@ -8,6 +8,7 @@ struct ClientPhotoGalleryView: View {
     let client: Client
     @Environment(\.modelContext) private var modelContext
     @Environment(AuthManager.self) private var authManager
+    @Environment(UndoCenter.self) private var undoCenter
     @Query private var allPhotos: [StopPhoto]
 
     @State private var selectedPhoto: StopPhoto?
@@ -25,6 +26,8 @@ struct ClientPhotoGalleryView: View {
     private var clientPhotos: [StopPhoto] {
         allPhotos
             .filter { $0.clientID == client.id.uuidString }
+            // A delete held back for its Undo (UndoCenter) is already gone here.
+            .filter { !undoCenter.isPendingDeletion($0) }
             // Before and After are work photos; a below-trigger check's is neither.
             .filter { filterBefore == nil || (!$0.isCheckPhoto && $0.isBefore == filterBefore) }
             .sorted { $0.displayTime > $1.displayTime }
@@ -214,7 +217,7 @@ struct ClientPhotoGalleryView: View {
 
 private struct PhotoDetailView: View {
     let photo: StopPhoto
-    @Environment(\.modelContext) private var modelContext
+    @Environment(UndoCenter.self) private var undoCenter
     @Environment(\.dismiss) private var dismiss
     @State private var scale: CGFloat = 1.0
     @State private var lastScale: CGFloat = 1.0
@@ -275,7 +278,8 @@ private struct PhotoDetailView: View {
                 }
                 ToolbarItem(placement: .destructiveAction) {
                     Button(role: .destructive) {
-                        modelContext.delete(photo)
+                        // Held back for the window, with Undo (UndoCenter).
+                        undoCenter.delete(photo)
                         dismiss()
                     } label: {
                         Image(systemName: "trash")
