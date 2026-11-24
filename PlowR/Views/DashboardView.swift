@@ -890,13 +890,17 @@ struct DashboardView: View {
                 Text(title)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(PlowRColor.ink)
-                    .lineLimit(typeSize.isAccessibilitySize ? 3 : 1)
+                    // Two lines at the most below accessibility sizes: on a
+                    // 375-pt phone "Schedule Visit" and "Season Report" were
+                    // cut off on one.
+                    .lineLimit(typeSize.isAccessibilitySize ? 3 : 2)
                     .minimumScaleFactor(typeSize.isAccessibilitySize ? 1 : 0.85)
             }
             Spacer(minLength: 0)
         }
         .padding(PlowRLayout.space3)
-        .frame(minHeight: PlowRLayout.secondaryTapTarget + PlowRLayout.space2)
+        // As tall as the row: a two-line name beside a one-line one.
+        .frame(minHeight: PlowRLayout.secondaryTapTarget + PlowRLayout.space2, maxHeight: .infinity)
         .background(PlowRColor.surface,
                     in: RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: PlowRLayout.cornerLarge, style: .continuous)
