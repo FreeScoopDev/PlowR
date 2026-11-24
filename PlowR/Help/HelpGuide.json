@@ -125,7 +125,7 @@
           "steps": [
             "Open the **Routes** tab and tap **+**.",
             "Give it a **Route Name**, like \"Monday North Side\".",
-            "Tap **Add Stop**, choose clients from **Your Clients** (or **Enter Manually** for a one-time stop), then tap **Done**.",
+            "Tap **Add Stop**, choose clients from **Your Clients** (or **Enter Manually** for a one-time stop), then tap **Done**. A long list? Type a name, address or phone number in **Search Clients**.",
             "Drag stops into the order you want, and tap **Save**.",
             "Or let PlowR order them: on the route page, tap **⋯** → **Optimize Order**."
           ]
@@ -162,7 +162,7 @@
           ],
           "steps": [
             "Open the **Schedule** tab and tap **+**.",
-            "In **Schedule Visit**, choose the **Client** and the **Date**.",
+            "In **Schedule Visit**, choose the **Client** (**Search Clients** finds one by name, address or phone number) and the **Date**.",
             "Under **Recurrence**, turn on **Repeat** and pick a **Frequency**: Daily, Weekly, Every 2 Weeks or Monthly. For Weekly, choose the days.",
             "Turn on **End Date** if the work stops at the end of a season, then tap **Add**."
           ],
@@ -252,7 +252,7 @@
             "Open **Documents**, tap **+**, and choose **Bill Unbilled Work**.",
             "Choose **This Month**, **Last Month** or **All Unbilled**. Untick any client you're not billing yet.",
             "Tap **Create Draft Invoices** (it shows how many and the total). Each client gets one draft, a line per service done, with its day.",
-            "Check each draft in **Documents**, then send it."
+            "Check each draft in **Documents**, then send it. **Search Documents** finds one by client, invoice number or notes, and the filter button sorts the list by **Newest**, **Due Date**, **Amount** or **Client**."
           ],
           "tips": [
             { "id": "tip-bill-work", "title": "Bill everyone at once", "message": "Tap **+** and **Bill Unbilled Work** for a draft invoice per client." }
