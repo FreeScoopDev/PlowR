@@ -87,9 +87,7 @@ struct ClientListView: View {
 
         let tagFiltered = activeTagFilter.map { tag in filtered.filter { $0.tags.contains(tag) } } ?? filtered
 
-        return tagFiltered.filter {
-            FirstRunOffers.search(searchText, finds: $0.name, address: $0.address, phone: $0.phone, tags: $0.tags)
-        }
+        return ClientSearch.filter(tagFiltered, query: searchText)
     }
 
     var activeClients: [Client] {
@@ -225,7 +223,7 @@ struct ClientListView: View {
         }
         .onAppear { PlowRTips.update { PlowRTips.hasPipeline = !entries.isEmpty } }   // back from a client
         .onDisappear { PlowRTips.update { PlowRTips.hasPipeline = false } }
-        .searchable(text: $searchText, prompt: "Search clients")
+        .searchable(text: $searchText, prompt: "Search Clients")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {

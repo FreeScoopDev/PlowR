@@ -21,6 +21,9 @@ struct ProposalListView: View {
     @State private var proposalToVoid: Proposal?
     @State private var filterStatus: FilterStatus = .all
     @State private var reminderProposal: Proposal?
+    @State private var searchText = ""
+    /// The order chosen in the filter menu, kept between launches.
+    @AppStorage(DocumentSort.storageKey) private var sort: DocumentSort = .newest
     @Query private var allPaymentMethods: [PaymentMethod]
     /// One money tip at a time, whichever's ready.
     @State private var tips = TipGroup(.firstAvailable) {
@@ -35,6 +38,32 @@ struct ProposalListView: View {
         case invoices = "Invoices"
         case overdue = "Overdue"
         case draft = "Draft"
+
+        /// What the list says with nothing under this filter.
+        var emptyState: DocumentsEmptyState {
+            switch self {
+            case .all:
+                DocumentsEmptyState(title: "No Documents Yet",
+                           message: "Proposals and invoices you make show here, each a PDF you can share with the client.",
+                           startsInvoice: false)
+            case .proposals:
+                DocumentsEmptyState(title: "No Proposals Yet",
+                           message: "Create a proposal for a client to send a priced quote as a PDF.",
+                           startsInvoice: false)
+            case .invoices:
+                DocumentsEmptyState(title: "No Invoices Yet",
+                           message: "Invoices still to be paid show here. Create one to bill a client for work done.",
+                           startsInvoice: true)
+            case .overdue:
+                DocumentsEmptyState(title: "No Overdue Invoices",
+                           message: "Invoices past their due date and still owed show here.",
+                           startsInvoice: nil)
+            case .draft:
+                DocumentsEmptyState(title: "No Draft Invoices",
+                           message: "Invoices you haven't sent yet show here.",
+                           startsInvoice: true)
+            }
+        }
     }
 
     init(initialFilter: FilterStatus = .all) {
@@ -60,6 +89,18 @@ struct ProposalListView: View {
     private var archivedProposals: [Proposal] {
         guard filterStatus == .all else { return [] }
         return base.filter { $0.invoicePaidAt != nil }.sorted { ($0.invoicePaidAt ?? .distantPast) > ($1.invoicePaidAt ?? .distantPast) }
+    }
+
+    /// Whether anything is typed in the search: the summary hides then.
+    private var isSearching: Bool { !ClientSearch.words(searchText).isEmpty }
+
+    /// The list as shown: searched, then in the chosen order.
+    private var shownProposals: [Proposal] {
+        DocumentList.sorted(myProposals.filter { DocumentList.matches($0, query: searchText) }, by: sort)
+    }
+
+    private var shownArchived: [Proposal] {
+        DocumentList.sorted(archivedProposals.filter { DocumentList.matches($0, query: searchText) }, by: sort)
     }
 
     private var outstandingTotal: Double {
@@ -91,6 +132,8 @@ struct ProposalListView: View {
     // MARK: - Body
 
     var body: some View {
+        let shown = shownProposals
+        let archived = shownArchived
         Group {
             if myProposals.isEmpty && archivedProposals.isEmpty {
                 // Work done but nothing billed yet: the tip shows here too.
@@ -100,12 +143,11 @@ struct ProposalListView: View {
                             .padding(.horizontal)
                             .padding(.top, PlowRLayout.space3)
                     }
-                    ContentUnavailableView(
-                        "No \(filterStatus == .all ? "Proposals" : filterStatus.rawValue) Yet",
-                        systemImage: "doc.text",
-                        description: Text("Create a proposal for a client to generate a shareable PDF quote.")
-                    )
+                    emptyState
                 }
+            } else if shown.isEmpty && archived.isEmpty {
+                // Documents exist, but the search finds none.
+                NoSearchMatches(query: searchText)
             } else {
                 List {
                     if let tip = tips.currentTip {
@@ -114,16 +156,16 @@ struct ProposalListView: View {
                         }
                         .listRowBackground(PlowRColor.surface)
                     }
-                    if filterStatus == .all && (outstandingTotal > 0 || overdueCount > 0 || draftCount > 0) {
+                    if filterStatus == .all && !isSearching && (outstandingTotal > 0 || overdueCount > 0 || draftCount > 0) {
                         summarySection
                     }
-                    ForEach(myProposals) { proposal in
+                    ForEach(shown) { proposal in
                         proposalRow(proposal)
                     }
                     .listRowBackground(PlowRColor.surface)
-                    if !archivedProposals.isEmpty {
+                    if !archived.isEmpty {
                         Section(title: "Archived — Paid") {
-                            ForEach(archivedProposals) { proposal in
+                            ForEach(archived) { proposal in
                                 proposalRow(proposal)
                             }
                         }
@@ -137,6 +179,7 @@ struct ProposalListView: View {
         // first item.
         .background(PlowRColor.ground)
         .navigationTitle(filterStatus == .all ? "Documents" : filterStatus.rawValue)
+        .searchable(text: $searchText, prompt: "Search Documents")
         .proGateSheet($gate)
         // What the money tips wait on.
         .onChange(of: documentsState, initial: true) { _, state in
@@ -171,14 +214,12 @@ struct ProposalListView: View {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
                     Button {
-                        pendingIsInvoice = false
-                        showingClientPicker = true
+                        startDocument(isInvoice: false)
                     } label: {
                         Label("New Proposal", systemImage: "doc.text")
                     }
                     Button {
-                        pendingIsInvoice = true
-                        showingClientPicker = true
+                        startDocument(isInvoice: true)
                     } label: {
                         Label("New Invoice", systemImage: "doc.badge.arrow.up")
                     }
@@ -197,13 +238,23 @@ struct ProposalListView: View {
             }
             ToolbarItem(placement: .topBarLeading) {
                 Menu {
-                    Picker("Filter", selection: $filterStatus) {
-                        ForEach(FilterStatus.allCases, id: \.self) { status in
-                            Text(status.rawValue).tag(status)
+                    Section("Show") {
+                        Picker("Filter", selection: $filterStatus) {
+                            ForEach(FilterStatus.allCases, id: \.self) { status in
+                                Text(status.rawValue).tag(status)
+                            }
+                        }
+                    }
+                    Section("Sort") {
+                        Picker("Sort", selection: $sort) {
+                            ForEach(DocumentSort.allCases, id: \.self) { option in
+                                Text(option.rawValue).tag(option)
+                            }
                         }
                     }
                 } label: {
                     Image(systemName: "line.3.horizontal.decrease.circle")
+                        .accessibilityLabel("Filter and Sort")
                 }
             }
         }
@@ -248,6 +299,26 @@ struct ProposalListView: View {
                 if outcome == .sent, let id = UUID(uuidString: proposal.clientID) {
                     TextLog.record(.invoiceReminder, body: body, to: [id], in: modelContext)
                 }
+            }
+        }
+    }
+
+    // MARK: - Empty State
+
+    /// Nothing under this filter: says so for the filter, and starts the
+    /// matching document as the toolbar's + does.
+    private var emptyState: some View {
+        let state = filterStatus.emptyState
+        return ContentUnavailableView {
+            Label(state.title, systemImage: "doc.text")
+        } description: {
+            Text(state.message)
+        } actions: {
+            if let isInvoice = state.startsInvoice {
+                Button(isInvoice ? "New Invoice" : "New Proposal") {
+                    startDocument(isInvoice: isInvoice)
+                }
+                .plowRProminent()
             }
         }
     }
@@ -365,6 +436,13 @@ struct ProposalListView: View {
 
     private func reminderMessage(for proposal: Proposal) -> String { proposal.reminderMessage() }
 
+    /// New Proposal or New Invoice: pick the client, then the builder (its
+    /// editor shows why when the plan is read only, `.editsNeedPro()`).
+    private func startDocument(isInvoice: Bool) {
+        pendingIsInvoice = isInvoice
+        showingClientPicker = true
+    }
+
     private func duplicateProposal(_ proposal: Proposal) {
         guard let client = myClients.first(where: { $0.id.uuidString == proposal.clientID }) else { return }
         ServiceLog.duplicate(proposal, for: client, in: modelContext)
@@ -372,6 +450,15 @@ struct ProposalListView: View {
 }
 
 // MARK: - Supporting Types
+
+/// What the Documents list says with nothing under a filter, and which
+/// document its button starts (none: nothing to start).
+struct DocumentsEmptyState: Equatable {
+    let title: String
+    let message: String
+    /// The button's document: an invoice, a proposal, or no button.
+    let startsInvoice: Bool?
+}
 
 struct ProposalCreationContext: Identifiable {
     let id = UUID()
@@ -402,22 +489,10 @@ struct ClientPickerForProposalView: View {
                         description: Text("Add a client to create a proposal.")
                     )
                 } else {
-                    List(myClients) { client in
-                        Button {
-                            onSelect(client)
-                            dismiss()
-                        } label: {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(client.name).font(.headline).foregroundStyle(.primary)
-                                if !client.address.isEmpty {
-                                    Text(client.address).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
-                                }
-                            }
-                            .padding(.vertical, 2)
-                        }
-                        .listRowBackground(PlowRColor.surface)
+                    // Picking one closes this sheet (ClientSearchList).
+                    ClientSearchList(clients: myClients) { client in
+                        onSelect(client)
                     }
-                    .plowRGrouped()
                 }
             }
             .background(PlowRColor.ground)
