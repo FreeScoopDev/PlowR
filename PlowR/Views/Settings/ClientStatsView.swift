@@ -11,6 +11,8 @@ struct ClientStatsView: View {
     @Query private var profiles: [BusinessProfile]
 
     @State private var shareItem: IdentifiableURL? = nil
+    /// The report's PDF couldn't be written.
+    @State private var shareFailure: ShareFile.Failure?
 
     private var myClients: [Client] {
         allClients.filter { $0.operatorID == authManager.userID }
@@ -89,6 +91,7 @@ struct ClientStatsView: View {
             ShareSheet(url: item.url)
         }
         .proGateSheet($gate)
+        .shareFileAlert($shareFailure)
     }
 
     private var summarySection: some View {
@@ -286,8 +289,12 @@ struct ClientStatsView: View {
         )
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("PlowR_Season_Report.pdf")
-        guard (try? data.write(to: url, options: .completeFileProtection)) != nil else { return nil }
-        return IdentifiableURL(url: url)
+        switch ShareFile.write(data, to: url) {
+        case .success(let url): return IdentifiableURL(url: url)
+        case .failure(let failure):
+            shareFailure = failure
+            return nil
+        }
     }
 }
 

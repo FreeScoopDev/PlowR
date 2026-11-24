@@ -17,6 +17,8 @@ struct ProofOfServiceView: View {
     @State private var customStart = Calendar.current.date(byAdding: .month, value: -1, to: .now) ?? .now
     @State private var customEnd = Date.now
     @State private var pdfURL: URL?
+    /// The PDF couldn't be written: said, and nothing offered to share.
+    @State private var shareFailure: ShareFile.Failure?
     @State private var isMaking = false
     /// A report whose weather couldn't be looked up, while that's asked.
     @State private var failedSnapshot: Snapshot?
@@ -131,6 +133,7 @@ struct ProofOfServiceView: View {
             }
             // A different place or period: the PDF is made again.
             .onChange(of: placeID) { pdfURL = nil; periodID = nil }
+            .shareFileAlert($shareFailure)
             .onChange(of: periodID) { pdfURL = nil }
             .onChange(of: customStart) { pdfURL = nil }
             .onChange(of: customEnd) { pdfURL = nil }
@@ -173,6 +176,9 @@ struct ProofOfServiceView: View {
                                       weather: weather)
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent(ProofOfService.fileName(client: client, period: snapshot.period))
-        if (try? data.write(to: url, options: .completeFileProtection)) != nil { pdfURL = url }
+        switch ShareFile.write(data, to: url) {
+        case .success(let url): pdfURL = url
+        case .failure(let failure): shareFailure = failure
+        }
     }
 }

@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 import TipKit
 import UIKit
+import UserNotifications
 
 struct SettingsView: View {
     @AppStorage(UserRole.key) private var userRole = ""
@@ -17,6 +18,8 @@ struct SettingsView: View {
     @State private var restoreFailed = false
     /// Show Tips Again was tapped: they come back at the next launch.
     @State private var tipsComeBack = PlowRTips.isResetPending()
+    /// Get Started was hidden with steps left: Show Get Started brings it back.
+    @State private var offersGetStarted = false
 
     @State private var showingFindService = false
     /// The request screen at the end of Find Services requires this store.
@@ -204,6 +207,14 @@ struct SettingsView: View {
                     Label("Show Tips Again", systemImage: "lightbulb")
                 }
                 .disabled(tipsComeBack)
+                if offersGetStarted {
+                    Button {
+                        FirstRun.showChecklistAgain(operatorID: authManager.userID)
+                        offersGetStarted = false
+                    } label: {
+                        Label("Show Get Started", systemImage: "checklist")
+                    }
+                }
             } header: {
                 Text("Help")
                     .foregroundStyle(PlowRColor.inkSecondary)
@@ -314,6 +325,7 @@ struct SettingsView: View {
             }
         }
         .proGateSheet($gate)
+        .task { await readGetStarted() }
         // PlowR Pro's sheets, here on the Form, never on its section.
         .modifier(ProSettingsSection.Presentations(showingPaywall: $showingPaywall, showingManage: $showingManage,
                                                    restoreFailed: $restoreFailed))
@@ -341,6 +353,22 @@ struct SettingsView: View {
     /// checks this is said).
     static let subscriptionNote = "\n\nNeither cancels a PlowR Pro subscription: Apple keeps billing it until you cancel it in PlowR Pro → Manage Subscription, above."
     static let subscriptionNoteOne = "\n\nRemoving your data doesn't cancel a PlowR Pro subscription: Apple keeps billing it until you cancel it in PlowR Pro → Manage Subscription, above."
+
+    /// Whether to offer Show Get Started (FirstRun.offersShowAgain), with
+    /// the card's steps as Home works them out.
+    private func readGetStarted() async {
+        let id = authManager.userID
+        let defaults = UserDefaults.standard
+        guard defaults.bool(forKey: FirstRun.checklistHiddenKey(id)) else {
+            offersGetStarted = false
+            return
+        }
+        let alertsUndecided = await UNUserNotificationCenter.current().notificationSettings()
+            .authorizationStatus == .notDetermined
+        offersGetStarted = FirstRun.offersShowAgain(
+            completedSetup: defaults.bool(forKey: FirstRun.completedKey(id)), hidden: true,
+            checklist: FirstRun.checklist(operatorID: id, in: modelContext, alertsUndecided: alertsUndecided))
+    }
 
     /// Remove from This Device: nothing in iCloud is touched (AccountEraser,
     /// DeviceSync). Finished at the next launch.

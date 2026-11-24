@@ -198,7 +198,8 @@ struct DashboardView: View {
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
             now = .now
         }
-        .sheet(isPresented: $showingSettings) { NavigationStack { SettingsView() } }
+        // Settings' Show Get Started clears the flag while Home sits under it.
+        .sheet(isPresented: $showingSettings, onDismiss: readChecklistHidden) { NavigationStack { SettingsView() } }
         .sheet(isPresented: $showingAddClient)  { AddClientView() }
         .proGateSheet($gate)
         .sheet(isPresented: $showingContactScanner) { ContactScannerView() }
@@ -212,6 +213,9 @@ struct DashboardView: View {
         .sheet(item: $overpaidInvoice) { InvoicePaymentsView(invoice: $0) }
         // No tips while Get Started has steps left: it's the one thing to do.
         .onChange(of: showsGetStarted, initial: true) { _, shows in PlowRTips.update { PlowRTips.gettingStarted = shows } }
+        // Settings' Show Get Started clears the flag while this page waits
+        // in its tab.
+        .onAppear(perform: readChecklistHidden)
         .task {
             iCloud.watch()
             // Notifications are asked for in setup and from Get Started,
@@ -289,11 +293,19 @@ struct DashboardView: View {
                            documents: myProposals, alertsUndecided: alertsUndecided)
     }
 
+    /// The one read of the hidden flag (FirstRun.isChecklistHidden): the
+    /// body uses it, and `readChecklistHidden` copies it into the state on
+    /// appearing and when Settings closes, so the card comes back after
+    /// Show Get Started.
+    private var isChecklistHidden: Bool { FirstRun.isChecklistHidden(operatorID: authManager.userID) }
+
+    private func readChecklistHidden() { checklistHidden = isChecklistHidden }
+
     /// Read here, not after the page appears: a hidden card flashed up.
     private var showsGetStarted: Bool {
         let id = authManager.userID
         return FirstRun.showsChecklist(completedSetup: UserDefaults.standard.bool(forKey: FirstRun.completedKey(id)),
-                                       hidden: checklistHidden || UserDefaults.standard.bool(forKey: FirstRun.checklistHiddenKey(id)),
+                                       hidden: checklistHidden || isChecklistHidden,
                                        checklist: checklist)
     }
 
