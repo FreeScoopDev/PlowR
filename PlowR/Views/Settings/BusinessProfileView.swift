@@ -142,7 +142,7 @@ struct BusinessProfileView: View {
             Section {
                 Picker("Season Starts", selection: $seasonStartMonth) {
                     Text("None").tag(0)
-                    ForEach(Array(Calendar.current.monthSymbols.enumerated()), id: \.offset) { index, name in
+                    ForEach(Array(BusinessProfiles.seasonMonthNames().enumerated()), id: \.offset) { index, name in
                         Text(name).tag(index + 1)
                     }
                 }
@@ -232,7 +232,7 @@ struct BusinessProfileView: View {
         licenseNumber = p.licenseNumber
         address = p.address
         paymentTerms = p.paymentTermsDays
-        seasonStartMonth = p.seasonStartMonth
+        seasonStartMonth = BusinessProfiles.seasonStartMonth(p)
         defaultDisclaimer = p.defaultDisclaimer
         defaultTaxRate = p.defaultTaxRate > 0 ? Proposal.percentText(p.defaultTaxRate) : ""
         colorPDFs = p.colorPDFs

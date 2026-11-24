@@ -27,10 +27,14 @@ nonisolated enum DistanceUnit: String, CaseIterable {
 /// LocationManager keeps no odometer), and shows no rate per mile.
 enum Mileage {
     /// A typed distance, or nil when it can't be saved: unreadable, zero or
-    /// less, or beyond any day's driving.
+    /// less, or beyond any day's driving. Kept to two places, as the editor
+    /// and the Mileage file show it, so reopening a saved trip reads back
+    /// what was stored and isn't counted as a change.
     static func distance(typed text: String, locale: Locale = .current) -> Double? {
-        guard let value = DecimalText.number(text, locale: locale), value > 0, value < 100_000 else { return nil }
-        return value
+        guard let value = DecimalText.number(text, locale: locale) else { return nil }
+        let rounded = (value * 100).rounded() / 100
+        guard rounded > 0, rounded < 100_000 else { return nil }
+        return rounded
     }
 
     /// The entries' distances added up in `unit`, each converted from the

@@ -287,7 +287,11 @@ struct ExpenseExportTests {
         salt.routeName = "North"
         salt.note = "=SUM(A1:A9)"
         salt.receiptData = Data([1, 2, 3])
+        salt.receiptCapturedAt = try day(2026, 11, 20)
+        // Receipt reads when the photo was taken, so the export never loads
+        // the photo itself (receiptData alone isn't looked at).
         let fuel = Expense(operatorID: "op", date: try day(2026, 11, 2), amount: 45.2, category: .fuel)
+        fuel.receiptData = Data([4])
         let theirs = Expense(operatorID: "someone else", date: try day(2026, 11, 10), amount: 9, category: .other)
         [salt, fuel, theirs].forEach { h.context.insert($0) }
         let lines = rows(CSVExport.expenses([salt, fuel, theirs], operatorID: "op"))

@@ -50,6 +50,37 @@ struct ExpensesTests {
         #expect(Expenses.quantity(typed: "-1", locale: us) == nil)
     }
 
+    // Kept to the places the editor shows, so reopening an expense reads
+    // back what was stored and Cancel doesn't ask to discard a change.
+    @Test func aQuantityIsKeptAsItIsShown() throws {
+        let stored = try #require(Expenses.quantity(typed: "2.123456", locale: us))
+        #expect(stored == 2.1235)
+        let shown: String = DecimalText.trimmed(stored)
+        let reread: Double? = Expenses.quantity(typed: shown, locale: us)
+        #expect(reread == stored)
+    }
+
+    @Test func theSeasonMonthIsOneToTwelveOrNotSet() {
+        let profile = BusinessProfile(operatorID: "op")
+        context.insert(profile)
+        for (stored, read) in [(0, 0), (1, 1), (12, 12), (13, 0), (-1, 0)] {
+            profile.seasonStartMonth = stored
+            #expect(BusinessProfiles.seasonStartMonth(profile) == read, "\(stored)")
+        }
+    }
+
+    @Test func theSeasonPickerHasTwelveGregorianMonths() {
+        let english: [String] = BusinessProfiles.seasonMonthNames(locale: Locale(identifier: "en_US"))
+        #expect(english.count == 12)
+        #expect(english.first == "January")
+        // A region whose calendar isn't Gregorian still gets twelve months,
+        // in its own language.
+        let hebrew: [String] = BusinessProfiles.seasonMonthNames(locale: Locale(identifier: "he_IL@calendar=hebrew"))
+        #expect(hebrew.count == 12)
+        let french: [String] = BusinessProfiles.seasonMonthNames(locale: Locale(identifier: "fr_FR"))
+        #expect(french.first == "janvier")
+    }
+
     @Test func theTotalIsToTheCent() {
         let amounts = [0.1, 0.2, 45.2, 19.99]
         let expenses = amounts.map { Expense(operatorID: "op", amount: $0) }
@@ -146,8 +177,19 @@ struct MileageTests {
         let us = Locale(identifier: "en_US")
         #expect(Mileage.distance(typed: "12.5", locale: us) == 12.5)
         #expect(Mileage.distance(typed: "12,5", locale: Locale(identifier: "de_DE")) == 12.5)
-        for typed in ["", "0", "-3", "far", "200000"] {
+        for typed in ["", "0", "-3", "far", "200000", "0.004"] {
             #expect(Mileage.distance(typed: typed, locale: us) == nil, "\(typed)")
         }
+    }
+
+    // Kept to the two places the editor shows, so reopening a trip reads
+    // back what was stored and Cancel doesn't ask to discard a change.
+    @Test func aDistanceIsKeptToTwoPlaces() throws {
+        let us = Locale(identifier: "en_US")
+        let stored = try #require(Mileage.distance(typed: "12.345678", locale: us))
+        #expect(stored == 12.35)
+        let shown: String = DecimalText.trimmed(stored, places: 2)
+        let reread: Double? = Mileage.distance(typed: shown, locale: us)
+        #expect(reread == stored)
     }
 }

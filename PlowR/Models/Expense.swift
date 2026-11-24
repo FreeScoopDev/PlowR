@@ -42,8 +42,9 @@ final class Expense {
     /// External storage keeps the photo out of the database file; it's
     /// erased with the record.
     @Attribute(.externalStorage) var receiptData: Data? = nil
-    /// When the receipt photo was taken. Used with `receiptData`, in the
-    /// receipts change.
+    /// When the receipt photo was taken. The receipts change sets it together
+    /// with `receiptData` (and clears both together): the Expenses file's
+    /// Receipt column reads this one, so exporting never loads the photos.
     var receiptCapturedAt: Date? = nil
 
     var createdAt: Date = Date()

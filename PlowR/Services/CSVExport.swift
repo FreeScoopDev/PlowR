@@ -240,7 +240,10 @@ enum CSVExport {
     }
 
     /// Every expense logged, oldest first. Receipt says whether a photo of
-    /// it is kept in PlowR; the photos aren't in the file.
+    /// it is kept in PlowR; the photos aren't in the file. It reads
+    /// `receiptCapturedAt`, not `receiptData`, so the export doesn't load
+    /// every photo from external storage (the receipts change sets both
+    /// together).
     static func expenses(_ expenses: [Expense], operatorID: String) -> String {
         let rows = expenses.filter { $0.operatorID == operatorID }
             .sorted { ($0.date, $0.createdAt) < ($1.date, $1.createdAt) }
@@ -248,7 +251,7 @@ enum CSVExport {
                 [day(expense.date), .plain(expense.category.title), .text(expense.item),
                  .plain(expense.quantity > 0 ? DecimalText.trimmed(expense.quantity) : ""), .text(expense.unit),
                  money(expense.amount), .text(expense.clientName), .text(expense.routeName), .text(expense.note),
-                 .plain(expense.receiptData == nil ? "" : "Yes")]
+                 .plain(expense.receiptCapturedAt == nil ? "" : "Yes")]
             }
         return document(header: ["Date", "Category", "Item", "Quantity", "Unit", "Amount", "Client", "Route", "Note",
                                  "Receipt"], rows: rows)

@@ -17,12 +17,15 @@ enum Expenses {
         return cents > 0 ? cents : nil
     }
 
-    /// A typed quantity: nil when it can't be read; 0 for none.
+    /// A typed quantity: nil when it can't be read; 0 for none. Kept to the
+    /// places the editor and the Expenses file show (`DecimalText.trimmed`'s
+    /// four), so reopening a saved expense reads back what was stored and
+    /// isn't counted as a change.
     static func quantity(typed text: String, locale: Locale = .current) -> Double? {
         let text = text.trimmingCharacters(in: .whitespaces)
         if text.isEmpty { return 0 }
         guard let value = DecimalText.number(text, locale: locale), value >= 0 else { return nil }
-        return value
+        return (value * 10_000).rounded() / 10_000
     }
 
     /// What `expenses` add up to, to the cent: the one sum the list, the

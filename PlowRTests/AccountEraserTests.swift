@@ -61,7 +61,9 @@ struct AccountEraserTests {
         let cache = URLCache(memoryCapacity: 1_000_000, diskCapacity: 0)
         let cachedRequest = URLRequest(url: URL(filePath: "/forecast/1-Main-St"))
 
-        /// An expense with a receipt photo: external storage, erased with it.
+        /// An expense with a receipt photo. In memory nothing is written to
+        /// external storage; `receiptFilesBesideTheDatabaseAreDeleted` checks
+        /// the photo's file goes on disk.
         static func expenseWithReceipt() -> Expense {
             let expense = Expense(operatorID: "op", amount: 45.2, category: .fuel)
             expense.receiptData = Data(repeating: 7, count: 200_000)
@@ -299,6 +301,30 @@ struct AccountEraserTests {
         #expect(eraser.eraseAll().isEmpty)
         let after = (try? FileManager.default.contentsOfDirectory(atPath: external.path)) ?? []
         #expect(after.isEmpty, "photo files left: \(after)")
+    }
+
+    // An expense's receipt photo is external storage too (the receipts
+    // change fills it): its file goes with the record.
+    @Test func receiptFilesBesideTheDatabaseAreDeleted() throws {
+        let account = try Account()
+        defer { account.removeFiles() }
+        let schema = Schema(PlowRApp.models)
+        let disk = try ModelContainer(for: schema, configurations: ModelConfiguration(
+            schema: schema, url: account.storeFolder.appending(path: "receipts.store"), cloudKitDatabase: .none))
+        disk.mainContext.autosaveEnabled = false   // see ActiveRouteStoreTests.Harness
+        let expense = Expense(operatorID: "op", amount: 45.2, category: .fuel)
+        expense.receiptData = Data(repeating: 7, count: 1_000_000)
+        expense.receiptCapturedAt = Date()
+        disk.mainContext.insert(expense)
+        try disk.mainContext.save()
+        let external = account.storeFolder.appending(path: ".receipts_SUPPORT/_EXTERNAL_DATA")
+        let before = (try? FileManager.default.contentsOfDirectory(atPath: external.path)) ?? []
+        #expect(!before.isEmpty, "the receipt wasn't stored as a file, so this test checks nothing")
+        var eraser = account.eraser()
+        eraser.context = disk.mainContext
+        #expect(eraser.eraseAll().isEmpty)
+        let after = (try? FileManager.default.contentsOfDirectory(atPath: external.path)) ?? []
+        #expect(after.isEmpty, "receipt files left: \(after)")
     }
 
     @Test func signedOutOnlyWhenEverythingIsGone() throws {
