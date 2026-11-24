@@ -136,6 +136,9 @@ struct TimeFromArrivalTests {
         #expect(ServiceLog.totalTimeLabel == "Total time at stops")
         #expect(ServiceLog.totalTimeText(minutes: 125) == "2h 5m total time at stops")
         #expect(ServiceLog.totalTimeText(minutes: 45.6) == "45 min total time at stops")
+        #expect(ServiceLog.durationText(minutes: 125) == "2h 5m")
+        #expect(ServiceLog.durationText(minutes: 45.6) == "45 min")
+        #expect(ServiceLog.durationText(minutes: 0) == "0 min")
         for text in [ServiceLog.minutesLabel, ServiceLog.totalTimeLabel, ServiceLog.totalTimeText(minutes: 90),
                      ServiceLog.unreadableMinutesMessage, ServiceLog.averageTimeLabel] {
             #expect(!text.lowercased().contains("on site") && !text.lowercased().contains("on-site"), "\(text)")

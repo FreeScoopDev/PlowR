@@ -210,6 +210,31 @@ struct WorkLogTests {
                                invoiceIDs: [], contracts: []).map(\.id) == [mine.id])
     }
 
+    @Test func fetchTakesTheBusinesssRecordsFromTheStartUpToTheEnd() throws {
+        let h = try Harness(stopCount: 1)
+        let cal = try calendar()
+        let interval = WorkLog.Period.today.interval(now: try date(cal, 2026, 11, 24, hour: 9), calendar: cal)
+        let atStart = job(h, at: interval.start, [("plow", "Plow", 40)])
+        let lastSecond = job(h, at: interval.end.addingTimeInterval(-1), [("plow", "Plow", 40)])
+        _ = job(h, at: interval.end, [("plow", "Plow", 40)])                         // tomorrow's
+        _ = job(h, at: interval.start.addingTimeInterval(-1), [("plow", "Plow", 40)]) // yesterday's
+        _ = job(h, at: interval.start.addingTimeInterval(3_600), [("plow", "Plow", 40)], operatorID: "other")
+        try h.context.save()
+        let fetched = try h.context.fetch(FetchDescriptor<ServiceRecord>(
+            predicate: WorkLog.predicate(operatorID: "op", interval: interval)))
+        #expect(Set(fetched.map(\.id)) == [atStart.id, lastSecond.id])
+    }
+
+    @Test func valueIsGreyWhenNotChargedAsInServiceHistory() throws {
+        let h = try Harness(stopCount: 1)
+        let billable = job(h, at: h.clock, [("plow", "Plow", 40)])
+        let unbillable = job(h, at: h.clock, [("plow", "Plow", 40)], billable: false)
+        #expect(!ServiceRecordRow.valueIsGrey(billable, status: .notBilled))
+        #expect(!ServiceRecordRow.valueIsGrey(billable, status: .invoiced))
+        #expect(ServiceRecordRow.valueIsGrey(billable, status: .covered))
+        #expect(ServiceRecordRow.valueIsGrey(unbillable, status: .noCharge))
+    }
+
     // MARK: - Value and totals
 
     @Test func valueIsTheRecordedTotalOrTheChosenServicesLines() throws {

@@ -125,35 +125,21 @@ struct ServiceRecordRow: View {
                 Spacer()
                 Text(Money.text(status == .covered ? ServiceLog.total(of: record) : charged))
                     .font(.subheadline)
-                    .foregroundStyle(record.isBillable && status != .covered ? Color.primary : PlowRColor.inkSecondary)
+                    .foregroundStyle(Self.valueIsGrey(record, status: status) ? PlowRColor.inkSecondary : Color.primary)
             }
             Text(Self.servicesSummary(of: record))
                 .font(.caption)
                 .foregroundStyle(PlowRColor.inkSecondary)
                 .lineLimit(2)
-            HStack(spacing: 8) {
-                ServiceRecordStatusChip(status: status)
-                if record.minutes >= 1 {
-                    Label("\(Int(record.minutes.rounded())) min", systemImage: "clock")
-                        .font(.caption2)
-                        .foregroundStyle(PlowRColor.inkSecondary)
-                }
-                // How long GPS saw the phone at the job site, when it saw
-                // both the arrival and the departure (never a guess).
-                if let onSite = ProofOfService.timeOnSite(of: record) {
-                    Label(ProofOfService.onSiteListText(onSite), systemImage: "mappin.and.ellipse")
-                        .font(.caption2)
-                        .foregroundStyle(PlowRColor.inkSecondary)
-                }
-                if !record.routeName.isEmpty {
-                    Label(record.routeName, systemImage: "map")
-                        .font(.caption2)
-                        .foregroundStyle(PlowRColor.inkSecondary)
-                        .lineLimit(1)
-                }
-            }
+            ServiceRecordRowDetails(record: record, status: status)
         }
         .padding(.vertical, 2)
+    }
+
+    /// A job's value shows in grey when it isn't charged: not billable, or
+    /// covered by a contract (Service History and the Work Log).
+    static func valueIsGrey(_ record: ServiceRecord, status: ServiceLog.BillingStatus) -> Bool {
+        !(record.isBillable && status != .covered)
     }
 
     /// What was done, as a list of the lines' names (Service History and
@@ -161,6 +147,37 @@ struct ServiceRecordRow: View {
     static func servicesSummary(of record: ServiceRecord) -> String {
         let names = record.lines.map(\.name)
         return names.isEmpty ? "No services recorded" : OneTapServices.englishList(names)
+    }
+}
+
+/// A job row's bottom line: where it stands with billing, its minutes, the
+/// time GPS saw on site and its route (Service History and the Work Log).
+struct ServiceRecordRowDetails: View {
+    let record: ServiceRecord
+    let status: ServiceLog.BillingStatus
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ServiceRecordStatusChip(status: status)
+            if record.minutes >= 1 {
+                Label("\(Int(record.minutes.rounded())) min", systemImage: "clock")
+                    .font(.caption2)
+                    .foregroundStyle(PlowRColor.inkSecondary)
+            }
+            // How long GPS saw the phone at the job site, when it saw
+            // both the arrival and the departure (never a guess).
+            if let onSite = ProofOfService.timeOnSite(of: record) {
+                Label(ProofOfService.onSiteListText(onSite), systemImage: "mappin.and.ellipse")
+                    .font(.caption2)
+                    .foregroundStyle(PlowRColor.inkSecondary)
+            }
+            if !record.routeName.isEmpty {
+                Label(record.routeName, systemImage: "map")
+                    .font(.caption2)
+                    .foregroundStyle(PlowRColor.inkSecondary)
+                    .lineLimit(1)
+            }
+        }
     }
 }
 

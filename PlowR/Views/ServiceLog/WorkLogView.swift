@@ -6,6 +6,7 @@ import SwiftData
 /// Home's Quick Actions. Viewing is never gated; a job's page keeps its own.
 struct WorkLogView: View {
     @Environment(AuthManager.self) private var authManager
+    @Environment(\.scenePhase) private var scenePhase
 
     /// Remembered; custom dates and the other filters start afresh.
     @AppStorage("workLogPeriod") private var periodRaw = WorkLog.Period.thisWeek.rawValue
@@ -13,18 +14,26 @@ struct WorkLogView: View {
     @State private var customEnd = Calendar.current.startOfDay(for: .now)
     @State private var service: WorkLog.ServiceKey?
     @State private var billing: WorkLog.BillingFilter = .all
+    /// The moment the periods and day titles are worked out from; moved on
+    /// when the day changes (midnight, a time zone or clock change) and when
+    /// the app comes back, so "Today" never stays yesterday's.
+    @State private var now = Date.now
 
     private var period: WorkLog.Period { WorkLog.Period(rawValue: periodRaw) ?? .thisWeek }
 
     var body: some View {
         WorkLogList(operatorID: authManager.userID,
-                    period: period,
-                    interval: period.interval(now: .now, custom: (customStart, customEnd)),
+                    period: period, now: now,
+                    interval: period.interval(now: now, custom: (customStart, customEnd)),
                     periodRaw: $periodRaw,
                     customStart: $customStart, customEnd: $customEnd,
                     service: $service, billing: $billing)
             .navigationTitle("Work Log")
             .navigationBarTitleDisplayMode(.inline)
+            .onChange(of: scenePhase) { _, phase in if phase == .active { now = .now } }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
+                now = .now
+            }
     }
 }
 
@@ -33,6 +42,7 @@ struct WorkLogView: View {
 private struct WorkLogList: View {
     let operatorID: String
     let period: WorkLog.Period
+    let now: Date
     @Binding var periodRaw: String
     @Binding var customStart: Date
     @Binding var customEnd: Date
@@ -43,21 +53,20 @@ private struct WorkLogList: View {
     @Query private var records: [ServiceRecord]
     @Query private var clients: [Client]
 
-    init(operatorID: String, period: WorkLog.Period, interval: DateInterval, periodRaw: Binding<String>,
+    init(operatorID: String, period: WorkLog.Period, now: Date, interval: DateInterval, periodRaw: Binding<String>,
          customStart: Binding<Date>, customEnd: Binding<Date>,
          service: Binding<WorkLog.ServiceKey?>, billing: Binding<WorkLog.BillingFilter>) {
         self.operatorID = operatorID
         self.period = period
+        self.now = now
         _periodRaw = periodRaw
         _customStart = customStart
         _customEnd = customEnd
         _service = service
         _billing = billing
         let id = operatorID
-        let start = interval.start, end = interval.end
-        _records = Query(filter: #Predicate<ServiceRecord> {
-            $0.operatorID == id && $0.performedAt >= start && $0.performedAt < end
-        }, sort: \.performedAt, order: .reverse)
+        _records = Query(filter: WorkLog.predicate(operatorID: id, interval: interval),
+                         sort: \.performedAt, order: .reverse)
         _clients = Query(filter: #Predicate<Client> { $0.operatorID == id })
     }
 
@@ -90,7 +99,7 @@ private struct WorkLogList: View {
             } else {
                 Section {
                     LabeledContent("Jobs", value: "\(totals.count)")
-                    LabeledContent("Time", value: ServiceLog.totalTimeText(minutes: totals.minutes))
+                    LabeledContent("Time", value: ServiceLog.durationText(minutes: totals.minutes))
                     LabeledContent("Value", value: Money.text(totals.value))
                 } header: {
                     SectionTitle(LocalizedStringKey(period.title))
@@ -99,7 +108,7 @@ private struct WorkLogList: View {
                 }
                 .listRowBackground(PlowRColor.surface)
                 ForEach(WorkLog.days(shown), id: \.day) { group in
-                    Section(title: Self.dayTitle(group.day)) {
+                    Section(title: Self.dayTitle(group.day, now: now)) {
                         ForEach(group.records) { record in
                             NavigationLink {
                                 ServiceRecordDetailView(record: record, client: clientsByID[record.clientID])
@@ -178,8 +187,9 @@ private struct WorkLogList: View {
     }
 }
 
-/// One job in the Work Log: who, what was done, where it stands with
-/// billing, how long, and its recorded value (`WorkLog.value`).
+/// One job in the Work Log: who, what was done, its recorded value
+/// (`WorkLog.value`, in grey when it isn't charged, as in Service History)
+/// and Service History's bottom line (`ServiceRecordRowDetails`).
 private struct WorkLogRow: View {
     let record: ServiceRecord
     let status: ServiceLog.BillingStatus
@@ -194,25 +204,14 @@ private struct WorkLogRow: View {
                 Spacer()
                 Text(Money.text(value))
                     .font(.subheadline)
+                    .foregroundStyle(ServiceRecordRow.valueIsGrey(record, status: status)
+                                     ? PlowRColor.inkSecondary : Color.primary)
             }
             Text(ServiceRecordRow.servicesSummary(of: record))
                 .font(.caption)
                 .foregroundStyle(PlowRColor.inkSecondary)
                 .lineLimit(2)
-            HStack(spacing: 8) {
-                ServiceRecordStatusChip(status: status)
-                if record.minutes >= 1 {
-                    Label("\(Int(record.minutes.rounded())) min", systemImage: "clock")
-                        .font(.caption2)
-                        .foregroundStyle(PlowRColor.inkSecondary)
-                }
-                if !record.routeName.isEmpty {
-                    Label(record.routeName, systemImage: "map")
-                        .font(.caption2)
-                        .foregroundStyle(PlowRColor.inkSecondary)
-                        .lineLimit(1)
-                }
-            }
+            ServiceRecordRowDetails(record: record, status: status)
         }
         .padding(.vertical, 2)
     }

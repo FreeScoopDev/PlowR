@@ -169,6 +169,16 @@ enum WorkLog {
             .sorted { $0.day > $1.day }
     }
 
+    /// The fetch behind the list: the business's records performed in
+    /// `interval`, from its start up to but not including its end (the
+    /// next period's first moment belongs to the next period).
+    static func predicate(operatorID: String, interval: DateInterval) -> Predicate<ServiceRecord> {
+        let start = interval.start, end = interval.end
+        return #Predicate<ServiceRecord> {
+            $0.operatorID == operatorID && $0.performedAt >= start && $0.performedAt < end
+        }
+    }
+
     /// The business's records with the chosen service and billing status.
     /// `invoiceIDs` (`ServiceLog.invoiceIDs(in:)`) and `contracts`
     /// (`Contracts.all(in:)`) are looked up once by the caller.
