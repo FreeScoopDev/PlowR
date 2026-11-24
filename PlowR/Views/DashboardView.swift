@@ -859,8 +859,9 @@ struct DashboardView: View {
     private var quickActionsGrid: some View {
         VStack(alignment: .leading, spacing: PlowRLayout.space2) {
             sectionLabel("Quick Actions")
-            // Six actions, a full 2 × 3 (one column at accessibility sizes),
-            // the everyday ones first. Settings is the gear at the top.
+            // Seven actions, two columns (one at accessibility sizes), the
+            // everyday ones first and the look-backs last: Season Report,
+            // then Work Log. Settings is the gear at the top.
             LazyVGrid(columns: typeSize.isAccessibilitySize
                         ? [GridItem(.flexible())]
                         : [GridItem(.flexible(), spacing: PlowRLayout.tileSpacing),
@@ -887,6 +888,10 @@ struct DashboardView: View {
                 }
                 NavigationLink { ClientStatsView() } label: {
                     quickActionLabel("Season Report", icon: "chart.bar.doc.horizontal")
+                }
+                .buttonStyle(.plain)
+                NavigationLink { WorkLogView() } label: {
+                    quickActionLabel("Work Log", icon: PlowRSymbol.workLog.name)
                 }
                 .buttonStyle(.plain)
             }
