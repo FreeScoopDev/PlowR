@@ -231,7 +231,7 @@ struct EditClientView: View {
                 }
             }
         }
-        // Sent to the client from the share sheet (Mark as Sent on): they're
+        // Sent to the client from the share sheet (Mark Sent on): they're
         // awaiting a response.
         .sheet(item: $documentShare) { share in
             DocumentShareView(url: share.url, document: share.proposal, in: modelContext)
@@ -412,8 +412,11 @@ struct EditClientView: View {
                     } label: {
                         Image(systemName: "phone.fill")
                             .foregroundStyle(PlowRColor.brand)
+                            .frame(minWidth: PlowRLayout.minTapTarget, minHeight: PlowRLayout.minTapTarget)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.borderless)
+                    .accessibilityLabel(draft.name.isEmpty ? "Call" : "Call \(draft.name)")
                 }
             }
             HStack {
@@ -427,8 +430,11 @@ struct EditClientView: View {
                     } label: {
                         Image(systemName: "envelope.fill")
                             .foregroundStyle(PlowRColor.brand)
+                            .frame(minWidth: PlowRLayout.minTapTarget, minHeight: PlowRLayout.minTapTarget)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.borderless)
+                    .accessibilityLabel(draft.name.isEmpty ? "Email" : "Email \(draft.name)")
                 }
             }
             Toggle(isOn: $draft.skipNotificationPrompt) {
@@ -482,6 +488,7 @@ struct EditClientView: View {
                                         .font(.caption)
                                 }
                                 .buttonStyle(.plain)
+                                .accessibilityLabel("Remove \(tag)")
                             }
                             .padding(.horizontal, 10)
                             .padding(.vertical, 5)
@@ -1151,83 +1158,93 @@ struct EditClientView: View {
 
     @ViewBuilder
     private func clientDocumentRow(_ document: Proposal) -> some View {
-        HStack(spacing: 8) {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 5) {
-                    StatusChip(document.invoiceStatus.rawValue, systemImage: document.invoiceStatus.systemImage,
-                               status: document.invoiceStatus.chipStatus)
-                    if !document.revisionOf.isEmpty {
-                        StatusChip("Revision", status: .scheduled)
+        // The details and amount side by side, stacked at accessibility
+        // sizes; the actions on a line of their own under them, glove-sized
+        // (44 pt), wrapping to a column when they don't fit across.
+        let stacked = typeSize.isAccessibilitySize
+        VStack(alignment: .leading, spacing: PlowRLayout.space1) {
+            (stacked ? AnyLayout(VStackLayout(alignment: .leading, spacing: PlowRLayout.space1))
+                     : AnyLayout(HStackLayout(spacing: PlowRLayout.space2))) {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 5) {
+                        StatusChip(document.invoiceStatus.rawValue, systemImage: document.invoiceStatus.systemImage,
+                                   status: document.invoiceStatus.chipStatus)
+                        if !document.revisionOf.isEmpty {
+                            StatusChip("Revision", status: .scheduled)
+                        }
+                    }
+                    Text(document.isInvoice
+                         ? document.invoiceNumber
+                         : "Proposal · \(document.createdAt.formatted(date: .abbreviated, time: .omitted))")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    if document.isInvoice, let due = document.invoiceDueDate {
+                        Text("Due \(due.formatted(date: .abbreviated, time: .omitted))")
+                            .font(.caption)
+                            .foregroundStyle(PlowRColor.inkSecondary)
                     }
                 }
-                Text(document.isInvoice
-                     ? document.invoiceNumber
-                     : "Proposal · \(document.createdAt.formatted(date: .abbreviated, time: .omitted))")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                if document.isInvoice, let due = document.invoiceDueDate {
-                    Text("Due \(due.formatted(date: .abbreviated, time: .omitted))")
-                        .font(.caption)
-                        .foregroundStyle(PlowRColor.inkSecondary)
+                if !stacked { Spacer() }
+                VStack(alignment: stacked ? .leading : .trailing, spacing: 6) {
+                    Text(Money.text(document.total))
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                    BalanceDueCaption(document: document)
                 }
             }
-            Spacer()
-            VStack(alignment: .trailing, spacing: 6) {
-                Text(Money.text(document.total))
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                BalanceDueCaption(document: document)
-                HStack(spacing: 4) {
-                    Button {
-                        $gate.unless(ProGate.shareDocument(access, document)) {
-                            shareDocument(document)
-                        }
-                    } label: {
-                        Image(systemName: "square.and.arrow.up")
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.mini)
-
-                    if document.invoiceStatus == .sent || document.invoiceStatus == .overdue {
-                        Button("Paid") {
-                            invoiceToMarkPaid = document
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.mini)
-                        .tint(PlowRColor.Status.done.text)
-                        Button("Revise") {
-                            $gate.unless(ProGate.edit(access)) { revisePaidDoc = document }
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.mini)
-                        .tint(PlowRColor.brand)
-                    } else if document.invoiceStatus == .draft {
-                        Button("Edit") {
-                            editingProposal = document
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.mini)
-                        .tint(PlowRColor.brand)
-                    } else if document.invoiceStatus == .paid, InvoiceRecords.canEditInPlace(document) {
-                        // A paid invoice's revision not yet sent: still edited.
-                        Button("Edit") {
-                            editingProposal = document
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.mini)
-                        .tint(PlowRColor.brand)
-                    } else if document.invoiceStatus == .paid {
-                        Button("Revise") {
-                            $gate.unless(ProGate.edit(access)) { revisePaidDoc = document }
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.mini)
-                        .tint(PlowRColor.brand)
-                    }
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: PlowRLayout.space1) {
+                    Spacer(minLength: 0)
+                    documentActions(document)
+                }
+                VStack(alignment: .leading, spacing: 0) {
+                    documentActions(document)
                 }
             }
         }
         .padding(.vertical, 2)
+    }
+
+    /// A document row's buttons: Share, and Paid, Revise or Edit by status.
+    @ViewBuilder
+    private func documentActions(_ document: Proposal) -> some View {
+        Button {
+            $gate.unless(ProGate.shareDocument(access, document)) {
+                shareDocument(document)
+            }
+        } label: {
+            Image(systemName: "square.and.arrow.up")
+        }
+        .buttonStyle(.plowRRowAction())
+        .accessibilityLabel(document.isInvoice ? "Share Invoice" : "Share Proposal")
+
+        if document.invoiceStatus == .sent || document.invoiceStatus == .overdue {
+            Button("Paid") {
+                invoiceToMarkPaid = document
+            }
+            .buttonStyle(.plowRRowAction(.done))
+            .accessibilityLabel("Mark Paid")
+            Button("Revise") {
+                $gate.unless(ProGate.edit(access)) { revisePaidDoc = document }
+            }
+            .buttonStyle(.plowRRowAction())
+        } else if document.invoiceStatus == .draft {
+            Button("Edit") {
+                editingProposal = document
+            }
+            .buttonStyle(.plowRRowAction())
+        } else if document.invoiceStatus == .paid, InvoiceRecords.canEditInPlace(document) {
+            // A paid invoice's revision not yet sent: still edited.
+            Button("Edit") {
+                editingProposal = document
+            }
+            .buttonStyle(.plowRRowAction())
+        } else if document.invoiceStatus == .paid {
+            Button("Revise") {
+                $gate.unless(ProGate.edit(access)) { revisePaidDoc = document }
+            }
+            .buttonStyle(.plowRRowAction())
+        }
     }
 
     // MARK: - Document Actions

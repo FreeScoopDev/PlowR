@@ -68,3 +68,32 @@ extension ButtonStyle where Self == PlowRActionButtonStyle {
 extension ButtonStyle where Self == PlowRSecondaryButtonStyle {
     static var plowRSecondary: PlowRSecondaryButtonStyle { PlowRSecondaryButtonStyle() }
 }
+
+/// A small action inside a list row (a document's Paid, a past-due visit's
+/// Complete): drawn as a small tinted capsule, as `.bordered` with
+/// `.controlSize(.small)` was, but tapped anywhere in a 44 pt square round
+/// it (`PlowRLayout.minTapTarget`), so it can be hit in gloves. Brand text
+/// on the brand wash, or a status's chip colours (its text on its soft) when
+/// the action sets that status (Paid, Complete: `.done`).
+struct PlowRRowActionButtonStyle: ButtonStyle {
+    var status: PlowRColor.Status?
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(isEnabled ? (status?.text ?? PlowRColor.brand) : PlowRColor.inkSecondary)
+            .padding(.horizontal, PlowRLayout.space3)
+            .padding(.vertical, PlowRLayout.space1)
+            .background(status?.soft ?? PlowRColor.brandSoft, in: Capsule())
+            .frame(minWidth: PlowRLayout.minTapTarget, minHeight: PlowRLayout.minTapTarget)
+            .contentShape(Rectangle())
+            .opacity(configuration.isPressed ? 0.6 : (isEnabled ? 1 : 0.6))
+    }
+}
+
+extension ButtonStyle where Self == PlowRRowActionButtonStyle {
+    static func plowRRowAction(_ status: PlowRColor.Status? = nil) -> PlowRRowActionButtonStyle {
+        PlowRRowActionButtonStyle(status: status)
+    }
+}

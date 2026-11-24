@@ -7,7 +7,7 @@ import Testing
 import Foundation
 @testable import PlowR
 
-/// Repeating visits. The bugs these pin: Add Visit ignored the chosen weekdays,
+/// Repeating visits. The bugs these pin: Schedule Visit ignored the chosen weekdays,
 /// a visit wrapping to the next week landed at midnight, every-2-weeks skipped
 /// the week's other days, a series from the 31st drifted to the 28th, and
 /// completing a visit duplicated the series' next one.
@@ -33,7 +33,7 @@ struct RecurrenceRuleTests {
     private let monThu: Set<Int> = [2, 5]      // 1 = Sunday
 
     // Weekly on Mon and Thu, first visit on a Wednesday (7 Oct 2026). The old
-    // Add Visit rule stepped 7 days at a time: 52 Wednesdays.
+    // Schedule Visit rule stepped 7 days at a time: 52 Wednesdays.
     @Test func weeklyVisitsFallOnTheChosenDays() {
         let rule = RecurrenceRule(type: .weekly, weekdays: monThu)
         #expect(rule.occurrences(from: date(2026, 10, 7), limit: 5, calendar: calendar) ==
