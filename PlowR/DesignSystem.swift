@@ -319,7 +319,7 @@ nonisolated enum PlowRSymbol: String, CaseIterable {
     /// Log Work: record a visit's work for a client.
     case logWork = "list.bullet.clipboard"
     /// Expenses and mileage (Home's Expenses).
-    case expense = "creditcard.and.123"
+    case expense = "receipt"
     /// An expense's category (ExpenseCategory).
     case fuel = "fuelpump.fill"
     case materials = "shippingbox.fill"
