@@ -357,7 +357,7 @@ struct RouteDetailView: View {
 
     /// Optimize Order works on two or more pinned stops.
     private var canOptimize: Bool {
-        route.sortedStops.filter { $0.latitude != 0 }.count >= 2
+        route.sortedStops.filter { AddressPin.exists(latitude: $0.latitude, longitude: $0.longitude) }.count >= 2
     }
 
     private func toggleSkip(_ stop: RouteStop) {
@@ -514,7 +514,7 @@ struct RouteDetailView: View {
     /// Nothing is saved if the run is cancelled or the stops changed under it.
     private func optimizeWithDrivingDistances() async {
         let stops = route.sortedStops
-        let before = stops.map { StopKey($0) }
+        let before = Self.snapshot(of: stops)
         let waypoints = stops.map { RouteOptimizer.Waypoint(latitude: $0.latitude, longitude: $0.longitude) }
         guard waypoints.filter(\.hasGPS).count >= 2 else { return }
 
@@ -527,7 +527,7 @@ struct RouteDetailView: View {
         let run = try? await RouteOptimizer.drivingOrder(of: waypoints) { await Self.mapKitTravelTime($0, $1) }
         guard let result = run, !Task.isCancelled else { return }
         guard route.modelContext != nil, !route.isDeleted,
-              route.sortedStops.map({ StopKey($0) }) == before else {
+              Self.snapshot(of: route.sortedStops) == before else {
             optimizeNote = "The route's stops changed while optimizing, so the order wasn't changed. Try again."
             return
         }
@@ -535,24 +535,16 @@ struct RouteDetailView: View {
         for (newOrder, origIdx) in result.order.enumerated() {
             stops[origIdx].order = newOrder
         }
-        if result.estimatedLegs > 0 {
-            optimizeNote = "Some drive times weren't available, so \(result.estimatedLegs) of \(result.legs) "
-                + "legs used straight-line distance."
+        if let note = RouteOptimizer.estimateNote(estimatedLegs: result.estimatedLegs, legs: result.legs) {
+            optimizeNote = note
         }
     }
 
-    /// One stop as it stood when optimizing began.
-    private struct StopKey: Equatable {
-        let id: UUID
-        let order: Int
-        let latitude: Double
-        let longitude: Double
-        init(_ stop: RouteStop) {
-            id = stop.id
-            order = stop.order
-            latitude = stop.latitude
-            longitude = stop.longitude
-        }
+    /// The stops by ID, as they stand, for RouteOptimizer.stopSnapshot.
+    private static func snapshot(of stops: [RouteStop]) -> [UUID: RouteOptimizer.StopPlace] {
+        RouteOptimizer.stopSnapshot(stops.map {
+            (id: $0.id, place: RouteOptimizer.StopPlace(order: $0.order, latitude: $0.latitude, longitude: $0.longitude))
+        })
     }
 
     /// MapKit's driving time for one leg. `calculateETA` is lighter than

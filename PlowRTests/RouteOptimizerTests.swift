@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import PlowR
 
@@ -140,15 +141,6 @@ struct RouteOptimizerDrivingTests {
         #expect(Set(firstStep) == [0.01, 0.02, 0.03, 0.04, 0.05])
     }
 
-    // No leg is asked about twice within one run.
-    @Test func neverAsksAboutTheSamePairTwice() async throws {
-        let stops = line([0, 0.05, 0.01, 0.04, 0.02, 0.03, 0.06, 0.07])
-        let fake = FakeTravelTimes { a, b in .seconds(RouteOptimizer.estimatedSeconds(a, b)) }
-        _ = try await RouteOptimizer.drivingOrder(of: stops) { await fake.time($0, $1) }
-        let pairs = await fake.asked.map { "\($0.from.longitude)>\($0.to.longitude)" }
-        #expect(Set(pairs).count == pairs.count)
-    }
-
     // One unit: from A, B is nearer by straight line but has no answer (its
     // estimate is used); C is farther but MapKit says it's a 30-second drive.
     // B's estimate (≈ 92 s) is slower, so C wins.
@@ -257,16 +249,21 @@ struct RouteOptimizerDrivingTests {
         #expect(result.legs == 3)
     }
 
-    // A cancelled run returns no order.
-    @Test func cancelledRunThrows() async {
+    // Cancelled during the first answer: the run throws (no order) and
+    // asks nothing more. The first step has five candidates, so a run that
+    // only checked at the top of each step would ask four more first.
+    @Test func cancelledRunThrowsWithoutAskingAgain() async {
         let stops = line((0..<6).map { Double($0) * 0.01 })
+        let fake = FakeTravelTimes { a, b in .seconds(RouteOptimizer.estimatedSeconds(a, b)) }
         let task = Task {
             try await RouteOptimizer.drivingOrder(of: stops) { a, b in
+                let answer = await fake.time(a, b)
                 withUnsafeCurrentTask { $0?.cancel() }
-                return .seconds(RouteOptimizer.estimatedSeconds(a, b))
+                return answer
             }
         }
         await #expect(throws: CancellationError.self) { try await task.value }
+        #expect(await fake.asked.count == 1)
     }
 
     @Test func fewerThanTwoGPSStopsAsksNothing() async throws {
@@ -275,5 +272,72 @@ struct RouteOptimizerDrivingTests {
             of: [WP(latitude: 0, longitude: 0), WP(latitude: 45, longitude: 1)]) { await fake.time($0, $1) }
         #expect(result.order == [1, 0])
         #expect(await fake.asked.isEmpty)
+    }
+
+    // MARK: - estimateNote
+
+    @Test func noNoteWhenNoLegWasEstimated() {
+        #expect(RouteOptimizer.estimateNote(estimatedLegs: 0, legs: 4) == nil)
+    }
+
+    @Test func noteForSomeEstimatedLegs() {
+        #expect(RouteOptimizer.estimateNote(estimatedLegs: 2, legs: 5)
+            == "Some drive times weren't available, so 2 of 5 legs used straight-line distance.")
+    }
+
+    @Test func noteForOneEstimatedLeg() {
+        #expect(RouteOptimizer.estimateNote(estimatedLegs: 1, legs: 5)
+            == "A drive time wasn't available, so 1 of 5 legs used straight-line distance.")
+    }
+
+    @Test func noteWhenEveryLegWasEstimated() {
+        let all = "Drive times weren't available, so the order uses straight-line distance."
+        #expect(RouteOptimizer.estimateNote(estimatedLegs: 4, legs: 4) == all)
+        #expect(RouteOptimizer.estimateNote(estimatedLegs: 1, legs: 1) == all)
+    }
+}
+
+// MARK: - stopSnapshot
+
+struct RouteOptimizerSnapshotTests {
+
+    private typealias Place = RouteOptimizer.StopPlace
+
+    private let a = UUID()
+    private let b = UUID()
+    private let c = UUID()
+
+    private func snapshot(_ stops: [(UUID, Place)]) -> [UUID: Place] {
+        RouteOptimizer.stopSnapshot(stops.map { (id: $0.0, place: $0.1) })
+    }
+
+    private var start: [(UUID, Place)] {
+        [(a, Place(order: 0, latitude: 45, longitude: 1)),
+         (b, Place(order: 1, latitude: 45, longitude: 2))]
+    }
+
+    // Same stops, listed in another sequence (stops sharing an order can
+    // sort either way): still equal.
+    @Test func unchangedStopsAreEqualInAnySequence() {
+        #expect(snapshot(start) == snapshot(start))
+        #expect(snapshot(start) == snapshot(start.reversed()))
+    }
+
+    @Test func oneOrderChangedIsNotEqual() {
+        var after = start
+        after[1].1 = Place(order: 2, latitude: 45, longitude: 2)
+        #expect(snapshot(start) != snapshot(after))
+    }
+
+    @Test func oneCoordinateChangedIsNotEqual() {
+        var after = start
+        after[0].1 = Place(order: 0, latitude: 45, longitude: 1.5)
+        #expect(snapshot(start) != snapshot(after))
+    }
+
+    @Test func aStopAddedOrRemovedIsNotEqual() {
+        let added = start + [(c, Place(order: 2, latitude: 45, longitude: 3))]
+        #expect(snapshot(start) != snapshot(added))
+        #expect(snapshot(start) != snapshot(Array(start.dropLast())))
     }
 }

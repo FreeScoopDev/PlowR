@@ -4,7 +4,7 @@ enum RouteOptimizer {
     struct Waypoint {
         let latitude: Double
         let longitude: Double
-        var hasGPS: Bool { latitude != 0 || longitude != 0 }
+        var hasGPS: Bool { AddressPin.exists(latitude: latitude, longitude: longitude) }
     }
 
     /// Nearest-neighbor reordering. Returns original indices in optimized visit order.
@@ -78,8 +78,10 @@ enum RouteOptimizer {
     /// Nearest-neighbour by driving time. The first stop with GPS stays
     /// first; stops without GPS keep their order after the rest. At each step
     /// only the `candidatesPerStep` nearest remaining stops by straight line
-    /// are asked about, one request at a time, each pair at most once. A leg
-    /// with no answer is scored by `estimatedSeconds`; after a throttled
+    /// are asked about, one request at a time. No pair can come up twice in
+    /// one run: each step asks from the stop just chosen, which is then out of
+    /// `remaining`, so no later step asks from it or about it (and so nothing
+    /// is cached). A leg with no answer is scored by `estimatedSeconds`; after a throttled
     /// answer or `unavailableCutoff` unavailable ones in a row, the provider
     /// isn't asked again this run. Throws `CancellationError` if the task is
     /// cancelled, so a cancelled run returns no order at all.
@@ -91,7 +93,6 @@ enum RouteOptimizer {
             return DrivingOrder(order: remaining + withoutGPS, legs: 0, estimatedLegs: 0)
         }
 
-        var cache: [Pair: TravelTime] = [:]
         var asking = true
         var unavailableInARow = 0
         var estimatedLegs = 0
@@ -108,12 +109,11 @@ enum RouteOptimizer {
             var best: (index: Int, seconds: TimeInterval, estimated: Bool)?
             for candidate in candidates {
                 let to = waypoints[candidate]
-                let pair = Pair(from: current, to: candidate)
-                var answer = cache[pair]
-                if answer == nil, asking {
+                var answer: TravelTime?
+                if asking {
                     let asked = await travelTime(from, to)
+                    // Stop at once, not after the rest of this step's asks.
                     try Task.checkCancellation()
-                    cache[pair] = asked
                     answer = asked
                     switch asked {
                     case .seconds: unavailableInARow = 0
@@ -147,10 +147,34 @@ enum RouteOptimizer {
         return DrivingOrder(order: ordered + withoutGPS, legs: ordered.count - 1, estimatedLegs: estimatedLegs)
     }
 
-    /// One leg, by original indices, for the per-run cache.
-    private struct Pair: Hashable {
-        let from: Int
-        let to: Int
+    /// The note to show after a driving-time run, or nil when every leg
+    /// had a real drive time.
+    static func estimateNote(estimatedLegs: Int, legs: Int) -> String? {
+        guard estimatedLegs > 0 else { return nil }
+        if estimatedLegs >= legs {
+            return "Drive times weren't available, so the order uses straight-line distance."
+        }
+        if estimatedLegs == 1 {
+            return "A drive time wasn't available, so 1 of \(legs) legs used straight-line distance."
+        }
+        return "Some drive times weren't available, so \(estimatedLegs) of \(legs) legs used straight-line distance."
+    }
+
+    // MARK: - Stops changed during a run
+
+    /// Where one stop stood: its place in the order and its pin.
+    struct StopPlace: Equatable {
+        let order: Int
+        let latitude: Double
+        let longitude: Double
+    }
+
+    /// The route's stops keyed by ID, to compare before and after a run.
+    /// Keyed by ID rather than kept in sorted order, because stops with the
+    /// same `order` can come back in either sequence. Two snapshots are equal
+    /// only if the same stops are there with the same order and pins.
+    static func stopSnapshot(_ stops: [(id: UUID, place: StopPlace)]) -> [UUID: StopPlace] {
+        Dictionary(stops.map { ($0.id, $0.place) }, uniquingKeysWith: { first, _ in first })
     }
 
     /// Great-circle distance in kilometres (Haversine formula).
