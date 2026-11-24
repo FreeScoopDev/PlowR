@@ -415,12 +415,12 @@ enum ServiceLog {
         } else {
             let made = Self.record(forKey: key, source: .visit, operatorID: operatorID, client: client, in: context)
             record = made.record
-            if true {
+            if made.isNew {
                 fill(record, from: visit, client: client,
                      performedAt: min(visit.scheduledDate, visit.completedAt ?? now), in: context)
             }
         }
-        write(recording, notes: notes, to: record, locked: servicesLocked(record, in: context), in: context)
+        write(recording, notes: notes, to: record, locked: lockedBefore, in: context)
         return record
     }
 
