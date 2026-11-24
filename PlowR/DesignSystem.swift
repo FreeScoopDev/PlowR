@@ -90,6 +90,8 @@ nonisolated extension PlowRColor {
     /// Forest green (muted sage in dark): the brand, navigation, the client avatar.
     static let brandUIColor = adaptive(0x1F4D3A, 0xB2C8BA)
     static let onBrandUIColor = adaptive(0xFFFFFF, 0x121416)
+    /// A brand-tinted background (a row action's capsule), with brand text on it.
+    static let brandSoftUIColor = adaptive(0xE2ECE6, 0x1E2A24)
 
     /// Copper: the one main action on a screen (Complete Stop, Resume Route,
     /// Invoice). Its filled, warm block is what stands out on a neutral dark screen.
@@ -113,6 +115,7 @@ nonisolated extension PlowRColor {
     static let inkSecondary = Color(inkSecondaryUIColor)
     static let brand = Color(brandUIColor)
     static let onBrand = Color(onBrandUIColor)
+    static let brandSoft = Color(brandSoftUIColor)
     static let action = Color(actionUIColor)
     static let onAction = Color(onActionUIColor)
     static let actionSoft = Color(actionSoftUIColor)
@@ -174,13 +177,13 @@ nonisolated extension PlowRColor {
         /// it doesn't glare on a graphite row.
         var solidUIColor: UIColor {
             switch self {
-            case .done: adaptive(0x2F7D4F, 0x2A7047)
-            case .scheduled: adaptive(0x2B6CB0, 0x2563A0)
-            case .owed: adaptive(0x95600F, 0x8A5A10)
-            case .overdue: adaptive(0xC53030, 0xA62626)
-            case .lead: adaptive(0x6B46C1, 0x5A3AA8)
-            case .void: adaptive(0x6B7280, 0x4B5260)
-            case .neutral: adaptive(0x6B6459, 0x5A6064)
+            case .done: adaptive(0x2F7D4F, 0x2A7047)        // light = fill on purpose: white reads on it
+            case .scheduled: adaptive(0x2B6CB0, 0x2563A0)   // light = fill on purpose: white reads on it
+            case .owed: adaptive(0x95600F, 0x8A5A10)        // dark = light text on purpose: deep enough for white
+            case .overdue: adaptive(0xC53030, 0xA62626)     // light = fill, dark = light text, on purpose
+            case .lead: adaptive(0x6B46C1, 0x5A3AA8)        // light = fill, dark = light text, on purpose
+            case .void: adaptive(0x6B7280, 0x4B5260)        // light = fill, dark = light text, on purpose
+            case .neutral: adaptive(0x6B6459, 0x5A6064)     // dark = dark fill on purpose: white reads on it
             }
         }
 

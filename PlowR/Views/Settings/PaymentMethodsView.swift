@@ -67,6 +67,7 @@ struct PaymentMethodsView: View {
                 Button { showingAdd = true } label: {
                     Image(systemName: "plus")
                 }
+                .accessibilityLabel("Add Payment Method")
             }
             ToolbarItem(placement: .topBarLeading) {
                 EditButton()

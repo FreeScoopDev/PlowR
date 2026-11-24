@@ -235,6 +235,7 @@ struct ProposalListView: View {
                 } label: {
                     Image(systemName: "plus")
                 }
+                .accessibilityLabel("New Document")
             }
             ToolbarItem(placement: .topBarTrailing) {
                 HelpToolbarButton(screen: .documents)
@@ -259,6 +260,7 @@ struct ProposalListView: View {
                     Image(systemName: "line.3.horizontal.decrease.circle")
                         .accessibilityLabel("Filter and Sort")
                 }
+                .accessibilityValue(filterStatus.rawValue)
             }
         }
         .confirmationDialog(

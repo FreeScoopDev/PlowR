@@ -7,7 +7,7 @@ import UIKit
 /// "Awaiting Response" on their page, until the business taps Mark
 /// Responded. An invoice is sent with Mark Sent; any document, by sharing
 /// its PDF to someone from the share sheet (Messages, Mail, AirDrop...)
-/// with its Mark as Sent switch on (DocumentShareView).
+/// with its Mark Sent switch on (DocumentShareView).
 ///
 /// A text sent from the client's page used to set it, and sending a
 /// document didn't. Texts don't set it now.
@@ -52,7 +52,7 @@ enum DocumentSent {
     }
 
     /// What a saved document's share sheet does when the PDF was sent to
-    /// someone, given its Mark as Sent switch: `shared`. The one place the
+    /// someone, given its Mark Sent switch: `shared`. The one place the
     /// document's page and a client's document list wire it.
     static func shareHandler(for proposal: Proposal, in context: ModelContext) -> (_ toClient: Bool) -> Void {
         { toClient in shared(proposal, toClient: toClient, in: context) }
@@ -71,12 +71,12 @@ enum DocumentSent {
 
     /// Whether sharing a document with `status` can mark anything: every one
     /// but a paid invoice, a receipt, with nothing owed or awaited. The share
-    /// sheet shows its Mark as Sent switch only then.
+    /// sheet shows its Mark Sent switch only then.
     nonisolated static func shareCanMark(_ status: InvoiceStatus) -> Bool {
         status != .paid && status != .void
     }
 
-    /// What the share sheet says its Mark as Sent switch does, for a document
+    /// What the share sheet says its Mark Sent switch does, for a document
     /// with `status` going (or, switched off, not going) to `clientName`.
     nonisolated static func shareNote(status: InvoiceStatus, clientName: String, toClient: Bool) -> String {
         let who = clientName.isEmpty ? "the client" : clientName
@@ -197,7 +197,7 @@ enum DocumentSent {
     }
 }
 
-/// Sharing a document's PDF: the system share sheet, under a Mark as Sent
+/// Sharing a document's PDF: the system share sheet, under a Mark Sent
 /// switch (Joe's call). On, as sharing always was, a share that sends the
 /// PDF to someone marks it sent to the client (DocumentSent.shared); off,
 /// for a copy that isn't going to the client, nothing is marked. It starts
@@ -217,7 +217,7 @@ struct DocumentShareView: View {
             if DocumentSent.shareCanMark(status) {
                 Toggle(isOn: $toClient) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Mark as Sent")
+                        Text("Mark Sent")
                         Text(DocumentSent.shareNote(status: status, clientName: clientName, toClient: toClient))
                             .font(.caption)
                             .foregroundStyle(PlowRColor.inkSecondary)
@@ -253,7 +253,7 @@ struct DocumentShareSheet: UIViewControllerRepresentable {
         return controller
     }
 
-    /// The latest `onSent`: it reads the Mark as Sent switch.
+    /// The latest `onSent`: it reads the Mark Sent switch.
     func updateUIViewController(_ controller: UIActivityViewController, context: Context) {
         handleCompletion(of: controller)
     }

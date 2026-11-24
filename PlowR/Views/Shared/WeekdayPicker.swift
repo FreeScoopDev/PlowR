@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Days of the week to pick, Sunday first, numbered 1 (Sunday) to 7
-/// (Saturday) as RecurrenceRule numbers them. Add Visit's repeat and a
+/// (Saturday) as RecurrenceRule numbers them. Schedule Visit's repeat and a
 /// contract's visits use the same one.
 struct WeekdayPicker: View {
     @Binding var selection: Set<Int>

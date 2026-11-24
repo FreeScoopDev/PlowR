@@ -86,9 +86,12 @@ struct ProposalDetailView: View {
                     } label: {
                         Image(systemName: "square.and.arrow.up")
                     }
+                    .accessibilityLabel(proposal.isInvoice ? "Share Invoice" : "Share Proposal")
                 } else {
                     Image(systemName: "square.and.arrow.up")
                         .foregroundStyle(.tertiary)
+                        .accessibilityLabel(proposal.isInvoice ? "Share Invoice" : "Share Proposal")
+                        .accessibilityValue("Unavailable")
                 }
             }
         }
@@ -161,7 +164,7 @@ struct ProposalDetailView: View {
         .onChange(of: proposal.invoiceSentAt) { _, _ in generatePDF() }
         .onChange(of: proposal.voidedAt) { _, _ in generatePDF() }
         .onChange(of: allProfiles) { _, _ in generatePDF() }
-        // Sent to the client from the share sheet (Mark as Sent on): they're
+        // Sent to the client from the share sheet (Mark Sent on): they're
         // awaiting a response.
         .sheet(isPresented: $showingShare) {
             if let url = shareURL {
@@ -208,8 +211,8 @@ struct ProposalDetailView: View {
     // MARK: - Action Bar
 
     /// One main action per status, in copper (`.plowRAction`), full width
-    /// under the others: Convert a proposal (View Contract once it's one),
-    /// Mark Sent a draft, take a Payment on one that's out. Paid and void have
+    /// under the others: Convert to Invoice on a proposal (View Contract once it's one),
+    /// Mark Sent a draft, Payments on one that's out. Paid and void have
     /// nothing left to do, so every button there is secondary, and a paid
     /// invoice's Revise takes the full-width row. Three buttons in one row
     /// wrapped their labels mid-word ("Conver/t").
@@ -239,7 +242,7 @@ struct ProposalDetailView: View {
                 .buttonStyle(.plowRAction)
             } else {
                 Button { $gate.unless(ProGate.edit(access)) { convertToInvoice() } } label: {
-                    Label("Convert", systemImage: "doc.badge.arrow.up")
+                    Label("Convert to Invoice", systemImage: "doc.badge.arrow.up")
                 }
                 .buttonStyle(.plowRAction)
             }
@@ -257,7 +260,7 @@ struct ProposalDetailView: View {
         case .sent, .overdue:
             // All that's owed, or part of it (Payments).
             Button { showingPayments = true } label: {
-                Label("Payment", systemImage: PlowRSymbol.payment.name)
+                Label("Payments", systemImage: PlowRSymbol.payment.name)
             }
             .buttonStyle(.plowRAction)
 
@@ -311,6 +314,7 @@ struct ProposalDetailView: View {
                     PlowRTips.reminderOpened()
                 } label: {
                     Label("Remind", systemImage: PlowRSymbol.text.name)
+                        .accessibilityLabel("Send Reminder")
                 }
                 .buttonStyle(.plowRSecondary)
             }
@@ -325,14 +329,14 @@ struct ProposalDetailView: View {
                 .buttonStyle(.plowRSecondary)
             }
             Button { showingPayments = true } label: {
-                Label("Payments", systemImage: "dollarsign.circle")
+                Label("Payments", systemImage: PlowRSymbol.payment.name)
             }
             .buttonStyle(.plowRSecondary)
 
         case .void:
             // Kept on record: its payments (if any) can still be seen.
             Button { showingPayments = true } label: {
-                Label("Payments", systemImage: "dollarsign.circle")
+                Label("Payments", systemImage: PlowRSymbol.payment.name)
             }
             .buttonStyle(.plowRSecondary)
         }
