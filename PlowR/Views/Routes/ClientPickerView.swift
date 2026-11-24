@@ -13,6 +13,7 @@ struct ClientPickerView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showingCustomForm = false
     @State private var localAdded: Set<String>
+    @State private var searchText = ""
 
     init(clients: [Client], alreadyAdded: [String],
          onSelect: @escaping (Client, Place) -> Void,
@@ -39,18 +40,25 @@ struct ClientPickerView: View {
                 }
                 .listRowBackground(PlowRColor.surface)
 
-                if !clients.isEmpty {
+                if !shown.isEmpty {
                     Section(title: "Your Clients") {
-                        ForEach(clients) { client in
-                            ForEach(Place.all(of: client), id: \.id) { place in
-                                row(client, place)
+                        ForEach(shown) { entry in
+                            ForEach(entry.places, id: \.id) { place in
+                                row(entry.client, place)
                             }
                         }
+                    }
+                    .listRowBackground(PlowRColor.surface)
+                } else if !clients.isEmpty {
+                    // Enter Manually stays above, for a stop that isn't a client.
+                    Section {
+                        NoSearchMatches(query: searchText)
                     }
                     .listRowBackground(PlowRColor.surface)
                 }
             }
             .plowRGrouped()
+            .searchable(text: $searchText, prompt: "Search Clients")
             .navigationTitle("Add Stops")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -66,6 +74,23 @@ struct ClientPickerView: View {
                     onCustomStop(name, address, phone)
                 }
             }
+        }
+    }
+
+    /// Each client's places that the search finds: a place is found by the
+    /// client's details (`ClientSearch`) or its own name and address.
+    private struct Found: Identifiable {
+        let client: Client
+        let places: [Place]
+        var id: UUID { client.id }
+    }
+
+    private var shown: [Found] {
+        clients.compactMap { client in
+            let places = Place.all(of: client).filter {
+                ClientSearch.matches(client, query: searchText, also: [$0.label, $0.address])
+            }
+            return places.isEmpty ? nil : Found(client: client, places: places)
         }
     }
 

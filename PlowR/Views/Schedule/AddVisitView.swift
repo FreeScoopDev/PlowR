@@ -284,19 +284,19 @@ struct AddVisitView: View {
                 Text("No clients yet. Add one to schedule a visit.")
                     .foregroundStyle(PlowRColor.inkSecondary)
             } else {
-                Picker("Client", selection: $selectedClient) {
-                    Text("Select a client").tag(Optional<Client>.none)
-                    ForEach(myClients) { client in
-                        VStack(alignment: .leading) {
-                            Text(client.name)
-                            if !client.address.isEmpty {
-                                Text(client.address).font(.caption).foregroundStyle(PlowRColor.inkSecondary)
-                            }
-                        }
-                        .tag(Optional(client))
+                // A searchable list instead of a Picker: a long client list
+                // can't be scrolled through to find one.
+                NavigationLink {
+                    ClientSearchList(clients: myClients, selectedID: selectedClient?.id) { client in
+                        selectedClient = client
+                    }
+                    .navigationTitle("Client")
+                    .navigationBarTitleDisplayMode(.inline)
+                } label: {
+                    LabeledContent("Client") {
+                        Text(selectedClient?.name ?? "Select a Client")
                     }
                 }
-                .pickerStyle(.navigationLink)
                 if let client = selectedClient {
                     let places = Place.choices(of: client, keeping: selectedPlaceID)
                     // Its own place, not synced to this device yet: shown as such.
