@@ -67,9 +67,9 @@ struct ClientPhotoGalleryView: View {
         }
         .sheet(isPresented: $showingCamera) {
             CameraPicker { image, metadata in
-                if let data = image.jpegData(compressionQuality: 0.85) {
-                    pendingImageData = data
-                    pendingCapture = PhotoCapture.fromCamera(image, metadata: metadata)
+                if let photo = PhotoCapture.saving(camera: image, metadata: metadata) {
+                    pendingImageData = photo.data
+                    pendingCapture = photo.capture
                     showingPhotoTypePrompt = true
                 }
             }
@@ -84,12 +84,11 @@ struct ClientPhotoGalleryView: View {
         .onChange(of: selectedPickerItem) { _, newItem in
             Task {
                 guard let item = newItem else { return }
-                // Off the main thread: a large photo can need encoding again.
+                // Without its location; the time is read from the original.
                 if let data = try? await item.loadTransferable(type: Data.self),
-                   let kept = await Task.detached(operation: { PhotoCapture.removingLocation(from: data) }).value {
-                    // The time is read from the original; the location isn't kept.
-                    pendingImageData = kept
-                    pendingCapture = PhotoCapture.fromLibrary(data)
+                   let photo = await PhotoCapture.saving(library: data) {
+                    pendingImageData = photo.data
+                    pendingCapture = photo.capture
                     showingPhotoTypePrompt = true
                 }
                 selectedPickerItem = nil
@@ -219,8 +218,6 @@ private struct PhotoDetailView: View {
     let photo: StopPhoto
     @Environment(UndoCenter.self) private var undoCenter
     @Environment(\.dismiss) private var dismiss
-    @State private var scale: CGFloat = 1.0
-    @State private var lastScale: CGFloat = 1.0
     @State private var showingShareSheet = false
 
     private var image: UIImage? { UIImage(data: photo.imageData) }
@@ -230,23 +227,7 @@ private struct PhotoDetailView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     if let img = image {
-                        Image(uiImage: img)
-                            .resizable()
-                            .scaledToFit()
-                            .scaleEffect(scale)
-                            .gesture(
-                                MagnificationGesture()
-                                    .onChanged { value in
-                                        scale = max(1.0, min(lastScale * value, 5.0))
-                                    }
-                                    .onEnded { _ in lastScale = scale }
-                            )
-                            .onTapGesture(count: 2) {
-                                withAnimation(.spring()) {
-                                    if scale > 1.05 { scale = 1.0; lastScale = 1.0 }
-                                    else { scale = 2.0; lastScale = 2.0 }
-                                }
-                            }
+                        ZoomableImage(image: img)
                             .padding()
                     }
                     VStack(alignment: .leading, spacing: 8) {

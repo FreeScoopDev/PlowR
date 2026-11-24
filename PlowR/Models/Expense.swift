@@ -37,14 +37,16 @@ final class Expense {
     var routeID: String = ""
     var routeName: String = ""
 
-    /// A photo of the receipt. Not used yet: the receipts change takes and
-    /// shows it. Here now so iCloud's schema gets every field in one deploy.
-    /// External storage keeps the photo out of the database file; it's
-    /// erased with the record.
+    /// A photo of the receipt (the expense's editor), as the client's
+    /// gallery stores photos: a JPEG from the camera, or a library photo's
+    /// file without its location. External storage keeps the photo out of
+    /// the database file; it's erased with the record. Set only through
+    /// `setReceipt`.
     @Attribute(.externalStorage) var receiptData: Data? = nil
-    /// When the receipt photo was taken. The receipts change sets it together
-    /// with `receiptData` (and clears both together): the Expenses file's
-    /// Receipt column reads this one, so exporting never loads the photos.
+    /// When the receipt photo was taken (or added, if its file doesn't
+    /// say). Set and cleared together with `receiptData` (`setReceipt`): the
+    /// list's receipt mark and the Expenses file's Receipt column read this
+    /// one, so neither loads the photos.
     var receiptCapturedAt: Date? = nil
 
     var createdAt: Date = Date()
@@ -54,6 +56,17 @@ final class Expense {
         self.date = date
         self.amount = amount
         self.categoryRaw = category.rawValue
+    }
+
+    /// Whether there's a receipt photo, without loading it.
+    var hasReceipt: Bool { receiptCapturedAt != nil }
+
+    /// Puts a receipt photo on the expense, or takes it off (nil): both
+    /// fields together. A photo whose time isn't known is dated `now`, when
+    /// it was added, so `hasReceipt` still sees it.
+    func setReceipt(_ data: Data?, capturedAt: Date?, now: Date = .now) {
+        receiptData = data
+        receiptCapturedAt = data == nil ? nil : (capturedAt ?? now)
     }
 
     /// The category; one this build doesn't know (written by a newer PlowR)

@@ -138,6 +138,38 @@ struct ExpensesTests {
         expense.categoryRaw = "from a newer PlowR"
         #expect(expense.category == .other)
     }
+
+    // A receipt photo and its time are kept together: saved and read back
+    // in a fresh context, the time is still there (the list's mark and the
+    // export read it), and Remove clears both.
+    @Test func aSavedExpenseKeepsItsReceiptTime() throws {
+        let taken = Date(timeIntervalSince1970: 1_800_000_000)
+        let expense = Expense(operatorID: "op", amount: 12, category: .materials)
+        context.insert(expense)
+        expense.setReceipt(Data([1, 2, 3]), capturedAt: taken)
+        try context.save()
+
+        let fresh = ModelContext(container)
+        let saved = try #require(try fresh.fetch(FetchDescriptor<Expense>()).first)
+        #expect(saved.receiptCapturedAt == taken)
+        #expect(saved.receiptData == Data([1, 2, 3]))
+        #expect(saved.hasReceipt)
+
+        expense.setReceipt(nil, capturedAt: taken)
+        #expect(expense.receiptData == nil)
+        #expect(expense.receiptCapturedAt == nil)
+        #expect(!expense.hasReceipt)
+    }
+
+    // A library photo whose file has no time is dated when it was added,
+    // so it still counts as a receipt.
+    @Test func aReceiptWithNoTimeIsDatedWhenAdded() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let expense = Expense(operatorID: "op")
+        expense.setReceipt(Data([9]), capturedAt: nil, now: now)
+        #expect(expense.receiptCapturedAt == now)
+        #expect(expense.hasReceipt)
+    }
 }
 
 /// The mileage log: units and totals. Distances are typed, never measured.

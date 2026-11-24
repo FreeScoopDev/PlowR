@@ -327,6 +327,8 @@ nonisolated enum PlowRSymbol: String, CaseIterable {
     case materials = "shippingbox.fill"
     case equipment = "wrench.and.screwdriver.fill"
     case otherExpense = "tag.fill"
+    /// An expense with a photo of its receipt (its row's mark).
+    case receiptPhoto = "paperclip"
     /// A trip in the mileage log.
     case mileage = "car.fill"
 

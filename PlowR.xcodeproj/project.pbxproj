@@ -582,7 +582,7 @@
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "PlowR adds your visits to a “PlowR” calendar and updates or removes those events when visits change. It doesn’t read or change your other events.";
 				INFOPLIST_KEY_NSCalendarsUsageDescription = "PlowR adds your visits to a “PlowR” calendar and updates or removes those events when visits change. It doesn’t read or change your other events.";
-				INFOPLIST_KEY_NSCameraUsageDescription = "PlowR uses your camera to capture before and after photos of service stops, and to scan business cards when adding new clients.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "PlowR uses your camera to capture before and after photos of service stops, to scan business cards when adding new clients, and receipts for your expenses.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "© 2026 Scoops Dev LLC";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "During a route, PlowR uses your location in the background to notice when you arrive at and leave a stop, so it can record arrival and departure times on the job, and offer to text the next client when PlowR is open.";
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "During a route, PlowR uses your location in the background to notice when you arrive at and leave a stop, so it can record arrival and departure times on the job, and offer to text the next client when PlowR is open.";
@@ -628,7 +628,7 @@
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "PlowR adds your visits to a “PlowR” calendar and updates or removes those events when visits change. It doesn’t read or change your other events.";
 				INFOPLIST_KEY_NSCalendarsUsageDescription = "PlowR adds your visits to a “PlowR” calendar and updates or removes those events when visits change. It doesn’t read or change your other events.";
-				INFOPLIST_KEY_NSCameraUsageDescription = "PlowR uses your camera to capture before and after photos of service stops, and to scan business cards when adding new clients.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "PlowR uses your camera to capture before and after photos of service stops, to scan business cards when adding new clients, and receipts for your expenses.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "© 2026 Scoops Dev LLC";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "During a route, PlowR uses your location in the background to notice when you arrive at and leave a stop, so it can record arrival and departure times on the job, and offer to text the next client when PlowR is open.";
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "During a route, PlowR uses your location in the background to notice when you arrive at and leave a stop, so it can record arrival and departure times on the job, and offer to text the next client when PlowR is open.";
