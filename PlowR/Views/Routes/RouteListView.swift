@@ -157,8 +157,8 @@ struct RouteRowView: View {
 
     private var stopsText: String {
         let count = run.total
-        guard count > 0 else { return "No stops yet" }
-        var text = "\(count) stop\(count == 1 ? "" : "s")"
+        var text = RouteFacts.stopsText(count)
+        guard count > 0 else { return text }
         // The same stops as the count: this run's while it's running.
         let minutes = RouteFacts.estimatedMinutes(of: RouteRunSummary.stops(of: route, store: activeRoute),
                                                   clients: clients)

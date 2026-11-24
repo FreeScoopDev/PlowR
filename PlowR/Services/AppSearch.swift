@@ -43,7 +43,8 @@ enum AppSearch {
         let foundRecords = records.filter { $0.operatorID == operatorID && matches($0, query: typed) }
         return Results(
             clients: foundClients.sorted { byName($0.name, $0.id, $1.name, $1.id) },
-            documents: foundDocuments.sorted { newest($0.createdAt, $0.id, $1.createdAt, $1.id) },
+            // The Documents list's own Newest order, not a second one.
+            documents: DocumentList.ordered(foundDocuments, by: .newest) { DocumentList.key($0) },
             routes: foundRoutes.sorted { byName($0.name, $0.id, $1.name, $1.id) },
             records: foundRecords.sorted { newest($0.performedAt, $0.id, $1.performedAt, $1.id) }
         )
@@ -71,9 +72,10 @@ enum AppSearch {
 
     // MARK: - Order
 
-    /// A to Z, capitals and accents aside; ties by ID so the order never shuffles.
+    /// A to Z by the Documents list's name order (`ClientSearch.nameOrder`);
+    /// ties by ID so the order never shuffles.
     private static func byName(_ a: String, _ aID: UUID, _ b: String, _ bID: UUID) -> Bool {
-        let order = a.compare(b, options: [.caseInsensitive, .diacriticInsensitive, .numeric], locale: .current)
+        let order = ClientSearch.nameOrder(a, b)
         if order != .orderedSame { return order == .orderedAscending }
         return aID.uuidString < bID.uuidString
     }

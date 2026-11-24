@@ -25,12 +25,24 @@ struct GlobalSearchView: View {
     @State private var results = AppSearch.Results()
     /// The query `results` answer, so No Matches waits for the search.
     @State private var searchedQuery = ""
+    /// Focus the field on the first open only: back from a result, the
+    /// keyboard stays down over the results scrolled to.
+    @State private var hasOpened = false
+    /// The field's keyboard: up on the first open, down on scrolling the
+    /// results or opening one, so it isn't raised again over them on return.
+    @FocusState private var isFieldFocused: Bool
+    /// On screen (not under a pushed result): store changes then reload,
+    /// after a pause; while hidden they only mark the results stale.
+    @State private var isVisible = false
+    @State private var isStale = false
+    /// Counts store changes seen on screen; each restarts the reload's pause.
+    @State private var storeChanges = 0
 
     var body: some View {
         List {
             if !results.clients.isEmpty {
                 Section(title: "Clients") {
-                    ForEach(AppSearch.shown(results.clients)) { clientLink($0) }
+                    ForEach(AppSearch.shown(results.clients).filter { !$0.isGoneHere }) { clientLink($0) }
                     if AppSearch.hasMore(results.clients) {
                         showAll(results.clients.count) {
                             SearchShowAllList(title: "Clients", items: results.clients) { clientLink($0) }
@@ -41,7 +53,7 @@ struct GlobalSearchView: View {
             }
             if !results.documents.isEmpty {
                 Section(title: "Documents") {
-                    ForEach(AppSearch.shown(results.documents)) { documentLink($0) }
+                    ForEach(AppSearch.shown(results.documents).filter { !$0.isGoneHere }) { documentLink($0) }
                     if AppSearch.hasMore(results.documents) {
                         showAll(results.documents.count) {
                             SearchShowAllList(title: "Documents", items: results.documents) { documentLink($0) }
@@ -52,7 +64,7 @@ struct GlobalSearchView: View {
             }
             if !results.routes.isEmpty {
                 Section(title: "Routes") {
-                    ForEach(AppSearch.shown(results.routes)) { routeLink($0) }
+                    ForEach(AppSearch.shown(results.routes).filter { !$0.isGoneHere }) { routeLink($0) }
                     if AppSearch.hasMore(results.routes) {
                         showAll(results.routes.count) {
                             SearchShowAllList(title: "Routes", items: results.routes) { routeLink($0) }
@@ -63,7 +75,7 @@ struct GlobalSearchView: View {
             }
             if !results.records.isEmpty {
                 Section(title: "Work") {
-                    ForEach(AppSearch.shown(results.records)) { recordLink($0) }
+                    ForEach(AppSearch.shown(results.records).filter { !$0.isGoneHere }) { recordLink($0) }
                     if AppSearch.hasMore(results.records) {
                         showAll(results.records.count) {
                             SearchShowAllList(title: "Work", items: results.records) { recordLink($0) }
@@ -85,9 +97,28 @@ struct GlobalSearchView: View {
         .searchable(text: $query, isPresented: $isSearching,
                     placement: .navigationBarDrawer(displayMode: .always),
                     prompt: "Search Clients, Documents, Routes, Work")
+        .searchFocused($isFieldFocused)
+        .scrollDismissesKeyboard(.immediately)
         .task {
+            guard !hasOpened else { return }
+            hasOpened = true
             load()
             isSearching = true
+            isFieldFocused = true
+        }
+        .onAppear {
+            isVisible = true
+            // Changed while a result was open (one deleted there, say):
+            // fetch afresh now, before the rows are read again.
+            if isStale {
+                isStale = false
+                load()
+                search()
+            }
+        }
+        .onDisappear {
+            isVisible = false
+            isFieldFocused = false
         }
         .task(id: query) {
             // Typing on cancels this wait, so the search runs once typing stops.
@@ -95,11 +126,18 @@ struct GlobalSearchView: View {
             search()
         }
         // A record opened from here can be deleted there: fetch afresh, so
-        // the results never hold a deleted one. Combine's receive(on:) keeps
-        // a poster off the main thread from waiting for this screen.
+        // the results never hold a deleted one (the rows also skip one gone
+        // meanwhile). Combine's receive(on:) keeps a poster off the main
+        // thread from waiting for this screen. A burst of saves or an iCloud
+        // import reloads once, 300 ms after the last; hidden, once on return.
         .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave)
             .merge(with: NotificationCenter.default.publisher(for: .NSPersistentStoreRemoteChange))
             .receive(on: DispatchQueue.main)) { _ in
+            if isVisible { storeChanges += 1 } else { isStale = true }
+        }
+        .task(id: storeChanges) {
+            guard storeChanges > 0, isVisible else { return }
+            do { try await Task.sleep(for: .milliseconds(300)) } catch { return }
             load()
             search()
         }
@@ -157,7 +195,7 @@ struct GlobalSearchView: View {
 }
 
 /// Every result of one kind, pushed from Show All.
-private struct SearchShowAllList<Item: Identifiable, Row: View>: View {
+private struct SearchShowAllList<Item: PersistentModel, Row: View>: View {
     let title: String
     let items: [Item]
     @ViewBuilder let row: (Item) -> Row
@@ -165,7 +203,7 @@ private struct SearchShowAllList<Item: Identifiable, Row: View>: View {
     var body: some View {
         List {
             Section {
-                ForEach(items) { row($0) }
+                ForEach(items.filter { !$0.isGoneHere }) { row($0) }
             }
             .listRowBackground(PlowRColor.surface)
         }
@@ -180,7 +218,7 @@ private struct SearchClientRow: View {
     let client: Client
 
     var body: some View {
-        HStack {
+        AdaptiveRow {
             VStack(alignment: .leading, spacing: 2) {
                 Text(client.name)
                     .font(.subheadline.weight(.semibold))
@@ -190,7 +228,7 @@ private struct SearchClientRow: View {
                         .foregroundStyle(PlowRColor.inkSecondary)
                 }
             }
-            Spacer()
+        } trailing: {
             if !client.isActive {
                 StatusChip("Inactive", status: .neutral)
             }
@@ -202,14 +240,17 @@ private struct SearchClientRow: View {
 /// A document: its number (or kind), client, status and total.
 private struct SearchDocumentRow: View {
     let document: Proposal
+    @Environment(\.dynamicTypeSize) private var typeSize
 
+    /// The number alone, as the Documents rows show it; else its kind.
     private var title: String {
-        document.isInvoice ? "Invoice \(document.invoiceNumber)" : "Proposal"
+        guard document.isInvoice else { return "Proposal" }
+        return document.invoiceNumber.isEmpty ? "Invoice" : document.invoiceNumber
     }
 
     var body: some View {
         let status = document.invoiceStatus
-        HStack {
+        AdaptiveRow {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.subheadline.weight(.semibold))
@@ -217,8 +258,9 @@ private struct SearchDocumentRow: View {
                     .font(.caption)
                     .foregroundStyle(PlowRColor.inkSecondary)
             }
-            Spacer()
-            VStack(alignment: .trailing, spacing: 4) {
+        } trailing: {
+            // Stacked under the name at accessibility sizes, so lined up left there.
+            VStack(alignment: typeSize.isAccessibilitySize ? .leading : .trailing, spacing: 4) {
                 Text(Money.text(document.total))
                     .font(.subheadline.weight(.bold))
                     .wholeValue()
@@ -229,16 +271,17 @@ private struct SearchDocumentRow: View {
     }
 }
 
-/// A route: name and number of stops.
+/// A route: name and number of stops, as the route list says them.
 private struct SearchRouteRow: View {
     let route: PlowRoute
+    @Environment(ActiveRouteStore.self) private var activeRoute
 
     var body: some View {
-        let count = route.stops?.count ?? 0
         VStack(alignment: .leading, spacing: 2) {
             Text(route.name)
                 .font(.subheadline.weight(.semibold))
-            Text(count == 0 ? "No stops yet" : "\(count) stop\(count == 1 ? "" : "s")")
+            // Counted as the route list counts: this run's stops while it runs.
+            Text(RouteFacts.stopsText(of: route, store: activeRoute))
                 .font(.caption)
                 .foregroundStyle(PlowRColor.inkSecondary)
         }

@@ -165,7 +165,8 @@ struct AppSearchTests {
         let zed = store.client("Zed Park")
         let anna = store.client("anna park", active: false)
         let bob = store.client("Bob Park")
-        let older = store.document(for: bob, number: "P-1", createdAt: base)
+        // Older one's client first by name: a name order would put it first.
+        let older = store.document(for: anna, number: "P-1", createdAt: base)
         let newer = store.document(for: bob, number: "P-2", createdAt: base.addingTimeInterval(60))
         let west = store.route("West Park")
         let east = store.route("East Park")
@@ -183,6 +184,33 @@ struct AppSearchTests {
         #expect(documentIDs == [newer.id, older.id])
         #expect(routeIDs == [east.id, west.id])
         #expect(recordIDs == [today.id, lastWeek.id])
+    }
+
+    // MARK: - Route stops
+
+    // The route list's words, and its count: while a route runs, this run's
+    // stops (one left out today doesn't count).
+    @Test func aRoutesStopsAreCountedAsTheRouteListCountsThem() throws {
+        let store = try Store()
+        let route = store.route("North")
+        for index in 0..<3 {
+            let stop = RouteStop(order: index, customName: "Stop \(index)")
+            stop.route = route
+            store.context.insert(stop)
+        }
+        try store.context.save()
+        let defaults = try #require(UserDefaults(suiteName: "AppSearchTests-\(UUID().uuidString)"))
+        let routeStore = ActiveRouteStore(defaults: defaults, surfaces: FakeRouteSurfaces())
+        let idle = RouteFacts.stopsText(of: route, store: routeStore)
+        #expect(idle == "3 stops")
+        let skipped = try #require(route.sortedStops.first)
+        routeStore.start(route, skipping: [skipped.id])
+        let running = RouteFacts.stopsText(of: route, store: routeStore)
+        #expect(running == "2 stops")
+        let none = RouteFacts.stopsText(0)
+        let one = RouteFacts.stopsText(1)
+        #expect(none == "No stops yet")
+        #expect(one == "1 stop")
     }
 
     // MARK: - Cap
@@ -203,8 +231,11 @@ struct AppSearchTests {
     // MARK: - Timing (local only, no assertion)
 
     /// 5,000 of each kind, searched once; prints the time for the PR.
-    /// No timing assertion: those are flaky on CI.
-    @Test func searchingFiveThousandOfEach() throws {
+    /// No timing assertion: those are flaky on CI. Runs only when asked
+    /// (`TEST_RUNNER_PLOWR_TIMING=1 xcodebuild test …`): 20,000 records
+    /// made for nothing on every run would slow the suite.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["PLOWR_TIMING"] != nil))
+    func searchingFiveThousandOfEach() throws {
         let store = try Store()
         let count = 5_000
         let clients: [Client] = (0..<count).map { store.client("Client \($0)", address: "\($0) Maple St") }
