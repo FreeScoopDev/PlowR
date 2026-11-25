@@ -1,5 +1,5 @@
 {
-  "version": "1.9.0",
+  "version": "1.10.0",
   "title": "PlowR Help",
   "lede": "Tips and how-tos for running your routes, clients and day.",
   "description": "How to use PlowR: setting up your business, adding clients, building routes with expected services, running a route and texting clients, tips and common questions.",
@@ -10,7 +10,7 @@
       "title": "Getting started",
       "nav": "Getting started",
       "style": "cards",
-      "intro": "PlowR has five tabs: Home, Clients, Routes, Documents and Schedule. Settings is the gear at the top of Home.",
+      "intro": "PlowR has five tabs: Home, Clients, Routes, Documents and Schedule. Settings is the gear at the top of Home, and Home's **Quick Actions** start the everyday jobs: **New Client**, **Schedule Visit**, **Log Work**, **New Invoice**, **New Route**, **Season Report**, **Work Log** and **Expenses**. Log Work and New Invoice ask which client first.",
       "topics": [
         {
           "id": "set-up-business",
@@ -29,7 +29,7 @@
             "Under **What do you do?**, pick Snow Removal, Lawn Care, Cleanup, or any mix. PlowR adds the usual services and prices, which you can change later.",
             "Enter your **Default tax rate (%)**.",
             "Turn on **Alerts** and **Your location** if you'd like them. Every step has **Skip**.",
-            "On Home, the **Get Started** card walks you through your first client, route and invoice."
+            "On Home, the **Get Started** card walks you through your first client, route and invoice. Hid it too soon? **Settings → Show Get Started** brings it back."
           ],
           "note": "PlowR is free for up to 10 active clients and one route, for as long as you like. PlowR Pro adds unlimited clients and routes, Service Reports, storm tools, client import and a Request Link. Items marked [PRO] need it."
         }
@@ -53,11 +53,11 @@
             { "file": "clients-client-page.jpg", "alt": "client page" }
           ],
           "steps": [
-            "Open the **Clients** tab, tap **+**, and choose **Add Manually**.",
+            "Open the **Clients** tab, tap **+**, and choose **New Client**.",
             "Choose **Existing Customer** (someone you already work for) or **New Lead** (someone you hope to win). Enter their **Full Name**; a phone number, email and **Route Notes** (a gate code, say: they show at the client's stops on every route) are optional. Or tap **Import Contact** to fill it in from your Contacts.",
             "Type the **Street Address** and pick the match. PlowR pins it on the map.",
             "Tap **Save**.",
-            "On the client's page, add the rest: tags, **Expected Services**, billing preferences, **Tax Exempt**, **Route Notes**, and other properties. Changed Route Notes reach every route the client is on."
+            "On the client's page, add the rest: tags, **Expected Services**, billing preferences, **Tax Exempt**, **Route Notes**, and other properties. Changed Route Notes reach every route the client is on. The buttons at the top of the page are **Contact**, **Invoice**, **Schedule**, **Log Work** (a job done off a route, for their Service History) and **Photos**."
           ],
           "note": "Tip: set a client's **Expected Services** once and every route they're on starts with them."
         },
@@ -126,7 +126,7 @@
           "steps": [
             "Open the **Routes** tab and tap **+**.",
             "Give it a **Route Name**, like \"Monday North Side\".",
-            "Tap **Add Stop**, choose clients from **Your Clients** (or **Enter Manually** for a one-time stop), then tap **Done**.",
+            "Tap **Add Stop**, choose clients from **Your Clients** (or **Enter Manually** for a one-time stop), then tap **Done**. A long list? Type a name, address or phone number in **Search Clients**.",
             "Drag stops into the order you want, and tap **Save**.",
             "Or let PlowR order them: on the route page, tap **⋯** → **Optimize Order**."
           ]
@@ -159,15 +159,16 @@
           "lead": "For clients you serve on a regular schedule, like a weekly mow. Routes don't repeat on their own; repeating visits live in Schedule.",
           "shots": [
             { "file": "routes-schedule-tab.jpg", "alt": "Schedule tab" },
-            { "file": "routes-add-visit-recurrence.jpg", "alt": "Add Visit, Recurrence" }
+            { "file": "routes-add-visit-recurrence.jpg", "alt": "Schedule Visit, Recurrence" }
           ],
           "steps": [
             "Open the **Schedule** tab and tap **+**.",
-            "In **Add Visit**, choose the **Client** and the **Date**.",
+            "In **Schedule Visit**, choose the **Client** (**Search Clients** finds one by name, address or phone number) and the **Date**.",
             "Under **Recurrence**, turn on **Repeat** and pick a **Frequency**: Daily, Weekly, Every 2 Weeks or Monthly. For Weekly, choose the days.",
-            "Turn on **End Date** if the work stops at the end of a season, then tap **Add**."
+            "Turn on **End Date** if the work stops at the end of a season, then tap **Add**.",
+            "On the day, tap the visit (on **Schedule** or Home's **Today**) to open it. **Record Services** adds photos, services and notes (its expected services start ticked), **Complete** ticks it off, and **Complete & Invoice** does both and opens the draft invoice to check and send. Swipe a visit for the quick **Complete**, **Skip**, **Invoice** and **Delete**."
           ],
-          "note": "Want visits on your iPhone calendar too? Turn on **Settings → Calendar → Add Visits to Calendar**.",
+          "note": "Swipe a visit to **Complete**, **Skip** or **Delete** it. **Undo** appears for a few seconds after Delete, Skip or Complete. Want visits on your iPhone calendar too? Turn on **Settings → Calendar → Add Visits to Calendar**.",
           "tips": [
             { "id": "tip-repeat-visit", "title": "Same work every week?", "message": "Turn on **Repeat** for weekly or monthly visits." },
             { "id": "tip-route-from-day", "title": "Route a busy day", "message": "Tap **Create Route** to turn this day's visits into a route." }
@@ -202,7 +203,8 @@
             "Tap **Complete · Text Next Client** to finish the stop and move on. (It says **Complete Stop** when there's no one to text.)",
             "When a stop has expected services and nothing is recorded for it yet, the button names them instead, like **Done: Mow, Trim**. One tap completes the stop and records those services at your catalog prices, as **Add Expected** and **Save** would. A service priced per square foot is named only where the property has a measured area: elsewhere it would be $0, so add it in **Record Services**, which asks for its price. Did something else? Tap **Complete Without Services**, or record the work in **Record Services** first. Tapped it by mistake? On any stop but the last, tap **Undo** in the bar at the bottom: the services come off with it. After the last stop, change them from the **Route Recap**.",
             "Couldn't do a stop (a vehicle in the way, a locked gate)? Tap **Can't Service**, pick a reason and tap **Save & Move On**. PlowR moves on without recording a visit, time or services, and the reason shows in the **Route Recap** and on the route's page until its next run.",
-            "After the last stop, tap **Review & End Route** to see the **Route Recap**, then **End Route**. Stops completed with nothing recorded, from Siri or Control Center, say, can get their expected services there: tap **Record Expected Services**, check the stops and services it lists, and confirm. Nothing already recorded or invoiced is changed."
+            "After the last stop, tap **Review & End Route** to see the **Route Recap**, then **End Route**. Stops completed with nothing recorded, from Siri or Control Center, say, can get their expected services there: tap **Record Expected Services**, check the stops and services it lists, and confirm. Nothing already recorded or invoiced is changed.",
+            "A visit that isn't on a route? Tap it in Home's **Today** for **Record Services**, **Complete** and **Complete & Invoice**, as on **Schedule**."
           ],
           "note": "Set Location to **Always** so PlowR records arrival and departure times even when the app is closed."
         },
@@ -245,6 +247,18 @@
       "intro": "Bill the work you've done, remind clients who owe, and make paying you easy.",
       "topics": [
         {
+          "id": "work-log",
+          "title": "See all your work in the Work Log",
+          "summary": "Every job for every client, by day, with the time and what it came to.",
+          "screens": ["home"],
+          "steps": [
+            "On **Home**, tap **Work Log** under Quick Actions. Completed route stops and visits, and work logged by hand, are listed by day.",
+            "Tap the filter button to choose the period (**Today**, **Yesterday**, **This Week**, **Last Week**, **This Month** or **Custom Dates**), one service, or **Not Billed** or **Invoiced** work.",
+            "The top shows the **Jobs**, the **Time** and the **Value**. Tap a job to open it and make a correction."
+          ],
+          "note": "Value is at the prices recorded with each job, before discounts, tax and contracts, so it can differ from what an invoice comes to."
+        },
+        {
           "id": "bill-work",
           "title": "Bill your unbilled work",
           "summary": "A draft invoice for every client's recorded jobs, at once.",
@@ -253,7 +267,7 @@
             "Open **Documents**, tap **+**, and choose **Bill Unbilled Work**.",
             "Choose **This Month**, **Last Month** or **All Unbilled**. Untick any client you're not billing yet.",
             "Tap **Create Draft Invoices** (it shows how many and the total). Each client gets one draft, a line per service done, with its day.",
-            "Check each draft in **Documents**, then send it."
+            "Check each draft in **Documents**, then send it. **Search Documents** finds one by client, invoice number or notes, and the filter button sorts the list by **Newest**, **Due Date**, **Amount** or **Client**."
           ],
           "tips": [
             { "id": "tip-bill-work", "title": "Bill everyone at once", "message": "Tap **+** and **Bill Unbilled Work** for a draft invoice per client." }
@@ -288,6 +302,22 @@
           "tips": [
             { "id": "tip-payment-methods", "title": "Get paid faster", "message": "Add a payment link in **Settings → Payment Methods**; invoices print a code to scan and pay." }
           ]
+        },
+        {
+          "id": "expenses-mileage",
+          "title": "Log expenses and mileage",
+          "summary": "Fuel, materials, equipment and the distance you drive, ready for tax time.",
+          "screens": ["home"],
+          "steps": [
+            "On **Home**, tap **Expenses** under Quick Actions.",
+            "Tap **+** and **Add Expense**. Enter the amount, pick a category (**Fuel**, **Materials**, **Equipment & Repairs** or **Other**) and say what you bought: PlowR suggests what you've typed before. For materials you can add a quantity and unit. A client or route is optional.",
+            "To keep the receipt, tap **Add Receipt** while adding or changing an expense: **Take Photo** or **Choose Photo**. Tap the photo to see it full screen; **Replace Receipt** and **Remove Receipt** are below it. Expenses with a receipt show a paperclip in the list.",
+            "Tap **+** and **Log Mileage** for a business trip: the distance, what it was for (a supply run, say) and, if you like, the route or client.",
+            "Switch between **Expenses** and **Mileage** at the top. Both are listed by month, newest first, with each month's total. Tap one to change it; swipe left to delete it.",
+            "The **Summary** at the top shows **Income** (money received in the period), **Spent**, **Net** (income less spent), what you spent in each category and the distance you logged. Tap the period to change it: **This Month**, **Last Month**, **This Year**, **Last Year** and **Last 12 Months**, plus **This Season** and **Last Season** once you set **Season Starts** in **Settings → Business Profile**.",
+            "At tax time, open **Settings → Export Data** and send the **Expenses** and **Mileage** files to your accountant. The Expenses file says which have a receipt; the photos stay in PlowR."
+          ],
+          "note": "PlowR doesn't track mileage by GPS: type the distance from your odometer or a map."
         }
       ]
     },
@@ -297,6 +327,13 @@
       "nav": "Quick tips",
       "style": "tips",
       "topics": [
+        {
+          "id": "search",
+          "title": "Search everything from Home",
+          "emoji": "🔍",
+          "summary": "Tap the magnifying glass on **Home** to search your clients, documents, routes and jobs at once: a name, an invoice number, a route or a word from a job's notes. Tap a result to open it.",
+          "screens": ["home"]
+        },
         {
           "id": "siri",
           "title": "Hands-free with Siri",
@@ -415,6 +452,24 @@
       "nav": "What's new",
       "style": "release",
       "topics": [
+        {
+          "id": "release-1-10",
+          "title": "PlowR 1.10: quicker everyday jobs, and expenses",
+          "summary": "Expenses and mileage with receipts, a Work Log, search from Home, a visit's own field buttons, and Undo for the one-way taps.",
+          "screens": [],
+          "bullets": [
+            "**Expenses** on Home: log fuel, materials, equipment and trips, add a receipt photo, and export both from **Export Data**.",
+            "The Expenses **Summary** shows income, spending and net for a month, a year or your season. Set **Season Starts** in **Business Profile**.",
+            "**Work Log** on Home: every job across all clients, by day, with time and value.",
+            "**Search** next to Help finds clients, documents, routes and jobs at once.",
+            "Tap a visit for **Record Services**, **Complete** and **Complete & Invoice**, without running a route.",
+            "**Undo** after deleting, skipping or completing a visit, **Mark Paid**, deleting a photo, or optimizing a route.",
+            "**Log Work** and **New Invoice** on Home and on a client's page.",
+            "Every client list can be searched, and **Documents** can be searched and sorted.",
+            "Optimize by driving distance is steadier on long routes and says when it had to estimate.",
+            "Bigger buttons for gloves, clearer VoiceOver labels, and one name for each action."
+          ]
+        },
         {
           "id": "release-1-9",
           "title": "PlowR 1.9: built for the route day",
