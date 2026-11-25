@@ -368,7 +368,7 @@ private struct ReceiptPhotoView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: PlowRLayout.space4) {
-                    ZoomableImage(image: image)
+                    ZoomableImage(image: image, label: "Receipt photo")
                         .padding()
                     if let capturedAt {
                         LabeledContent("Photo Date") {
