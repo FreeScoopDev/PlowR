@@ -2,7 +2,8 @@ import SwiftUI
 import SwiftData
 
 /// Home → Expenses: money spent (fuel, materials, equipment and repairs)
-/// and the mileage log, by month, for tax time. Viewing and deleting are
+/// and the mileage log, by month, for tax time, under a summary of a
+/// period (ExpenseSummary). Viewing (the summary too) and deleting are
 /// never gated; adding asks ProGate.edit, so only a read-only plan is
 /// stopped. Settings → Export Data has both as spreadsheets.
 struct ExpensesView: View {
@@ -33,6 +34,9 @@ struct ExpensesView: View {
     @Environment(\.access) private var access
     @Query private var allExpenses: [Expense]
     @Query private var allTrips: [MileageEntry]
+    @Query private var allProposals: [Proposal]
+    @Query private var profiles: [BusinessProfile]
+    @AppStorage("expenseSummaryPeriod") private var summaryPeriodRaw = ExpenseSummary.Period.thisMonth.rawValue
 
     @State private var tab: Tab = .expenses
     @State private var editor: Editor?
@@ -47,6 +51,9 @@ struct ExpensesView: View {
 
     var body: some View {
         List {
+            if !myExpenses.isEmpty || !myTrips.isEmpty {
+                summarySections
+            }
             Section {
                 Picker("Show", selection: $tab) {
                     ForEach(Tab.allCases) { Text($0.rawValue).tag($0) }
@@ -113,6 +120,93 @@ struct ExpensesView: View {
         } message: { _ in
             Text("This can't be undone.")
         }
+    }
+
+    // MARK: - Summary
+
+    /// Season Starts, 1–12, or 0 when not set.
+    private var seasonStartMonth: Int {
+        BusinessProfiles.current(profiles, operatorID: operatorID).map { BusinessProfiles.seasonStartMonth($0) } ?? 0
+    }
+
+    /// The period chosen, or its stand-in when the menu no longer offers it.
+    private var summaryPeriod: ExpenseSummary.Period {
+        (ExpenseSummary.Period(rawValue: summaryPeriodRaw) ?? .thisMonth).available(seasonStartMonth: seasonStartMonth)
+    }
+
+    private var summary: ExpenseSummary.Figures {
+        ExpenseSummary.figures(expenses: allExpenses, mileage: allTrips, documents: allProposals,
+                               operatorID: operatorID,
+                               period: summaryPeriod.interval(now: .now, seasonStartMonth: seasonStartMonth),
+                               unit: distanceUnit)
+    }
+
+    @ViewBuilder private var summarySections: some View {
+        let figures = summary
+        Section {
+            StatTileRow {
+                StatTile(value: Money.whole(figures.income), label: "Income",
+                         status: figures.income > 0 ? .done : nil)
+                StatTile(value: Money.whole(figures.spent), label: "Spent")
+                // A loss is red; a zero has no status.
+                StatTile(value: Money.whole(figures.net), label: "Net",
+                         status: figures.net < 0 ? .overdue : nil)
+            }
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+        } header: {
+            HStack {
+                Text("Summary")
+                    .foregroundStyle(PlowRColor.inkSecondary)
+                Spacer()
+                Menu {
+                    Picker("Period", selection: Binding(get: { summaryPeriod },
+                                                        set: { summaryPeriodRaw = $0.rawValue })) {
+                        ForEach(ExpenseSummary.Period.choices(seasonStartMonth: seasonStartMonth)) { period in
+                            Text(period.title).tag(period)
+                        }
+                    }
+                } label: {
+                    Label(summaryPeriod.title, systemImage: "chevron.up.chevron.down")
+                        .labelStyle(.titleAndIcon)
+                        .font(.subheadline)
+                }
+                .textCase(nil)
+                .accessibilityLabel("Period: \(summaryPeriod.title)")
+            }
+        }
+        .listRowBackground(PlowRColor.surface)
+
+        Section {
+            ForEach(figures.byCategory, id: \.category) { row in
+                LabeledContent {
+                    Text(Money.text(row.amount))
+                        .font(PlowRFont.number)
+                        .foregroundStyle(PlowRColor.ink)
+                } label: {
+                    Label(row.category.title, systemImage: row.category.symbol.name)
+                        .foregroundStyle(PlowRColor.ink)
+                }
+            }
+            LabeledContent {
+                Text(Mileage.text(figures.distance, unit: distanceUnit))
+                    .font(PlowRFont.number)
+                    .foregroundStyle(PlowRColor.ink)
+            } label: {
+                Label("Distance", systemImage: PlowRSymbol.mileage.name)
+                    .foregroundStyle(PlowRColor.ink)
+            }
+            if seasonStartMonth == 0 {
+                NavigationLink { BusinessProfileView() } label: {
+                    Text("See season totals: set Season Starts in Business Profile.")
+                        .font(.footnote)
+                        .foregroundStyle(PlowRColor.inkSecondary)
+                }
+            }
+        } footer: {
+            SectionNote("Income is money received in the period. Spent is what you logged. Not tax advice.")
+        }
+        .listRowBackground(PlowRColor.surface)
     }
 
     // MARK: - Expenses

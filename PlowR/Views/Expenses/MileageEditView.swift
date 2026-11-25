@@ -69,7 +69,7 @@ struct MileageEditView: View {
         NavigationStack {
             Form {
                 Section {
-                    DatePicker("Date", selection: $date, displayedComponents: .date)
+                    DatePicker("Date", selection: $date, in: ...Date.now, displayedComponents: .date)
                     LabeledContent("Distance") {
                         HStack(spacing: PlowRLayout.space1) {
                             TextField("0", text: $distanceText)
