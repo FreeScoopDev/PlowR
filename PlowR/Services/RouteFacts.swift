@@ -4,6 +4,17 @@ import Foundation
 /// roughly how long it takes, and when it last ran. Worked out here once so
 /// the two screens can't disagree.
 enum RouteFacts {
+    /// A route's stop count as the route list and Home's Search say it.
+    static func stopsText(_ count: Int) -> String {
+        count == 0 ? "No stops yet" : "\(count) stop\(count == 1 ? "" : "s")"
+    }
+
+    /// `route`'s stop count by its run (`RouteRunSummary`): while it's
+    /// running, this run's stops, less any left out today.
+    static func stopsText(of route: PlowRoute, store: ActiveRouteStore) -> String {
+        stopsText(RouteRunSummary(route: route, store: store).total)
+    }
+
     /// About how long the route's work takes: each client stop's client's
     /// average minutes, for those with one. Adds no driving between stops. A
     /// client's average includes the drive there for visits whose arrival
