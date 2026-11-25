@@ -453,6 +453,24 @@
       "style": "release",
       "topics": [
         {
+          "id": "release-1-10",
+          "title": "PlowR 1.10: quicker everyday jobs, and expenses",
+          "summary": "Expenses and mileage with receipts, a Work Log, search from Home, a visit's own field buttons, and Undo for the one-way taps.",
+          "screens": [],
+          "bullets": [
+            "**Expenses** on Home: log fuel, materials, equipment and trips, add a receipt photo, and export both from **Export Data**.",
+            "The Expenses **Summary** shows income, spending and net for a month, a year or your season. Set **Season Starts** in **Business Profile**.",
+            "**Work Log** on Home: every job across all clients, by day, with time and value.",
+            "**Search** next to Help finds clients, documents, routes and jobs at once.",
+            "Tap a visit for **Record Services**, **Complete** and **Complete & Invoice**, without running a route.",
+            "**Undo** after deleting, skipping or completing a visit, **Mark Paid**, deleting a photo, or optimizing a route.",
+            "**Log Work** and **New Invoice** on Home and on a client's page.",
+            "Every client list can be searched, and **Documents** can be searched and sorted.",
+            "Optimize by driving distance is steadier on long routes and says when it had to estimate.",
+            "Bigger buttons for gloves, clearer VoiceOver labels, and one name for each action."
+          ]
+        },
+        {
           "id": "release-1-9",
           "title": "PlowR 1.9: built for the route day",
           "summary": "A route screen that keeps up in gloves and without signal, readable text in sun and at night, a calmer dark mode, and invoices with your address and terms.",
