@@ -63,6 +63,7 @@ New entries go in `changelog.d/` (see its README) and are gathered here when a v
 - The camera permission message now says it's also for receipts.
 
 ### Fixed
+- VoiceOver read nothing for a photo opened full screen: a client's photo now reads "Photo" and an expense's receipt "Receipt photo".
 - A PDF that couldn't be written (a full phone, say) still opened the share sheet, offering a file that wasn't there or an older copy of it. Invoices, proposals, contracts, Service Reports and proof-of-service PDFs are now offered only once written; otherwise PlowR says "Couldn't Make the PDF" with the reason, and logs it.
 - Optimize (Driving Distances) asks Maps for far fewer drive times: only the five nearest remaining stops at each step, one at a time, using the lighter travel-time request. Asking about every stop took about 190 requests for 20 stops, Maps throttled most of them, and the stops it couldn't time were scored in a different unit from the ones it could, so the order could come out worse than Quick Optimize. A stop without a drive time is now estimated in seconds from its straight-line distance, so every leg compares fairly; after Maps throttles or fails three times in a row, the rest of the run uses estimates instead of asking again.
 - After optimizing, if some drive times were estimated, the route page says how many legs used straight-line distance.
