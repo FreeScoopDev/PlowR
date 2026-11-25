@@ -90,7 +90,9 @@ jobs:
     name: Unit tests (iOS)
     needs: changes
     if: needs.changes.outputs.macos == 'true'
-    runs-on: macos-26
+    # GitHub's Xcode 27 image (public preview since 2026; macos-26 tops out at
+    # Xcode 26.6). Apple wants the iOS 27 SDK for uploads from April 2027.
+    runs-on: xcode-27
     timeout-minutes: 45
     steps:
       - name: Check out repo
@@ -104,12 +106,12 @@ jobs:
           ref: 452ea4bcf8597dac4121dc66cccb60f2a9f6d7e7
           path: toolkit
 
-      # The newest Xcode 26 on the image: Xcode Cloud builds this project
-      # with Xcode 26 (iOS 26.5 SDK) too.
+      # The newest Xcode 27 on the image: Xcode Cloud's Release Flow builds
+      # this project with Xcode 27 too (docs/ci.md), so CI tests what ships.
       - name: Select Xcode
         run: |
           set -euo pipefail
-          XCODE=$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)
+          XCODE=$(ls -d /Applications/Xcode_27*.app | sort -V | tail -1)
           sudo xcode-select -s "$XCODE"
           xcodebuild -version
 

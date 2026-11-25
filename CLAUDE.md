@@ -466,7 +466,8 @@ PlowR's specifics:
   2026-10-09). `~/.claude/toolkit/bin/repo-check.sh .` confirms GitHub still
   matches.
 - **CI**: GitHub Actions runs the `PlowR` scheme's tests on every PR to `main`
-  (`.github/workflows/tests.yml`, `macos-26`, about 9 minutes, free on a
+  (`.github/workflows/tests.yml`, GitHub's `xcode-27` image with Xcode 27
+  since 2026-11-25, as Release Flow, about 9 minutes, free on a
   public repo), plus the Linux guards in `guards.yml` and the critic-verdict
   check. Xcode Cloud keeps **Release Flow** only: its monthly hours are
   shared by every app on the membership and ran out on 2026-10-10 with PR
