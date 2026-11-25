@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- Made by scripts/help_guide.py from scripts/help_guide_published.json, the help as PlowR 1.9.0 shipped.
+<!-- Made by scripts/help_guide.py from scripts/help_guide_published.json, the help as PlowR 1.10.0 shipped.
      Don't edit this page: edit the JSON, then run python3 scripts/help_guide.py. -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="How to use PlowR: setting up your business, adding clients, building routes with expected services, running a route and texting clients, tips and common questions.">
-    <meta name="plowr-help-version" content="1.9.0">
-    <meta name="plowr-help-source" content="875a9545ca06201363489b3ab3e1fd546b9aebbfd0193ae7ddcd081d28436e6d">
+    <meta name="plowr-help-version" content="1.10.0">
+    <meta name="plowr-help-source" content="09a00ab434bcb1c181ab67dc32ff3980537272fee4f73a56a81c3e921fb334f3">
     <meta name="plowr-help-script" content="b1e2c8973aab8b3475f69ade97e15b6bc539146793a27e47d202ed8a0db3e222">
-    <meta name="plowr-help-page" content="ff737e5983a717b4e95d4f4be8d407c68ba347bad9d4c0172d3e3331c019487a">
+    <meta name="plowr-help-page" content="45098406cf1def260766b72b9425e8cbf9035318482f692df259dd9aab87967b">
     <title>PlowR Help — Tips &amp; Tricks</title>
     <style>
         :root { color-scheme: light dark; --text: #1c1c1e; --muted: #6e6e73; --link: #0071e3; --card: #f2f2f7; --bg: #ffffff; --shot: #e5e5ea; --shot2: #dedee3; --line: #c7c7cc; --warn: #b25000; }
@@ -67,7 +67,7 @@
 
 <section id="start">
     <h2>Getting started</h2>
-    <p class="intro">PlowR has five tabs: Home, Clients, Routes, Documents and Schedule. Settings is the gear at the top of Home.</p>
+    <p class="intro">PlowR has five tabs: Home, Clients, Routes, Documents and Schedule. Settings is the gear at the top of Home, and Home's <span class="ui">Quick Actions</span> start the everyday jobs: <span class="ui">New Client</span>, <span class="ui">Schedule Visit</span>, <span class="ui">Log Work</span>, <span class="ui">New Invoice</span>, <span class="ui">New Route</span>, <span class="ui">Season Report</span>, <span class="ui">Work Log</span> and <span class="ui">Expenses</span>. Log Work and New Invoice ask which client first.</p>
 
     <div class="card" id="set-up-business">
         <h3>Set up your business</h3>
@@ -83,7 +83,7 @@
             <li>Under <span class="ui">What do you do?</span>, pick Snow Removal, Lawn Care, Cleanup, or any mix. PlowR adds the usual services and prices, which you can change later.</li>
             <li>Enter your <span class="ui">Default tax rate (%)</span>.</li>
             <li>Turn on <span class="ui">Alerts</span> and <span class="ui">Your location</span> if you'd like them. Every step has <span class="ui">Skip</span>.</li>
-            <li>On Home, the <span class="ui">Get Started</span> card walks you through your first client, route and invoice.</li>
+            <li>On Home, the <span class="ui">Get Started</span> card walks you through your first client, route and invoice. Hid it too soon? <span class="ui">Settings → Show Get Started</span> brings it back.</li>
         </ol>
         <div class="note">PlowR is free for up to 10 active clients and one route, for as long as you like. PlowR Pro adds unlimited clients and routes, Service Reports, storm tools, client import and a Request Link. Items marked <span class="pro">PRO</span> need it.</div>
     </div>
@@ -101,11 +101,11 @@
             <img class="shot" src="help/clients-client-page.jpg" alt="client page" loading="lazy">
         </div>
         <ol class="steps">
-            <li>Open the <span class="ui">Clients</span> tab, tap <span class="ui">+</span>, and choose <span class="ui">Add Manually</span>.</li>
+            <li>Open the <span class="ui">Clients</span> tab, tap <span class="ui">+</span>, and choose <span class="ui">New Client</span>.</li>
             <li>Choose <span class="ui">Existing Customer</span> (someone you already work for) or <span class="ui">New Lead</span> (someone you hope to win). Enter their <span class="ui">Full Name</span>; a phone number, email and <span class="ui">Route Notes</span> (a gate code, say: they show at the client's stops on every route) are optional. Or tap <span class="ui">Import Contact</span> to fill it in from your Contacts.</li>
             <li>Type the <span class="ui">Street Address</span> and pick the match. PlowR pins it on the map.</li>
             <li>Tap <span class="ui">Save</span>.</li>
-            <li>On the client's page, add the rest: tags, <span class="ui">Expected Services</span>, billing preferences, <span class="ui">Tax Exempt</span>, <span class="ui">Route Notes</span>, and other properties. Changed Route Notes reach every route the client is on.</li>
+            <li>On the client's page, add the rest: tags, <span class="ui">Expected Services</span>, billing preferences, <span class="ui">Tax Exempt</span>, <span class="ui">Route Notes</span>, and other properties. Changed Route Notes reach every route the client is on. The buttons at the top of the page are <span class="ui">Contact</span>, <span class="ui">Invoice</span>, <span class="ui">Schedule</span>, <span class="ui">Log Work</span> (a job done off a route, for their Service History) and <span class="ui">Photos</span>.</li>
         </ol>
         <div class="note">Tip: set a client's <span class="ui">Expected Services</span> once and every route they're on starts with them.</div>
     </div>
@@ -152,7 +152,7 @@
         <ol class="steps">
             <li>Open the <span class="ui">Routes</span> tab and tap <span class="ui">+</span>.</li>
             <li>Give it a <span class="ui">Route Name</span>, like "Monday North Side".</li>
-            <li>Tap <span class="ui">Add Stop</span>, choose clients from <span class="ui">Your Clients</span> (or <span class="ui">Enter Manually</span> for a one-time stop), then tap <span class="ui">Done</span>.</li>
+            <li>Tap <span class="ui">Add Stop</span>, choose clients from <span class="ui">Your Clients</span> (or <span class="ui">Enter Manually</span> for a one-time stop), then tap <span class="ui">Done</span>. A long list? Type a name, address or phone number in <span class="ui">Search Clients</span>.</li>
             <li>Drag stops into the order you want, and tap <span class="ui">Save</span>.</li>
             <li>Or let PlowR order them: on the route page, tap <span class="ui">⋯</span> → <span class="ui">Optimize Order</span>.</li>
         </ol>
@@ -177,15 +177,16 @@
         <p class="lead">For clients you serve on a regular schedule, like a weekly mow. Routes don't repeat on their own; repeating visits live in Schedule.</p>
         <div class="shots">
             <img class="shot" src="help/routes-schedule-tab.jpg" alt="Schedule tab" loading="lazy">
-            <img class="shot" src="help/routes-add-visit-recurrence.jpg" alt="Add Visit, Recurrence" loading="lazy">
+            <img class="shot" src="help/routes-add-visit-recurrence.jpg" alt="Schedule Visit, Recurrence" loading="lazy">
         </div>
         <ol class="steps">
             <li>Open the <span class="ui">Schedule</span> tab and tap <span class="ui">+</span>.</li>
-            <li>In <span class="ui">Add Visit</span>, choose the <span class="ui">Client</span> and the <span class="ui">Date</span>.</li>
+            <li>In <span class="ui">Schedule Visit</span>, choose the <span class="ui">Client</span> (<span class="ui">Search Clients</span> finds one by name, address or phone number) and the <span class="ui">Date</span>.</li>
             <li>Under <span class="ui">Recurrence</span>, turn on <span class="ui">Repeat</span> and pick a <span class="ui">Frequency</span>: Daily, Weekly, Every 2 Weeks or Monthly. For Weekly, choose the days.</li>
             <li>Turn on <span class="ui">End Date</span> if the work stops at the end of a season, then tap <span class="ui">Add</span>.</li>
+            <li>On the day, tap the visit (on <span class="ui">Schedule</span> or Home's <span class="ui">Today</span>) to open it. <span class="ui">Record Services</span> adds photos, services and notes (its expected services start ticked), <span class="ui">Complete</span> ticks it off, and <span class="ui">Complete &amp; Invoice</span> does both and opens the draft invoice to check and send. Swipe a visit for the quick <span class="ui">Complete</span>, <span class="ui">Skip</span>, <span class="ui">Invoice</span> and <span class="ui">Delete</span>.</li>
         </ol>
-        <div class="note">Want visits on your iPhone calendar too? Turn on <span class="ui">Settings → Calendar → Add Visits to Calendar</span>.</div>
+        <div class="note">Swipe a visit to <span class="ui">Complete</span>, <span class="ui">Skip</span> or <span class="ui">Delete</span> it. <span class="ui">Undo</span> appears for a few seconds after Delete, Skip or Complete. Want visits on your iPhone calendar too? Turn on <span class="ui">Settings → Calendar → Add Visits to Calendar</span>.</div>
     </div>
 </section>
 
@@ -208,6 +209,7 @@
             <li>When a stop has expected services and nothing is recorded for it yet, the button names them instead, like <span class="ui">Done: Mow, Trim</span>. One tap completes the stop and records those services at your catalog prices, as <span class="ui">Add Expected</span> and <span class="ui">Save</span> would. A service priced per square foot is named only where the property has a measured area: elsewhere it would be $0, so add it in <span class="ui">Record Services</span>, which asks for its price. Did something else? Tap <span class="ui">Complete Without Services</span>, or record the work in <span class="ui">Record Services</span> first. Tapped it by mistake? On any stop but the last, tap <span class="ui">Undo</span> in the bar at the bottom: the services come off with it. After the last stop, change them from the <span class="ui">Route Recap</span>.</li>
             <li>Couldn't do a stop (a vehicle in the way, a locked gate)? Tap <span class="ui">Can't Service</span>, pick a reason and tap <span class="ui">Save &amp; Move On</span>. PlowR moves on without recording a visit, time or services, and the reason shows in the <span class="ui">Route Recap</span> and on the route's page until its next run.</li>
             <li>After the last stop, tap <span class="ui">Review &amp; End Route</span> to see the <span class="ui">Route Recap</span>, then <span class="ui">End Route</span>. Stops completed with nothing recorded, from Siri or Control Center, say, can get their expected services there: tap <span class="ui">Record Expected Services</span>, check the stops and services it lists, and confirm. Nothing already recorded or invoiced is changed.</li>
+            <li>A visit that isn't on a route? Tap it in Home's <span class="ui">Today</span> for <span class="ui">Record Services</span>, <span class="ui">Complete</span> and <span class="ui">Complete &amp; Invoice</span>, as on <span class="ui">Schedule</span>.</li>
         </ol>
         <div class="note">Set Location to <span class="ui">Always</span> so PlowR records arrival and departure times even when the app is closed.</div>
     </div>
@@ -242,13 +244,23 @@
     <h2>Getting paid</h2>
     <p class="intro">Bill the work you've done, remind clients who owe, and make paying you easy.</p>
 
+    <div class="card" id="work-log">
+        <h3>See all your work in the Work Log</h3>
+        <ol class="steps">
+            <li>On <span class="ui">Home</span>, tap <span class="ui">Work Log</span> under Quick Actions. Completed route stops and visits, and work logged by hand, are listed by day.</li>
+            <li>Tap the filter button to choose the period (<span class="ui">Today</span>, <span class="ui">Yesterday</span>, <span class="ui">This Week</span>, <span class="ui">Last Week</span>, <span class="ui">This Month</span> or <span class="ui">Custom Dates</span>), one service, or <span class="ui">Not Billed</span> or <span class="ui">Invoiced</span> work.</li>
+            <li>The top shows the <span class="ui">Jobs</span>, the <span class="ui">Time</span> and the <span class="ui">Value</span>. Tap a job to open it and make a correction.</li>
+        </ol>
+        <div class="note">Value is at the prices recorded with each job, before discounts, tax and contracts, so it can differ from what an invoice comes to.</div>
+    </div>
+
     <div class="card" id="bill-work">
         <h3>Bill your unbilled work</h3>
         <ol class="steps">
             <li>Open <span class="ui">Documents</span>, tap <span class="ui">+</span>, and choose <span class="ui">Bill Unbilled Work</span>.</li>
             <li>Choose <span class="ui">This Month</span>, <span class="ui">Last Month</span> or <span class="ui">All Unbilled</span>. Untick any client you're not billing yet.</li>
             <li>Tap <span class="ui">Create Draft Invoices</span> (it shows how many and the total). Each client gets one draft, a line per service done, with its day.</li>
-            <li>Check each draft in <span class="ui">Documents</span>, then send it.</li>
+            <li>Check each draft in <span class="ui">Documents</span>, then send it. <span class="ui">Search Documents</span> finds one by client, invoice number or notes, and the filter button sorts the list by <span class="ui">Newest</span>, <span class="ui">Due Date</span>, <span class="ui">Amount</span> or <span class="ui">Client</span>.</li>
         </ol>
     </div>
 
@@ -271,11 +283,26 @@
             <li>There too, choose your <span class="ui">Payment Terms</span>: <span class="ui">Due on receipt</span>, or <span class="ui">Net 7</span> to <span class="ui">Net 60</span> days. New invoices are due that many days after they're made, and their PDFs say so. You can still change the due date on any invoice; invoices already made keep theirs.</li>
         </ol>
     </div>
+
+    <div class="card" id="expenses-mileage">
+        <h3>Log expenses and mileage</h3>
+        <ol class="steps">
+            <li>On <span class="ui">Home</span>, tap <span class="ui">Expenses</span> under Quick Actions.</li>
+            <li>Tap <span class="ui">+</span> and <span class="ui">Add Expense</span>. Enter the amount, pick a category (<span class="ui">Fuel</span>, <span class="ui">Materials</span>, <span class="ui">Equipment &amp; Repairs</span> or <span class="ui">Other</span>) and say what you bought: PlowR suggests what you've typed before. For materials you can add a quantity and unit. A client or route is optional.</li>
+            <li>To keep the receipt, tap <span class="ui">Add Receipt</span> while adding or changing an expense: <span class="ui">Take Photo</span> or <span class="ui">Choose Photo</span>. Tap the photo to see it full screen; <span class="ui">Replace Receipt</span> and <span class="ui">Remove Receipt</span> are below it. Expenses with a receipt show a paperclip in the list.</li>
+            <li>Tap <span class="ui">+</span> and <span class="ui">Log Mileage</span> for a business trip: the distance, what it was for (a supply run, say) and, if you like, the route or client.</li>
+            <li>Switch between <span class="ui">Expenses</span> and <span class="ui">Mileage</span> at the top. Both are listed by month, newest first, with each month's total. Tap one to change it; swipe left to delete it.</li>
+            <li>The <span class="ui">Summary</span> at the top shows <span class="ui">Income</span> (money received in the period), <span class="ui">Spent</span>, <span class="ui">Net</span> (income less spent), what you spent in each category and the distance you logged. Tap the period to change it: <span class="ui">This Month</span>, <span class="ui">Last Month</span>, <span class="ui">This Year</span>, <span class="ui">Last Year</span> and <span class="ui">Last 12 Months</span>, plus <span class="ui">This Season</span> and <span class="ui">Last Season</span> once you set <span class="ui">Season Starts</span> in <span class="ui">Settings → Business Profile</span>.</li>
+            <li>At tax time, open <span class="ui">Settings → Export Data</span> and send the <span class="ui">Expenses</span> and <span class="ui">Mileage</span> files to your accountant. The Expenses file says which have a receipt; the photos stay in PlowR.</li>
+        </ol>
+        <div class="note">PlowR doesn't track mileage by GPS: type the distance from your odometer or a map.</div>
+    </div>
 </section>
 
 <section id="tips">
     <h2>Quick tips</h2>
     <div class="tips">
+        <div class="tip" id="search"><strong>🔍 Search everything from Home</strong><span>Tap the magnifying glass on <span class="ui">Home</span> to search your clients, documents, routes and jobs at once: a name, an invoice number, a route or a word from a job's notes. Tap a result to open it.</span></div>
         <div class="tip" id="siri"><strong>🗣️ Hands-free with Siri</strong><span>"Complete current stop in PlowR" or "Notify next client in PlowR". Completing with Siri records the visit, not services: add them in <span class="ui">Record Services</span>.</span></div>
         <div class="tip" id="control-center"><strong>🎛️ Control Center</strong><span>Add Complete Current Stop to Control Center to finish a stop in one tap. It records the visit, not services: add them in <span class="ui">Record Services</span>.</span></div>
         <div class="tip" id="widget"><strong>📱 Today's Route widget</strong><span>See your progress and next stop on your Home Screen.</span></div>
