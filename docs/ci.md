@@ -63,7 +63,7 @@ longer gates `main`: GitHub Actions `Unit tests (iOS)` does.
 | Start condition | **Pull Request Changes**, source `Any Branch`, target `main`, starts if any file changes |
 | Auto-cancel | On. A newer push to the same branch cancels the running build. |
 | Action | **Test - iOS**, scheme `PlowR`, **Required to Pass**, Test Option `Test (Use Scheme Setting)`, 1 destination: **iPhone 17** simulator, latest iOS |
-| Environment | Xcode **26.6 (17F113)**, macOS **Tahoe 26.5.1**, pinned, not `Latest Release` (as it was when retired; a re-created workflow uses Xcode 27, as Release Flow does) |
+| Environment | Xcode **26.6 (17F113)**, macOS **Tahoe 26.5.1**, pinned, as it was when retired. A re-created workflow uses Latest Release, as Release Flow does. |
 | Clean | **Off**, so caches are restored and runs stay fast |
 | Notifies | Slack `#plowr-ci`, all successes and failures |
 
@@ -77,7 +77,7 @@ scheme's Test action changes CI coverage with no edit here.
 | --- | --- |
 | Start condition | **Manual Start** only, restricted to **`main`**. Pull Request and Tag **Not Enabled**. |
 | Action | **Archive - iOS**, scheme `PlowR`, Distribution Preparation **TestFlight and App Store** |
-| Environment | Xcode **27.2 (27B52)** with the macOS Xcode Cloud offers for it, pinned (since 2026-11; it was Xcode 26.6 / Tahoe 26.5.1 through 1.10.0, whose upload Apple warned about: ITMS-90725, iOS 27 SDK required from April 2027) |
+| Environment | Xcode **Latest Release** (not beta), since 2026-11-25: Xcode 27 today. It was pinned to Xcode 26.6 / Tahoe 26.5.1 through 1.10.0, whose upload Apple warned about (ITMS-90725: the iOS 27 SDK is required from April 2027). Not pinned, so a new Xcode reaches release builds by itself: when a new major Xcode ships, move `tests.yml` to it too, so the tests check what ships. |
 | Clean | **On**. Slower, but a release build must not depend on a cache. |
 | Post-action | **TestFlight Internal Testing** to the internal tester group |
 | Notifies | Slack `#plowr-releases`, all successes and failures |
@@ -95,7 +95,8 @@ archive a feature branch straight to TestFlight.
 - **One build-number counter for the whole app.** Every `CI Tests` run uses up
   a number, just as an archive does. Never predict the next build number; read
   it off the finished archive. Xcode Cloud ignores `CURRENT_PROJECT_VERSION`.
-- **Pinned toolchains get retired.** Pinning makes a toolchain change a dated,
+- **Pinned toolchains get retired** (Release Flow is on Latest Release since
+  2026-11-25, so this applies only to a pinned workflow). Pinning makes a toolchain change a dated,
   deliberate edit instead of a silent one. The cost: Apple periodically
   removes old macOS images. When that happens, the parent `PlowR | CI Tests`
   status fails within seconds and no `… | Test - iOS` check-run ever appears,
@@ -134,8 +135,8 @@ screen doesn't match a step, stop and tell Claude what you see.
 6. Choose the product **PlowR** and click **Next**. Xcode proposes a
    default workflow. Click **Edit Workflow**.
 7. **General**: set Name to `CI Tests`.
-8. **Environment**: set Xcode Version to **27.2 (27B52)**, not "Latest
-   Release", and the newest macOS offered with it; tell Claude which one.
+8. **Environment**: set Xcode Version to **Latest Release** (not a beta),
+   as Release Flow uses, and macOS to what it pairs with.
 9. **Start Conditions**: delete the default "Branch Changes" condition. Add
    **Pull Request Changes** with Source `Any Branch`, Target `main`, "Start a
    build for any changes". Turn **Auto-cancel Builds** on.
