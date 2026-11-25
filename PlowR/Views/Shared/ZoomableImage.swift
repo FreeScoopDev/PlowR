@@ -5,6 +5,8 @@ import UIKit
 /// a double tap: a client's photo, an expense's receipt.
 struct ZoomableImage: View {
     let image: UIImage
+    /// What VoiceOver reads for the photo, such as "Receipt photo".
+    let label: String
 
     @State private var scale: CGFloat = 1.0
     @State private var lastScale: CGFloat = 1.0
@@ -13,6 +15,7 @@ struct ZoomableImage: View {
         Image(uiImage: image)
             .resizable()
             .scaledToFit()
+            .accessibilityLabel(label)
             .scaleEffect(scale)
             .gesture(
                 MagnificationGesture()

@@ -227,7 +227,7 @@ private struct PhotoDetailView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     if let img = image {
-                        ZoomableImage(image: img)
+                        ZoomableImage(image: img, label: "Photo")
                             .padding()
                     }
                     VStack(alignment: .leading, spacing: 8) {
