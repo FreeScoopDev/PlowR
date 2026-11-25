@@ -241,9 +241,17 @@ struct ExpensesView: View {
                     Text(Expenses.name(of: expense))
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(PlowRColor.ink)
-                    Text(detail(date: expense.date, clientName: expense.clientName, routeName: expense.routeName))
-                        .font(.caption)
-                        .foregroundStyle(PlowRColor.inkSecondary)
+                    HStack(spacing: PlowRLayout.space1) {
+                        // Read from the receipt's time, so the list never
+                        // loads the photos (Expense.hasReceipt).
+                        if expense.hasReceipt {
+                            Image(systemName: PlowRSymbol.receiptPhoto.name)
+                                .accessibilityLabel("Receipt")
+                        }
+                        Text(detail(date: expense.date, clientName: expense.clientName, routeName: expense.routeName))
+                    }
+                    .font(.caption)
+                    .foregroundStyle(PlowRColor.inkSecondary)
                 }
             }
             Spacer(minLength: PlowRLayout.space2)

@@ -127,6 +127,33 @@ enum PhotoCapture {
         return CapturedPhoto(image: image, capturedAt: captureTime(exif: exif, timeZone: timeZone)?.date ?? now,
                              source: .camera)
     }
+
+    // MARK: - Ready to save
+
+    /// A camera photo as it's stored (the client's gallery, an expense's
+    /// receipt): a JPEG, with the shutter time. Nil if it can't be encoded.
+    static func saving(camera image: UIImage, metadata: [String: Any]?, now: Date = .now,
+                       timeZone: TimeZone = .current) -> PhotoToSave? {
+        guard let data = image.jpegData(compressionQuality: 0.85) else { return nil }
+        return PhotoToSave(data: data, capture: fromCamera(image, metadata: metadata, now: now, timeZone: timeZone))
+    }
+
+    /// A library photo as it's stored: its file without the location, made
+    /// off the main thread (a large photo can need encoding again), with the
+    /// time read from the original. Nil when it isn't an image or the
+    /// location couldn't be taken out: such a photo isn't kept.
+    static func saving(library data: Data, timeZone: TimeZone = .current) async -> PhotoToSave? {
+        guard let kept = await Task.detached(operation: { removingLocation(from: data) }).value,
+              let capture = fromLibrary(data, timeZone: timeZone) else { return nil }
+        return PhotoToSave(data: kept, capture: capture)
+    }
+}
+
+/// A photo's file as it will be saved, and when it was taken.
+struct PhotoToSave {
+    /// A JPEG from the camera, or a library photo's file without its location.
+    let data: Data
+    let capture: CapturedPhoto
 }
 
 extension StopPhoto {

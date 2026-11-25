@@ -310,10 +310,11 @@
           "steps": [
             "On **Home**, tap **Expenses** under Quick Actions.",
             "Tap **+** and **Add Expense**. Enter the amount, pick a category (**Fuel**, **Materials**, **Equipment & Repairs** or **Other**) and say what you bought: PlowR suggests what you've typed before. For materials you can add a quantity and unit. A client or route is optional.",
+            "To keep the receipt, tap **Add Receipt** while adding or changing an expense: **Take Photo** or **Choose Photo**. Tap the photo to see it full screen; **Replace Receipt** and **Remove Receipt** are below it. Expenses with a receipt show a paperclip in the list.",
             "Tap **+** and **Log Mileage** for a business trip: the distance, what it was for (a supply run, say) and, if you like, the route or client.",
             "Switch between **Expenses** and **Mileage** at the top. Both are listed by month, newest first, with each month's total. Tap one to change it; swipe left to delete it.",
             "The **Summary** at the top shows **Income** (money received in the period), **Spent**, **Net** (income less spent), what you spent in each category and the distance you logged. Tap the period to change it: **This Month**, **Last Month**, **This Year**, **Last Year** and **Last 12 Months**, plus **This Season** and **Last Season** once you set **Season Starts** in **Settings → Business Profile**.",
-            "At tax time, open **Settings → Export Data** and send the **Expenses** and **Mileage** files to your accountant."
+            "At tax time, open **Settings → Export Data** and send the **Expenses** and **Mileage** files to your accountant. The Expenses file says which have a receipt; the photos stay in PlowR."
           ],
           "note": "PlowR doesn't track mileage by GPS: type the distance from your odometer or a map."
         }

@@ -65,4 +65,38 @@ struct PhotoLocationTests {
     @Test func somethingThatIsntAnImageIsNotKept() {
         #expect(PhotoCapture.removingLocation(from: Data("not an image".utf8)) == nil)
     }
+
+    // The step the client's gallery and an expense's receipt share
+    // (PhotoCapture.saving): a picked photo is kept without its location,
+    // with the time read from the original file.
+    @MainActor @Test func aPickedPhotoIsSavedWithoutItsLocationAndWithItsTime() async throws {
+        var properties = gps
+        properties[kCGImagePropertyExifDictionary] = [kCGImagePropertyExifDateTimeOriginal: "2027:01:14 04:55:00"]
+        let tagged = try image(type: .jpeg, properties: properties)
+        let utc = try #require(TimeZone(identifier: "UTC"))
+        let saved = try #require(await PhotoCapture.saving(library: tagged, timeZone: utc))
+        let stripped: Bool = !PhotoCapture.hasLocation(saved.data)
+        #expect(stripped)
+        let expected = Date(timeIntervalSince1970: 1_799_902_500)   // 2027-01-14 04:55:00 UTC
+        #expect(saved.capture.capturedAt == expected)
+        #expect(saved.capture.source == .fileAssumedZone)
+    }
+
+    @MainActor @Test func aPickedFileThatIsntAnImageIsRefused() async {
+        let saved = await PhotoCapture.saving(library: Data("not an image".utf8))
+        #expect(saved == nil)
+    }
+
+    // A camera photo is saved as a JPEG with the shutter time.
+    @MainActor @Test func aCameraPhotoIsSavedAsAJPEGAtTheShutter() throws {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let picture = UIGraphicsImageRenderer(size: CGSize(width: 4, height: 4), format: format).image { _ in }
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let saved = try #require(PhotoCapture.saving(camera: picture, metadata: nil, now: now))
+        let source = try #require(CGImageSourceCreateWithData(saved.data as CFData, nil))
+        #expect(CGImageSourceGetType(source) as String? == UTType.jpeg.identifier)
+        #expect(saved.capture.capturedAt == now)
+        #expect(saved.capture.source == .camera)
+    }
 }
