@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import PhotosUI
 
 /// Adds or changes an expense (Home → Expenses).
 struct ExpenseEditView: View {
@@ -28,6 +29,21 @@ struct ExpenseEditView: View {
     @State private var showingDiscardConfirm = false
     @State private var showingDeleteConfirm = false
 
+    // The receipt photo, saved with the expense (Save), so Cancel keeps the
+    // old one. Loaded once the editor appears, not in init.
+    @State private var receipt = ReceiptDraft()
+    @State private var receiptImage: UIImage?
+    @State private var receiptLoaded = false
+    /// A chosen photo is still being read: Save waits for it, or the
+    /// receipt would be dropped without a word.
+    @State private var loadingReceipt = false
+    @State private var showingCamera = false
+    @State private var showingLibraryPicker = false
+    @State private var pickerItem: PhotosPickerItem?
+    @State private var showingReceipt = false
+    @State private var showingRemoveReceiptConfirm = false
+    @State private var showingPhotoRefused = false
+
     init(editing: Expense? = nil, operatorID: String) {
         self.editing = editing
         self.operatorID = operatorID
@@ -46,15 +62,17 @@ struct ExpenseEditView: View {
 
     private var amount: Double? { Expenses.amount(typed: amountText) }
     private var quantity: Double? { category == .materials ? Expenses.quantity(typed: quantityText) : 0 }
-    private var canSave: Bool { amount != nil && quantity != nil }
+    private var canSave: Bool { amount != nil && quantity != nil && !loadingReceipt }
 
     private var hasChanges: Bool {
         guard let editing else {
             return !amountText.isEmpty || !item.isEmpty || !note.isEmpty || !clientID.isEmpty || !routeID.isEmpty
+                || receipt.changed
         }
         return date != editing.date || amount != editing.amount || category != editing.category
             || item != editing.item || clientID != editing.clientID || routeID != editing.routeID
             || note != editing.note || unit != editing.unit || quantity != editing.quantity
+            || receipt.changed
     }
 
     private var suggestions: [String] {
@@ -144,6 +162,31 @@ struct ExpenseEditView: View {
                 }
                 .listRowBackground(PlowRColor.surface)
 
+                Section {
+                    if loadingReceipt {
+                        HStack(spacing: PlowRLayout.space3) {
+                            ProgressView()
+                            Text("Adding Receipt…")
+                                .foregroundStyle(PlowRColor.inkSecondary)
+                        }
+                        .accessibilityElement(children: .combine)
+                    } else if receipt.data != nil {
+                        Button { showingReceipt = true } label: { receiptThumbnail }
+                            .disabled(receiptImage == nil)
+                        receiptMenu("Replace Receipt", systemImage: "arrow.triangle.2.circlepath")
+                        Button(role: .destructive) { showingRemoveReceiptConfirm = true } label: {
+                            Label("Remove Receipt", systemImage: PlowRSymbol.delete.name)
+                        }
+                    } else {
+                        receiptMenu("Add Receipt", systemImage: "camera")
+                    }
+                } header: {
+                    SectionTitle("Receipt")
+                } footer: {
+                    SectionNote("A photo of the receipt, kept with this expense. A picked photo's location isn't kept.")
+                }
+                .listRowBackground(PlowRColor.surface)
+
                 if editing != nil {
                     Section {
                         Button("Delete Expense", role: .destructive) { showingDeleteConfirm = true }
@@ -167,6 +210,45 @@ struct ExpenseEditView: View {
                 }
             }
             .interactiveDismissDisabled(hasChanges)
+            .onAppear(perform: loadReceipt)
+            .photosPicker(isPresented: $showingLibraryPicker, selection: $pickerItem, matching: .images)
+            .onChange(of: pickerItem) { _, newItem in
+                guard let newItem else { return }
+                loadingReceipt = true
+                Task {
+                    defer { loadingReceipt = false }
+                    // Without its location; the time is read from the original.
+                    if let data = try? await newItem.loadTransferable(type: Data.self),
+                       let photo = await PhotoCapture.saving(library: data) {
+                        useReceipt(photo)
+                    } else {
+                        showingPhotoRefused = true
+                    }
+                    pickerItem = nil
+                }
+            }
+            .sheet(isPresented: $showingCamera) {
+                CameraPicker { image, metadata in
+                    if let photo = PhotoCapture.saving(camera: image, metadata: metadata) { useReceipt(photo) }
+                }
+            }
+            .fullScreenCover(isPresented: $showingReceipt) {
+                if let receiptImage {
+                    ReceiptPhotoView(image: receiptImage, capturedAt: receipt.capturedAt)
+                }
+            }
+            .confirmationDialog("Remove the receipt photo?", isPresented: $showingRemoveReceiptConfirm,
+                                titleVisibility: .visible) {
+                Button("Remove Receipt", role: .destructive, action: removeReceipt)
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("It's removed when you save this expense.")
+            }
+            .alert("This Photo Can't Be Used", isPresented: $showingPhotoRefused) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text("PlowR couldn't read it, or couldn't save it without its location. Try another photo.")
+            }
             .confirmationDialog("Discard changes?", isPresented: $showingDiscardConfirm, titleVisibility: .visible) {
                 Button("Discard", role: .destructive) { dismiss() }
                 Button("Keep Editing", role: .cancel) { }
@@ -179,6 +261,69 @@ struct ExpenseEditView: View {
                 Text("This can't be undone.")
             }
         }
+    }
+
+    // MARK: - Receipt
+
+    private var receiptThumbnail: some View {
+        HStack(spacing: PlowRLayout.space3) {
+            Group {
+                if let receiptImage {
+                    Image(uiImage: receiptImage)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    Image(systemName: PlowRSymbol.receiptPhoto.name)
+                        .foregroundStyle(PlowRColor.inkSecondary)
+                }
+            }
+            .frame(width: 64, height: 64)
+            .background(PlowRColor.raised)
+            .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerSmall, style: .continuous))
+            VStack(alignment: .leading, spacing: 2) {
+                Text("View Receipt")
+                    .foregroundStyle(PlowRColor.ink)
+                if let capturedAt = receipt.capturedAt {
+                    Text(capturedAt, format: .dateTime.month(.abbreviated).day().year().hour().minute())
+                        .font(.caption)
+                        .foregroundStyle(PlowRColor.inkSecondary)
+                }
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    /// Take Photo (only with a camera: CameraPicker) or Choose Photo.
+    private func receiptMenu(_ title: String, systemImage: String) -> some View {
+        Menu {
+            if CameraPicker.isAvailable {
+                Button { showingCamera = true } label: {
+                    Label("Take Photo", systemImage: PlowRSymbol.takePhoto.name)
+                }
+            }
+            Button { showingLibraryPicker = true } label: {
+                Label("Choose Photo", systemImage: PlowRSymbol.choosePhoto.name)
+            }
+        } label: {
+            Label(title, systemImage: systemImage)
+        }
+    }
+
+    private func loadReceipt() {
+        guard !receiptLoaded else { return }
+        receiptLoaded = true
+        receipt = ReceiptDraft(from: editing)
+        receiptImage = receipt.data.flatMap { UIImage(data: $0) }
+    }
+
+    private func useReceipt(_ photo: PhotoToSave) {
+        receipt.use(photo.data, capturedAt: photo.capture.capturedAt)
+        receiptImage = photo.capture.image
+    }
+
+    private func removeReceipt() {
+        receipt.remove()
+        receiptImage = nil
     }
 
     private func save() {
@@ -199,6 +344,7 @@ struct ExpenseEditView: View {
         expense.routeID = routeID
         expense.routeName = routeName
         expense.note = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        receipt.apply(to: expense)
         try? modelContext.save()
         Haptics.success()
         dismiss()
@@ -209,5 +355,37 @@ struct ExpenseEditView: View {
         modelContext.delete(editing)
         try? modelContext.save()
         dismiss()
+    }
+}
+
+/// A receipt photo, full screen: pinch or double-tap to zoom.
+private struct ReceiptPhotoView: View {
+    let image: UIImage
+    let capturedAt: Date?
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: PlowRLayout.space4) {
+                    ZoomableImage(image: image)
+                        .padding()
+                    if let capturedAt {
+                        LabeledContent("Photo Date") {
+                            Text(capturedAt, format: .dateTime.month(.abbreviated).day().year().hour().minute())
+                        }
+                        .padding(.horizontal)
+                    }
+                }
+            }
+            .background(PlowRColor.ground)
+            .navigationTitle("Receipt")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
     }
 }

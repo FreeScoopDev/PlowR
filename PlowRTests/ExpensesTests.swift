@@ -138,6 +138,85 @@ struct ExpensesTests {
         expense.categoryRaw = "from a newer PlowR"
         #expect(expense.category == .other)
     }
+
+    // A receipt photo and its time are kept together: saved and read back
+    // in a fresh context, the time is still there (the list's mark and the
+    // export read it), and Remove clears both.
+    @Test func aSavedExpenseKeepsItsReceiptTime() throws {
+        let taken = Date(timeIntervalSince1970: 1_800_000_000)
+        let expense = Expense(operatorID: "op", amount: 12, category: .materials)
+        context.insert(expense)
+        expense.setReceipt(Data([1, 2, 3]), capturedAt: taken)
+        try context.save()
+
+        let fresh = ModelContext(container)
+        let saved = try #require(try fresh.fetch(FetchDescriptor<Expense>()).first)
+        #expect(saved.receiptCapturedAt == taken)
+        #expect(saved.receiptData == Data([1, 2, 3]))
+        #expect(saved.hasReceipt)
+
+        expense.setReceipt(nil, capturedAt: taken)
+        #expect(expense.receiptData == nil)
+        #expect(expense.receiptCapturedAt == nil)
+        #expect(!expense.hasReceipt)
+    }
+
+    // A library photo whose file has no time is dated when it was added,
+    // so it still counts as a receipt.
+    @Test func aReceiptWithNoTimeIsDatedWhenAdded() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let expense = Expense(operatorID: "op")
+        expense.setReceipt(Data([9]), capturedAt: nil, now: now)
+        #expect(expense.receiptCapturedAt == now)
+        #expect(expense.hasReceipt)
+    }
+
+    // The editor's receipt (ReceiptDraft): Save leaves an untouched receipt
+    // as it was, puts a new photo on, and takes a removed one off.
+    @Test func anUntouchedReceiptDraftLeavesTheExpenseAlone() {
+        let taken = Date(timeIntervalSince1970: 1_800_000_000)
+        let expense = Expense(operatorID: "op")
+        expense.setReceipt(Data([1, 2, 3]), capturedAt: taken)
+        // Not yet loaded: an apply that wrote anyway would clear the photo.
+        let draft = ReceiptDraft()
+        draft.apply(to: expense)
+        let data: Data? = expense.receiptData
+        let time: Date? = expense.receiptCapturedAt
+        #expect(data == Data([1, 2, 3]))
+        #expect(time == taken)
+        #expect(!draft.changed)
+    }
+
+    @Test func aChangedReceiptDraftReplacesThePhoto() {
+        let old = Date(timeIntervalSince1970: 1_800_000_000)
+        let new = Date(timeIntervalSince1970: 1_800_100_000)
+        let expense = Expense(operatorID: "op")
+        expense.setReceipt(Data([1, 2, 3]), capturedAt: old)
+        var draft = ReceiptDraft(from: expense)
+        let loaded: Data? = draft.data
+        #expect(loaded == Data([1, 2, 3]))
+        #expect(!draft.changed)
+        draft.use(Data([7, 8]), capturedAt: new)
+        draft.apply(to: expense)
+        let data: Data? = expense.receiptData
+        let time: Date? = expense.receiptCapturedAt
+        #expect(data == Data([7, 8]))
+        #expect(time == new)
+    }
+
+    @Test func aRemovedReceiptDraftTakesThePhotoOff() {
+        let expense = Expense(operatorID: "op")
+        expense.setReceipt(Data([1, 2, 3]), capturedAt: Date(timeIntervalSince1970: 1_800_000_000))
+        var draft = ReceiptDraft(from: expense)
+        draft.remove()
+        let shown: Data? = draft.data
+        #expect(shown == nil)
+        draft.apply(to: expense)
+        let data: Data? = expense.receiptData
+        #expect(data == nil)
+        #expect(expense.receiptCapturedAt == nil)
+        #expect(!expense.hasReceipt)
+    }
 }
 
 /// The mileage log: units and totals. Distances are typed, never measured.

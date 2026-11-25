@@ -302,6 +302,22 @@ struct ExpenseExportTests {
         #expect(lines[2] == "2026-11-20,Materials,\"Bagged mulch, 40 lb\",12,bags,120.50,Pat Doe,North,'=SUM(A1:A9),Yes")
     }
 
+    // A receipt added in the editor (setReceipt) reads Yes, even from a
+    // library photo whose file has no time; removed, it reads blank again.
+    @Test func aReceiptAddedOrRemovedShowsInTheExport() throws {
+        let h = try Harness(stopCount: 1)
+        let fuel = Expense(operatorID: "op", date: try day(2026, 11, 2), amount: 45.2, category: .fuel)
+        h.context.insert(fuel)
+        fuel.setReceipt(Data([1, 2, 3]), capturedAt: nil)
+        let added: [String] = rows(CSVExport.expenses([fuel], operatorID: "op"))
+        let withReceipt: String = "2026-11-02,Fuel,,,,45.20,,,,Yes"
+        #expect(added.last == withReceipt)
+        fuel.setReceipt(nil, capturedAt: nil)
+        let removed: [String] = rows(CSVExport.expenses([fuel], operatorID: "op"))
+        let without: String = "2026-11-02,Fuel,,,,45.20,,,,"
+        #expect(removed.last == without)
+    }
+
     @Test func mileageIsThisOperatorsOldestFirstInItsOwnUnit() throws {
         let h = try Harness(stopCount: 1)
         let later = MileageEntry(operatorID: "op", date: try day(2026, 11, 20), distance: 12.5, unit: .miles,
