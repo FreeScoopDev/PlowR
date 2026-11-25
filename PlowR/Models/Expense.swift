@@ -77,6 +77,47 @@ final class Expense {
     }
 }
 
+/// The expense editor's receipt until Save: what it shows, and whether the
+/// user changed it. Save writes it only when changed, since writing the same
+/// photo again would send it to iCloud again; Cancel leaves the expense's
+/// receipt as it was.
+struct ReceiptDraft {
+    private(set) var data: Data?
+    private(set) var capturedAt: Date?
+    private(set) var changed = false
+
+    /// No photo yet (a new expense, or before the editor loads one).
+    init() { }
+
+    /// The expense's photo as it is (nil: a new expense).
+    init(from expense: Expense?) {
+        guard let expense, expense.hasReceipt, let data = expense.receiptData else { return }
+        self.data = data
+        capturedAt = expense.receiptCapturedAt
+    }
+
+    /// A photo taken or chosen in the editor, in place of any other.
+    mutating func use(_ data: Data, capturedAt: Date?) {
+        self.data = data
+        self.capturedAt = capturedAt
+        changed = true
+    }
+
+    /// Remove Receipt.
+    mutating func remove() {
+        data = nil
+        capturedAt = nil
+        changed = true
+    }
+
+    /// Save: puts the photo on the expense, or takes it off, only if the
+    /// user changed it.
+    func apply(to expense: Expense, now: Date = .now) {
+        guard changed else { return }
+        expense.setReceipt(data, capturedAt: capturedAt, now: now)
+    }
+}
+
 /// What an expense was for. Neutral across snow, lawn and landscaping work:
 /// what was bought is the expense's own `item`.
 nonisolated enum ExpenseCategory: String, CaseIterable, Identifiable {

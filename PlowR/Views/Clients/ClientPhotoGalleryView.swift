@@ -104,13 +104,13 @@ struct ClientPhotoGalleryView: View {
                 Button {
                     $gate.unless(ProGate.edit(access)) { showingCamera = true }
                 } label: {
-                    Label("Take Photo", systemImage: "camera.fill")
+                    Label("Take Photo", systemImage: PlowRSymbol.takePhoto.name)
                 }
             }
             Button {
                 $gate.unless(ProGate.edit(access)) { showingLibraryPicker = true }
             } label: {
-                Label("Choose from Library", systemImage: "photo.on.rectangle")
+                Label("Choose from Library", systemImage: PlowRSymbol.choosePhoto.name)
             }
         } label: {
             Image(systemName: "plus")
@@ -179,14 +179,14 @@ struct ClientPhotoGalleryView: View {
                     Button {
                         $gate.unless(ProGate.edit(access)) { showingCamera = true }
                     } label: {
-                        Label("Take Photo", systemImage: "camera.fill")
+                        Label("Take Photo", systemImage: PlowRSymbol.takePhoto.name)
                     }
                     .buttonStyle(.bordered)
                 }
                 Button {
                     $gate.unless(ProGate.edit(access)) { showingLibraryPicker = true }
                 } label: {
-                    Label("Library", systemImage: "photo.on.rectangle")
+                    Label("Library", systemImage: PlowRSymbol.choosePhoto.name)
                 }
                 .buttonStyle(.bordered)
             }

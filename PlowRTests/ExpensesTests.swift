@@ -170,6 +170,53 @@ struct ExpensesTests {
         #expect(expense.receiptCapturedAt == now)
         #expect(expense.hasReceipt)
     }
+
+    // The editor's receipt (ReceiptDraft): Save leaves an untouched receipt
+    // as it was, puts a new photo on, and takes a removed one off.
+    @Test func anUntouchedReceiptDraftLeavesTheExpenseAlone() {
+        let taken = Date(timeIntervalSince1970: 1_800_000_000)
+        let expense = Expense(operatorID: "op")
+        expense.setReceipt(Data([1, 2, 3]), capturedAt: taken)
+        // Not yet loaded: an apply that wrote anyway would clear the photo.
+        let draft = ReceiptDraft()
+        draft.apply(to: expense)
+        let data: Data? = expense.receiptData
+        let time: Date? = expense.receiptCapturedAt
+        #expect(data == Data([1, 2, 3]))
+        #expect(time == taken)
+        #expect(!draft.changed)
+    }
+
+    @Test func aChangedReceiptDraftReplacesThePhoto() {
+        let old = Date(timeIntervalSince1970: 1_800_000_000)
+        let new = Date(timeIntervalSince1970: 1_800_100_000)
+        let expense = Expense(operatorID: "op")
+        expense.setReceipt(Data([1, 2, 3]), capturedAt: old)
+        var draft = ReceiptDraft(from: expense)
+        let loaded: Data? = draft.data
+        #expect(loaded == Data([1, 2, 3]))
+        #expect(!draft.changed)
+        draft.use(Data([7, 8]), capturedAt: new)
+        draft.apply(to: expense)
+        let data: Data? = expense.receiptData
+        let time: Date? = expense.receiptCapturedAt
+        #expect(data == Data([7, 8]))
+        #expect(time == new)
+    }
+
+    @Test func aRemovedReceiptDraftTakesThePhotoOff() {
+        let expense = Expense(operatorID: "op")
+        expense.setReceipt(Data([1, 2, 3]), capturedAt: Date(timeIntervalSince1970: 1_800_000_000))
+        var draft = ReceiptDraft(from: expense)
+        draft.remove()
+        let shown: Data? = draft.data
+        #expect(shown == nil)
+        draft.apply(to: expense)
+        let data: Data? = expense.receiptData
+        #expect(data == nil)
+        #expect(expense.receiptCapturedAt == nil)
+        #expect(!expense.hasReceipt)
+    }
 }
 
 /// The mileage log: units and totals. Distances are typed, never measured.

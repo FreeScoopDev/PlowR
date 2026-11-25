@@ -31,11 +31,12 @@ struct ExpenseEditView: View {
 
     // The receipt photo, saved with the expense (Save), so Cancel keeps the
     // old one. Loaded once the editor appears, not in init.
-    @State private var receiptData: Data?
-    @State private var receiptCapturedAt: Date?
+    @State private var receipt = ReceiptDraft()
     @State private var receiptImage: UIImage?
     @State private var receiptLoaded = false
-    @State private var receiptChanged = false
+    /// A chosen photo is still being read: Save waits for it, or the
+    /// receipt would be dropped without a word.
+    @State private var loadingReceipt = false
     @State private var showingCamera = false
     @State private var showingLibraryPicker = false
     @State private var pickerItem: PhotosPickerItem?
@@ -61,17 +62,17 @@ struct ExpenseEditView: View {
 
     private var amount: Double? { Expenses.amount(typed: amountText) }
     private var quantity: Double? { category == .materials ? Expenses.quantity(typed: quantityText) : 0 }
-    private var canSave: Bool { amount != nil && quantity != nil }
+    private var canSave: Bool { amount != nil && quantity != nil && !loadingReceipt }
 
     private var hasChanges: Bool {
         guard let editing else {
             return !amountText.isEmpty || !item.isEmpty || !note.isEmpty || !clientID.isEmpty || !routeID.isEmpty
-                || receiptChanged
+                || receipt.changed
         }
         return date != editing.date || amount != editing.amount || category != editing.category
             || item != editing.item || clientID != editing.clientID || routeID != editing.routeID
             || note != editing.note || unit != editing.unit || quantity != editing.quantity
-            || receiptChanged
+            || receipt.changed
     }
 
     private var suggestions: [String] {
@@ -162,7 +163,14 @@ struct ExpenseEditView: View {
                 .listRowBackground(PlowRColor.surface)
 
                 Section {
-                    if receiptData != nil {
+                    if loadingReceipt {
+                        HStack(spacing: PlowRLayout.space3) {
+                            ProgressView()
+                            Text("Adding Receipt…")
+                                .foregroundStyle(PlowRColor.inkSecondary)
+                        }
+                        .accessibilityElement(children: .combine)
+                    } else if receipt.data != nil {
                         Button { showingReceipt = true } label: { receiptThumbnail }
                             .disabled(receiptImage == nil)
                         receiptMenu("Replace Receipt", systemImage: "arrow.triangle.2.circlepath")
@@ -206,7 +214,9 @@ struct ExpenseEditView: View {
             .photosPicker(isPresented: $showingLibraryPicker, selection: $pickerItem, matching: .images)
             .onChange(of: pickerItem) { _, newItem in
                 guard let newItem else { return }
+                loadingReceipt = true
                 Task {
+                    defer { loadingReceipt = false }
                     // Without its location; the time is read from the original.
                     if let data = try? await newItem.loadTransferable(type: Data.self),
                        let photo = await PhotoCapture.saving(library: data) {
@@ -224,7 +234,7 @@ struct ExpenseEditView: View {
             }
             .fullScreenCover(isPresented: $showingReceipt) {
                 if let receiptImage {
-                    ReceiptPhotoView(image: receiptImage, capturedAt: receiptCapturedAt)
+                    ReceiptPhotoView(image: receiptImage, capturedAt: receipt.capturedAt)
                 }
             }
             .confirmationDialog("Remove the receipt photo?", isPresented: $showingRemoveReceiptConfirm,
@@ -269,12 +279,12 @@ struct ExpenseEditView: View {
             }
             .frame(width: 64, height: 64)
             .background(PlowRColor.raised)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .clipShape(RoundedRectangle(cornerRadius: PlowRLayout.cornerSmall, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
                 Text("View Receipt")
                     .foregroundStyle(PlowRColor.ink)
-                if let receiptCapturedAt {
-                    Text(receiptCapturedAt, format: .dateTime.month(.abbreviated).day().year().hour().minute())
+                if let capturedAt = receipt.capturedAt {
+                    Text(capturedAt, format: .dateTime.month(.abbreviated).day().year().hour().minute())
                         .font(.caption)
                         .foregroundStyle(PlowRColor.inkSecondary)
                 }
@@ -288,11 +298,11 @@ struct ExpenseEditView: View {
         Menu {
             if CameraPicker.isAvailable {
                 Button { showingCamera = true } label: {
-                    Label("Take Photo", systemImage: "camera.fill")
+                    Label("Take Photo", systemImage: PlowRSymbol.takePhoto.name)
                 }
             }
             Button { showingLibraryPicker = true } label: {
-                Label("Choose Photo", systemImage: "photo.on.rectangle")
+                Label("Choose Photo", systemImage: PlowRSymbol.choosePhoto.name)
             }
         } label: {
             Label(title, systemImage: systemImage)
@@ -302,24 +312,18 @@ struct ExpenseEditView: View {
     private func loadReceipt() {
         guard !receiptLoaded else { return }
         receiptLoaded = true
-        guard let editing, editing.hasReceipt, let data = editing.receiptData else { return }
-        receiptData = data
-        receiptCapturedAt = editing.receiptCapturedAt
-        receiptImage = UIImage(data: data)
+        receipt = ReceiptDraft(from: editing)
+        receiptImage = receipt.data.flatMap { UIImage(data: $0) }
     }
 
     private func useReceipt(_ photo: PhotoToSave) {
-        receiptData = photo.data
-        receiptCapturedAt = photo.capture.capturedAt
+        receipt.use(photo.data, capturedAt: photo.capture.capturedAt)
         receiptImage = photo.capture.image
-        receiptChanged = true
     }
 
     private func removeReceipt() {
-        receiptData = nil
-        receiptCapturedAt = nil
+        receipt.remove()
         receiptImage = nil
-        receiptChanged = true
     }
 
     private func save() {
@@ -340,9 +344,7 @@ struct ExpenseEditView: View {
         expense.routeID = routeID
         expense.routeName = routeName
         expense.note = note.trimmingCharacters(in: .whitespacesAndNewlines)
-        // Only when it changed: writing the same photo again would send it
-        // to iCloud again.
-        if receiptChanged { expense.setReceipt(receiptData, capturedAt: receiptCapturedAt) }
+        receipt.apply(to: expense)
         try? modelContext.save()
         Haptics.success()
         dismiss()

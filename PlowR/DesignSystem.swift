@@ -329,6 +329,10 @@ nonisolated enum PlowRSymbol: String, CaseIterable {
     case otherExpense = "tag.fill"
     /// An expense with a photo of its receipt (its row's mark).
     case receiptPhoto = "paperclip"
+    /// Take Photo (the camera), wherever a photo is added.
+    case takePhoto = "camera.fill"
+    /// Choose Photo (the photo library), wherever a photo is added.
+    case choosePhoto = "photo.on.rectangle"
     /// A trip in the mileage log.
     case mileage = "car.fill"
 
