@@ -28,21 +28,18 @@ enum ExpenseSummary {
 
         var isSeason: Bool { self == .thisSeason || self == .lastSeason }
 
-        /// The menu's periods: the two seasons when a season start month is
-        /// set (1–12, as `BusinessProfiles.seasonStartMonth` reads it), Last
-        /// 12 Months in their place when not.
+        /// The menu's periods: always Last 12 Months, plus the two seasons
+        /// when a season start month is set (1–12, as
+        /// `BusinessProfiles.seasonStartMonth` reads it).
         static func choices(seasonStartMonth: Int) -> [Period] {
             let seasons = (1...12).contains(seasonStartMonth)
-            return allCases.filter { seasons ? $0 != .last12Months : !$0.isSeason }
+            return allCases.filter { seasons || !$0.isSeason }
         }
 
         /// This period if the menu offers it, else its stand-in: a season
-        /// chosen before Season Starts was cleared reads as Last 12 Months,
-        /// and Last 12 Months as This Season once it's set.
+        /// chosen before Season Starts was cleared reads as Last 12 Months.
         func available(seasonStartMonth: Int) -> Period {
-            let choices = Self.choices(seasonStartMonth: seasonStartMonth)
-            if choices.contains(self) { return self }
-            return isSeason ? .last12Months : .thisSeason
+            Self.choices(seasonStartMonth: seasonStartMonth).contains(self) ? self : .last12Months
         }
 
         /// Its dates, from the start up to but not including the end. A

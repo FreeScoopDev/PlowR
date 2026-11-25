@@ -78,7 +78,7 @@ struct ExpenseEditView: View {
         NavigationStack {
             Form {
                 Section {
-                    DatePicker("Date", selection: $date, displayedComponents: .date)
+                    DatePicker("Date", selection: $date, in: ...Date.now, displayedComponents: .date)
                     LabeledContent("Amount") {
                         TextField(Money.text(0), text: $amountText)
                             .keyboardType(.decimalPad)

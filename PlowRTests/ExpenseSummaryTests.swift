@@ -108,11 +108,12 @@ struct ExpenseSummaryTests {
         let set = ExpenseSummary.Period.choices(seasonStartMonth: 11)
         #expect(set.contains(.thisSeason))
         #expect(set.contains(.lastSeason))
-        #expect(!set.contains(.last12Months))
+        #expect(set.contains(.last12Months))
         let outOfRange = ExpenseSummary.Period.choices(seasonStartMonth: 13)
         #expect(outOfRange == unset)
         #expect(ExpenseSummary.Period.thisSeason.available(seasonStartMonth: 0) == .last12Months)
-        #expect(ExpenseSummary.Period.last12Months.available(seasonStartMonth: 4) == .thisSeason)
+        #expect(ExpenseSummary.Period.last12Months.available(seasonStartMonth: 4) == .last12Months)
+        #expect(ExpenseSummary.Period.lastSeason.available(seasonStartMonth: 13) == .last12Months)
         #expect(ExpenseSummary.Period.thisMonth.available(seasonStartMonth: 4) == .thisMonth)
     }
 
