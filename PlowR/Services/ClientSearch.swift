@@ -26,6 +26,14 @@ enum ClientSearch {
         text.folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: nil)
     }
 
+    /// How two names order, A to Z: capitals and accents don't order them
+    /// (no forced order, as `localizedStandardCompare` has), so equal names
+    /// tie; numbers go by value. One order for the Documents list's Client
+    /// sort and Home's Search.
+    static func nameOrder(_ a: String, _ b: String) -> ComparisonResult {
+        a.compare(b, options: [.caseInsensitive, .diacriticInsensitive, .numeric], locale: .current)
+    }
+
     /// Whether every word of `typed` is in one of `fields`. No search finds
     /// everything. The rule shared with the Documents search.
     static func matches(_ typed: String, in fields: [String], phone: String = "") -> Bool {

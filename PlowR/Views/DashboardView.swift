@@ -201,6 +201,13 @@ struct DashboardView: View {
                     .accessibilityLabel("Settings")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
+                    // One search across clients, documents, routes and jobs.
+                    NavigationLink { GlobalSearchView() } label: {
+                        Image(systemName: PlowRSymbol.search.name)
+                    }
+                    .accessibilityLabel("Search")
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     HelpToolbarButton(screen: .home)
                 }
             }
