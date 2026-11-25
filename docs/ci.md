@@ -18,7 +18,7 @@ because GitHub Pages publishes everything else in `docs/`.
 
 | | |
 | --- | --- |
-| GitHub Actions `Tests` (`.github/workflows/tests.yml`) | Removed 2026-09-27 for Xcode Cloud's `CI Tests`. **Back 2026-10-10**, job `Unit tests (iOS)` on `macos-26`: the membership's Xcode Cloud hours ran out and every `CI Tests` run was cancelled. It runs the full scheme through the toolkit's `bin/test.sh` (pinned commit). First run 9 min (965 tests, Xcode 26.6). Since 2026-10-19 each test may take 2 minutes, and the log and result bundle are uploaded when a run fails or is cancelled: a hung test had run into the job's 45 minutes with no log kept. Since 2026-11-24 the tests run one at a time (`-parallel-testing-enabled NO`, as a local run does): with parallel testing on, Swift Testing started all ~1000 tests at once in the one test process, they queued on the main thread for ~145 s, and every test's 2-minute clock ran from launch, so ~40 tests a run were cut off unseen and now and then one failed after 120.000 s, a different one each time. **Required since 2026-10-10** in place of `CI Tests`. Free on a public repo. |
+| GitHub Actions `Tests` (`.github/workflows/tests.yml`) | Removed 2026-09-27 for Xcode Cloud's `CI Tests`. **Back 2026-10-10**, job `Unit tests (iOS)` on `macos-26` (on `xcode-27`, Xcode 27, since 2026-11-25): the membership's Xcode Cloud hours ran out and every `CI Tests` run was cancelled. It runs the full scheme through the toolkit's `bin/test.sh` (pinned commit). First run 9 min (965 tests, Xcode 26.6). Since 2026-10-19 each test may take 2 minutes, and the log and result bundle are uploaded when a run fails or is cancelled: a hung test had run into the job's 45 minutes with no log kept. Since 2026-11-24 the tests run one at a time (`-parallel-testing-enabled NO`, as a local run does): with parallel testing on, Swift Testing started all ~1000 tests at once in the one test process, they queued on the main thread for ~145 s, and every test's 2-minute clock ran from launch, so ~40 tests a run were cut off unseen and now and then one failed after 120.000 s, a different one each time. **Required since 2026-10-10** in place of `CI Tests`. Free on a public repo. |
 | Xcode Cloud `CI Tests` | **Created 2026-09-26** (steps 1–13). Green on its first run (#7); failed a deliberate break (#8) as it should. **Retired 2026-10-10**: no longer required; its Pull Request start condition is to be removed in App Store Connect so it stops spending hours. |
 | Xcode Cloud `Release Flow` | **Created 2026-09-26** (steps 14–19). Never started yet. First used for PlowR's first Release Flow build. |
 | GitHub Actions `Critic verdict` (`.github/workflows/critic-verdict.yml`) | **Added 2026-10-09.** Fails a major PR (a `feat/` branch, or more than `criticMinLines` changed lines of Swift outside `PlowRTests`) whose description has no critic verdict, or a BLOCK one; re-runs when the description is edited. **Required since 2026-10-09**, after it posted on #127 and failed a deliberate break (#128: red with no verdict, red with BLOCK, green with APPROVE). |
@@ -31,7 +31,7 @@ Update this table as each row changes.
 Added 2026-10-25. The `Tests` workflow always starts, because `Unit tests
 (iOS)` is a required check and a workflow that never started would leave it
 pending forever. A small Linux job (`Classify changes`) decides whether the
-`macos-26` job runs; a skipped required job counts as passing.
+macOS job runs; a skipped required job counts as passing.
 
 | Event | macOS tests |
 | --- | --- |
@@ -63,7 +63,7 @@ longer gates `main`: GitHub Actions `Unit tests (iOS)` does.
 | Start condition | **Pull Request Changes**, source `Any Branch`, target `main`, starts if any file changes |
 | Auto-cancel | On. A newer push to the same branch cancels the running build. |
 | Action | **Test - iOS**, scheme `PlowR`, **Required to Pass**, Test Option `Test (Use Scheme Setting)`, 1 destination: **iPhone 17** simulator, latest iOS |
-| Environment | Xcode **26.6 (17F113)**, macOS **Tahoe 26.5.1**, pinned, not `Latest Release` |
+| Environment | Xcode **26.6 (17F113)**, macOS **Tahoe 26.5.1**, pinned, not `Latest Release` (as it was when retired; a re-created workflow uses Xcode 27, as Release Flow does) |
 | Clean | **Off**, so caches are restored and runs stay fast |
 | Notifies | Slack `#plowr-ci`, all successes and failures |
 
@@ -77,7 +77,7 @@ scheme's Test action changes CI coverage with no edit here.
 | --- | --- |
 | Start condition | **Manual Start** only, restricted to **`main`**. Pull Request and Tag **Not Enabled**. |
 | Action | **Archive - iOS**, scheme `PlowR`, Distribution Preparation **TestFlight and App Store** |
-| Environment | Xcode **26.6 (17F113)**, macOS **Tahoe 26.5.1**, pinned |
+| Environment | Xcode **27.2 (27B52)** with the macOS Xcode Cloud offers for it, pinned (since 2026-11; it was Xcode 26.6 / Tahoe 26.5.1 through 1.10.0, whose upload Apple warned about: ITMS-90725, iOS 27 SDK required from April 2027) |
 | Clean | **On**. Slower, but a release build must not depend on a cache. |
 | Post-action | **TestFlight Internal Testing** to the internal tester group |
 | Notifies | Slack `#plowr-releases`, all successes and failures |
@@ -134,9 +134,8 @@ screen doesn't match a step, stop and tell Claude what you see.
 6. Choose the product **PlowR** and click **Next**. Xcode proposes a
    default workflow. Click **Edit Workflow**.
 7. **General**: set Name to `CI Tests`.
-8. **Environment**: set Xcode Version to **26.6 (17F113)** and macOS Version
-   to **Tahoe 26.5.1**, not "Latest Release". If 26.5.1 isn't listed, pick
-   the newest macOS offered and tell Claude which one.
+8. **Environment**: set Xcode Version to **27.2 (27B52)**, not "Latest
+   Release", and the newest macOS offered with it; tell Claude which one.
 9. **Start Conditions**: delete the default "Branch Changes" condition. Add
    **Pull Request Changes** with Source `Any Branch`, Target `main`, "Start a
    build for any changes". Turn **Auto-cancel Builds** on.
