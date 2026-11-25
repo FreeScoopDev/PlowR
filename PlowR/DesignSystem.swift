@@ -335,6 +335,8 @@ nonisolated enum PlowRSymbol: String, CaseIterable {
     case choosePhoto = "photo.on.rectangle"
     /// A trip in the mileage log.
     case mileage = "car.fill"
+    /// Home's Search: clients, documents, routes and jobs at once.
+    case search = "magnifyingglass"
 
     /// The name, for `Image(systemName:)` and `Label(_:systemImage:)`.
     var name: String { rawValue }

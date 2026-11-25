@@ -78,11 +78,7 @@ enum DocumentList {
         case .amount:
             if a.amount != b.amount { return a.amount > b.amount }
         case .client:
-            // Capitals and accents don't order names (no forced ordering,
-            // as localizedStandardCompare has): equal names tie.
-            let order = a.clientName.compare(b.clientName,
-                                             options: [.caseInsensitive, .diacriticInsensitive, .numeric],
-                                             locale: .current)
+            let order = ClientSearch.nameOrder(a.clientName, b.clientName)
             if order != .orderedSame { return order == .orderedAscending }
         }
         if a.createdAt != b.createdAt { return a.createdAt > b.createdAt }
